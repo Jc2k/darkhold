@@ -18,7 +18,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { useMealPlan, useDeleteMealPlan, useCreateMealPlan } from '../hooks/useMealPlan';
 import { useQuery } from '@tanstack/react-query';
 import { apiGet } from '../api/client';
-import type { MealPlan, Recipe, MealType, PaginatedResponse, ShoppingList } from '../api/tandoor-types';
+import type { MealPlan, Recipe, MealType, PaginatedResponse } from '../api/tandoor-types';
 import { deriveMealType } from '../utils/mealUtils';
 import { useRecipeSearch } from '../hooks/useRecipeSearch';
 import { LoadingMascot } from '../components/LoadingMascot';
@@ -114,10 +114,9 @@ interface AddMealModalProps {
   date: string;
   onHide: () => void;
   mealTypes: MealType[];
-  shoppingListId?: number;
 }
 
-function AddMealModal({ date, onHide, mealTypes, shoppingListId }: AddMealModalProps) {
+function AddMealModal({ date, onHide, mealTypes }: AddMealModalProps) {
   const [search, setSearch] = useState('');
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [mealTypeId, setMealTypeId] = useState<number>(mealTypes[0]?.id ?? 0);
@@ -142,7 +141,7 @@ function AddMealModal({ date, onHide, mealTypes, shoppingListId }: AddMealModalP
       from_date: date,
       servings,
       ...(note ? { note } : {}),
-      ...(shoppingListId != null ? { shopping: shoppingListId as unknown as ShoppingList } : {}),
+      addshopping: true,
     });
     onHide();
   };
@@ -240,12 +239,6 @@ export function MealPlanPage() {
     queryFn: () => apiGet<PaginatedResponse<MealType>>('/meal-type/'),
   });
   const mealTypes = mealTypesData?.results ?? [];
-
-  const { data: shoppingListsData } = useQuery({
-    queryKey: ['shopping-lists'],
-    queryFn: () => apiGet<{ results: ShoppingList[] }>('/shopping-list/'),
-  });
-  const shoppingListId = shoppingListsData?.results?.[0]?.id;
 
   const sensors = useSensors(useSensor(PointerSensor));
 
@@ -358,7 +351,7 @@ export function MealPlanPage() {
 
       <EntryDetailModal entry={detailEntry} onHide={() => setDetailEntry(null)} />
       {addDate && (
-        <AddMealModal date={addDate} onHide={() => setAddDate(null)} mealTypes={mealTypes} shoppingListId={shoppingListId} />
+        <AddMealModal date={addDate} onHide={() => setAddDate(null)} mealTypes={mealTypes} />
       )}
     </div>
   );
