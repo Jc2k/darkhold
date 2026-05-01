@@ -14,6 +14,7 @@ interface ShoppingEntry {
   checked: boolean;
   ingredient_note?: string | null;
   recipe_mealplan?: { recipe_name: string } | null;
+  list_recipe_data?: { recipe_data: { name: string } } | null;
   list_recipe?: number | null;
   supermarket_category?: SupermarketCategory | null;
 }
@@ -57,7 +58,7 @@ function aggregateByIngredient(entries: ShoppingEntry[]): AggregatedIngredient[]
     const agg = map.get(key)!;
     agg.entries.push(entry);
     if (!entry.checked) agg.allChecked = false;
-    const recipeName = entry.recipe_mealplan?.recipe_name;
+    const recipeName = entry.list_recipe_data?.recipe_data.name;
     if (recipeName && !agg.recipes.includes(recipeName)) {
       agg.recipes.push(recipeName);
     }
@@ -145,12 +146,12 @@ export function ShoppingList() {
                         {notes.map((note) => (
                           <span key={note} className="text-muted small ms-1">({note})</span>
                         ))}
-                        {agg.recipes.length > 0 && (
-                          <div className="mt-1">
-                            <Badge bg="info" text="dark" style={{ fontSize: '0.65rem', cursor: 'default' }} title={agg.recipes.join('\n')}>
-                              {agg.recipes.length} {agg.recipes.length === 1 ? 'recipe' : 'recipes'}
+                        {agg.recipes.length > 1 && (
+                          <span className="ms-2">
+                            <Badge bg="secondary" style={{ fontSize: '0.65rem', cursor: 'default' }} title={agg.recipes.join('\n')}>
+                              {agg.recipes.length} recipes
                             </Badge>
-                          </div>
+                          </span>
                         )}
                       </div>
                     </div>
