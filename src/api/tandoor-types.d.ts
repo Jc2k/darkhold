@@ -20,7 +20,7 @@ export interface Food {
   description?: string;
   fdc_id?: string | null;
   food_onhand?: number;
-  supermarket_category?: number | null;
+  supermarket_category?: SupermarketCategory | number | null;
 }
 
 /** Unit of measurement */
