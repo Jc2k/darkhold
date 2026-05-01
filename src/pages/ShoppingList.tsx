@@ -143,13 +143,10 @@ export function ShoppingList() {
                           <span key={note} className="text-muted small ms-1">({note})</span>
                         ))}
                         {agg.recipes.length > 0 && (
-                          <div className="mt-1 d-flex flex-wrap align-items-center gap-1">
-                            <Badge bg="info" text="dark" style={{ fontSize: '0.65rem' }}>
+                          <div className="mt-1">
+                            <Badge bg="info" text="dark" style={{ fontSize: '0.65rem', cursor: 'default' }} title={agg.recipes.join('\n')}>
                               {agg.recipes.length} {agg.recipes.length === 1 ? 'recipe' : 'recipes'}
                             </Badge>
-                            {agg.recipes.map((r) => (
-                              <span key={r} className="text-muted" style={{ fontSize: '0.7rem' }}>{r}</span>
-                            ))}
                           </div>
                         )}
                       </div>
