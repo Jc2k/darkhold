@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useRecipeSearch } from '../hooks/useRecipeSearch';
 import { RecipeCard } from '../components/RecipeCard';
 import { MealPlanAddModal } from '../components/MealPlanAddModal';
+import { LoadingMascot } from '../components/LoadingMascot';
 import type { Recipe } from '../api/tandoor-types';
 
 export function Search() {
@@ -79,9 +80,7 @@ export function Search() {
       )}
 
       {isLoading ? (
-        <div className="text-center py-5">
-          <Spinner />
-        </div>
+        <LoadingMascot label="Searching recipes…" />
       ) : (
         <>
           <Row xs={2} md={3} lg={4} className="g-3">

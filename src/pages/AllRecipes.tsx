@@ -1,9 +1,10 @@
 import { useRef } from 'react';
-import { ListGroup, Spinner, Alert, Nav } from 'react-bootstrap';
+import { ListGroup, Alert, Nav } from 'react-bootstrap';
 import { useQuery } from '@tanstack/react-query';
 import { apiGet } from '../api/client';
 import type { Recipe, PaginatedResponse } from '../api/tandoor-types';
 import { RecipeListItem } from '../components/RecipeListItem';
+import { LoadingMascot } from '../components/LoadingMascot';
 
 const GROUP_TAGS = ['Breakfast', 'Lunch', 'Dinner', 'Dessert', 'Soup', 'Salad', 'Snack'];
 
@@ -59,11 +60,7 @@ export function AllRecipes() {
   };
 
   if (isLoading) {
-    return (
-      <div className="text-center py-5">
-        <Spinner /> <span className="ms-2">Loading all recipes…</span>
-      </div>
-    );
+    return <LoadingMascot label="Loading all recipes…" />;
   }
 
   if (isError) {
