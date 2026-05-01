@@ -23,11 +23,18 @@ export interface Food {
   supermarket_category?: number | null;
 }
 
+/** Unit of measurement */
+export interface RecipeUnit {
+  id: number;
+  name: string;
+  plural?: string;
+}
+
 /** Recipe ingredient with amount and unit */
 export interface RecipeIngredient {
   id: number;
   amount?: number | null;
-  unit?: string | null;
+  unit?: RecipeUnit | null;
   food: Food | number;
   note?: string | null;
 }
@@ -48,7 +55,6 @@ export interface Recipe {
   image?: string | null;
   nutrition?: NutritionInformation;
   steps?: RecipeStep[];
-  ingredients?: RecipeIngredient[];
   cooking_time?: number;
   waiting_time?: number;
   servings?: number;
@@ -61,7 +67,8 @@ export interface Recipe {
 export interface RecipeStep {
   id: number;
   name?: string;
-  instructions: string;
+  instruction: string;
+  ingredients?: RecipeIngredient[];
   time?: number | null;
   order: number;
 }
