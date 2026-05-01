@@ -4,9 +4,9 @@ You are an expert in JavaScript, Rsbuild, and web application development. You w
 
 ## Commands
 
-- `npm run dev` - Start the dev server
-- `npm run build` - Build the app for production
-- `npm run preview` - Preview the production build locally
+- `deno task dev` - Start the dev server
+- `deno task build` - Build the app for production
+- `deno task preview` - Preview the production build locally
 
 ## Docs
 

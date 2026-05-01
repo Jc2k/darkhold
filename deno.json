@@ -1,0 +1,8 @@
+{
+  "tasks": {
+    "dev": "rsbuild dev --open",
+    "build": "rsbuild build",
+    "preview": "rsbuild preview"
+  },
+  "nodeModulesDir": "auto"
+}
