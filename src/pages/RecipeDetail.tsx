@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Row, Col, Badge, Accordion, Alert, Button, Modal } from 'react-bootstrap';
+import { Row, Col, Badge, Alert, Button, Modal } from 'react-bootstrap';
 import { apiGet } from '../api/client';
 import type { Recipe, RecipeIngredient, RecipeStep, RecipeUnit, Food, Keyword } from '../api/tandoor-types';
 import { TagBadge } from '../components/TagBadge';
@@ -175,19 +175,15 @@ export function RecipeDetail() {
       {steps.length > 0 && (
         <section className="mb-4">
           <h5>Instructions</h5>
-          <Accordion>
+          <ol className="ps-3">
             {steps.map((step, idx) => (
-              <Accordion.Item key={step.id} eventKey={String(idx)}>
-                <Accordion.Header>
-                  Step {idx + 1}{step.name ? `: ${step.name}` : ''}
-                  {step.time != null && <Badge bg="info" className="ms-2">{step.time} min</Badge>}
-                </Accordion.Header>
-                <Accordion.Body style={{ whiteSpace: 'pre-wrap' }}>
-                  {step.instruction}
-                </Accordion.Body>
-              </Accordion.Item>
+              <li key={step.id} className="mb-3">
+                {step.name && <strong className="d-block mb-1">{step.name}</strong>}
+                <p className="mb-1" style={{ whiteSpace: 'pre-wrap' }}>{step.instruction}</p>
+                {step.time != null && <Badge bg="info" className="ms-2">{step.time} min</Badge>}
+              </li>
             ))}
-          </Accordion>
+          </ol>
         </section>
       )}
 
