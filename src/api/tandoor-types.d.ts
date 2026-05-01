@@ -163,3 +163,21 @@ export interface ErrorResponse {
   detail?: string;
   [key: string]: any;
 }
+
+/** Recipe book (cookbook) */
+export interface RecipeBook {
+  id: number;
+  name: string;
+  description?: string;
+  order?: number;
+  filter?: Keyword | number | null;
+  created_by?: number;
+}
+
+/** Entry linking a recipe to a recipe book */
+export interface RecipeBookEntry {
+  id: number;
+  book: RecipeBook | number;
+  book_content: RecipeBook;
+  recipe: Recipe;
+}

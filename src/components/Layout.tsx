@@ -4,6 +4,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 const navItems = [
   { to: '/', label: '🏠 Dashboard', exact: true },
   { to: '/all-recipes', label: '📖 All Recipes' },
+  { to: '/books', label: '📚 Books' },
   { to: '/search', label: '🔍 Search' },
   { to: '/meal-plan', label: '📅 Meal Plan' },
   { to: '/shopping', label: '🛒 Shopping' },
