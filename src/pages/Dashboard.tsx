@@ -113,10 +113,90 @@ function useDashboardShelf(queryKey: string[], queryFn: () => Promise<PaginatedR
   return useQuery({ queryKey, queryFn });
 }
 
+interface SeasonConfig {
+  tag: string;
+  title: string;
+  emoji: string;
+}
+
+const SEASON_CONFIGS: SeasonConfig[] = [
+  { tag: 'spring',    title: 'Spring',    emoji: '🌸' },
+  { tag: 'summer',    title: 'Summer',    emoji: '☀️' },
+  { tag: 'autumn',    title: 'Autumn',    emoji: '🍂' },
+  { tag: 'winter',    title: 'Winter',    emoji: '❄️' },
+  { tag: 'christmas', title: 'Christmas', emoji: '🎄' },
+];
+
+/**
+ * Returns the set of season tags that are currently active for the given date.
+ * Each meteorological season has ~2-week overlaps with the adjacent seasons.
+ * Christmas is active throughout December.
+ */
+function getActiveSeasons(date: Date): Set<string> {
+  const month = date.getMonth() + 1; // 1-12
+  const day = date.getDate();
+  const active = new Set<string>();
+
+  // Spring: Feb 15 – Jun 14
+  if ((month === 2 && day >= 15) || (month >= 3 && month <= 5) || (month === 6 && day <= 14)) {
+    active.add('spring');
+  }
+  // Summer: May 15 – Sep 14
+  if ((month === 5 && day >= 15) || (month >= 6 && month <= 8) || (month === 9 && day <= 14)) {
+    active.add('summer');
+  }
+  // Autumn: Aug 15 – Dec 14
+  if ((month === 8 && day >= 15) || (month >= 9 && month <= 11) || (month === 12 && day <= 14)) {
+    active.add('autumn');
+  }
+  // Winter: Nov 15 – Mar 14
+  if ((month === 11 && day >= 15) || month === 12 || month === 1 || month === 2 || (month === 3 && day <= 14)) {
+    active.add('winter');
+  }
+  // Christmas: all of December
+  if (month === 12) {
+    active.add('christmas');
+  }
+
+  return active;
+}
+
+function useSeasonalShelf(tag: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ['recipes', 'seasonal', tag],
+    queryFn: () => apiGet<PaginatedResponse<Recipe>>('/recipe/', { keywords_name: tag, page_size: 10 }),
+    enabled,
+  });
+}
+
+function SeasonalShelf({
+  config,
+  enabled,
+  onAddToMealPlan,
+}: {
+  config: SeasonConfig;
+  enabled: boolean;
+  onAddToMealPlan: (r: Recipe) => void;
+}) {
+  const query = useSeasonalShelf(config.tag, enabled);
+  if (!enabled) return null;
+  return (
+    <RecipeShelf
+      title={`${config.emoji} ${config.title} Recipes`}
+      searchLink={`/search?keywords_name=${config.tag}`}
+      recipes={query.data?.results ?? []}
+      loading={query.isLoading}
+      error={query.isError}
+      onAddToMealPlan={onAddToMealPlan}
+    />
+  );
+}
+
 export function Dashboard() {
   const [modalRecipe, setModalRecipe] = useState<Recipe | null>(null);
 
   const today = new Date();
+  const activeSeasons = getActiveSeasons(today);
   const weekAhead = new Date();
   weekAhead.setDate(weekAhead.getDate() + 7);
 
@@ -198,6 +278,15 @@ export function Dashboard() {
         error={recentlyAdded.isError}
         onAddToMealPlan={setModalRecipe}
       />
+
+      {SEASON_CONFIGS.map((config) => (
+        <SeasonalShelf
+          key={config.tag}
+          config={config}
+          enabled={activeSeasons.has(config.tag)}
+          onAddToMealPlan={setModalRecipe}
+        />
+      ))}
 
       <MealPlanAddModal recipe={modalRecipe} onHide={() => setModalRecipe(null)} />
     </div>
