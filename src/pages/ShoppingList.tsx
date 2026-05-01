@@ -143,8 +143,10 @@ export function ShoppingList() {
                           <span key={note} className="text-muted small ms-1">({note})</span>
                         ))}
                         {agg.recipes.length > 0 && (
-                          <div className="text-muted fst-italic" style={{ fontSize: '0.65rem' }}>
-                            {agg.recipes.join(' · ')}
+                          <div className="mt-1">
+                            <Badge bg="info" text="dark" style={{ fontSize: '0.65rem', cursor: 'default' }} title={agg.recipes.join('\n')}>
+                              {agg.recipes.length} {agg.recipes.length === 1 ? 'recipe' : 'recipes'}
+                            </Badge>
                           </div>
                         )}
                       </div>
