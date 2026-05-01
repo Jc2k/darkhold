@@ -1,14 +1,17 @@
-const BASE_URL = '/api';
+const BASE_URL = "/api";
 
 function getToken(): string {
-  return localStorage.getItem('tandoor_token') || '';
+  return localStorage.getItem("tandoor_token") || "";
 }
 
-function buildUrl(path: string, params?: Record<string, string | number | boolean | undefined | null>): string {
+function buildUrl(
+  path: string,
+  params?: Record<string, string | number | boolean | undefined | null>,
+): string {
   const url = new URL(BASE_URL + path, window.location.origin);
   if (params) {
     Object.entries(params).forEach(([k, v]) => {
-      if (v !== undefined && v !== null && v !== '') {
+      if (v !== undefined && v !== null && v !== "") {
         url.searchParams.set(k, String(v));
       }
     });
@@ -18,8 +21,8 @@ function buildUrl(path: string, params?: Record<string, string | number | boolea
 
 function authHeaders(): HeadersInit {
   return {
-    Authorization: `Token ${getToken()}`,
-    'Content-Type': 'application/json',
+    Authorization: `Bearer ${getToken()}`,
+    "Content-Type": "application/json",
   };
 }
 
@@ -34,7 +37,7 @@ export async function apiGet<T>(
 
 export async function apiPost<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(buildUrl(path), {
-    method: 'POST',
+    method: "POST",
     headers: authHeaders(),
     body: JSON.stringify(body),
   });
@@ -44,7 +47,7 @@ export async function apiPost<T>(path: string, body: unknown): Promise<T> {
 
 export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(buildUrl(path), {
-    method: 'PATCH',
+    method: "PATCH",
     headers: authHeaders(),
     body: JSON.stringify(body),
   });
@@ -54,7 +57,7 @@ export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
 
 export async function apiDelete(path: string): Promise<void> {
   const res = await fetch(buildUrl(path), {
-    method: 'DELETE',
+    method: "DELETE",
     headers: authHeaders(),
   });
   if (!res.ok) throw new Error(`API error ${res.status}`);
