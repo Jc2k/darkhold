@@ -6,7 +6,7 @@ import type { Recipe, Keyword, PaginatedResponse } from '../api/tandoor-types';
 import { RecipeListItem } from '../components/RecipeListItem';
 import { LoadingMascot } from '../components/LoadingMascot';
 
-const GROUP_TAGS = ['Breakfast', 'Lunch', 'Dinner', 'Dessert', 'Soup', 'Salad', 'Snack'];
+const GROUP_TAGS = ['Breakfast', 'Lunch', 'Dinner', 'Dessert', 'Soup', 'Salad', 'Snack', 'Burger', 'Noodles', 'Pasta', 'Curry', 'Sunday'];
 
 function groupRecipes(recipes: Recipe[], kwMap: Map<number, string>): Record<string, Recipe[]> {
   const groups: Record<string, Recipe[]> = {};
