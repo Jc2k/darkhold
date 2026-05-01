@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Modal, Button, Form, Row, Col, Spinner } from 'react-bootstrap';
-import type { Recipe, MealType, ShoppingList } from '../api/tandoor-types';
+import type { Recipe, MealType } from '../api/tandoor-types';
 import { useCreateMealPlan } from '../hooks/useMealPlan';
 import { useQuery } from '@tanstack/react-query';
 import { apiGet } from '../api/client';
@@ -41,12 +41,6 @@ export function MealPlanAddModal({ recipe, onHide }: Props) {
   });
   const mealTypes = mealTypesData?.results ?? [];
 
-  const { data: shoppingListsData } = useQuery({
-    queryKey: ['shopping-lists'],
-    queryFn: () => apiGet<{ results: ShoppingList[] }>('/shopping-list/'),
-  });
-  const shoppingListId = shoppingListsData?.results?.[0]?.id;
-
   const createMealPlan = useCreateMealPlan();
 
   if (!recipe) return null;
@@ -61,7 +55,7 @@ export function MealPlanAddModal({ recipe, onHide }: Props) {
       from_date: date,
       servings,
       ...(note ? { note } : {}),
-      ...(shoppingListId != null ? { shopping: shoppingListId as unknown as ShoppingList } : {}),
+      addshopping: true,
     });
     onHide();
   };

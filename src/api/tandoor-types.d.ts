@@ -108,7 +108,8 @@ export interface MealPlan {
   servings?: number;
   from_date: string; // ISO 8601 date
   to_date?: string | null; // ISO 8601 date
-  shopping?: ShoppingList | number;
+  shopping?: boolean; // read-only: true if linked to a shopping list
+  addshopping?: boolean; // write-only: set to true on create to add ingredients to shopping list
 }
 
 /** Supermarket category */
