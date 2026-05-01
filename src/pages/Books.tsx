@@ -2,9 +2,10 @@ import { useMemo } from 'react';
 import { Row, Col, Alert } from 'react-bootstrap';
 import { useQuery } from '@tanstack/react-query';
 import { apiGet } from '../api/client';
-import type { RecipeBook, RecipeBookEntry, PaginatedResponse } from '../api/tandoor-types';
+import type { RecipeBook, RecipeBookEntry, Recipe, PaginatedResponse } from '../api/tandoor-types';
 import { BookCard } from '../components/BookCard';
 import { LoadingMascot } from '../components/LoadingMascot';
+import { getFilterId } from '../utils/bookUtils';
 
 async function fetchAllBooks(): Promise<RecipeBook[]> {
   const all: RecipeBook[] = [];
@@ -55,6 +56,32 @@ export function Books() {
     return map;
   }, [entries]);
 
+  const booksWithFilter = useMemo(() =>
+    books?.filter((b) => b.filter != null) ?? [],
+    [books]
+  );
+
+  const { data: filterCovers } = useQuery({
+    queryKey: ['book-filter-covers', booksWithFilter.map((b) => b.id)],
+    queryFn: async () => {
+      const map = new Map<number, string>();
+      await Promise.all(
+        booksWithFilter.map(async (book) => {
+          const filterId = getFilterId(book.filter);
+          if (filterId === null) return;
+          const data = await apiGet<PaginatedResponse<Recipe>>('/recipe/', {
+            keywords: filterId,
+            page_size: 1,
+          });
+          const image = data.results[0]?.image;
+          if (image) map.set(book.id, image);
+        })
+      );
+      return map;
+    },
+    enabled: booksWithFilter.length > 0,
+  });
+
   const isLoading = booksLoading || entriesLoading;
 
   if (isLoading) {
@@ -75,7 +102,7 @@ export function Books() {
 
       <Row xs={2} md={3} lg={4} className="g-3">
         {books?.map((book) => {
-          const cover = coverImages.get(book.id) ?? null;
+          const cover = coverImages.get(book.id) ?? filterCovers?.get(book.id) ?? null;
           return (
             <Col key={book.id}>
               <BookCard book={book} coverImage={cover} />
