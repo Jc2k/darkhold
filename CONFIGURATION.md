@@ -42,16 +42,16 @@ git clone https://github.com/Jc2k/darkhold
 cd darkhold
 
 # Install dependencies
-npm install
+deno install
 
 # Start the dev server (proxies /api/ to localhost:8080 by default)
-npm run dev
+deno task dev
 
-# To proxy to a different Tandoor instance:
-TANDOOR_URL=http://my-tandoor-server:8080 npm run dev
+# To proxy to a different Tandoor instance, set the TANDOOR_URL env variable:
+TANDOOR_URL=http://my-tandoor-server:8080 deno task dev
 
 # Production build
-npm run build
+deno task build
 ```
 
 ## iOS "Add to Home Screen"

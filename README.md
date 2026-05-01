@@ -5,7 +5,7 @@
 Install the dependencies:
 
 ```bash
-npm install
+deno install
 ```
 
 ## Get started
@@ -13,19 +13,19 @@ npm install
 Start the dev server, and the app will be available at [http://localhost:3000](http://localhost:3000).
 
 ```bash
-npm run dev
+deno task dev
 ```
 
 Build the app for production:
 
 ```bash
-npm run build
+deno task build
 ```
 
 Preview the production build locally:
 
 ```bash
-npm run preview
+deno task preview
 ```
 
 ## Learn more

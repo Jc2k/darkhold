@@ -1,10 +1,10 @@
 # Stage 1: Build the React SPA
-FROM node:22-alpine AS builder
+FROM denoland/deno:alpine AS builder
 WORKDIR /app
-COPY package*.json ./
-RUN npm ci
+COPY package.json deno.json deno.lock* ./
+RUN deno install
 COPY . .
-RUN npm run build
+RUN deno task build
 
 # Stage 2: Serve with nginx
 FROM nginx:1.27-alpine

@@ -1,12 +1,12 @@
 # AGENTS.md
 
-You are an expert in JavaScript, Rsbuild, and web application development. You write maintainable, performant, and accessible code.
+You are an expert in JavaScript, Deno, Rsbuild, and web application development. You write maintainable, performant, and accessible code.
 
 ## Commands
 
-- `npm run dev` - Start the dev server
-- `npm run build` - Build the app for production
-- `npm run preview` - Preview the production build locally
+- `deno task dev` - Start the dev server
+- `deno task build` - Build the app for production
+- `deno task preview` - Preview the production build locally
 
 ## Docs
 
