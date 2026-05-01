@@ -2,22 +2,28 @@ import { useRef } from 'react';
 import { ListGroup, Alert, Nav } from 'react-bootstrap';
 import { useQuery } from '@tanstack/react-query';
 import { apiGet } from '../api/client';
-import type { Recipe, PaginatedResponse } from '../api/tandoor-types';
+import type { Recipe, Keyword, PaginatedResponse } from '../api/tandoor-types';
 import { RecipeListItem } from '../components/RecipeListItem';
 import { LoadingMascot } from '../components/LoadingMascot';
 
 const GROUP_TAGS = ['Breakfast', 'Lunch', 'Dinner', 'Dessert', 'Soup', 'Salad', 'Snack'];
 
-function groupRecipes(recipes: Recipe[]): Record<string, Recipe[]> {
+function groupRecipes(recipes: Recipe[], kwMap: Map<number, string>): Record<string, Recipe[]> {
   const groups: Record<string, Recipe[]> = {};
   GROUP_TAGS.forEach((tag) => (groups[tag] = []));
   groups['Other'] = [];
 
   for (const recipe of recipes) {
-    const keywords = Array.isArray(recipe.keywords)
-      ? recipe.keywords.filter((k): k is import('../api/tandoor-types').Keyword => typeof k === 'object')
+    const kwNames: string[] = Array.isArray(recipe.keywords)
+      ? recipe.keywords.flatMap((k) => {
+          if (typeof k === 'object' && k !== null && !Array.isArray(k)) {
+            const kw = k as Keyword;
+            return kw.name ? [kw.name] : [];
+          }
+          const name = kwMap.get(k as number);
+          return name ? [name] : [];
+        })
       : [];
-    const kwNames = keywords.map((k) => k.name).filter((n): n is string => n != null);
 
     let matched = false;
     for (const tag of GROUP_TAGS) {
@@ -33,16 +39,36 @@ function groupRecipes(recipes: Recipe[]): Record<string, Recipe[]> {
   return groups;
 }
 
-async function fetchAllRecipes(): Promise<Recipe[]> {
-  const all: Recipe[] = [];
+async function fetchAllKeywords(): Promise<Map<number, string>> {
+  const map = new Map<number, string>();
   let page = 1;
   while (true) {
-    const data = await apiGet<PaginatedResponse<Recipe>>('/recipe/', { page_size: 100, page });
-    all.push(...data.results);
+    const data = await apiGet<PaginatedResponse<Keyword>>('/keyword/', { page_size: 100, page });
+    for (const kw of data.results) {
+      map.set(kw.id, kw.name);
+    }
     if (!data.next) break;
     page++;
   }
-  return all;
+  return map;
+}
+
+async function fetchAllRecipes(): Promise<{ recipes: Recipe[]; kwMap: Map<number, string> }> {
+  const [kwMap, recipes] = await Promise.all([
+    fetchAllKeywords(),
+    (async () => {
+      const all: Recipe[] = [];
+      let page = 1;
+      while (true) {
+        const data = await apiGet<PaginatedResponse<Recipe>>('/recipe/', { page_size: 100, page });
+        all.push(...data.results);
+        if (!data.next) break;
+        page++;
+      }
+      return all;
+    })(),
+  ]);
+  return { recipes, kwMap };
 }
 
 export function AllRecipes() {
@@ -52,7 +78,7 @@ export function AllRecipes() {
   });
 
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
-  const groups = data ? groupRecipes(data) : {};
+  const groups = data ? groupRecipes(data.recipes, data.kwMap) : {};
   const allGroups = [...GROUP_TAGS, 'Other'];
 
   const scrollTo = (tag: string) => {
