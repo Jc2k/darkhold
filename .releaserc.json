@@ -7,13 +7,13 @@
     [
       "@semantic-release/exec",
       {
-        "prepareCmd": "sed -i 's/^version: .*/version: \"${nextRelease.version}\"/' config.yaml"
+        "prepareCmd": "sed -i 's/^version: .*/version: \"${nextRelease.version}\"/' darkhold/config.yaml"
       }
     ],
     [
       "@semantic-release/git",
       {
-        "assets": ["config.yaml", "package.json"],
+        "assets": ["darkhold/config.yaml", "darkhold/package.json"],
         "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
       }
     ],
