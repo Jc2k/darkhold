@@ -11,6 +11,8 @@ import { ShoppingList } from './pages/ShoppingList';
 import { Settings } from './pages/Settings';
 import { RecipeDetail } from './pages/RecipeDetail';
 import { IngredientDetail } from './pages/IngredientDetail';
+import { Books } from './pages/Books';
+import { BookDetail } from './pages/BookDetail';
 
 function getHomepage(): string {
   const pref = localStorage.getItem('homepage_pref') || 'dashboard';
@@ -63,6 +65,14 @@ const router = createBrowserRouter([
       {
         path: 'ingredient/:id',
         element: <AuthGuard><IngredientDetail /></AuthGuard>,
+      },
+      {
+        path: 'books',
+        element: <AuthGuard><Books /></AuthGuard>,
+      },
+      {
+        path: 'books/:id',
+        element: <AuthGuard><BookDetail /></AuthGuard>,
       },
     ],
   },

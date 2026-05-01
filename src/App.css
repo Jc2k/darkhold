@@ -12,9 +12,13 @@
   -ms-overflow-style: none;
 }
 
-.hide-scrollbar::-webkit-scrollbar {
-  display: none;
+.text-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
+
 
   margin: 0;
   color: #fff;
