@@ -45,7 +45,7 @@ function RecipeShelf({ title, searchLink, recipes, loading, error, onAddToMealPl
         <span className="text-muted small">No recipes found</span>
       )}
       <div
-        className="d-flex gap-3 pb-2"
+        className="d-flex gap-3 pb-2 hide-scrollbar"
         style={{ overflowX: 'auto', scrollSnapType: 'x mandatory' }}
       >
         {recipes.map((r) => (
@@ -78,33 +78,31 @@ function UpcomingMealsShelf({ days, mealsByDay, loading, error, onAddToMealPlan 
       {loading && <Spinner size="sm" />}
       {error && <span className="text-danger small">Failed to load</span>}
       {!loading && !error && (
-        <div style={{ overflow: 'hidden' }}>
-          <div
-            className="d-flex gap-3"
-            style={{ overflowX: 'auto', scrollSnapType: 'x mandatory', paddingBottom: 20, marginBottom: -20 }}
-          >
-            {days.map((day) => {
-              const key = formatDate(day);
-              const recipes = mealsByDay[key] ?? [];
-              return (
-                <div key={key} style={{ minWidth: 200, maxWidth: 200, scrollSnapAlign: 'start', flexShrink: 0 }}>
-                  <div className="text-muted small fw-semibold mb-1 text-center">{shortDay(day)}</div>
-                  {recipes.length > 0 ? (
-                    recipes.map((r) => (
-                      <RecipeCard key={r.id} recipe={r} onAddToMealPlan={onAddToMealPlan} />
-                    ))
-                  ) : (
-                    <div
-                      className="d-flex align-items-center justify-content-center text-muted border rounded"
-                      style={{ height: 120, fontSize: '0.8rem', borderStyle: 'dashed' as const }}
-                    >
-                      No meal planned
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+        <div
+          className="d-flex gap-3 hide-scrollbar"
+          style={{ overflowX: 'auto', scrollSnapType: 'x mandatory' }}
+        >
+          {days.map((day) => {
+            const key = formatDate(day);
+            const recipes = mealsByDay[key] ?? [];
+            return (
+              <div key={key} style={{ minWidth: 200, maxWidth: 200, scrollSnapAlign: 'start', flexShrink: 0 }}>
+                <div className="text-muted small fw-semibold mb-1 text-center">{shortDay(day)}</div>
+                {recipes.length > 0 ? (
+                  recipes.map((r) => (
+                    <RecipeCard key={r.id} recipe={r} onAddToMealPlan={onAddToMealPlan} />
+                  ))
+                ) : (
+                  <div
+                    className="d-flex align-items-center justify-content-center text-muted border rounded"
+                    style={{ height: 120, fontSize: '0.8rem', borderStyle: 'dashed' as const }}
+                  >
+                    No meal planned
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </section>
