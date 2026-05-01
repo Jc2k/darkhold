@@ -16,7 +16,7 @@ function groupRecipes(recipes: Recipe[]): Record<string, Recipe[]> {
     const keywords = Array.isArray(recipe.keywords)
       ? recipe.keywords.filter((k): k is import('../api/tandoor-types').Keyword => typeof k === 'object')
       : [];
-    const kwNames = keywords.map((k) => k.name);
+    const kwNames = keywords.map((k) => k.name).filter((n): n is string => n != null);
 
     let matched = false;
     for (const tag of GROUP_TAGS) {
