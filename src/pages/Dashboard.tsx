@@ -80,7 +80,7 @@ function UpcomingMealsShelf({ days, mealsByDay, loading, error, onAddToMealPlan 
       {!loading && !error && (
         <div
           className="d-flex gap-3 pb-2"
-          style={{ overflowX: 'auto', scrollSnapType: 'x mandatory' }}
+          style={{ overflowX: 'auto', overflowY: 'hidden', scrollSnapType: 'x mandatory' }}
         >
           {days.map((day) => {
             const key = formatDate(day);
