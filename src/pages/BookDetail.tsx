@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { Row, Col, Alert } from 'react-bootstrap';
 import { useQuery } from '@tanstack/react-query';
@@ -8,6 +8,7 @@ import { RecipeCard } from '../components/RecipeCard';
 import { MealPlanAddModal } from '../components/MealPlanAddModal';
 import { LoadingMascot } from '../components/LoadingMascot';
 import type { Recipe } from '../api/tandoor-types';
+import { getFilterId } from '../utils/bookUtils';
 
 async function fetchBookEntries(bookId: string): Promise<RecipeBookEntry[]> {
   const all: RecipeBookEntry[] = [];
@@ -16,6 +17,23 @@ async function fetchBookEntries(bookId: string): Promise<RecipeBookEntry[]> {
   while (hasNext) {
     const data = await apiGet<PaginatedResponse<RecipeBookEntry>>('/recipe-book-entry/', {
       book: bookId,
+      page_size: 100,
+      page,
+    });
+    all.push(...data.results);
+    hasNext = !!data.next;
+    page++;
+  }
+  return all;
+}
+
+async function fetchRecipesByKeyword(keywordId: number): Promise<Recipe[]> {
+  const all: Recipe[] = [];
+  let page = 1;
+  let hasNext = true;
+  while (hasNext) {
+    const data = await apiGet<PaginatedResponse<Recipe>>('/recipe/', {
+      keywords: keywordId,
       page_size: 100,
       page,
     });
@@ -36,14 +54,24 @@ export function BookDetail() {
     enabled: !!id,
   });
 
+  const filterId = useMemo(() => getFilterId(book?.filter), [book]);
+
   const { data: entries, isLoading: entriesLoading, isError: entriesError } = useQuery({
     queryKey: ['book-entries', id],
     queryFn: () => fetchBookEntries(id!),
-    enabled: !!id,
+    enabled: !!id && !!book && filterId === null,
   });
 
-  const isLoading = bookLoading || entriesLoading;
-  const isError = bookError || entriesError;
+  const { data: filterRecipes, isLoading: filterRecipesLoading, isError: filterRecipesError } = useQuery({
+    queryKey: ['book-filter-recipes', id, filterId],
+    queryFn: () => fetchRecipesByKeyword(filterId!),
+    enabled: !!id && !!book && filterId !== null,
+  });
+
+  const recipesLoading = filterId !== null ? filterRecipesLoading : entriesLoading;
+  const recipesError = filterId !== null ? filterRecipesError : entriesError;
+  const isLoading = bookLoading || recipesLoading;
+  const isError = bookError || recipesError;
 
   if (isLoading) {
     return <LoadingMascot label="Loading book…" />;
@@ -53,7 +81,9 @@ export function BookDetail() {
     return <Alert variant="danger">Failed to load book. Check your API token in Settings.</Alert>;
   }
 
-  const recipes = entries?.map((entry) => entry.recipe).filter(Boolean) ?? [];
+  const recipes = filterId !== null
+    ? (filterRecipes ?? [])
+    : (entries?.map((entry) => entry.recipe).filter(Boolean) ?? []);
 
   return (
     <div>
