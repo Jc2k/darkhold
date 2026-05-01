@@ -1,14 +1,10 @@
 import { useState } from 'react';
 import { Modal, Button, Form, Row, Col, Spinner } from 'react-bootstrap';
-import type { Recipe, Keyword } from '../api/tandoor-types';
+import type { Recipe, MealType, ShoppingList } from '../api/tandoor-types';
 import { useCreateMealPlan } from '../hooks/useMealPlan';
 import { useQuery } from '@tanstack/react-query';
 import { apiGet } from '../api/client';
-
-interface MealType {
-  id: number;
-  name: string;
-}
+import { deriveMealType } from '../utils/mealUtils';
 
 interface Props {
   recipe: Recipe | null;
@@ -17,19 +13,6 @@ interface Props {
 
 function formatDate(d: Date): string {
   return d.toISOString().split('T')[0];
-}
-
-function deriveMealType(recipe: Recipe, mealTypes: MealType[]): number | undefined {
-  const keywords = Array.isArray(recipe.keywords)
-    ? recipe.keywords.filter((k): k is Keyword => typeof k === 'object').map((k) => k.name.toLowerCase())
-    : [];
-
-  const find = (name: string) => mealTypes.find((mt) => mt.name.toLowerCase().includes(name));
-
-  if (keywords.some((k) => k.includes('breakfast'))) return find('breakfast')?.id;
-  if (keywords.some((k) => k.includes('lunch'))) return find('lunch')?.id;
-  if (keywords.some((k) => k.includes('dessert') || k.includes('snack'))) return find('snack')?.id ?? find('dessert')?.id;
-  return find('dinner')?.id ?? mealTypes[0]?.id;
 }
 
 function getNextDays(n: number): Date[] {
@@ -49,6 +32,8 @@ export function MealPlanAddModal({ recipe, onHide }: Props) {
   const [selectedDate, setSelectedDate] = useState<Date>(days[0]);
   const [customDate, setCustomDate] = useState('');
   const [servings, setServings] = useState<number>(recipe?.servings ?? 2);
+  const [mealTypeIdOverride, setMealTypeIdOverride] = useState<number | null>(null);
+  const [note, setNote] = useState('');
 
   const { data: mealTypesData } = useQuery({
     queryKey: ['meal-types'],
@@ -56,19 +41,27 @@ export function MealPlanAddModal({ recipe, onHide }: Props) {
   });
   const mealTypes = mealTypesData?.results ?? [];
 
+  const { data: shoppingListsData } = useQuery({
+    queryKey: ['shopping-lists'],
+    queryFn: () => apiGet<{ results: ShoppingList[] }>('/shopping-list/'),
+  });
+  const shoppingListId = shoppingListsData?.results?.[0]?.id;
+
   const createMealPlan = useCreateMealPlan();
 
   if (!recipe) return null;
 
+  const effectiveMealTypeId = mealTypeIdOverride ?? deriveMealType(recipe, mealTypes);
+
   const handleSubmit = async () => {
     const date = customDate || formatDate(selectedDate);
-    const mealTypeId = deriveMealType(recipe, mealTypes);
     await createMealPlan.mutateAsync({
       recipe: recipe.id as unknown as Recipe,
-      meal_type: (mealTypeId ?? mealTypes[0]?.id) as unknown as import('../api/tandoor-types').MealType,
+      meal_type: (effectiveMealTypeId ?? mealTypes[0]?.id) as unknown as MealType,
       from_date: date,
       servings,
-      shopping: 1 as unknown as import('../api/tandoor-types').ShoppingList,
+      ...(note ? { note } : {}),
+      ...(shoppingListId != null ? { shopping: shoppingListId as unknown as ShoppingList } : {}),
     });
     onHide();
   };
@@ -105,6 +98,18 @@ export function MealPlanAddModal({ recipe, onHide }: Props) {
         </Form.Group>
 
         <Form.Group className="mb-3">
+          <Form.Label>Meal Type</Form.Label>
+          <Form.Select
+            value={effectiveMealTypeId ?? ''}
+            onChange={(e) => setMealTypeIdOverride(Number(e.target.value))}
+          >
+            {mealTypes.map((mt) => (
+              <option key={mt.id} value={mt.id}>{mt.name}</option>
+            ))}
+          </Form.Select>
+        </Form.Group>
+
+        <Form.Group className="mb-3">
           <Form.Label>Servings</Form.Label>
           <Form.Control
             type="number"
@@ -114,9 +119,16 @@ export function MealPlanAddModal({ recipe, onHide }: Props) {
           />
         </Form.Group>
 
-        <p className="text-muted small mb-0">
-          <strong>Shopping list:</strong> Ingredients will be automatically added to your shopping list.
-        </p>
+        <Form.Group className="mb-3">
+          <Form.Label>Notes</Form.Label>
+          <Form.Control
+            as="textarea"
+            rows={2}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="Optional notes…"
+          />
+        </Form.Group>
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={onHide}>Cancel</Button>

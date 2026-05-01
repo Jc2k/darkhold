@@ -18,7 +18,8 @@ import { CSS } from '@dnd-kit/utilities';
 import { useMealPlan, useDeleteMealPlan, useCreateMealPlan } from '../hooks/useMealPlan';
 import { useQuery } from '@tanstack/react-query';
 import { apiGet } from '../api/client';
-import type { MealPlan, Recipe, MealType, PaginatedResponse } from '../api/tandoor-types';
+import type { MealPlan, Recipe, MealType, PaginatedResponse, ShoppingList } from '../api/tandoor-types';
+import { deriveMealType } from '../utils/mealUtils';
 import { useRecipeSearch } from '../hooks/useRecipeSearch';
 import { LoadingMascot } from '../components/LoadingMascot';
 
@@ -113,17 +114,25 @@ interface AddMealModalProps {
   date: string;
   onHide: () => void;
   mealTypes: MealType[];
+  shoppingListId?: number;
 }
 
-function AddMealModal({ date, onHide, mealTypes }: AddMealModalProps) {
+function AddMealModal({ date, onHide, mealTypes, shoppingListId }: AddMealModalProps) {
   const [search, setSearch] = useState('');
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [mealTypeId, setMealTypeId] = useState<number>(mealTypes[0]?.id ?? 0);
   const [servings, setServings] = useState(2);
+  const [note, setNote] = useState('');
   const createMeal = useCreateMealPlan();
 
   const { data } = useRecipeSearch({ query: search, page_size: 10 });
   const recipes = data?.pages.flatMap((p) => p.results) ?? [];
+
+  const handleSelectRecipe = (r: Recipe) => {
+    setSelectedRecipe(r);
+    const derived = deriveMealType(r, mealTypes);
+    if (derived !== undefined) setMealTypeId(derived);
+  };
 
   const handleSubmit = async () => {
     if (!selectedRecipe) return;
@@ -132,7 +141,8 @@ function AddMealModal({ date, onHide, mealTypes }: AddMealModalProps) {
       meal_type: mealTypeId as unknown as MealType,
       from_date: date,
       servings,
-      shopping: 1 as unknown as import('../api/tandoor-types').ShoppingList,
+      ...(note ? { note } : {}),
+      ...(shoppingListId != null ? { shopping: shoppingListId as unknown as ShoppingList } : {}),
     });
     onHide();
   };
@@ -158,7 +168,7 @@ function AddMealModal({ date, onHide, mealTypes }: AddMealModalProps) {
                   key={r.id}
                   className={`px-3 py-2 small ${selectedRecipe?.id === r.id ? 'bg-primary text-white' : ''}`}
                   style={{ cursor: 'pointer' }}
-                  onClick={() => setSelectedRecipe(r)}
+                  onClick={() => handleSelectRecipe(r)}
                 >
                   {r.name}
                 </div>
@@ -179,13 +189,24 @@ function AddMealModal({ date, onHide, mealTypes }: AddMealModalProps) {
           </Form.Select>
         </Form.Group>
 
-        <Form.Group>
+        <Form.Group className="mb-3">
           <Form.Label>Servings</Form.Label>
           <Form.Control
             type="number"
             min={1}
             value={servings}
             onChange={(e) => setServings(Number(e.target.value))}
+          />
+        </Form.Group>
+
+        <Form.Group>
+          <Form.Label>Notes</Form.Label>
+          <Form.Control
+            as="textarea"
+            rows={2}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="Optional notes…"
           />
         </Form.Group>
       </Modal.Body>
@@ -219,6 +240,12 @@ export function MealPlanPage() {
     queryFn: () => apiGet<PaginatedResponse<MealType>>('/meal-type/'),
   });
   const mealTypes = mealTypesData?.results ?? [];
+
+  const { data: shoppingListsData } = useQuery({
+    queryKey: ['shopping-lists'],
+    queryFn: () => apiGet<{ results: ShoppingList[] }>('/shopping-list/'),
+  });
+  const shoppingListId = shoppingListsData?.results?.[0]?.id;
 
   const sensors = useSensors(useSensor(PointerSensor));
 
@@ -331,7 +358,7 @@ export function MealPlanPage() {
 
       <EntryDetailModal entry={detailEntry} onHide={() => setDetailEntry(null)} />
       {addDate && (
-        <AddMealModal date={addDate} onHide={() => setAddDate(null)} mealTypes={mealTypes} />
+        <AddMealModal date={addDate} onHide={() => setAddDate(null)} mealTypes={mealTypes} shoppingListId={shoppingListId} />
       )}
     </div>
   );
