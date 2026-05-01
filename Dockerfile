@@ -1,5 +1,6 @@
 # Stage 1: Build the React SPA
-FROM denoland/deno:alpine AS builder
+# Use the build platform so deno runs natively (output is platform-independent)
+FROM --platform=$BUILDPLATFORM denoland/deno:alpine AS builder
 WORKDIR /app
 COPY package.json deno.json deno.lock* ./
 RUN deno install
