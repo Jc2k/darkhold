@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Row, Col, Badge, Accordion, Spinner, Alert, Button, Modal } from 'react-bootstrap';
 import { apiGet } from '../api/client';
-import type { Recipe, RecipeIngredient, RecipeStep, Food, Keyword } from '../api/tandoor-types';
+import type { Recipe, RecipeIngredient, RecipeStep, RecipeUnit, Food, Keyword } from '../api/tandoor-types';
 import { TagBadge } from '../components/TagBadge';
 import { NutritionBadge } from '../components/NutritionBadge';
 import { MealPlanAddModal } from '../components/MealPlanAddModal';
@@ -22,7 +22,7 @@ function CookingMode({ steps, onClose }: { steps: RecipeStep[]; onClose: () => v
       </Modal.Header>
       <Modal.Body className="d-flex flex-column justify-content-center align-items-center text-center p-4">
         {current?.name && <h5 className="mb-3">{current.name}</h5>}
-        <p className="fs-5">{current?.instructions}</p>
+        <p className="fs-5">{current?.instruction}</p>
         {current?.time && <Badge bg="info">{current.time} min</Badge>}
       </Modal.Body>
       <Modal.Footer className="justify-content-between">
@@ -96,6 +96,9 @@ export function RecipeDetail() {
 
   const steps = recipe.steps ? [...recipe.steps].sort((a, b) => a.order - b.order) : [];
 
+  // Collect all ingredients from all steps
+  const allIngredients: RecipeIngredient[] = steps.flatMap((s) => s.ingredients ?? []);
+
   return (
     <div>
       {recipe.image && (
@@ -148,16 +151,17 @@ export function RecipeDetail() {
         )}
       </div>
 
-      {recipe.ingredients && recipe.ingredients.length > 0 && (
+      {allIngredients.length > 0 && (
         <section className="mb-4">
           <h5>Ingredients</h5>
           <ul className="list-unstyled">
-            {recipe.ingredients.map((ing: RecipeIngredient) => {
+            {allIngredients.map((ing: RecipeIngredient) => {
               const food = typeof ing.food === 'object' ? ing.food as Food : null;
+              const unit = ing.unit as RecipeUnit | null;
               return (
                 <li key={ing.id} className="mb-1">
                   {ing.amount != null && <span>{ing.amount} </span>}
-                  {ing.unit && <span>{ing.unit} </span>}
+                  {unit?.name && <span>{unit.name} </span>}
                   {food ? (
                     <Link to={`/ingredient/${food.id}`}>{food.name}</Link>
                   ) : (
@@ -182,7 +186,7 @@ export function RecipeDetail() {
                   {step.time != null && <Badge bg="info" className="ms-2">{step.time} min</Badge>}
                 </Accordion.Header>
                 <Accordion.Body style={{ whiteSpace: 'pre-wrap' }}>
-                  {step.instructions}
+                  {step.instruction}
                 </Accordion.Body>
               </Accordion.Item>
             ))}
