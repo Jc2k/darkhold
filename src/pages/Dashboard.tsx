@@ -11,6 +11,16 @@ function formatDate(d: Date): string {
   return d.toISOString().split('T')[0];
 }
 
+function addDays(date: Date, numDays: number): Date {
+  const result = new Date(date);
+  result.setDate(result.getDate() + numDays);
+  return result;
+}
+
+function shortDay(date: Date): string {
+  return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
 interface ShelfProps {
   title: string;
   searchLink: string;
@@ -48,6 +58,57 @@ function RecipeShelf({ title, searchLink, recipes, loading, error, onAddToMealPl
   );
 }
 
+interface UpcomingMealsShelfProps {
+  days: Date[];
+  mealsByDay: Record<string, Recipe[]>;
+  loading: boolean;
+  error: boolean;
+  onAddToMealPlan: (r: Recipe) => void;
+}
+
+function UpcomingMealsShelf({ days, mealsByDay, loading, error, onAddToMealPlan }: UpcomingMealsShelfProps) {
+  return (
+    <section className="mb-4">
+      <div className="d-flex align-items-center justify-content-between mb-2">
+        <h5 className="mb-0">🗓️ Upcoming Meals</h5>
+        <Link to="/meal-plan" className="small text-muted">
+          See all →
+        </Link>
+      </div>
+      {loading && <Spinner size="sm" />}
+      {error && <span className="text-danger small">Failed to load</span>}
+      {!loading && !error && (
+        <div
+          className="d-flex gap-3 pb-2"
+          style={{ overflowX: 'auto', scrollSnapType: 'x mandatory' }}
+        >
+          {days.map((day) => {
+            const key = formatDate(day);
+            const recipes = mealsByDay[key] ?? [];
+            return (
+              <div key={key} style={{ minWidth: 200, maxWidth: 200, scrollSnapAlign: 'start', flexShrink: 0 }}>
+                <div className="text-muted small fw-semibold mb-1 text-center">{shortDay(day)}</div>
+                {recipes.length > 0 ? (
+                  recipes.map((r) => (
+                    <RecipeCard key={r.id} recipe={r} onAddToMealPlan={onAddToMealPlan} />
+                  ))
+                ) : (
+                  <div
+                    className="d-flex align-items-center justify-content-center text-muted border rounded"
+                    style={{ height: 120, fontSize: '0.8rem', borderStyle: 'dashed' as const }}
+                  >
+                    No meal planned
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function useDashboardShelf(queryKey: string[], queryFn: () => Promise<PaginatedResponse<Recipe>>) {
   return useQuery({ queryKey, queryFn });
 }
@@ -68,9 +129,21 @@ export function Dashboard() {
       }),
   });
 
-  const upcomingRecipes: Recipe[] = (mealPlanQuery.data?.results ?? [])
-    .map((mp) => (typeof mp.recipe === 'object' ? mp.recipe : null))
-    .filter((r): r is Recipe => r !== null);
+  const days = Array.from({ length: 8 }, (_, i) => addDays(today, i));
+
+  const mealsByDay: Record<string, Recipe[]> = {};
+  for (const day of days) {
+    mealsByDay[formatDate(day)] = [];
+  }
+  const sortedEntries = (mealPlanQuery.data?.results ?? [])
+    .slice()
+    .sort((a, b) => a.from_date.localeCompare(b.from_date));
+  for (const mp of sortedEntries) {
+    const key = mp.from_date.split('T')[0];
+    if (key in mealsByDay && typeof mp.recipe === 'object') {
+      mealsByDay[key].push(mp.recipe);
+    }
+  }
 
   const favourites = useDashboardShelf(
     ['recipes', 'favourite'],
@@ -91,10 +164,9 @@ export function Dashboard() {
     <div>
       <h2 className="mb-4">Dashboard</h2>
 
-      <RecipeShelf
-        title="🗓️ Upcoming Meals"
-        searchLink="/meal-plan"
-        recipes={upcomingRecipes}
+      <UpcomingMealsShelf
+        days={days}
+        mealsByDay={mealsByDay}
         loading={mealPlanQuery.isLoading}
         error={mealPlanQuery.isError}
         onAddToMealPlan={setModalRecipe}
