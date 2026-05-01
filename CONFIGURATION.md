@@ -29,10 +29,10 @@ Darkhold handles CORS by **proxying all Tandoor API requests through its own ngi
 
 | Request path | Routed to |
 |---|---|
-| `/api/*` (inside Darkhold container) | `http://tandoor:8080/api/*` |
+| `/api/*` (inside Darkhold container) | `<tandoor_url>/api/*` (defaults to `http://tandoor:8080`) |
 | All other paths | Served as the React SPA |
 
-The internal hostname `tandoor` is the default Docker service name for the Tandoor add-on. If your Tandoor add-on uses a different name, update `darkhold/nginx.conf` accordingly.
+The internal hostname `tandoor` and port `8080` are the defaults for the Tandoor add-on. If your Tandoor add-on uses a different hostname or port, set the **`tandoor_url`** option in the add-on configuration (e.g. `http://my-tandoor:8080`).
 
 ## Development Setup
 
