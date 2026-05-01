@@ -20,8 +20,11 @@ interface ShoppingEntry {
 function groupByCategory(entries: ShoppingEntry[]): Record<string, ShoppingEntry[]> {
   const groups: Record<string, ShoppingEntry[]> = { Uncategorised: [] };
   for (const entry of entries) {
-    const cat = entry.supermarket_category?.name ?? entry.food?.supermarket_category;
-    const key = typeof cat === 'string' ? cat : 'Uncategorised';
+    const foodCat = entry.food?.supermarket_category;
+    const catName =
+      entry.supermarket_category?.name ??
+      (typeof foodCat === 'object' && foodCat !== null ? foodCat.name : null);
+    const key = catName ?? 'Uncategorised';
     if (!groups[key]) groups[key] = [];
     groups[key].push(entry);
   }
