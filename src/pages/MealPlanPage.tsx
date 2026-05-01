@@ -226,7 +226,7 @@ export function MealPlanPage() {
   const entriesByDay = (entries: MealPlan[]) =>
     days.reduce<Record<string, MealPlan[]>>((acc, day) => {
       const key = formatDate(day);
-      acc[key] = entries.filter((e) => e.from_date === key);
+      acc[key] = entries.filter((e) => e.from_date.split('T')[0] === key);
       return acc;
     }, {});
 
