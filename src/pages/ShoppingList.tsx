@@ -1,4 +1,4 @@
-import { ListGroup, Form, Alert, Accordion, Badge } from 'react-bootstrap';
+import { ListGroup, Form, Alert, Badge } from 'react-bootstrap';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPatch } from '../api/client';
 import type { Food, SupermarketCategory } from '../api/tandoor-types';
@@ -17,6 +17,21 @@ interface ShoppingEntry {
   supermarket_category?: SupermarketCategory | null;
 }
 
+interface AggregatedIngredient {
+  food: Food | null;
+  entries: ShoppingEntry[];
+  allChecked: boolean;
+  recipes: string[];
+}
+
+function formatAmount(entry: ShoppingEntry): string {
+  const parts: string[] = [];
+  if (entry.amount != null) parts.push(String(entry.amount));
+  const unitName = typeof entry.unit === 'object' && entry.unit ? entry.unit.name : entry.unit_name;
+  if (unitName) parts.push(unitName);
+  return parts.join(' ');
+}
+
 function groupByCategory(entries: ShoppingEntry[]): Record<string, ShoppingEntry[]> {
   const groups: Record<string, ShoppingEntry[]> = { Uncategorised: [] };
   for (const entry of entries) {
@@ -31,12 +46,22 @@ function groupByCategory(entries: ShoppingEntry[]): Record<string, ShoppingEntry
   return groups;
 }
 
-function formatAmount(entry: ShoppingEntry): string {
-  const parts: string[] = [];
-  if (entry.amount != null) parts.push(String(entry.amount));
-  const unitName = typeof entry.unit === 'object' && entry.unit ? entry.unit.name : entry.unit_name;
-  if (unitName) parts.push(unitName);
-  return parts.join(' ');
+function aggregateByIngredient(entries: ShoppingEntry[]): AggregatedIngredient[] {
+  const map = new Map<string, AggregatedIngredient>();
+  for (const entry of entries) {
+    const key = entry.food?.id != null ? `food-${entry.food.id}` : `entry-${entry.id}`;
+    if (!map.has(key)) {
+      map.set(key, { food: entry.food, entries: [], allChecked: true, recipes: [] });
+    }
+    const agg = map.get(key)!;
+    agg.entries.push(entry);
+    if (!entry.checked) agg.allChecked = false;
+    const recipeName = entry.recipe_mealplan?.recipe_name;
+    if (recipeName && !agg.recipes.includes(recipeName)) {
+      agg.recipes.push(recipeName);
+    }
+  }
+  return Array.from(map.values());
 }
 
 export function ShoppingList() {
@@ -52,6 +77,10 @@ export function ShoppingList() {
       apiPatch(`/shopping-list-entry/${id}/`, { checked }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['shopping-list'] }),
   });
+
+  const toggleAll = (entries: ShoppingEntry[], checked: boolean) => {
+    Promise.all(entries.map((entry) => toggle.mutateAsync({ id: entry.id, checked }))).catch(() => {});
+  };
 
   if (isLoading) {
     return <LoadingMascot />;
@@ -79,52 +108,59 @@ export function ShoppingList() {
       <h2 className="mb-1">Shopping List</h2>
       <p className="text-muted small mb-3">{entries.length} item{entries.length !== 1 ? 's' : ''}</p>
 
-      <Accordion defaultActiveKey={categoryNames} alwaysOpen>
-        {categoryNames.map((cat) => (
-          <Accordion.Item key={cat} eventKey={cat}>
-            <Accordion.Header>
+      {categoryNames.map((cat) => {
+        const aggregated = aggregateByIngredient(groups[cat]);
+        return (
+          <div key={cat} className="mb-4">
+            <h6 className="text-muted text-uppercase mb-1" style={{ fontSize: '0.75rem', letterSpacing: '0.05em' }}>
               {cat}
-              <Badge bg="secondary" className="ms-2">{groups[cat].length}</Badge>
-            </Accordion.Header>
-            <Accordion.Body className="p-0">
-              <ListGroup variant="flush">
-                {groups[cat].map((entry) => {
-                  const foodName = entry.food?.name ?? 'Unknown item';
-                  const amt = formatAmount(entry);
-                  const source = entry.recipe_mealplan?.recipe_name;
+              <Badge bg="secondary" className="ms-2">{aggregated.length}</Badge>
+            </h6>
+            <ListGroup variant="flush" className="border rounded">
+              {aggregated.map((agg) => {
+                const foodName = agg.food?.name ?? 'Unknown item';
+                const amounts = agg.entries
+                  .map(formatAmount)
+                  .filter(Boolean)
+                  .join(' + ');
+                const notes = [...new Set(agg.entries.map(e => e.ingredient_note).filter(Boolean))];
 
-                  return (
-                    <ListGroup.Item key={entry.id} className="py-2">
-                      <div className="d-flex align-items-start gap-2">
-                        <Form.Check
-                          type="checkbox"
-                          checked={entry.checked}
-                          onChange={(e) => toggle.mutate({ id: entry.id, checked: e.target.checked })}
-                          className="mt-1"
-                        />
-                        <div className="flex-grow-1">
-                          <span className={entry.checked ? 'text-decoration-line-through text-muted' : ''}>
-                            {amt && <span className="me-1 text-muted small">{amt}</span>}
-                            {foodName}
-                          </span>
-                          {entry.ingredient_note && (
-                            <span className="text-muted small ms-1">({entry.ingredient_note})</span>
-                          )}
-                          {source && (
-                            <div className="text-muted" style={{ fontSize: '0.7rem' }}>
-                              From: {source}
-                            </div>
-                          )}
-                        </div>
+                return (
+                  <ListGroup.Item key={agg.food?.id != null ? `food-${agg.food.id}` : `entries-${agg.entries.map(e => e.id).join('-')}`} className="py-2">
+                    <div className="d-flex align-items-start gap-2">
+                      <Form.Check
+                        type="checkbox"
+                        checked={agg.allChecked}
+                        onChange={(e) => toggleAll(agg.entries, e.target.checked)}
+                        className="mt-1"
+                      />
+                      <div className="flex-grow-1">
+                        <span className={agg.allChecked ? 'text-decoration-line-through text-muted' : ''}>
+                          {amounts && <span className="me-1 text-muted small">{amounts}</span>}
+                          {foodName}
+                        </span>
+                        {notes.map((note) => (
+                          <span key={note} className="text-muted small ms-1">({note})</span>
+                        ))}
+                        {agg.recipes.length > 0 && (
+                          <div className="mt-1 d-flex flex-wrap align-items-center gap-1">
+                            <Badge bg="info" text="dark" style={{ fontSize: '0.65rem' }}>
+                              {agg.recipes.length} {agg.recipes.length === 1 ? 'recipe' : 'recipes'}
+                            </Badge>
+                            {agg.recipes.map((r) => (
+                              <span key={r} className="text-muted" style={{ fontSize: '0.7rem' }}>{r}</span>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    </ListGroup.Item>
-                  );
-                })}
-              </ListGroup>
-            </Accordion.Body>
-          </Accordion.Item>
-        ))}
-      </Accordion>
+                    </div>
+                  </ListGroup.Item>
+                );
+              })}
+            </ListGroup>
+          </div>
+        );
+      })}
     </div>
   );
 }
