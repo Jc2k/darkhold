@@ -6,6 +6,7 @@ import { apiGet } from '../api/client';
 import type { Food, PaginatedResponse, Recipe } from '../api/tandoor-types';
 import { RecipeCard } from '../components/RecipeCard';
 import { MealPlanAddModal } from '../components/MealPlanAddModal';
+import { LoadingMascot } from '../components/LoadingMascot';
 
 export function IngredientDetail() {
   const { id } = useParams<{ id: string }>();
@@ -24,11 +25,7 @@ export function IngredientDetail() {
   });
 
   if (foodLoading) {
-    return (
-      <div className="text-center py-5">
-        <Spinner />
-      </div>
-    );
+    return <LoadingMascot />;
   }
 
   if (foodError || !food) {

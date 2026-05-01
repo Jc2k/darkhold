@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Row, Col, Badge, Accordion, Spinner, Alert, Button, Modal } from 'react-bootstrap';
+import { Row, Col, Badge, Accordion, Alert, Button, Modal } from 'react-bootstrap';
 import { apiGet } from '../api/client';
 import type { Recipe, RecipeIngredient, RecipeStep, RecipeUnit, Food, Keyword } from '../api/tandoor-types';
 import { TagBadge } from '../components/TagBadge';
 import { NutritionBadge } from '../components/NutritionBadge';
 import { MealPlanAddModal } from '../components/MealPlanAddModal';
+import { LoadingMascot } from '../components/LoadingMascot';
 
 function CookingMode({ steps, onClose }: { steps: RecipeStep[]; onClose: () => void }) {
   const [index, setIndex] = useState(0);
@@ -79,11 +80,7 @@ export function RecipeDetail() {
   }, [recipe]);
 
   if (isLoading) {
-    return (
-      <div className="text-center py-5">
-        <Spinner />
-      </div>
-    );
+    return <LoadingMascot />;
   }
 
   if (isError || !recipe) {
