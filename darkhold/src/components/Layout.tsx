@@ -48,7 +48,7 @@ export function Layout() {
       {/* Bottom tab bar - mobile */}
       <nav
         className="d-md-none fixed-bottom bg-dark border-top border-secondary"
-        style={{ zIndex: 1030 }}
+        style={{ zIndex: 1030, paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         <div className="d-flex">
           {navItems.map(({ to, label, exact }) => (
