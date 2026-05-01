@@ -1,4 +1,5 @@
 import { ListGroup, Form, Alert, Badge } from 'react-bootstrap';
+import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPatch } from '../api/client';
 import type { Food, SupermarketCategory } from '../api/tandoor-types';
@@ -137,7 +138,9 @@ export function ShoppingList() {
                       <div className="flex-grow-1">
                         <span className={agg.allChecked ? 'text-decoration-line-through text-muted' : ''}>
                           {amounts && <span className="me-1 text-muted small">{amounts}</span>}
-                          {foodName}
+                          {agg.food?.id != null ? (
+                            <Link to={`/ingredient/${agg.food.id}`}>{foodName}</Link>
+                          ) : foodName}
                         </span>
                         {notes.map((note) => (
                           <span key={note} className="text-muted small ms-1">({note})</span>
