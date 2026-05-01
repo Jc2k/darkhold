@@ -20,6 +20,7 @@ import { useQuery } from '@tanstack/react-query';
 import { apiGet } from '../api/client';
 import type { MealPlan, Recipe, MealType, PaginatedResponse } from '../api/tandoor-types';
 import { useRecipeSearch } from '../hooks/useRecipeSearch';
+import { LoadingMascot } from '../components/LoadingMascot';
 
 function formatDate(d: Date): string {
   return d.toISOString().split('T')[0];
@@ -274,11 +275,7 @@ export function MealPlanPage() {
         </div>
       </div>
 
-      {isLoading && (
-        <div className="text-center py-5">
-          <Spinner />
-        </div>
-      )}
+      {isLoading && <LoadingMascot />}
 
       <Row xs={1} sm={2} md={3} lg={4} className="g-3">
         {days.map((day) => {

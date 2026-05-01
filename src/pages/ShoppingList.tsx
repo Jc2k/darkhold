@@ -1,7 +1,8 @@
-import { ListGroup, Form, Spinner, Alert, Accordion, Badge } from 'react-bootstrap';
+import { ListGroup, Form, Alert, Accordion, Badge } from 'react-bootstrap';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPatch } from '../api/client';
 import type { Food, SupermarketCategory } from '../api/tandoor-types';
+import { LoadingMascot } from '../components/LoadingMascot';
 
 interface ShoppingEntry {
   id: number;
@@ -50,11 +51,7 @@ export function ShoppingList() {
   });
 
   if (isLoading) {
-    return (
-      <div className="text-center py-5">
-        <Spinner />
-      </div>
-    );
+    return <LoadingMascot />;
   }
 
   if (isError) {
