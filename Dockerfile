@@ -2,7 +2,7 @@
 # Use the build platform so deno runs natively (output is platform-independent)
 FROM --platform=$BUILDPLATFORM denoland/deno:alpine AS builder
 WORKDIR /app
-COPY package.json deno.json deno.lock* ./
+COPY package.json package-lock.json deno.json deno.lock* ./
 RUN deno install
 COPY . .
 RUN deno task build
