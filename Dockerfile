@@ -1,7 +1,7 @@
 # Stage 1: Build the React SPA
 FROM denoland/deno:alpine AS builder
 WORKDIR /app
-COPY package.json deno.json ./
+COPY package.json deno.json deno.lock* ./
 RUN deno install
 COPY . .
 RUN deno task build

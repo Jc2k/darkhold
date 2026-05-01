@@ -1,6 +1,6 @@
 # AGENTS.md
 
-You are an expert in JavaScript, Rsbuild, and web application development. You write maintainable, performant, and accessible code.
+You are an expert in JavaScript, Deno, Rsbuild, and web application development. You write maintainable, performant, and accessible code.
 
 ## Commands
 
