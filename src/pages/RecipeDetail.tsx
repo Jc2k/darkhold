@@ -180,7 +180,7 @@ export function RecipeDetail() {
               <li key={step.id} className="mb-3">
                 {step.name && <strong className="d-block mb-1">{step.name}</strong>}
                 <p className="mb-1" style={{ whiteSpace: 'pre-wrap' }}>{step.instruction}</p>
-                {step.time != null && <Badge bg="info" className="ms-2">{step.time} min</Badge>}
+                {step.time != null && step.time !== 0 && <Badge bg="info" className="ms-2">{step.time} min</Badge>}
               </li>
             ))}
           </ol>
