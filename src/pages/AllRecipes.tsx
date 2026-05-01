@@ -18,7 +18,8 @@ function groupRecipes(recipes: Recipe[], kwMap: Map<number, string>): Record<str
       ? recipe.keywords.flatMap((k) => {
           if (typeof k === 'object' && k !== null && !Array.isArray(k)) {
             const kw = k as Keyword;
-            return kw.name ? [kw.name] : [];
+            const name = kw.name ?? kwMap.get(kw.id);
+            return name ? [name] : [];
           }
           const name = kwMap.get(k as number);
           return name ? [name] : [];
