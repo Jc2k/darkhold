@@ -3,7 +3,7 @@ import { Spinner } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { apiGet } from '../api/client';
-import type { Recipe, MealPlan, PaginatedResponse } from '../api/tandoor-types';
+import type { Recipe, Keyword, MealPlan, PaginatedResponse } from '../api/tandoor-types';
 import { RecipeCard } from '../components/RecipeCard';
 import { MealPlanAddModal } from '../components/MealPlanAddModal';
 
@@ -162,11 +162,36 @@ function getActiveSeasons(date: Date): Set<string> {
 }
 
 function useSeasonalShelf(tag: string, enabled: boolean) {
-  return useQuery({
-    queryKey: ['recipes', 'seasonal', tag],
-    queryFn: () => apiGet<PaginatedResponse<Recipe>>('/recipe/', { keywords_name: tag, page_size: 10 }),
+  // Step 1: look up the keyword by exact name so we can filter by ID rather
+  // than using keywords_name (which does an icontains/substring match and
+  // returns recipes tagged with unrelated keywords like "spring onion").
+  const keywordQuery = useQuery({
+    queryKey: ['keywords', 'by-name', tag],
+    queryFn: async () => {
+      // page_size of 100 is intentionally large: seasonal tag names are short
+      // and distinct, so there will never be 100 keywords matching one query.
+      const data = await apiGet<PaginatedResponse<Keyword>>('/keyword/', { query: tag, page_size: 100 });
+      return data.results.find((k) => k.name.toLowerCase() === tag.toLowerCase()) ?? null;
+    },
     enabled,
   });
+
+  const keywordId = keywordQuery.data?.id;
+
+  // Step 2: fetch recipes filtered by the exact keyword ID.
+  const recipeQuery = useQuery({
+    queryKey: ['recipes', 'seasonal', tag],
+    // queryFn is only called when keywordId is defined (see `enabled` below).
+    queryFn: () => apiGet<PaginatedResponse<Recipe>>('/recipe/', { keywords: keywordId as number, page_size: 10 }),
+    enabled: enabled && keywordId !== undefined,
+  });
+
+  return {
+    data: recipeQuery.data,
+    isLoading: keywordQuery.isLoading || recipeQuery.isLoading,
+    isError: keywordQuery.isError || recipeQuery.isError,
+    keywordId,
+  };
 }
 
 function SeasonalShelf({
@@ -180,10 +205,13 @@ function SeasonalShelf({
 }) {
   const query = useSeasonalShelf(config.tag, enabled);
   if (!enabled) return null;
+  const searchLink = query.keywordId
+    ? `/search?keywords=${query.keywordId}`
+    : `/search?q=${config.tag}`;
   return (
     <RecipeShelf
       title={`${config.emoji} ${config.title} Recipes`}
-      searchLink={`/search?keywords_name=${config.tag}`}
+      searchLink={searchLink}
       recipes={query.data?.results ?? []}
       loading={query.isLoading}
       error={query.isError}
