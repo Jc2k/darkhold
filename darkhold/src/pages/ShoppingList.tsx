@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPatch, apiDelete } from '../api/client';
 import type { Food, SupermarketCategory } from '../api/tandoor-types';
 import { LoadingMascot } from '../components/LoadingMascot';
+import { formatFraction } from '../utils/fractions';
 
 interface ShoppingEntry {
   id: number;
@@ -29,7 +30,7 @@ interface AggregatedIngredient {
 
 function formatAmount(entry: ShoppingEntry): string {
   const parts: string[] = [];
-  if (entry.amount != null) parts.push(String(entry.amount));
+  if (entry.amount != null) parts.push(formatFraction(entry.amount));
   const unitName = typeof entry.unit === 'object' && entry.unit ? entry.unit.name : entry.unit_name;
   if (unitName) parts.push(unitName);
   return parts.join(' ');
