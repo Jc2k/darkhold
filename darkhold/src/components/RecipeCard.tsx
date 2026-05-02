@@ -2,6 +2,7 @@ import { Card, Button } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import type { Recipe, Keyword } from '../api/tandoor-types';
 import { TagBadge } from './TagBadge';
+import { proxyMediaUrl } from '../utils/mediaUrl';
 
 interface Props {
   recipe: Recipe;
@@ -19,7 +20,7 @@ export function RecipeCard({ recipe, onAddToMealPlan }: Props) {
       {recipe.image && (
         <Card.Img
           variant="top"
-          src={recipe.image}
+          src={proxyMediaUrl(recipe.image)}
           style={{ height: 180, objectFit: 'cover' }}
           onClick={() => navigate(`/recipe/${recipe.id}`)}
         />

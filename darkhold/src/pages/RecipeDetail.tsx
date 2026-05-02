@@ -8,6 +8,7 @@ import { TagBadge } from '../components/TagBadge';
 import { NutritionBadge } from '../components/NutritionBadge';
 import { MealPlanAddModal } from '../components/MealPlanAddModal';
 import { LoadingMascot } from '../components/LoadingMascot';
+import { proxyMediaUrl } from '../utils/mediaUrl';
 
 function CookingMode({ steps, onClose }: { steps: RecipeStep[]; onClose: () => void }) {
   const [index, setIndex] = useState(0);
@@ -100,7 +101,7 @@ export function RecipeDetail() {
     <div>
       {recipe.image && (
         <img
-          src={recipe.image}
+          src={proxyMediaUrl(recipe.image)}
           alt={recipe.name}
           className="w-100 rounded mb-3"
           style={{ maxHeight: 320, objectFit: 'cover' }}
