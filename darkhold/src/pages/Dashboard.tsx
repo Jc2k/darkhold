@@ -31,6 +31,7 @@ interface ShelfProps {
 }
 
 function RecipeShelf({ title, searchLink, recipes, loading, error, onAddToMealPlan }: ShelfProps) {
+  if (!loading && !error && recipes.length === 0) return null;
   return (
     <section className="mb-4">
       <div className="d-flex align-items-center justify-content-between mb-2">
@@ -41,9 +42,6 @@ function RecipeShelf({ title, searchLink, recipes, loading, error, onAddToMealPl
       </div>
       {loading && <Spinner size="sm" />}
       {error && <span className="text-danger small">Failed to load</span>}
-      {!loading && !error && recipes.length === 0 && (
-        <span className="text-muted small">No recipes found</span>
-      )}
       <div
         className="d-flex gap-3 pb-2 hide-scrollbar"
         style={{ overflowX: 'auto', scrollSnapType: 'x mandatory' }}
