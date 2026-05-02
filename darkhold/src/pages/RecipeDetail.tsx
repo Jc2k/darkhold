@@ -35,7 +35,7 @@ function CookingMode({ steps, onClose }: { steps: RecipeStep[]; onClose: () => v
                 <li key={ing.id} className="mb-1">
                   {ing.amount != null && <span className="text-muted">{formatFraction(ing.amount)} </span>}
                   {unit?.name && <span className="text-muted">{unit.name} </span>}
-                   <span>{food ? food.name : `Ingredient #${typeof ing.food === 'number' ? ing.food : ''}`}</span>
+                  <span>{food ? food.name : `Ingredient #${typeof ing.food === 'number' ? ing.food : ''}`}</span>
                   {ing.note && <span className="text-muted"> ({ing.note})</span>}
                 </li>
               );
