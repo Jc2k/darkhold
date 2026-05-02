@@ -9,6 +9,10 @@ export default defineConfig({
         target: process.env.TANDOOR_URL || 'http://localhost:8080',
         changeOrigin: true,
       },
+      '/media': {
+        target: process.env.TANDOOR_URL || 'http://localhost:8080',
+        changeOrigin: true,
+      },
     },
   },
   html: {
