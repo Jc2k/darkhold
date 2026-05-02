@@ -5,10 +5,11 @@ import { apiGet } from '../api/client';
 import type { Recipe, Keyword, PaginatedResponse } from '../api/tandoor-types';
 import { RecipeListItem } from '../components/RecipeListItem';
 import { LoadingMascot } from '../components/LoadingMascot';
+import { ALL_RECIPES_STALE_TIME, ALL_RECIPES_GC_TIME } from '../utils/cacheConfig';
 
 const GROUP_TAGS = ['Breakfast', 'Lunch', 'Dinner', 'Dessert', 'Soup', 'Salad', 'Snack', 'Burger', 'Noodles', 'Pasta', 'Curry', 'Sunday'];
 
-function groupRecipes(recipes: Recipe[], kwMap: Map<number, string>): Record<string, Recipe[]> {
+function groupRecipes(recipes: Recipe[], kwMap: Record<number, string>): Record<string, Recipe[]> {
   const groups: Record<string, Recipe[]> = {};
   GROUP_TAGS.forEach((tag) => (groups[tag] = []));
   groups['Other'] = [];
@@ -18,10 +19,10 @@ function groupRecipes(recipes: Recipe[], kwMap: Map<number, string>): Record<str
       ? recipe.keywords.flatMap((k) => {
           if (typeof k === 'object' && k !== null && !Array.isArray(k)) {
             const kw = k as Keyword;
-            const name = kw.name ?? kwMap.get(kw.id);
+            const name = kw.name ?? kwMap[kw.id];
             return name ? [name] : [];
           }
-          const name = kwMap.get(k as number);
+          const name = kwMap[k as number];
           return name ? [name] : [];
         })
       : [];
@@ -40,13 +41,13 @@ function groupRecipes(recipes: Recipe[], kwMap: Map<number, string>): Record<str
   return groups;
 }
 
-async function fetchAllKeywords(): Promise<Map<number, string>> {
-  const map = new Map<number, string>();
+async function fetchAllKeywords(): Promise<Record<number, string>> {
+  const map: Record<number, string> = {};
   let page = 1;
   while (true) {
     const data = await apiGet<PaginatedResponse<Keyword>>('/keyword/', { page_size: 100, page });
     for (const kw of data.results) {
-      map.set(kw.id, kw.name);
+      map[kw.id] = kw.name;
     }
     if (!data.next) break;
     page++;
@@ -54,7 +55,7 @@ async function fetchAllKeywords(): Promise<Map<number, string>> {
   return map;
 }
 
-async function fetchAllRecipes(): Promise<{ recipes: Recipe[]; kwMap: Map<number, string> }> {
+async function fetchAllRecipes(): Promise<{ recipes: Recipe[]; kwMap: Record<number, string> }> {
   const [kwMap, recipes] = await Promise.all([
     fetchAllKeywords(),
     (async () => {
@@ -76,6 +77,8 @@ export function AllRecipes() {
   const { data, isLoading, isError } = useQuery({
     queryKey: ['all-recipes'],
     queryFn: fetchAllRecipes,
+    staleTime: ALL_RECIPES_STALE_TIME,
+    gcTime: ALL_RECIPES_GC_TIME,
   });
 
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
