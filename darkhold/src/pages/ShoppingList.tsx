@@ -1,8 +1,8 @@
-import { ListGroup, Form, Alert, Badge, Spinner } from 'react-bootstrap';
+import { ListGroup, Form, Alert, Badge, Spinner, Button } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiGet, apiPatch } from '../api/client';
+import { apiGet, apiPatch, apiDelete } from '../api/client';
 import type { Food, SupermarketCategory } from '../api/tandoor-types';
 import { LoadingMascot } from '../components/LoadingMascot';
 
@@ -70,6 +70,8 @@ function aggregateByIngredient(entries: ShoppingEntry[]): AggregatedIngredient[]
 export function ShoppingList() {
   const qc = useQueryClient();
   const [pendingIds, setPendingIds] = useState<Set<number>>(new Set());
+  const [isClearing, setIsClearing] = useState(false);
+  const [clearError, setClearError] = useState<string | null>(null);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['shopping-list'],
@@ -92,6 +94,25 @@ export function ShoppingList() {
           ids.forEach((id) => next.delete(id));
           return next;
         });
+      });
+  };
+
+  const clearAll = (entries: ShoppingEntry[]) => {
+    if (!window.confirm(`Remove all ${entries.length} item${entries.length !== 1 ? 's' : ''} from your shopping list?`)) {
+      return;
+    }
+    setIsClearing(true);
+    setClearError(null);
+    Promise.allSettled(entries.map((entry) => apiDelete(`/shopping-list-entry/${entry.id}/`)))
+      .then((results) => {
+        const failed = results.filter((r) => r.status === 'rejected').length;
+        if (failed > 0) {
+          setClearError(`Failed to remove ${failed} item${failed !== 1 ? 's' : ''}. Please try again.`);
+        }
+      })
+      .finally(() => {
+        setIsClearing(false);
+        qc.invalidateQueries({ queryKey: ['shopping-list'] });
       });
   };
 
@@ -118,8 +139,19 @@ export function ShoppingList() {
 
   return (
     <div>
-      <h2 className="mb-1">Shopping List</h2>
+      <div className="d-flex align-items-center justify-content-between mb-1">
+        <h2 className="mb-0">Shopping List</h2>
+        <Button
+          variant="outline-danger"
+          size="sm"
+          onClick={() => clearAll(entries)}
+          disabled={isClearing}
+        >
+          {isClearing ? <><Spinner animation="border" size="sm" className="me-1" />Clearing…</> : 'Clear'}
+        </Button>
+      </div>
       <p className="text-muted small mb-3">{entries.length} item{entries.length !== 1 ? 's' : ''}</p>
+      {clearError && <Alert variant="danger" dismissible onClose={() => setClearError(null)}>{clearError}</Alert>}
 
       {categoryNames.map((cat) => {
         const aggregated = aggregateByIngredient(groups[cat]);
