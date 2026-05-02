@@ -18,12 +18,38 @@ export function RecipeCard({ recipe, onAddToMealPlan }: Props) {
   return (
     <Card className="h-100 recipe-card" style={{ cursor: 'pointer' }}>
       {recipe.image && (
-        <Card.Img
-          variant="top"
-          src={proxyMediaUrl(recipe.image)}
-          style={{ height: 180, objectFit: 'cover' }}
-          onClick={() => navigate(`/recipe/${recipe.id}`)}
-        />
+        <div style={{ position: 'relative' }}>
+          <Card.Img
+            variant="top"
+            src={proxyMediaUrl(recipe.image)}
+            style={{ height: 180, objectFit: 'cover' }}
+            onClick={() => navigate(`/recipe/${recipe.id}`)}
+          />
+          {onAddToMealPlan && (
+            <Button
+              variant="success"
+              size="sm"
+              style={{
+                position: 'absolute',
+                bottom: 8,
+                right: 8,
+                width: 32,
+                height: 32,
+                padding: 0,
+                borderRadius: '50%',
+                lineHeight: 1,
+                fontSize: '1.25rem',
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddToMealPlan(recipe);
+              }}
+              aria-label="Add to meal plan"
+            >
+              +
+            </Button>
+          )}
+        </div>
       )}
       <Card.Body onClick={() => navigate(`/recipe/${recipe.id}`)}>
         <Card.Title className="fs-6">{recipe.name}</Card.Title>
@@ -36,20 +62,6 @@ export function RecipeCard({ recipe, onAddToMealPlan }: Props) {
           ))}
         </div>
       </Card.Body>
-      {onAddToMealPlan && (
-        <Card.Footer className="d-flex justify-content-end p-1">
-          <Button
-            size="sm"
-            variant="outline-success"
-            onClick={(e) => {
-              e.stopPropagation();
-              onAddToMealPlan(recipe);
-            }}
-          >
-            + Plan
-          </Button>
-        </Card.Footer>
-      )}
     </Card>
   );
 }
