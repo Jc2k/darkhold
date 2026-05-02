@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Card, Form, Button, Alert, InputGroup, Spinner } from 'react-bootstrap';
 import { useSettings, type HomepageSetting } from '../hooks/useSettings';
 import { apiGet } from '../api/client';
-import type { User } from '../api/tandoor-types';
+import type { User, PaginatedResponse } from '../api/tandoor-types';
 
 export function Settings() {
   const { token, setToken, homepage, setHomepage } = useSettings();
@@ -23,8 +23,10 @@ export function Settings() {
     setTesting(true);
     setTestResult(null);
     try {
-      const user = await apiGet<User>('/user/');
-      setTestResult({ ok: true, message: `Connected as ${user.username}` });
+      const response = await apiGet<PaginatedResponse<User>>('/user/');
+      const username = response.results[0]?.username;
+      if (!username) throw new Error('Connection failed: no user returned');
+      setTestResult({ ok: true, message: `Connected as ${username}` });
     } catch (e) {
       setTestResult({ ok: false, message: e instanceof Error ? e.message : 'Connection failed' });
     } finally {
