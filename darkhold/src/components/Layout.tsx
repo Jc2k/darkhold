@@ -1,5 +1,8 @@
-import { Container, Navbar, Nav } from 'react-bootstrap';
+import { Container, Navbar, Nav, Spinner } from 'react-bootstrap';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { useIsFetching, useQueryClient } from '@tanstack/react-query';
+import { useCallback } from 'react';
+import { usePullToRefresh } from '../hooks/usePullToRefresh';
 
 const navItems = [
   { to: '/', label: '🏠 Dashboard', exact: true },
@@ -12,6 +15,14 @@ const navItems = [
 
 export function Layout() {
   const navigate = useNavigate();
+  const isFetching = useIsFetching();
+  const queryClient = useQueryClient();
+
+  const handleRefresh = useCallback(() => {
+    queryClient.refetchQueries();
+  }, [queryClient]);
+
+  usePullToRefresh({ onRefresh: handleRefresh });
 
   return (
     <div className="d-flex flex-column min-vh-100">
@@ -75,6 +86,13 @@ export function Layout() {
           </NavLink>
         </div>
       </nav>
+
+      {/* Background refresh throbber */}
+      {isFetching > 0 && (
+        <div className="refresh-throbber">
+          <Spinner animation="border" size="sm" variant="secondary" />
+        </div>
+      )}
     </div>
   );
 }

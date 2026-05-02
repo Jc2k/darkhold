@@ -29,6 +29,9 @@ export function useCreateMealPlan() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: Partial<MealPlan>) => apiPost<MealPlan>('/meal-plan/', data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['meal-plan'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['meal-plan'] });
+      qc.invalidateQueries({ queryKey: ['shopping-list'] });
+    },
   });
 }
