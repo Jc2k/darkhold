@@ -10,6 +10,7 @@ import { RecipeFoodProperties } from '../components/FoodPropertiesTable';
 import { MealPlanAddModal } from '../components/MealPlanAddModal';
 import { LoadingMascot } from '../components/LoadingMascot';
 import { proxyMediaUrl } from '../utils/mediaUrl';
+import { formatFraction } from '../utils/fractions';
 
 function CookingMode({ steps, onClose }: { steps: RecipeStep[]; onClose: () => void }) {
   const [index, setIndex] = useState(0);
@@ -32,7 +33,7 @@ function CookingMode({ steps, onClose }: { steps: RecipeStep[]; onClose: () => v
               const unit = ing.unit as RecipeUnit | null;
               return (
                 <li key={ing.id} className="mb-1">
-                  {ing.amount != null && <span className="text-muted">{ing.amount} </span>}
+                  {ing.amount != null && <span className="text-muted">{formatFraction(ing.amount)} </span>}
                   {unit?.name && <span className="text-muted">{unit.name} </span>}
                   <span>{food ? food.name : `Ingredient #${typeof ing.food === 'number' ? ing.food : ''}`}</span>
                   {ing.note && <span className="text-muted"> ({ing.note})</span>}
@@ -176,7 +177,7 @@ export function RecipeDetail() {
               const unit = ing.unit as RecipeUnit | null;
               return (
                 <li key={ing.id} className="mb-1">
-                  {ing.amount != null && <span className="text-muted">{ing.amount} </span>}
+                  {ing.amount != null && <span className="text-muted">{formatFraction(ing.amount)} </span>}
                   {unit?.name && <span className="text-muted">{unit.name} </span>}
                   {food ? (
                     <Link to={`/ingredient/${food.id}`}>{food.name}</Link>
