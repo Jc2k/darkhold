@@ -1,10 +1,36 @@
+// Unicode vulgar fraction characters for common fractions
+const UNICODE_FRACTIONS: Record<string, string> = {
+  '1/2': '½',
+  '1/3': '⅓',
+  '2/3': '⅔',
+  '1/4': '¼',
+  '3/4': '¾',
+  '1/5': '⅕',
+  '2/5': '⅖',
+  '3/5': '⅗',
+  '4/5': '⅘',
+  '1/6': '⅙',
+  '5/6': '⅚',
+  '1/7': '⅐',
+  '1/8': '⅛',
+  '3/8': '⅜',
+  '5/8': '⅝',
+  '7/8': '⅞',
+  '1/9': '⅑',
+  '1/10': '⅒',
+};
+
 function gcd(a: number, b: number): number {
   return b === 0 ? a : gcd(b, a % b);
 }
 
+function fractionString(num: number, den: number): string {
+  return UNICODE_FRACTIONS[`${num}/${den}`] ?? `${num}/${den}`;
+}
+
 /**
- * Formats a number as a mixed-number fraction string where possible.
- * e.g. 1.333... → "1 1/3", 0.5 → "1/2", 2 → "2"
+ * Formats a number as a mixed-number fraction string where possible,
+ * using Unicode vulgar fraction characters (e.g. 1.333... → "1 ⅓", 0.5 → "½").
  * Falls back to a trimmed decimal string if no close fraction is found.
  */
 export function formatFraction(value: number): string {
@@ -52,9 +78,10 @@ export function formatFraction(value: number): string {
     return formatWhole(wholePart + 1);
   }
 
+  const frac = fractionString(num, den);
   const prefix = isNegative ? '-' : '';
   if (wholePart === 0) {
-    return `${prefix}${num}/${den}`;
+    return `${prefix}${frac}`;
   }
-  return `${prefix}${wholePart} ${num}/${den}`;
+  return `${prefix}${wholePart} ${frac}`;
 }
