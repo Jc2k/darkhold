@@ -19,6 +19,20 @@
   overflow: hidden;
 }
 
+.refresh-throbber {
+  position: fixed;
+  right: 1rem;
+  bottom: calc(56px + env(safe-area-inset-bottom) + 8px);
+  z-index: 1031;
+  pointer-events: none;
+}
+
+@media (min-width: 768px) {
+  .refresh-throbber {
+    bottom: 1rem;
+  }
+}
+
 
   margin: 0;
   color: #fff;
