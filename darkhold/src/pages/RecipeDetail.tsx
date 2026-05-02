@@ -32,8 +32,8 @@ function CookingMode({ steps, onClose }: { steps: RecipeStep[]; onClose: () => v
               const unit = ing.unit as RecipeUnit | null;
               return (
                 <li key={ing.id} className="mb-1">
-                  {ing.amount != null && <span>{ing.amount} </span>}
-                  {unit?.name && <span>{unit.name} </span>}
+                  {ing.amount != null && <span className="text-muted">{ing.amount} </span>}
+                  {unit?.name && <span className="text-muted">{unit.name} </span>}
                   <span>{food ? food.name : `Ingredient #${typeof ing.food === 'number' ? ing.food : ''}`}</span>
                   {ing.note && <span className="text-muted"> ({ing.note})</span>}
                 </li>
@@ -176,8 +176,8 @@ export function RecipeDetail() {
               const unit = ing.unit as RecipeUnit | null;
               return (
                 <li key={ing.id} className="mb-1">
-                  {ing.amount != null && <span>{ing.amount} </span>}
-                  {unit?.name && <span>{unit.name} </span>}
+                  {ing.amount != null && <span className="text-muted">{ing.amount} </span>}
+                  {unit?.name && <span className="text-muted">{unit.name} </span>}
                   {food ? (
                     <Link to={`/ingredient/${food.id}`}>{food.name}</Link>
                   ) : (
