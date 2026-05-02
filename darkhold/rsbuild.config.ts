@@ -13,6 +13,11 @@ export default defineConfig({
         target: process.env.TANDOOR_URL || 'http://localhost:8080',
         changeOrigin: true,
       },
+      '/ws': {
+        target: 'ws://localhost:8098',
+        changeOrigin: true,
+        ws: true,
+      },
     },
   },
   html: {

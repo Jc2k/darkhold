@@ -1,6 +1,7 @@
 {
   "tasks": {
     "dev": "rsbuild dev --open",
+    "server": "deno run --allow-net server.ts",
     "build": "rsbuild build",
     "preview": "rsbuild preview"
   },

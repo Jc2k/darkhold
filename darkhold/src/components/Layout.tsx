@@ -3,6 +3,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useIsFetching, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
+import { useInvalidationSocket } from '../hooks/useInvalidationSocket';
 
 const navItems = [
   { to: '/', label: '🏠 Dashboard', exact: true },
@@ -23,6 +24,7 @@ export function Layout() {
   }, [queryClient]);
 
   usePullToRefresh({ onRefresh: handleRefresh });
+  useInvalidationSocket();
 
   return (
     <div className="d-flex flex-column min-vh-100">
