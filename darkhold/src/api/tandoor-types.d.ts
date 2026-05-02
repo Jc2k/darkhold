@@ -21,6 +21,7 @@ export interface Food {
   fdc_id?: string | null;
   food_onhand?: number;
   supermarket_category?: SupermarketCategory | number | null;
+  nutrition?: NutritionInformation;
 }
 
 /** Unit of measurement */
