@@ -8,7 +8,7 @@ COPY . .
 RUN deno task build
 
 # Stage 2: Pull the Deno binary for the target platform
-FROM --platform=$TARGETPLATFORM denoland/deno:2 AS deno-runtime
+FROM --platform=$TARGETPLATFORM denoland/deno:alpine AS deno-runtime
 
 # Stage 3: Serve with nginx
 FROM nginx:1.27-alpine
