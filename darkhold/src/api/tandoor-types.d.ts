@@ -4,13 +4,43 @@
  * Schema: https://app.tandoor.dev/openapi/
  */
 
-/** Nutrition information for a recipe */
+/** Nutrition information for a recipe (legacy, rarely populated) */
 export interface NutritionInformation {
   calories?: number | null;
   proteins?: number | null;
   carbohydrates?: number | null;
   fats?: number | null;
   fibres?: number | null;
+}
+
+/** A user-defined property type (e.g. Calories, Protein, Fat) */
+export interface PropertyType {
+  id: number;
+  name: string;
+  unit?: string | null;
+  description?: string | null;
+  order?: number;
+  open_data_slug?: string | null;
+  fdc_id?: string | null;
+}
+
+/** A property value attached to a food item */
+export interface Property {
+  id: number;
+  property_amount: number | string | null;
+  property_type: PropertyType;
+}
+
+/** A calculated food property entry returned in recipe.food_properties */
+export interface FoodProperty {
+  id: number;
+  name: string;
+  description?: string | null;
+  unit?: string | null;
+  order?: number;
+  total_value: number;
+  missing_value: boolean;
+  food_values: Record<string, { id: number; food: { id: number; name: string }; value: number | null }>;
 }
 
 /** Food item in the database */
@@ -21,7 +51,12 @@ export interface Food {
   fdc_id?: string | null;
   food_onhand?: number;
   supermarket_category?: SupermarketCategory | number | null;
-  nutrition?: NutritionInformation;
+  /** Per-food property values (e.g. nutritional info) */
+  properties?: Property[];
+  /** Amount of food that the properties apply to */
+  properties_food_amount?: number | string | null;
+  /** Unit for properties_food_amount */
+  properties_food_unit?: RecipeUnit | null;
 }
 
 /** Unit of measurement */
@@ -55,6 +90,8 @@ export interface Recipe {
   keywords?: Keyword[] | number[];
   image?: string | null;
   nutrition?: NutritionInformation;
+  /** Calculated food properties (nutrition) per full recipe, keyed by PropertyType id */
+  food_properties?: Record<string, FoodProperty>;
   steps?: RecipeStep[];
   cooking_time?: number;
   waiting_time?: number;

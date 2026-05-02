@@ -6,6 +6,7 @@ import { apiGet } from '../api/client';
 import type { Recipe, RecipeIngredient, RecipeStep, RecipeUnit, Food, Keyword } from '../api/tandoor-types';
 import { TagBadge } from '../components/TagBadge';
 import { NutritionBadge } from '../components/NutritionBadge';
+import { RecipeFoodProperties } from '../components/FoodPropertiesTable';
 import { MealPlanAddModal } from '../components/MealPlanAddModal';
 import { LoadingMascot } from '../components/LoadingMascot';
 import { proxyMediaUrl } from '../utils/mediaUrl';
@@ -123,6 +124,7 @@ export function RecipeDetail() {
             ))}
           </div>
           <NutritionBadge nutrition={recipe.nutrition} />
+          <RecipeFoodProperties foodProperties={recipe.food_properties} servings={recipe.servings} />
         </Col>
         <Col xs="auto" className="d-flex flex-column gap-2">
           <Button variant="success" size="sm" onClick={() => setPlanRecipe(recipe)}>

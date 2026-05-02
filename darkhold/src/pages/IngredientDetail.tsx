@@ -7,7 +7,7 @@ import type { Food, PaginatedResponse, Recipe } from '../api/tandoor-types';
 import { RecipeCard } from '../components/RecipeCard';
 import { MealPlanAddModal } from '../components/MealPlanAddModal';
 import { LoadingMascot } from '../components/LoadingMascot';
-import { NutritionBadge } from '../components/NutritionBadge';
+import { FoodPropertiesTable } from '../components/FoodPropertiesTable';
 
 export function IngredientDetail() {
   const { id } = useParams<{ id: string }>();
@@ -37,7 +37,11 @@ export function IngredientDetail() {
     <div>
       <h2 className="mb-1">{food.name}</h2>
       {food.description && <p className="text-muted">{food.description}</p>}
-      <NutritionBadge nutrition={food.nutrition} />
+      <FoodPropertiesTable
+        properties={food.properties}
+        amount={food.properties_food_amount}
+        unit={food.properties_food_unit}
+      />
 
       <Card className="mb-4 d-inline-block">
         <Card.Body className="py-2 px-3">
