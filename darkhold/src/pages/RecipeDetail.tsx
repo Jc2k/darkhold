@@ -25,6 +25,22 @@ function CookingMode({ steps, onClose }: { steps: RecipeStep[]; onClose: () => v
       </Modal.Header>
       <Modal.Body className="d-flex flex-column justify-content-center align-items-center text-center p-4">
         {current?.name && <h5 className="mb-3">{current.name}</h5>}
+        {current?.ingredients && current.ingredients.length > 0 && (
+          <ul className="list-unstyled mb-3 text-start w-100">
+            {current.ingredients.map((ing: RecipeIngredient) => {
+              const food = typeof ing.food === 'object' ? ing.food as Food : null;
+              const unit = ing.unit as RecipeUnit | null;
+              return (
+                <li key={ing.id} className="mb-1">
+                  {ing.amount != null && <span>{ing.amount} </span>}
+                  {unit?.name && <span>{unit.name} </span>}
+                  <span>{food ? food.name : `Ingredient #${typeof ing.food === 'number' ? ing.food : ''}`}</span>
+                  {ing.note && <span className="text-muted"> ({ing.note})</span>}
+                </li>
+              );
+            })}
+          </ul>
+        )}
         <p className="fs-5">{current?.instruction}</p>
         {current?.time && <Badge bg="info">{current.time} min</Badge>}
       </Modal.Body>
