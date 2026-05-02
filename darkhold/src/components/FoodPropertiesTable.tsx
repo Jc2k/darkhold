@@ -29,7 +29,7 @@ export function RecipeFoodProperties({
         <span key={p.id}>
           {i > 0 && ' · '}
           {p.name}: {Math.round(p.total_value / per)} {p.unit ?? ''}
-          {p.missing_value && <span title="Some ingredients are missing data"> *</span>}
+          {p.missing_value && <span title="Some ingredients are missing data"> ⚠️</span>}
         </span>
       ))}
       {servings != null && servings > 1 && <span className="ms-1">(per serving)</span>}
