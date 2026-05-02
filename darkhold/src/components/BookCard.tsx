@@ -1,6 +1,7 @@
 import { Card } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import type { RecipeBook } from '../api/tandoor-types';
+import { proxyMediaUrl } from '../utils/mediaUrl';
 
 interface Props {
   book: RecipeBook;
@@ -19,7 +20,7 @@ export function BookCard({ book, coverImage }: Props) {
       {coverImage ? (
         <Card.Img
           variant="top"
-          src={coverImage}
+          src={proxyMediaUrl(coverImage)}
           style={{ height: 180, objectFit: 'cover' }}
         />
       ) : (
