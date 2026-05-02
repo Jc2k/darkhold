@@ -2,6 +2,7 @@ import { Card, Button } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import type { Recipe, Keyword } from '../api/tandoor-types';
 import { TagBadge } from './TagBadge';
+import { NutritionBadge } from './NutritionBadge';
 import { proxyMediaUrl } from '../utils/mediaUrl';
 
 interface Props {
@@ -35,6 +36,7 @@ export function RecipeCard({ recipe, onAddToMealPlan }: Props) {
             <TagBadge key={k.id} keyword={k} />
           ))}
         </div>
+        <NutritionBadge nutrition={recipe.nutrition} />
       </Card.Body>
       {onAddToMealPlan && (
         <Card.Footer className="d-flex justify-content-end p-1">
