@@ -1,5 +1,6 @@
-import { ListGroup, Form, Alert, Badge } from 'react-bootstrap';
+import { ListGroup, Form, Alert, Badge, Spinner } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPatch } from '../api/client';
 import type { Food, SupermarketCategory } from '../api/tandoor-types';
@@ -68,6 +69,7 @@ function aggregateByIngredient(entries: ShoppingEntry[]): AggregatedIngredient[]
 
 export function ShoppingList() {
   const qc = useQueryClient();
+  const [pendingIds, setPendingIds] = useState<Set<number>>(new Set());
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['shopping-list'],
@@ -81,7 +83,16 @@ export function ShoppingList() {
   });
 
   const toggleAll = (entries: ShoppingEntry[], checked: boolean) => {
-    Promise.all(entries.map((entry) => toggle.mutateAsync({ id: entry.id, checked }))).catch(() => {});
+    const ids = entries.map((e) => e.id);
+    setPendingIds((prev: Set<number>) => new Set([...prev, ...ids]));
+    Promise.allSettled(entries.map((entry) => toggle.mutateAsync({ id: entry.id, checked })))
+      .finally(() => {
+        setPendingIds((prev: Set<number>) => {
+          const next = new Set(prev);
+          ids.forEach((id) => next.delete(id));
+          return next;
+        });
+      });
   };
 
   if (isLoading) {
@@ -126,16 +137,32 @@ export function ShoppingList() {
                   .filter(Boolean)
                   .join(' + ');
                 const notes = [...new Set(agg.entries.map(e => e.ingredient_note).filter(Boolean))];
+                const isPending = agg.entries.some((e) => pendingIds.has(e.id));
 
                 return (
                   <ListGroup.Item key={agg.food?.id != null ? `food-${agg.food.id}` : `entries-${agg.entries.map(e => e.id).join('-')}`} className="py-2">
                     <div className="d-flex align-items-start gap-2">
-                      <Form.Check
-                        type="checkbox"
-                        checked={agg.allChecked}
-                        onChange={(e) => toggleAll(agg.entries, e.target.checked)}
-                        className="mt-1"
-                      />
+                      <button
+                        type="button"
+                        className="btn p-0 d-flex align-items-center justify-content-center flex-shrink-0 mt-1"
+                        style={{ width: '2.25rem', height: '2.25rem', background: 'none', border: 'none', cursor: isPending ? 'wait' : 'pointer' }}
+                        onClick={() => toggleAll(agg.entries, !agg.allChecked)}
+                        disabled={isPending}
+                        aria-label={agg.allChecked ? `Uncheck ${foodName}` : `Check ${foodName}`}
+                        aria-pressed={agg.allChecked}
+                      >
+                        {isPending ? (
+                          <Spinner animation="border" size="sm" />
+                        ) : (
+                          <Form.Check
+                            type="checkbox"
+                            checked={agg.allChecked}
+                            readOnly
+                            tabIndex={-1}
+                            style={{ pointerEvents: 'none' }}
+                          />
+                        )}
+                      </button>
                       <div className="flex-grow-1">
                         <span className={agg.allChecked ? 'text-decoration-line-through text-muted' : ''}>
                           {amounts && <span className="me-1 text-muted small">{amounts}</span>}
