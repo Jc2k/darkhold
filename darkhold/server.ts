@@ -18,7 +18,12 @@ Deno.serve({ port: 8098, hostname: "127.0.0.1" }, (req: Request): Response => {
   socket.onmessage = (e: MessageEvent) => {
     for (const client of clients) {
       if (client !== socket && client.readyState === WebSocket.OPEN) {
-        client.send(e.data);
+        try {
+          client.send(e.data);
+        } catch {
+          // remove clients that fail to receive messages
+          clients.delete(client);
+        }
       }
     }
   };

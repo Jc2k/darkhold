@@ -36,7 +36,11 @@ function connect(): void {
 
 export function broadcastInvalidation(queryKey: string): void {
   if (!socket || socket.readyState !== WebSocket.OPEN) return;
-  socket.send(JSON.stringify({ type: 'invalidate', queryKey }));
+  try {
+    socket.send(JSON.stringify({ type: 'invalidate', queryKey }));
+  } catch {
+    // ignore send errors — the onclose handler will trigger reconnection
+  }
 }
 
 export function useInvalidationSocket(): void {
