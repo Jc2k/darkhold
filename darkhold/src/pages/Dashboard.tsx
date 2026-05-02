@@ -251,9 +251,9 @@ export function Dashboard() {
     }
   }
 
-  const favourites = useDashboardShelf(
-    ['recipes', 'favourite'],
-    () => apiGet<PaginatedResponse<Recipe>>('/recipe/', { keywords_name: 'favourite', page_size: 10 }),
+  const topRated = useDashboardShelf(
+    ['recipes', 'top-rated'],
+    () => apiGet<PaginatedResponse<Recipe>>('/recipe/', { rating: 4, page_size: 10 }),
   );
 
   const quickEasy = useDashboardShelf(
@@ -279,11 +279,11 @@ export function Dashboard() {
       />
 
       <RecipeShelf
-        title="⭐ Favourites"
-        searchLink="/search?keywords_name=favourite"
-        recipes={favourites.data?.results ?? []}
-        loading={favourites.isLoading}
-        error={favourites.isError}
+        title="⭐ Top Rated"
+        searchLink="/search?rating=4"
+        recipes={topRated.data?.results ?? []}
+        loading={topRated.isLoading}
+        error={topRated.isError}
         onAddToMealPlan={setModalRecipe}
       />
 
