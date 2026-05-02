@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Row, Col, Card, Spinner, Alert } from 'react-bootstrap';
+import { Row, Col, Spinner, Alert } from 'react-bootstrap';
 import { apiGet } from '../api/client';
 import type { Food, PaginatedResponse, Recipe } from '../api/tandoor-types';
 import { RecipeCard } from '../components/RecipeCard';
@@ -42,22 +42,6 @@ export function IngredientDetail() {
         amount={food.properties_food_amount}
         unit={food.properties_food_unit}
       />
-
-      <Card className="mb-4 d-inline-block">
-        <Card.Body className="py-2 px-3">
-          <span className="small text-muted">Food ID: {food.id}</span>
-          {food.fdc_id && (
-            <a
-              href={`https://fdc.nal.usda.gov/fdc-app.html#/food-details/${food.fdc_id}/nutrients`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="ms-3 small"
-            >
-              FDC Nutrition →
-            </a>
-          )}
-        </Card.Body>
-      </Card>
 
       <h5 className="mb-3">Recipes using {food.name}</h5>
       {recipesLoading && <Spinner size="sm" />}
