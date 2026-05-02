@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Row, Col, Card, Button, Modal, Form, Spinner, Alert } from 'react-bootstrap';
+import { proxyMediaUrl } from '../utils/mediaUrl';
 import {
   DndContext,
   closestCenter,
@@ -49,7 +50,7 @@ function SortableEntry({ entry, onDelete, onClick }: SortableEntryProps) {
   });
   const style = { transform: CSS.Transform.toString(transform), transition };
   const recipe = typeof entry.recipe === 'object' ? entry.recipe : null;
-  const mealType = typeof entry.meal_type === 'object' ? entry.meal_type : null;
+  const thumbnailSrc = recipe?.image ? proxyMediaUrl(recipe.image) : undefined;
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} className="mb-2">
@@ -59,12 +60,18 @@ function SortableEntry({ entry, onDelete, onClick }: SortableEntryProps) {
             <span {...listeners} style={{ cursor: 'grab', touchAction: 'none' }} className="text-muted">
               ⋮⋮
             </span>
+            {thumbnailSrc && (
+              <img
+                src={thumbnailSrc}
+                alt={recipe?.name ?? ''}
+                style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }}
+              />
+            )}
             <div className="flex-grow-1" style={{ cursor: 'pointer' }} onClick={() => onClick(entry)}>
               <div className="small fw-semibold">{recipe?.name ?? `Recipe #${entry.recipe}`}</div>
-              <div className="text-muted" style={{ fontSize: '0.7rem' }}>
-                {mealType?.name}
-                {entry.servings != null && ` · ${entry.servings} servings`}
-              </div>
+              {entry.note && (
+                <div className="text-muted" style={{ fontSize: '0.7rem' }}>{entry.note}</div>
+              )}
             </div>
             <Button
               variant="link"
@@ -228,8 +235,10 @@ export function MealPlanPage() {
   const [detailEntry, setDetailEntry] = useState<MealPlan | null>(null);
   const [addDate, setAddDate] = useState<string | null>(null);
 
-  const startDate = addDays(new Date(), weekOffset * 7 - 3);
-  const endDate = addDays(startDate, 9);
+  const today = new Date();
+  const daysBackToSaturday = (today.getDay() + 1) % 7;
+  const startDate = addDays(today, -daysBackToSaturday + weekOffset * 7);
+  const endDate = addDays(startDate, 6);
 
   const { data, isLoading, isError } = useMealPlan(startDate, endDate);
   const deleteMeal = useDeleteMealPlan();
@@ -242,7 +251,7 @@ export function MealPlanPage() {
 
   const sensors = useSensors(useSensor(PointerSensor));
 
-  const days = Array.from({ length: 10 }, (_, i) => addDays(startDate, i));
+  const days = Array.from({ length: 7 }, (_, i) => addDays(startDate, i));
 
   const entriesByDay = (entries: MealPlan[]) =>
     days.reduce<Record<string, MealPlan[]>>((acc, day) => {
