@@ -42,11 +42,11 @@ function addDays(d: Date, n: number): Date {
 }
 
 function shortDay(d: Date): string {
-  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  return d.toLocaleDateString('en-GB', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
 function formatMonthYear(d: Date): string {
-  return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  return d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
 }
 
 interface EntryCardProps {

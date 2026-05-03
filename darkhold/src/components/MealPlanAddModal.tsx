@@ -16,7 +16,7 @@ function formatDate(d: Date): string {
 }
 
 function formatMonthYear(d: Date): string {
-  return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  return d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
 }
 
 function getWeekStartingSaturday(weekOffset: number): Date[] {
@@ -95,7 +95,7 @@ export function MealPlanAddModal({ recipe, onHide }: Props) {
                 style={{ minWidth: 0 }}
               >
                 <span style={{ fontSize: '0.65rem', lineHeight: 1 }}>
-                  {d.toLocaleDateString('en-US', { weekday: 'short' })}
+                  {d.toLocaleDateString('en-GB', { weekday: 'short' })}
                 </span>
                 <span style={{ fontSize: '0.85rem', lineHeight: 1.2, fontWeight: 600 }}>
                   {d.getDate()}

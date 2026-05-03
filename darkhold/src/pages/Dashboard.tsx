@@ -18,7 +18,7 @@ function addDays(date: Date, numDays: number): Date {
 }
 
 function shortDay(date: Date): string {
-  return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  return date.toLocaleDateString('en-GB', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
 interface ShelfProps {
