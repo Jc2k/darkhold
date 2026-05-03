@@ -106,7 +106,7 @@ function EntryCard({ entry, onDelete, onClick, dragging }: EntryCardProps) {
               onClick={() => onDelete(entry.id)}
               aria-label="Remove meal"
             >
-              <Trash3 />
+              <Trash3 size={16} />
             </Button>
           )}
         </div>
@@ -165,7 +165,7 @@ function SortableEntry({ entry, onDelete, onClick }: SortableEntryProps) {
               onClick={() => onDelete(entry.id)}
               aria-label="Remove meal"
             >
-              <Trash3 />
+              <Trash3 size={16} />
             </Button>
           </div>
         </Card.Body>
@@ -483,7 +483,7 @@ export function MealPlanPage() {
                       onClick={() => setAddDate(dateKey)}
                       aria-label="Add meal"
                     >
-                      <Plus />
+                      <Plus size={16} />
                     </Button>
                   </Card.Header>
                   <Card.Body className="p-2">
