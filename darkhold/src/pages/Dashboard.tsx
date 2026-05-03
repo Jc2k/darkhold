@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Spinner } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { apiGet } from '../api/client';
-import type { Recipe, Keyword, MealPlan, PaginatedResponse } from '../api/tandoor-types';
+import type { Recipe, Keyword, MealPlan, RecipeBook, RecipeBookEntry, PaginatedResponse } from '../api/tandoor-types';
 import { RecipeCard } from '../components/RecipeCard';
+import { BookCard } from '../components/BookCard';
 import { MealPlanAddModal } from '../components/MealPlanAddModal';
+import { getFilterId } from '../utils/bookUtils';
 
 function formatDate(d: Date): string {
   return d.toISOString().split('T')[0];
@@ -218,6 +220,106 @@ function SeasonalShelf({
   );
 }
 
+async function fetchAllBooks(): Promise<RecipeBook[]> {
+  const all: RecipeBook[] = [];
+  let page = 1;
+  let hasNext = true;
+  while (hasNext) {
+    const data = await apiGet<PaginatedResponse<RecipeBook>>('/recipe-book/', { page_size: 100, page });
+    all.push(...data.results);
+    hasNext = !!data.next;
+    page++;
+  }
+  return all;
+}
+
+async function fetchAllBookEntries(): Promise<RecipeBookEntry[]> {
+  const all: RecipeBookEntry[] = [];
+  let page = 1;
+  let hasNext = true;
+  while (hasNext) {
+    const data = await apiGet<PaginatedResponse<RecipeBookEntry>>('/recipe-book-entry/', { page_size: 100, page });
+    all.push(...data.results);
+    hasNext = !!data.next;
+    page++;
+  }
+  return all;
+}
+
+function BooksShelf() {
+  const { data: books, isLoading: booksLoading, isError: booksError } = useQuery({
+    queryKey: ['books'],
+    queryFn: fetchAllBooks,
+  });
+
+  const { data: entries, isLoading: entriesLoading } = useQuery({
+    queryKey: ['book-entries'],
+    queryFn: fetchAllBookEntries,
+  });
+
+  const coverImages = useMemo(() => {
+    if (!entries) return new Map<number, string>();
+    const map = new Map<number, string>();
+    for (const entry of entries) {
+      const bookId = typeof entry.book === 'object' ? entry.book.id : entry.book;
+      if (!map.has(bookId) && entry.recipe?.image) {
+        map.set(bookId, entry.recipe.image);
+      }
+    }
+    return map;
+  }, [entries]);
+
+  const booksWithFilter = useMemo(() => books?.filter((b) => b.filter != null) ?? [], [books]);
+
+  const { data: filterCovers } = useQuery({
+    queryKey: ['book-filter-covers', booksWithFilter.map((b) => b.id)],
+    queryFn: async () => {
+      const map = new Map<number, string>();
+      await Promise.all(
+        booksWithFilter.map(async (book) => {
+          const filterId = getFilterId(book.filter);
+          if (filterId === null) return;
+          const data = await apiGet<PaginatedResponse<Recipe>>('/recipe/', { keywords: filterId, page_size: 1 });
+          const image = data.results[0]?.image;
+          if (image) map.set(book.id, image);
+        })
+      );
+      return map;
+    },
+    enabled: booksWithFilter.length > 0,
+  });
+
+  const isBooksShelfLoading = booksLoading || entriesLoading;
+
+  if (!isBooksShelfLoading && !booksError && (!books || books.length === 0)) return null;
+
+  return (
+    <section className="mb-4">
+      <div className="d-flex align-items-center justify-content-between mb-2">
+        <h5 className="mb-0">📚 Books</h5>
+        <Link to="/books" className="small text-muted">
+          See all →
+        </Link>
+      </div>
+      {isBooksShelfLoading && <Spinner size="sm" />}
+      {booksError && <span className="text-danger small">Failed to load</span>}
+      <div
+        className="d-flex gap-3 pb-2 hide-scrollbar"
+        style={{ overflowX: 'auto', scrollSnapType: 'x mandatory' }}
+      >
+        {books?.map((book) => {
+          const cover = coverImages.get(book.id) ?? filterCovers?.get(book.id) ?? null;
+          return (
+            <div key={book.id} style={{ minWidth: 200, maxWidth: 200, scrollSnapAlign: 'start' }}>
+              <BookCard book={book} coverImage={cover} />
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 export function Dashboard() {
   const [modalRecipe, setModalRecipe] = useState<Recipe | null>(null);
 
@@ -313,6 +415,8 @@ export function Dashboard() {
           onAddToMealPlan={setModalRecipe}
         />
       ))}
+
+      <BooksShelf />
 
       <MealPlanAddModal recipe={modalRecipe} onHide={() => setModalRecipe(null)} />
     </div>
