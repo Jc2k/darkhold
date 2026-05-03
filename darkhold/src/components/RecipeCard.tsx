@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import type { Recipe, Keyword } from '../api/tandoor-types';
 import { TagBadge } from './TagBadge';
 import { proxyMediaUrl } from '../utils/mediaUrl';
+import { addToMealPlanButtonStyle } from '../utils/buttonStyles';
 
 interface Props {
   recipe: Recipe;
@@ -53,15 +54,10 @@ export function RecipeCard({ recipe, onAddToMealPlan }: Props) {
             variant="success"
             size="sm"
             style={{
+              ...addToMealPlanButtonStyle,
               position: 'absolute',
               bottom: 8,
               right: 8,
-              width: 32,
-              height: 32,
-              padding: 0,
-              borderRadius: '50%',
-              lineHeight: 1,
-              fontSize: '1.25rem',
             }}
             onClick={(e) => {
               e.stopPropagation();

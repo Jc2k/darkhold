@@ -1,10 +1,11 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { ListGroup, Alert, Nav } from 'react-bootstrap';
 import { useQuery } from '@tanstack/react-query';
 import { apiGet } from '../api/client';
 import type { Recipe, Keyword, PaginatedResponse } from '../api/tandoor-types';
 import { RecipeListItem } from '../components/RecipeListItem';
 import { LoadingMascot } from '../components/LoadingMascot';
+import { MealPlanAddModal } from '../components/MealPlanAddModal';
 import { ALL_RECIPES_STALE_TIME, ALL_RECIPES_GC_TIME } from '../utils/cacheConfig';
 
 const GROUP_TAGS = ['Breakfast', 'Lunch', 'Dinner', 'Dessert', 'Soup', 'Salad', 'Snack', 'Burger', 'Noodles', 'Pasta', 'Curry', 'Sunday'];
@@ -82,6 +83,7 @@ export function AllRecipes() {
   });
 
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
+  const [modalRecipe, setModalRecipe] = useState<Recipe | null>(null);
   const groups = data ? groupRecipes(data.recipes, data.kwMap) : {};
   const allGroups = [...GROUP_TAGS, 'Other'];
 
@@ -135,12 +137,14 @@ export function AllRecipes() {
             </h5>
             <ListGroup variant="flush">
               {recipes.map((r) => (
-                <RecipeListItem key={r.id} recipe={r} />
+                <RecipeListItem key={r.id} recipe={r} onAddToMealPlan={setModalRecipe} />
               ))}
             </ListGroup>
           </section>
         );
       })}
+
+      <MealPlanAddModal recipe={modalRecipe} onHide={() => setModalRecipe(null)} />
     </div>
   );
 }
