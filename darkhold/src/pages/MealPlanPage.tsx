@@ -422,6 +422,7 @@ export function MealPlanPage() {
         id: activeEntryId,
         data: {
           from_date: targetContainerId,
+          to_date: targetContainerId,
           recipe: recipeId,
           meal_type: mealTypeId,
         },
