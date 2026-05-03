@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { ListGroup, Button } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import type { Recipe } from '../api/tandoor-types';
@@ -8,7 +9,7 @@ interface Props {
   onAddToMealPlan?: (recipe: Recipe) => void;
 }
 
-export function RecipeListItem({ recipe, onAddToMealPlan }: Props) {
+export const RecipeListItem = memo(function RecipeListItem({ recipe, onAddToMealPlan }: Props) {
   const navigate = useNavigate();
   return (
     <ListGroup.Item
@@ -17,7 +18,7 @@ export function RecipeListItem({ recipe, onAddToMealPlan }: Props) {
       className="d-flex justify-content-between align-items-center"
     >
       <span>{recipe.name}</span>
-      <div className="d-flex align-items-center gap-2" onClick={(e) => e.stopPropagation()}>
+      <div className="d-flex align-items-center gap-2" onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
         {recipe.cooking_time != null && (
           <small className="text-muted">{recipe.cooking_time} min</small>
         )}
@@ -35,4 +36,4 @@ export function RecipeListItem({ recipe, onAddToMealPlan }: Props) {
       </div>
     </ListGroup.Item>
   );
-}
+});
