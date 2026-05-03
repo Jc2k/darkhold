@@ -37,6 +37,8 @@ jobs:
         run: npm ci --legacy-peer-deps
       - name: Run frontend unit tests
         run: npm test
+      - name: TypeScript type check
+        run: npx tsc --noEmit
       - name: Run server unit tests
         run: deno task test
 
