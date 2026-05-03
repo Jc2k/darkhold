@@ -23,11 +23,91 @@ jobs:
           fetch-depth: 0
       - uses: wagoid/commitlint-github-action@v6
 
+  unit-test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: darkhold
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+      - name: Install npm dependencies
+        run: npm ci --legacy-peer-deps
+      - name: Run frontend unit tests
+        run: npm test
+      - name: Run server unit tests
+        run: deno task test
+
+  docker-test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - linux/amd64
+          - linux/arm64
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./darkhold
+          platforms: ${{ matrix.platform }}
+          load: true
+          tags: darkhold-test
+      - name: Start container
+        run: docker run -d --name darkhold-test -p 8099:8099 darkhold-test
+      - name: Wait for container to be ready
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8099/ > /dev/null 2>&1; then
+              echo "Container ready after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Container failed to start in time"
+          docker logs darkhold-test
+          exit 1
+      - name: Test SPA is served
+        run: curl -sf http://localhost:8099/ | grep -q '<html'
+      - name: Test WebSocket endpoint
+        run: |
+          pip install --quiet websockets
+          python3 - <<'EOF'
+          import asyncio, websockets, json
+
+          async def test():
+              async with websockets.connect('ws://localhost:8099/ws') as ws:
+                  msg = await asyncio.wait_for(ws.recv(), timeout=5)
+                  data = json.loads(msg)
+                  assert data.get('type') == 'version', f"Expected version message, got: {data}"
+                  print(f"WebSocket OK: version={data['version']}")
+
+          asyncio.run(test())
+          EOF
+      - name: Dump container logs on failure
+        if: failure()
+        run: docker logs darkhold-test
+      - name: Cleanup
+        if: always()
+        run: docker rm -f darkhold-test || true
+
   release:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     needs:
       - commitlint
+      - unit-test
+      - docker-test
     concurrency: release
     permissions:
       id-token: write
@@ -99,3 +179,4 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
