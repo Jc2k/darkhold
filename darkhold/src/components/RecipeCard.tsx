@@ -1,5 +1,6 @@
 import { Card, Button } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
+import { Plus } from 'react-bootstrap-icons';
 import type { Recipe, Keyword } from '../api/tandoor-types';
 import { TagBadge } from './TagBadge';
 import { proxyMediaUrl } from '../utils/mediaUrl';
@@ -65,7 +66,7 @@ export function RecipeCard({ recipe, onAddToMealPlan }: Props) {
             }}
             aria-label="Add to meal plan"
           >
-            +
+            <Plus />
           </Button>
         )}
       </div>

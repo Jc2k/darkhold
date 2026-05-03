@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Row, Col, Badge, Alert, Button, Modal } from 'react-bootstrap';
+import { Plus, Play } from 'react-bootstrap-icons';
 import { apiGet } from '../api/client';
 import type { Recipe, RecipeIngredient, RecipeStep, RecipeUnit, Food, Keyword } from '../api/tandoor-types';
 import { TagBadge } from '../components/TagBadge';
@@ -153,7 +154,7 @@ export function RecipeDetail() {
             onClick={() => setPlanRecipe(recipe)}
             aria-label="Add to meal plan"
           >
-            +
+            <Plus />
           </Button>
           {steps.length > 0 && (
             <Button
@@ -163,7 +164,7 @@ export function RecipeDetail() {
               onClick={() => setCookingMode(true)}
               aria-label="Start cooking mode"
             >
-              👨‍🍳
+              <Play />
             </Button>
           )}
         </Col>
