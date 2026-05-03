@@ -68,11 +68,11 @@ export function MealPlanAddModal({ recipe, onHide }: Props) {
   return (
     <Modal show={!!recipe} onHide={onHide} centered>
       <Modal.Header closeButton>
-        <Modal.Title className="fs-6">Add to Meal Plan</Modal.Title>
+        <Modal.Title className="fs-6" style={{ overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+          Add "{recipe.name}" to Meal Plan
+        </Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        <p className="fw-semibold mb-3">{recipe.name}</p>
-
         <Form.Group className="mb-3">
           <Form.Label>Date</Form.Label>
           <div className="d-flex align-items-center justify-content-between mb-1">
