@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { AsyncTypeahead } from 'react-bootstrap-typeahead';
-import { Button } from 'react-bootstrap';
+import { Button, Alert } from 'react-bootstrap';
 import 'react-bootstrap-typeahead/css/Typeahead.css';
 
 export interface FilterOption {
@@ -29,12 +29,17 @@ export function AsyncTypeaheadFilter({
 }: AsyncTypeaheadFilterProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [options, setOptions] = useState<FilterOption[]>([]);
+  const [searchError, setSearchError] = useState(false);
 
   const handleSearch = async (query: string) => {
     setIsLoading(true);
+    setSearchError(false);
     try {
       const results = await onSearch(query);
       setOptions(results);
+    } catch {
+      setSearchError(true);
+      setOptions([]);
     } finally {
       setIsLoading(false);
     }
@@ -57,6 +62,11 @@ export function AsyncTypeaheadFilter({
           placeholder={placeholder ?? `Search ${label.toLowerCase()}…`}
           size="sm"
         />
+        {searchError && (
+          <Alert variant="danger" className="py-1 px-2 mt-1 mb-0 small">
+            Failed to load suggestions.
+          </Alert>
+        )}
       </div>
       <Button
         variant="outline-secondary"

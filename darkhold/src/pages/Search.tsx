@@ -11,19 +11,32 @@ import type { Recipe } from '../api/tandoor-types';
 
 type ActiveFilter = 'tags' | 'ingredients';
 
+interface FilterConfig {
+  key: ActiveFilter;
+  label: string;
+  emoji: string;
+  urlParam: string;
+  searcher: (query: string) => Promise<FilterOption[]>;
+}
+
+const FILTER_CONFIGS: FilterConfig[] = [
+  { key: 'tags', label: 'Tags', emoji: '🏷️', urlParam: 'keywords', searcher: searchKeywords },
+  { key: 'ingredients', label: 'Ingredients', emoji: '🥕', urlParam: 'foods', searcher: searchFoods },
+];
+
 export function Search() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [modalRecipe, setModalRecipe] = useState<Recipe | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [activeFilters, setActiveFilters] = useState<Set<ActiveFilter>>(new Set());
+  const [selectedOptions, setSelectedOptions] = useState<Record<ActiveFilter, FilterOption[]>>({
+    tags: [],
+    ingredients: [],
+  });
 
   const q = searchParams.get('q') || '';
-  const keywordsParam = searchParams.get('keywords') || '';
-  const foodsParam = searchParams.get('foods') || '';
 
   const [inputValue, setInputValue] = useState(q);
-  const [selectedTags, setSelectedTags] = useState<FilterOption[]>([]);
-  const [selectedFoods, setSelectedFoods] = useState<FilterOption[]>([]);
 
   // Sync text input with URL
   useEffect(() => {
@@ -33,8 +46,9 @@ export function Search() {
   // Restore active filters panel when URL has filter params
   useEffect(() => {
     const next = new Set<ActiveFilter>();
-    if (keywordsParam) next.add('tags');
-    if (foodsParam) next.add('ingredients');
+    for (const cfg of FILTER_CONFIGS) {
+      if (searchParams.get(cfg.urlParam)) next.add(cfg.key);
+    }
     if (next.size > 0) {
       setActiveFilters(next);
       setFiltersOpen(true);
@@ -43,8 +57,8 @@ export function Search() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const keywordIds = keywordsParam ? keywordsParam.split(',').map(Number).filter(Boolean) : [];
-  const foodIds = foodsParam ? foodsParam.split(',').map(Number).filter(Boolean) : [];
+  const keywordIds = (searchParams.get('keywords') || '').split(',').map(Number).filter(Boolean);
+  const foodIds = (searchParams.get('foods') || '').split(',').map(Number).filter(Boolean);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,24 +71,14 @@ export function Search() {
     setSearchParams(next);
   };
 
-  const handleTagsChange = (selected: FilterOption[]) => {
-    setSelectedTags(selected);
+  const handleFilterChange = (key: ActiveFilter, selected: FilterOption[]) => {
+    const cfg = FILTER_CONFIGS.find((c) => c.key === key)!;
+    setSelectedOptions((prev) => ({ ...prev, [key]: selected }));
     const next = new URLSearchParams(searchParams);
     if (selected.length > 0) {
-      next.set('keywords', selected.map((t) => t.id).join(','));
+      next.set(cfg.urlParam, selected.map((o) => o.id).join(','));
     } else {
-      next.delete('keywords');
-    }
-    setSearchParams(next);
-  };
-
-  const handleFoodsChange = (selected: FilterOption[]) => {
-    setSelectedFoods(selected);
-    const next = new URLSearchParams(searchParams);
-    if (selected.length > 0) {
-      next.set('foods', selected.map((f) => f.id).join(','));
-    } else {
-      next.delete('foods');
+      next.delete(cfg.urlParam);
     }
     setSearchParams(next);
   };
@@ -89,8 +93,7 @@ export function Search() {
       next.delete(filter);
       return next;
     });
-    if (filter === 'tags') handleTagsChange([]);
-    if (filter === 'ingredients') handleFoodsChange([]);
+    handleFilterChange(filter, []);
   };
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, isError } =
@@ -117,11 +120,6 @@ export function Search() {
   }, [handleObserver]);
 
   const hasQuery = !!(q || keywordIds.length || foodIds.length);
-
-  const availableFilterButtons: { key: ActiveFilter; label: string; emoji: string }[] = [
-    { key: 'tags', label: 'Tags', emoji: '🏷️' },
-    { key: 'ingredients', label: 'Ingredients', emoji: '🥕' },
-  ];
 
   return (
     <div>
@@ -157,46 +155,27 @@ export function Search() {
       <Collapse in={filtersOpen}>
         <div id="advanced-filters" className="border rounded p-3 mb-3 bg-light">
           <div className="d-flex flex-wrap gap-2 mb-3">
-            {availableFilterButtons
-              .filter(({ key }) => !activeFilters.has(key))
-              .map(({ key, label, emoji }) => (
-                <Button
-                  key={key}
-                  variant="outline-primary"
-                  size="sm"
-                  onClick={() => addFilter(key)}
-                >
-                  {emoji} {label}
-                </Button>
-              ))}
-            {availableFilterButtons.every(({ key }) => activeFilters.has(key)) && (
+            {FILTER_CONFIGS.filter(({ key }) => !activeFilters.has(key)).map(({ key, label, emoji }) => (
+              <Button key={key} variant="outline-primary" size="sm" onClick={() => addFilter(key)}>
+                {emoji} {label}
+              </Button>
+            ))}
+            {FILTER_CONFIGS.every(({ key }) => activeFilters.has(key)) && (
               <span className="text-muted small align-self-center">All filters added.</span>
             )}
           </div>
 
-          {activeFilters.has('tags') && (
+          {FILTER_CONFIGS.filter(({ key }) => activeFilters.has(key)).map(({ key, label, searcher }) => (
             <AsyncTypeaheadFilter
-              id="tags-filter"
-              label="Tags"
-              selected={selectedTags}
-              onSearch={searchKeywords}
-              onChange={handleTagsChange}
-              onRemove={() => removeFilter('tags')}
-              placeholder="Search tags…"
+              key={key}
+              id={`${key}-filter`}
+              label={label}
+              selected={selectedOptions[key]}
+              onSearch={searcher}
+              onChange={(selected) => handleFilterChange(key, selected)}
+              onRemove={() => removeFilter(key)}
             />
-          )}
-
-          {activeFilters.has('ingredients') && (
-            <AsyncTypeaheadFilter
-              id="ingredients-filter"
-              label="Ingredients"
-              selected={selectedFoods}
-              onSearch={searchFoods}
-              onChange={handleFoodsChange}
-              onRemove={() => removeFilter('ingredients')}
-              placeholder="Search ingredients…"
-            />
-          )}
+          ))}
         </div>
       </Collapse>
 
@@ -232,4 +211,3 @@ export function Search() {
     </div>
   );
 }
-
