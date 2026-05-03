@@ -24,7 +24,9 @@ export function useDeleteMealPlan() {
     mutationFn: (id: number) => apiDelete(`/meal-plan/${id}/`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['meal-plan'] });
+      qc.invalidateQueries({ queryKey: ['shopping-list'] });
       broadcastInvalidation('meal-plan');
+      broadcastInvalidation('shopping-list');
     },
   });
 }
@@ -36,7 +38,9 @@ export function useUpdateMealPlan() {
       apiPatch<MealPlan>(`/meal-plan/${id}/`, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['meal-plan'] });
+      qc.invalidateQueries({ queryKey: ['shopping-list'] });
       broadcastInvalidation('meal-plan');
+      broadcastInvalidation('shopping-list');
     },
   });
 }
@@ -49,6 +53,7 @@ export function useCreateMealPlan() {
       qc.invalidateQueries({ queryKey: ['meal-plan'] });
       qc.invalidateQueries({ queryKey: ['shopping-list'] });
       broadcastInvalidation('meal-plan');
+      broadcastInvalidation('shopping-list');
     },
   });
 }
