@@ -395,7 +395,18 @@ export function MealPlanPage() {
       setDayOrder((prev) => ({ ...prev, [activeContainerId]: reordered.map((e) => e.id) }));
     } else {
       // Cross-day move: update from_date via API
-      updateMeal.mutate({ id: activeEntryId, data: { from_date: targetContainerId } });
+      const entry = allEntries.find((e) => e.id === activeEntryId);
+      if (!entry) return;
+      const recipeId = typeof entry.recipe === 'object' ? entry.recipe.id : entry.recipe;
+      const mealTypeId = typeof entry.meal_type === 'object' ? entry.meal_type.id : entry.meal_type;
+      updateMeal.mutate({
+        id: activeEntryId,
+        data: {
+          from_date: targetContainerId,
+          recipe: recipeId,
+          meal_type: mealTypeId,
+        },
+      });
     }
   };
 
