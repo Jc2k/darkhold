@@ -13,6 +13,9 @@ import { RecipeDetail } from './pages/RecipeDetail';
 import { IngredientDetail } from './pages/IngredientDetail';
 import { Books } from './pages/Books';
 import { BookDetail } from './pages/BookDetail';
+import { GasMarks } from './pages/GasMarks';
+import { UnitConverter } from './pages/UnitConverter';
+import { RiceCooking } from './pages/RiceCooking';
 
 function getHomepage(): string {
   const pref = localStorage.getItem('homepage_pref') || 'dashboard';
@@ -73,6 +76,18 @@ const router = createBrowserRouter([
       {
         path: 'books/:id',
         element: <AuthGuard><BookDetail /></AuthGuard>,
+      },
+      {
+        path: 'utilities/gas-marks',
+        element: <GasMarks />,
+      },
+      {
+        path: 'utilities/unit-converter',
+        element: <UnitConverter />,
+      },
+      {
+        path: 'utilities/rice-cooking',
+        element: <RiceCooking />,
       },
     ],
   },
