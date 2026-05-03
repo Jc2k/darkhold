@@ -66,6 +66,8 @@ function CookingMode({ steps, onClose }: { steps: RecipeStep[]; onClose: () => v
   );
 }
 
+const circleButtonStyle = { width: 32, height: 32, padding: 0, borderRadius: '50%', lineHeight: 1, fontSize: '1.25rem' };
+
 export function RecipeDetail() {
   const { id } = useParams<{ id: string }>();
   const [planRecipe, setPlanRecipe] = useState<Recipe | null>(null);
@@ -144,12 +146,24 @@ export function RecipeDetail() {
           <RecipeFoodProperties foodProperties={recipe.food_properties} servings={recipe.servings} />
         </Col>
         <Col xs="auto" className="d-flex flex-column gap-2">
-          <Button variant="success" size="sm" onClick={() => setPlanRecipe(recipe)}>
-            + Meal Plan
+          <Button
+            variant="success"
+            size="sm"
+            style={circleButtonStyle}
+            onClick={() => setPlanRecipe(recipe)}
+            aria-label="Add to meal plan"
+          >
+            +
           </Button>
           {steps.length > 0 && (
-            <Button variant="primary" size="sm" onClick={() => setCookingMode(true)}>
-              👨‍🍳 Cook
+            <Button
+              variant="primary"
+              size="sm"
+              style={circleButtonStyle}
+              onClick={() => setCookingMode(true)}
+              aria-label="Start cooking mode"
+            >
+              👨‍🍳
             </Button>
           )}
         </Col>
