@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { ListGroup, Button } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import type { Recipe } from '../api/tandoor-types';
@@ -8,7 +9,7 @@ interface Props {
   onAddToMealPlan?: (recipe: Recipe) => void;
 }
 
-export function RecipeListItem({ recipe, onAddToMealPlan }: Props) {
+export const RecipeListItem = memo(function RecipeListItem({ recipe, onAddToMealPlan }: Props) {
   const navigate = useNavigate();
   return (
     <ListGroup.Item
@@ -35,4 +36,4 @@ export function RecipeListItem({ recipe, onAddToMealPlan }: Props) {
       </div>
     </ListGroup.Item>
   );
-}
+});
