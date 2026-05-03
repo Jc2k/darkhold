@@ -4,6 +4,8 @@ import { useIsFetching, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import { useInvalidationSocket } from '../hooks/useInvalidationSocket';
+import { useSwipeUpSearch } from '../hooks/useSwipeUpSearch';
+import { SearchDrawer } from './SearchDrawer';
 
 const navItems = [
   { to: '/', label: '🏠 Dashboard', exact: true },
@@ -13,6 +15,8 @@ const navItems = [
   { to: '/meal-plan', label: '📅 Plan' },
   { to: '/shopping', label: '🛒 Shopping' },
 ];
+
+const mobileNavItems = navItems.filter(({ to }) => to !== '/search');
 
 const menuItems = [
   { to: '/settings', label: '⚙️ Settings' },
@@ -26,6 +30,7 @@ export function Layout() {
   const isFetching = useIsFetching();
   const queryClient = useQueryClient();
   const [showMenu, setShowMenu] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
 
   const handleRefresh = useCallback(() => {
     queryClient.refetchQueries();
@@ -33,6 +38,7 @@ export function Layout() {
 
   usePullToRefresh({ onRefresh: handleRefresh });
   useInvalidationSocket();
+  useSwipeUpSearch({ onOpen: () => setShowSearch(true) });
 
   return (
     <div className="d-flex flex-column min-vh-100">
@@ -78,7 +84,7 @@ export function Layout() {
         style={{ zIndex: 1030, paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         <div className="d-flex">
-          {navItems.map(({ to, label, exact }) => (
+          {mobileNavItems.map(({ to, label, exact }) => (
             <NavLink
               key={to}
               to={to}
@@ -91,6 +97,14 @@ export function Layout() {
               {label}
             </NavLink>
           ))}
+          <button
+            type="button"
+            className="flex-fill text-center py-2 text-decoration-none small text-secondary border-0 bg-transparent"
+            style={{ fontSize: '0.65rem' }}
+            onClick={() => setShowSearch(true)}
+          >
+            🔍 Search
+          </button>
           <button
             type="button"
             className="flex-fill text-center py-2 text-decoration-none small text-secondary border-0 bg-transparent"
@@ -130,6 +144,9 @@ export function Layout() {
           </ListGroup>
         </Offcanvas.Body>
       </Offcanvas>
+
+      {/* Search drawer */}
+      <SearchDrawer show={showSearch} onHide={() => setShowSearch(false)} />
 
       {/* Background refresh throbber */}
       {isFetching > 0 && (
