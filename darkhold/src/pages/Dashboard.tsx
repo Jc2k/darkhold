@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Spinner } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { Book } from 'react-bootstrap-icons';
 import { apiGet } from '../api/client';
 import type { Recipe, Keyword, MealPlan, RecipeBook, RecipeBookEntry, PaginatedResponse } from '../api/tandoor-types';
 import { RecipeCard } from '../components/RecipeCard';
@@ -296,7 +297,7 @@ function BooksShelf() {
   return (
     <section className="mb-4">
       <div className="d-flex align-items-center justify-content-between mb-2">
-        <h5 className="mb-0">📚 Books</h5>
+        <h5 className="mb-0"><Book className="me-2" />Books</h5>
         <Link to="/books" className="small text-muted">
           See all →
         </Link>

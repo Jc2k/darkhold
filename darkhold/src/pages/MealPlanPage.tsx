@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Row, Col, Card, Button, Modal, Form, Spinner, Alert } from 'react-bootstrap';
+import { Trash3, Plus } from 'react-bootstrap-icons';
 import { proxyMediaUrl } from '../utils/mediaUrl';
 import {
   DndContext,
@@ -105,7 +106,7 @@ function EntryCard({ entry, onDelete, onClick, dragging }: EntryCardProps) {
               onClick={() => onDelete(entry.id)}
               aria-label="Remove meal"
             >
-              <span aria-hidden="true">🗑️</span>
+              <Trash3 />
             </Button>
           )}
         </div>
@@ -164,7 +165,7 @@ function SortableEntry({ entry, onDelete, onClick }: SortableEntryProps) {
               onClick={() => onDelete(entry.id)}
               aria-label="Remove meal"
             >
-              <span aria-hidden="true">🗑️</span>
+              <Trash3 />
             </Button>
           </div>
         </Card.Body>
@@ -481,7 +482,7 @@ export function MealPlanPage() {
                       onClick={() => setAddDate(dateKey)}
                       aria-label="Add meal"
                     >
-                      +
+                      <Plus />
                     </Button>
                   </Card.Header>
                   <Card.Body className="p-2">

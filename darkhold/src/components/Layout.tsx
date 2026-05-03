@@ -2,15 +2,16 @@ import { Container, Navbar, Nav, Spinner, NavDropdown, Offcanvas, ListGroup } fr
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useIsFetching, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
+import { RocketTakeoff, Book, Search, CalendarDay, Cart4 } from 'react-bootstrap-icons';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import { useInvalidationSocket } from '../hooks/useInvalidationSocket';
 
 const navItems = [
-  { to: '/', icon: '🏠', label: 'Dashboard', exact: true },
-  { to: '/all-recipes', icon: '📖', label: 'Recipes' },
-  { to: '/search', icon: '🔍', label: 'Search' },
-  { to: '/meal-plan', icon: '📅', label: 'Plan' },
-  { to: '/shopping', icon: '🛒', label: 'Shopping' },
+  { to: '/', Icon: RocketTakeoff, label: 'Dashboard', exact: true },
+  { to: '/all-recipes', Icon: Book, label: 'Recipes' },
+  { to: '/search', Icon: Search, label: 'Search' },
+  { to: '/meal-plan', Icon: CalendarDay, label: 'Plan' },
+  { to: '/shopping', Icon: Cart4, label: 'Shopping' },
 ];
 
 const menuItems = [
@@ -43,14 +44,14 @@ export function Layout() {
         <Navbar.Toggle />
         <Navbar.Collapse>
           <Nav className="me-auto">
-            {navItems.map(({ to, icon, label, exact }) => (
+            {navItems.map(({ to, Icon, label, exact }) => (
               <Nav.Link
                 key={to}
                 as={NavLink}
                 to={to}
                 end={exact}
               >
-                {icon} {label}
+                <Icon className="me-1" /> {label}
               </Nav.Link>
             ))}
           </Nav>
@@ -93,7 +94,7 @@ export function Layout() {
         style={{ position: 'sticky', bottom: 0, zIndex: 1030, paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         <div className="d-flex">
-          {navItems.map(({ to, icon, label, exact }) => (
+          {navItems.map(({ to, Icon, label, exact }) => (
             <NavLink
               key={to}
               to={to}
@@ -104,7 +105,7 @@ export function Layout() {
               }
               style={{ fontSize: '1.5rem' }}
             >
-              {icon}
+              <Icon />
             </NavLink>
           ))}
         </div>

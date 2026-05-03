@@ -1,5 +1,6 @@
 import { Card } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
+import { Book } from 'react-bootstrap-icons';
 import type { RecipeBook } from '../api/tandoor-types';
 import { proxyMediaUrl } from '../utils/mediaUrl';
 
@@ -28,7 +29,7 @@ export function BookCard({ book, coverImage }: Props) {
           className="d-flex align-items-center justify-content-center bg-secondary text-white"
           style={{ height: 180, fontSize: '3rem' }}
         >
-          📚
+          <Book size={72} />
         </div>
       )}
       <Card.Body>

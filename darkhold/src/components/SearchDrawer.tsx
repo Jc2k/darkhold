@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Offcanvas, Form, Spinner, Row, Col } from 'react-bootstrap';
+import { Search as SearchIcon } from 'react-bootstrap-icons';
 import { useLocation } from 'react-router-dom';
 import { useRecipeSearch } from '../hooks/useRecipeSearch';
 import { RecipeCard } from './RecipeCard';
@@ -74,7 +75,7 @@ export function SearchDrawer({ show, onHide }: SearchDrawerProps) {
         style={{ height: '85vh' }}
       >
         <Offcanvas.Header closeButton closeVariant="white">
-          <Offcanvas.Title>🔍 Search Recipes</Offcanvas.Title>
+          <Offcanvas.Title><SearchIcon className="me-2" />Search Recipes</Offcanvas.Title>
         </Offcanvas.Header>
         <Offcanvas.Body>
           <Form className="mb-3" onSubmit={(e) => e.preventDefault()}>
