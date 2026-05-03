@@ -9,6 +9,8 @@ RUN deno task build
 
 # Stage 2: Pull the Deno binary for the target platform
 FROM --platform=$TARGETPLATFORM denoland/deno:alpine AS deno-runtime
+# Normalize the deno binary to a known path (location varies by architecture)
+RUN cp "$(which deno)" /tmp/deno
 
 # Stage 3: Serve with nginx
 FROM nginx:1.27-alpine
@@ -26,7 +28,7 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 # Copy package.json for the WebSocket server (reads version at startup)
 COPY --from=builder /app/package.json /package.json
 # Copy Deno binary (target-platform build) and WebSocket server
-COPY --from=deno-runtime /usr/local/bin/deno /usr/local/bin/deno
+COPY --from=deno-runtime /tmp/deno /usr/local/bin/deno
 COPY server.ts /server.ts
 EXPOSE 8099
 CMD ["/run.sh"]
