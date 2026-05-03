@@ -403,8 +403,8 @@ export function MealPlanPage() {
         id: activeEntryId,
         data: {
           from_date: targetContainerId,
-          recipe: recipeId as unknown as Recipe,
-          meal_type: mealTypeId as unknown as MealType,
+          recipe: recipeId,
+          meal_type: mealTypeId,
         },
       });
     }
