@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Modal, Button, Form, Row, Col, Spinner } from 'react-bootstrap';
+import { Modal, Button, Form, Spinner } from 'react-bootstrap';
 import type { Recipe, MealType } from '../api/tandoor-types';
 import { useCreateMealPlan } from '../hooks/useMealPlan';
 import { useQuery } from '@tanstack/react-query';
@@ -15,22 +15,23 @@ function formatDate(d: Date): string {
   return d.toISOString().split('T')[0];
 }
 
-function getNextDays(n: number): Date[] {
-  return Array.from({ length: n }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() + i);
+function getWeekStartingSaturday(weekOffset: number): Date[] {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const daysUntilSaturday = (6 - today.getDay() + 7) % 7;
+  const saturday = new Date(today);
+  saturday.setDate(today.getDate() + daysUntilSaturday + weekOffset * 7);
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(saturday);
+    d.setDate(saturday.getDate() + i);
     return d;
   });
 }
 
-function shortDate(d: Date): string {
-  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-}
-
 export function MealPlanAddModal({ recipe, onHide }: Props) {
-  const days = getNextDays(7);
-  const [selectedDate, setSelectedDate] = useState<Date>(days[0]);
-  const [customDate, setCustomDate] = useState('');
+  const [weekOffset, setWeekOffset] = useState(0);
+  const days = getWeekStartingSaturday(weekOffset);
+  const [selectedDate, setSelectedDate] = useState<Date>(() => getWeekStartingSaturday(0)[0]);
   const [servings, setServings] = useState<number>(recipe?.servings ?? 2);
   const [mealTypeIdOverride, setMealTypeIdOverride] = useState<number | null>(null);
   const [note, setNote] = useState('');
@@ -48,7 +49,7 @@ export function MealPlanAddModal({ recipe, onHide }: Props) {
   const effectiveMealTypeId = mealTypeIdOverride ?? deriveMealType(recipe, mealTypes);
 
   const handleSubmit = async () => {
-    const date = customDate || formatDate(selectedDate);
+    const date = formatDate(selectedDate);
     await createMealPlan.mutateAsync({
       recipe: recipe.id as unknown as Recipe,
       meal_type: (effectiveMealTypeId ?? mealTypes[0]?.id) as unknown as MealType,
@@ -70,25 +71,37 @@ export function MealPlanAddModal({ recipe, onHide }: Props) {
 
         <Form.Group className="mb-3">
           <Form.Label>Date</Form.Label>
-          <Row className="g-1 mb-2">
+          <div className="d-flex align-items-center gap-1 flex-nowrap">
+            <Button
+              size="sm"
+              variant="outline-secondary"
+              onClick={() => setWeekOffset((w) => w - 1)}
+              aria-label="Previous week"
+            >‹</Button>
             {days.map((d) => (
-              <Col key={d.toISOString()} xs="auto">
-                <Button
-                  size="sm"
-                  variant={formatDate(d) === (customDate || formatDate(selectedDate)) ? 'primary' : 'outline-secondary'}
-                  onClick={() => { setSelectedDate(d); setCustomDate(''); }}
-                >
-                  {shortDate(d)}
-                </Button>
-              </Col>
+              <Button
+                key={d.toISOString()}
+                size="sm"
+                variant={formatDate(d) === formatDate(selectedDate) ? 'primary' : 'outline-secondary'}
+                onClick={() => setSelectedDate(d)}
+                className="d-flex flex-column align-items-center px-2 py-1 flex-fill"
+                style={{ minWidth: 0 }}
+              >
+                <span style={{ fontSize: '0.65rem', lineHeight: 1 }}>
+                  {d.toLocaleDateString('en-US', { weekday: 'short' })}
+                </span>
+                <span style={{ fontSize: '0.85rem', lineHeight: 1.2, fontWeight: 600 }}>
+                  {d.getDate()}
+                </span>
+              </Button>
             ))}
-          </Row>
-          <Form.Control
-            type="date"
-            value={customDate}
-            onChange={(e) => setCustomDate(e.target.value)}
-            placeholder="Or pick a custom date"
-          />
+            <Button
+              size="sm"
+              variant="outline-secondary"
+              onClick={() => setWeekOffset((w) => w + 1)}
+              aria-label="Next week"
+            >›</Button>
+          </div>
         </Form.Group>
 
         <Form.Group className="mb-3">
