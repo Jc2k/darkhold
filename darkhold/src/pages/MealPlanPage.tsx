@@ -3,11 +3,14 @@ import { Row, Col, Card, Button, Modal, Form, Spinner, Alert } from 'react-boots
 import { proxyMediaUrl } from '../utils/mediaUrl';
 import {
   DndContext,
+  DragOverlay,
   closestCenter,
   PointerSensor,
   useSensor,
   useSensors,
+  useDroppable,
   type DragEndEvent,
+  type DragStartEvent,
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -16,13 +19,17 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { useMealPlan, useDeleteMealPlan, useCreateMealPlan } from '../hooks/useMealPlan';
+import { useMealPlan, useDeleteMealPlan, useCreateMealPlan, useUpdateMealPlan } from '../hooks/useMealPlan';
 import { useQuery } from '@tanstack/react-query';
 import { apiGet } from '../api/client';
 import type { MealPlan, Recipe, MealType, PaginatedResponse } from '../api/tandoor-types';
 import { deriveMealType } from '../utils/mealUtils';
 import { useRecipeSearch } from '../hooks/useRecipeSearch';
 import { LoadingMascot } from '../components/LoadingMascot';
+
+type WithSortable = { sortable?: { containerId: string } } | undefined;
+
+const noop = () => {};
 
 function formatDate(d: Date): string {
   return d.toISOString().split('T')[0];
@@ -38,6 +45,52 @@ function shortDay(d: Date): string {
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
+interface EntryCardProps {
+  entry: MealPlan;
+  onDelete: (id: number) => void;
+  onClick: (entry: MealPlan) => void;
+  dragging?: boolean;
+}
+
+function EntryCard({ entry, onDelete, onClick, dragging }: EntryCardProps) {
+  const recipe = typeof entry.recipe === 'object' ? entry.recipe : null;
+  const thumbnailSrc = recipe?.image ? proxyMediaUrl(recipe.image) : undefined;
+  return (
+    <Card className={`border-0 ${dragging ? 'shadow-lg' : 'shadow-sm'}`}>
+      <Card.Body className="py-2 px-3">
+        <div className="d-flex align-items-center gap-2">
+          <span style={{ cursor: dragging ? 'grabbing' : 'grab', touchAction: 'none' }} className="text-muted">
+            ⋮⋮
+          </span>
+          {thumbnailSrc && (
+            <img
+              src={thumbnailSrc}
+              alt={recipe?.name ?? ''}
+              style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }}
+            />
+          )}
+          <div className="flex-grow-1" style={{ cursor: 'pointer' }} onClick={() => onClick(entry)}>
+            <div className="small fw-semibold">{recipe?.name ?? `Recipe #${entry.recipe}`}</div>
+            {entry.note && (
+              <div className="text-muted" style={{ fontSize: '0.7rem' }}>{entry.note}</div>
+            )}
+          </div>
+          {!dragging && (
+            <Button
+              variant="link"
+              size="sm"
+              className="text-danger p-0"
+              onClick={() => onDelete(entry.id)}
+            >
+              ✕
+            </Button>
+          )}
+        </div>
+      </Card.Body>
+    </Card>
+  );
+}
+
 interface SortableEntryProps {
   entry: MealPlan;
   onDelete: (id: number) => void;
@@ -45,7 +98,7 @@ interface SortableEntryProps {
 }
 
 function SortableEntry({ entry, onDelete, onClick }: SortableEntryProps) {
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: entry.id,
   });
   const style = { transform: CSS.Transform.toString(transform), transition };
@@ -53,11 +106,16 @@ function SortableEntry({ entry, onDelete, onClick }: SortableEntryProps) {
   const thumbnailSrc = recipe?.image ? proxyMediaUrl(recipe.image) : undefined;
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} className="mb-2">
+    <div ref={setNodeRef} style={{ ...style, opacity: isDragging ? 0.3 : 1 }} {...attributes} className="mb-2">
       <Card className="border-0 shadow-sm">
         <Card.Body className="py-2 px-3">
           <div className="d-flex align-items-center gap-2">
-            <span {...listeners} style={{ cursor: 'grab', touchAction: 'none' }} className="text-muted">
+            <span
+              ref={setActivatorNodeRef}
+              {...listeners}
+              style={{ cursor: 'grab', touchAction: 'none' }}
+              className="text-muted"
+            >
               ⋮⋮
             </span>
             {thumbnailSrc && (
@@ -84,6 +142,28 @@ function SortableEntry({ entry, onDelete, onClick }: SortableEntryProps) {
           </div>
         </Card.Body>
       </Card>
+    </div>
+  );
+}
+
+interface DroppableDayProps {
+  dateKey: string;
+  children: React.ReactNode;
+}
+
+function DroppableDay({ dateKey, children }: DroppableDayProps) {
+  const { setNodeRef, isOver } = useDroppable({ id: dateKey });
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        minHeight: 40,
+        borderRadius: 4,
+        backgroundColor: isOver ? 'rgba(13, 110, 253, 0.08)' : undefined,
+        transition: 'background-color 0.15s',
+      }}
+    >
+      {children}
     </div>
   );
 }
@@ -234,6 +314,7 @@ export function MealPlanPage() {
   const [weekOffset, setWeekOffset] = useState(0);
   const [detailEntry, setDetailEntry] = useState<MealPlan | null>(null);
   const [addDate, setAddDate] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<number | null>(null);
 
   const today = new Date();
   const daysBackToSaturday = (today.getDay() + 1) % 7;
@@ -242,6 +323,7 @@ export function MealPlanPage() {
 
   const { data, isLoading, isError } = useMealPlan(startDate, endDate);
   const deleteMeal = useDeleteMealPlan();
+  const updateMeal = useUpdateMealPlan();
 
   const { data: mealTypesData } = useQuery({
     queryKey: ['meal-types'],
@@ -249,7 +331,9 @@ export function MealPlanPage() {
   });
   const mealTypes = mealTypesData?.results ?? [];
 
-  const sensors = useSensors(useSensor(PointerSensor));
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+  );
 
   const days = Array.from({ length: 7 }, (_, i) => addDays(startDate, i));
 
@@ -273,14 +357,50 @@ export function MealPlanPage() {
     return order.map((id) => entries.find((e) => e.id === id)).filter((e): e is MealPlan => !!e);
   };
 
-  const handleDragEnd = (dateKey: string) => (event: DragEndEvent) => {
+  const activeEntry = activeId != null ? allEntries.find((e) => e.id === activeId) ?? null : null;
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as number);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    const entries = getOrdered(dateKey);
-    const oldIndex = entries.findIndex((e) => e.id === active.id);
-    const newIndex = entries.findIndex((e) => e.id === over.id);
-    const reordered = arrayMove(entries, oldIndex, newIndex);
-    setDayOrder((prev) => ({ ...prev, [dateKey]: reordered.map((e) => e.id) }));
+    setActiveId(null);
+    if (!over) return;
+
+    const activeEntryId = active.id as number;
+    const activeContainerId = (active.data.current as WithSortable)?.sortable?.containerId;
+
+    if (!activeContainerId) return;
+
+    // over.id is a string (dateKey) when dropped on a DroppableDay container,
+    // or a number (entry id) when dropped on a SortableEntry.
+    let targetContainerId: string;
+    if (typeof over.id === 'string') {
+      targetContainerId = over.id;
+    } else {
+      const overContainerId = (over.data.current as WithSortable)?.sortable?.containerId;
+      if (!overContainerId) return;
+      targetContainerId = overContainerId;
+    }
+
+    if (activeContainerId === targetContainerId) {
+      // Within-day reorder
+      if (active.id === over.id) return;
+      const entries = getOrdered(activeContainerId);
+      const oldIndex = entries.findIndex((e) => e.id === active.id);
+      const newIndex = entries.findIndex((e) => e.id === over.id);
+      if (oldIndex === -1 || newIndex === -1) return;
+      const reordered = arrayMove(entries, oldIndex, newIndex);
+      setDayOrder((prev) => ({ ...prev, [activeContainerId]: reordered.map((e) => e.id) }));
+    } else {
+      // Cross-day move: update from_date via API
+      updateMeal.mutate({ id: activeEntryId, data: { from_date: targetContainerId } });
+    }
+  };
+
+  const handleDragCancel = () => {
+    setActiveId(null);
   };
 
   if (isError) {
@@ -306,57 +426,73 @@ export function MealPlanPage() {
 
       {isLoading && <LoadingMascot />}
 
-      <Row xs={1} sm={2} md={3} lg={4} className="g-3">
-        {days.map((day) => {
-          const dateKey = formatDate(day);
-          const isToday = dateKey === formatDate(new Date());
-          const entries = getOrdered(dateKey);
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onDragCancel={handleDragCancel}
+      >
+        <Row xs={1} sm={2} md={3} lg={4} className="g-3">
+          {days.map((day) => {
+            const dateKey = formatDate(day);
+            const isToday = dateKey === formatDate(new Date());
+            const entries = getOrdered(dateKey);
 
-          return (
-            <Col key={dateKey}>
-              <Card className={isToday ? 'border-primary' : ''}>
-                <Card.Header className={`py-2 d-flex justify-content-between align-items-center ${isToday ? 'bg-primary text-white' : ''}`}>
-                  <small className="fw-semibold">{shortDay(day)}</small>
-                  <Button
-                    variant={isToday ? 'light' : 'outline-secondary'}
-                    size="sm"
-                    style={{ fontSize: '0.7rem', padding: '0 6px' }}
-                    onClick={() => setAddDate(dateKey)}
-                  >
-                    + Add
-                  </Button>
-                </Card.Header>
-                <Card.Body className="p-2">
-                  <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragEnd={handleDragEnd(dateKey)}
-                  >
-                    <SortableContext
-                      items={entries.map((e) => e.id)}
-                      strategy={verticalListSortingStrategy}
+            return (
+              <Col key={dateKey}>
+                <Card className={isToday ? 'border-primary' : ''}>
+                  <Card.Header className={`py-2 d-flex justify-content-between align-items-center ${isToday ? 'bg-primary text-white' : ''}`}>
+                    <small className="fw-semibold">{shortDay(day)}</small>
+                    <Button
+                      variant={isToday ? 'light' : 'outline-secondary'}
+                      size="sm"
+                      style={{ fontSize: '0.7rem', padding: '0 6px' }}
+                      onClick={() => setAddDate(dateKey)}
                     >
-                      {entries.map((entry) => (
-                        <SortableEntry
-                          key={entry.id}
-                          entry={entry}
-                          onDelete={(id) => deleteMeal.mutate(id)}
-                          onClick={setDetailEntry}
-                        />
-                      ))}
-                    </SortableContext>
-                  </DndContext>
-                  {entries.length === 0 && (
-                    <p className="text-muted text-center mb-0" style={{ fontSize: '0.75rem' }}>
-                      No meals
-                    </p>
-                  )}
-                </Card.Body>
-              </Card>
-            </Col>
-          );
-        })}
-      </Row>
+                      + Add
+                    </Button>
+                  </Card.Header>
+                  <Card.Body className="p-2">
+                    <DroppableDay dateKey={dateKey}>
+                      <SortableContext
+                        id={dateKey}
+                        items={entries.map((e) => e.id)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        {entries.map((entry) => (
+                          <SortableEntry
+                            key={entry.id}
+                            entry={entry}
+                            onDelete={(id) => deleteMeal.mutate(id)}
+                            onClick={setDetailEntry}
+                          />
+                        ))}
+                      </SortableContext>
+                      {entries.length === 0 && (
+                        <p className="text-muted text-center mb-0" style={{ fontSize: '0.75rem' }}>
+                          No meals
+                        </p>
+                      )}
+                    </DroppableDay>
+                  </Card.Body>
+                </Card>
+              </Col>
+            );
+          })}
+        </Row>
+
+        <DragOverlay>
+          {activeEntry && (
+            <EntryCard
+              entry={activeEntry}
+              onDelete={noop}
+              onClick={noop}
+              dragging
+            />
+          )}
+        </DragOverlay>
+      </DndContext>
 
       <EntryDetailModal entry={detailEntry} onHide={() => setDetailEntry(null)} />
       {addDate && (
@@ -365,3 +501,4 @@ export function MealPlanPage() {
     </div>
   );
 }
+

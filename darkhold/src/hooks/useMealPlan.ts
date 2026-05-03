@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiGet, apiPost, apiDelete } from '../api/client';
+import { apiGet, apiPost, apiPatch, apiDelete } from '../api/client';
 import type { MealPlan, PaginatedResponse } from '../api/tandoor-types';
 import { broadcastInvalidation } from './useInvalidationSocket';
 
@@ -22,6 +22,18 @@ export function useDeleteMealPlan() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: number) => apiDelete(`/meal-plan/${id}/`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['meal-plan'] });
+      broadcastInvalidation('meal-plan');
+    },
+  });
+}
+
+export function useUpdateMealPlan() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: number; data: Partial<MealPlan> }) =>
+      apiPatch<MealPlan>(`/meal-plan/${id}/`, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['meal-plan'] });
       broadcastInvalidation('meal-plan');
