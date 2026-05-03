@@ -18,6 +18,6 @@ envsubst '${TANDOOR_URL}' \
     > /etc/nginx/conf.d/darkhold.conf
 
 # Start WebSocket broadcast server in background
-deno run --allow-net /server.ts &
+deno run --allow-net --allow-read=/package.json /server.ts &
 
 exec nginx -g "daemon off;"
