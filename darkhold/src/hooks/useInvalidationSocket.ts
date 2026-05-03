@@ -13,7 +13,12 @@ const handlers = new Set<(msg: InvalidationMessage) => void>();
 
 function getWsUrl(): string {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  return `${protocol}//${window.location.host}/ws`;
+  // When accessed via Home Assistant ingress, nginx injects __HA_BASE_PATH__
+  // from the X-Ingress-Path header so the WebSocket URL includes the ingress
+  // prefix (e.g. /api/hassio_ingress/<token>/ws).  For direct access the
+  // variable is absent and the URL resolves to the bare /ws path.
+  const basePath = window.__HA_BASE_PATH__ ?? '';
+  return `${protocol}//${window.location.host}${basePath}/ws`;
 }
 
 function handleVersionMessage(serverVersion: string): void {

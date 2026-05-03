@@ -79,6 +79,12 @@ jobs:
           exit 1
       - name: Test SPA is served
         run: curl -sf http://localhost:8099/ | grep -q '<html'
+      - name: Test HA ingress path is injected into HTML
+        run: |
+          response=$(curl -sf -H 'X-Ingress-Path: /api/hassio_ingress/test-token' http://localhost:8099/)
+          echo "$response" | grep -q 'window.__HA_BASE_PATH__="/api/hassio_ingress/test-token"' \
+            || { echo "FAIL: ingress base path not injected into HTML"; echo "$response"; exit 1; }
+          echo "Ingress path injection OK"
       - name: Test WebSocket endpoint
         run: |
           pip install --quiet websockets
