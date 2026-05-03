@@ -7,10 +7,10 @@ import { useInvalidationSocket } from '../hooks/useInvalidationSocket';
 
 const navItems = [
   { to: '/', label: '🏠 Dashboard', exact: true },
-  { to: '/all-recipes', label: '📖 All Recipes' },
+  { to: '/all-recipes', label: '📖 Recipes' },
   { to: '/books', label: '📚 Books' },
   { to: '/search', label: '🔍 Search' },
-  { to: '/meal-plan', label: '📅 Meal Plan' },
+  { to: '/meal-plan', label: '📅 Plan' },
   { to: '/shopping', label: '🛒 Shopping' },
 ];
 
