@@ -24,7 +24,7 @@ RUN chmod +x /run.sh
 # Copy built assets
 COPY --from=builder /app/dist /usr/share/nginx/html
 # Copy Deno binary (target-platform build) and WebSocket server
-COPY --from=deno-runtime /usr/bin/deno /usr/local/bin/deno
+COPY --from=deno-runtime /bin/deno /usr/local/bin/deno
 COPY server.ts /server.ts
 EXPOSE 8099
 CMD ["/run.sh"]
