@@ -101,14 +101,6 @@ export function Layout() {
             type="button"
             className="flex-fill text-center py-2 text-decoration-none small text-secondary border-0 bg-transparent"
             style={{ fontSize: '0.65rem' }}
-            onClick={() => setShowSearch(true)}
-          >
-            🔍 Search
-          </button>
-          <button
-            type="button"
-            className="flex-fill text-center py-2 text-decoration-none small text-secondary border-0 bg-transparent"
-            style={{ fontSize: '0.65rem' }}
             onClick={() => setShowMenu(true)}
           >
             ☰ Menu
