@@ -271,15 +271,6 @@ function AddMealModal({ date, onHide, mealTypes }: AddMealModalProps) {
         </Form.Group>
 
         <Form.Group className="mb-3">
-          <Form.Label>Meal Type</Form.Label>
-          <Form.Select value={mealTypeId} onChange={(e) => setMealTypeId(Number(e.target.value))}>
-            {mealTypes.map((mt) => (
-              <option key={mt.id} value={mt.id}>{mt.name}</option>
-            ))}
-          </Form.Select>
-        </Form.Group>
-
-        <Form.Group className="mb-3">
           <Form.Label>Servings</Form.Label>
           <Form.Control
             type="number"
