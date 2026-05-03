@@ -31,6 +31,27 @@ type WithSortable = { sortable?: { containerId: string } } | undefined;
 
 const noop = () => {};
 
+const circleButtonStyle: React.CSSProperties = {
+  width: 28,
+  height: 28,
+  padding: 0,
+  borderRadius: '50%',
+  lineHeight: 1,
+  fontSize: '1rem',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  flexShrink: 0,
+};
+
+const thumbnailStyle: React.CSSProperties = {
+  width: 36,
+  height: 36,
+  objectFit: 'cover',
+  borderRadius: 4,
+  flexShrink: 0,
+};
+
 function formatDate(d: Date): string {
   return d.toISOString().split('T')[0];
 }
@@ -63,14 +84,11 @@ function EntryCard({ entry, onDelete, onClick, dragging }: EntryCardProps) {
     <Card className={`border-0 ${dragging ? 'shadow-lg' : 'shadow-sm'}`}>
       <Card.Body className="py-2 px-3">
         <div className="d-flex align-items-center gap-2">
-          <span style={{ cursor: dragging ? 'grabbing' : 'grab', touchAction: 'none' }} className="text-muted">
-            ⋮⋮
-          </span>
           {thumbnailSrc && (
             <img
               src={thumbnailSrc}
               alt={recipe?.name ?? ''}
-              style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }}
+              style={{ ...thumbnailStyle, cursor: dragging ? 'grabbing' : 'grab', touchAction: 'none' }}
             />
           )}
           <div className="flex-grow-1" style={{ cursor: 'pointer' }} onClick={() => onClick(entry)}>
@@ -81,12 +99,13 @@ function EntryCard({ entry, onDelete, onClick, dragging }: EntryCardProps) {
           </div>
           {!dragging && (
             <Button
-              variant="link"
+              variant="danger"
               size="sm"
-              className="text-danger p-0"
+              style={circleButtonStyle}
               onClick={() => onDelete(entry.id)}
+              aria-label="Remove meal"
             >
-              ✕
+              <span aria-hidden="true">🗑️</span>
             </Button>
           )}
         </div>
@@ -114,20 +133,23 @@ function SortableEntry({ entry, onDelete, onClick }: SortableEntryProps) {
       <Card className="border-0 shadow-sm">
         <Card.Body className="py-2 px-3">
           <div className="d-flex align-items-center gap-2">
-            <span
-              ref={setActivatorNodeRef}
-              {...listeners}
-              style={{ cursor: 'grab', touchAction: 'none' }}
-              className="text-muted"
-            >
-              ⋮⋮
-            </span>
-            {thumbnailSrc && (
+            {thumbnailSrc ? (
               <img
+                ref={setActivatorNodeRef}
+                {...listeners}
                 src={thumbnailSrc}
                 alt={recipe?.name ?? ''}
-                style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }}
+                style={{ ...thumbnailStyle, cursor: 'grab', touchAction: 'none' }}
               />
+            ) : (
+              <span
+                ref={setActivatorNodeRef}
+                {...listeners}
+                style={{ cursor: 'grab', touchAction: 'none' }}
+                className="text-muted"
+              >
+                ⋮⋮
+              </span>
             )}
             <div className="flex-grow-1" style={{ cursor: 'pointer' }} onClick={() => onClick(entry)}>
               <div className="small fw-semibold">{recipe?.name ?? `Recipe #${entry.recipe}`}</div>
@@ -136,12 +158,13 @@ function SortableEntry({ entry, onDelete, onClick }: SortableEntryProps) {
               )}
             </div>
             <Button
-              variant="link"
+              variant="danger"
               size="sm"
-              className="text-danger p-0"
+              style={circleButtonStyle}
               onClick={() => onDelete(entry.id)}
+              aria-label="Remove meal"
             >
-              ✕
+              <span aria-hidden="true">🗑️</span>
             </Button>
           </div>
         </Card.Body>
@@ -452,12 +475,13 @@ export function MealPlanPage() {
                   <Card.Header className={`py-2 d-flex justify-content-between align-items-center ${isToday ? 'bg-primary text-white' : ''}`}>
                     <small className="fw-semibold">{shortDay(day)}</small>
                     <Button
-                      variant={isToday ? 'light' : 'outline-secondary'}
+                      variant="success"
                       size="sm"
-                      style={{ fontSize: '0.7rem', padding: '0 6px' }}
+                      style={circleButtonStyle}
                       onClick={() => setAddDate(dateKey)}
+                      aria-label="Add meal"
                     >
-                      + Add
+                      +
                     </Button>
                   </Card.Header>
                   <Card.Body className="p-2">
