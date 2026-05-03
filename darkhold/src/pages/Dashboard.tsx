@@ -289,9 +289,9 @@ function BooksShelf() {
     enabled: booksWithFilter.length > 0,
   });
 
-  const isLoading = booksLoading || entriesLoading;
+  const isBooksShelfLoading = booksLoading || entriesLoading;
 
-  if (!isLoading && !booksError && (!books || books.length === 0)) return null;
+  if (!isBooksShelfLoading && !booksError && (!books || books.length === 0)) return null;
 
   return (
     <section className="mb-4">
@@ -301,7 +301,7 @@ function BooksShelf() {
           See all →
         </Link>
       </div>
-      {isLoading && <Spinner size="sm" />}
+      {isBooksShelfLoading && <Spinner size="sm" />}
       {booksError && <span className="text-danger small">Failed to load</span>}
       <div
         className="d-flex gap-3 pb-2 hide-scrollbar"
