@@ -10,7 +10,6 @@ import { SearchDrawer } from './SearchDrawer';
 const navItems = [
   { to: '/', label: '🏠 Dashboard', exact: true },
   { to: '/all-recipes', label: '📖 Recipes' },
-  { to: '/books', label: '📚 Books' },
   { to: '/search', label: '🔍 Search' },
   { to: '/meal-plan', label: '📅 Plan' },
   { to: '/shopping', label: '🛒 Shopping' },
