@@ -4,8 +4,6 @@ import { useIsFetching, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import { useInvalidationSocket } from '../hooks/useInvalidationSocket';
-import { useSwipeUpSearch } from '../hooks/useSwipeUpSearch';
-import { SearchDrawer } from './SearchDrawer';
 
 const navItems = [
   { to: '/', icon: '🏠', label: 'Dashboard', exact: true },
@@ -14,8 +12,6 @@ const navItems = [
   { to: '/meal-plan', icon: '📅', label: 'Plan' },
   { to: '/shopping', icon: '🛒', label: 'Shopping' },
 ];
-
-const mobileNavItems = navItems.filter(({ to }) => to !== '/search');
 
 const menuItems = [
   { to: '/settings', icon: '⚙️', label: 'Settings' },
@@ -29,7 +25,6 @@ export function Layout() {
   const isFetching = useIsFetching();
   const queryClient = useQueryClient();
   const [showMenu, setShowMenu] = useState(false);
-  const [showSearch, setShowSearch] = useState(false);
 
   const handleRefresh = useCallback(() => {
     queryClient.refetchQueries();
@@ -37,7 +32,6 @@ export function Layout() {
 
   usePullToRefresh({ onRefresh: handleRefresh });
   useInvalidationSocket();
-  useSwipeUpSearch({ onOpen: () => setShowSearch(true) });
 
   return (
     <div className="d-flex flex-column min-vh-100">
@@ -72,6 +66,22 @@ export function Layout() {
         </Navbar.Collapse>
       </Navbar>
 
+      {/* Top navbar - mobile */}
+      <Navbar bg="dark" variant="dark" className="d-md-none px-3 py-2">
+        <Navbar.Brand style={{ cursor: 'pointer' }} onClick={() => navigate('/')}>
+          🗝️ Darkhold
+        </Navbar.Brand>
+        <button
+          type="button"
+          aria-label="Menu"
+          className="ms-auto text-white border-0 bg-transparent"
+          style={{ fontSize: '1.5rem' }}
+          onClick={() => setShowMenu(true)}
+        >
+          ☰
+        </button>
+      </Navbar>
+
       {/* Page content */}
       <Container fluid className="flex-grow-1 py-3 pb-md-3 pb-5">
         <Outlet />
@@ -83,7 +93,7 @@ export function Layout() {
         style={{ zIndex: 1030, paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         <div className="d-flex">
-          {mobileNavItems.map(({ to, icon, label, exact }) => (
+          {navItems.map(({ to, icon, label, exact }) => (
             <NavLink
               key={to}
               to={to}
@@ -97,15 +107,6 @@ export function Layout() {
               {icon}
             </NavLink>
           ))}
-          <button
-            type="button"
-            aria-label="Menu"
-            className="flex-fill text-center py-2 text-decoration-none text-secondary border-0 bg-transparent"
-            style={{ fontSize: '1.5rem' }}
-            onClick={() => setShowMenu(true)}
-          >
-            ☰
-          </button>
         </div>
       </nav>
 
@@ -137,9 +138,6 @@ export function Layout() {
           </ListGroup>
         </Offcanvas.Body>
       </Offcanvas>
-
-      {/* Search drawer */}
-      <SearchDrawer show={showSearch} onHide={() => setShowSearch(false)} />
 
       {/* Background refresh throbber */}
       {isFetching > 0 && (
