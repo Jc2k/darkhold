@@ -62,3 +62,13 @@ export async function apiDelete(path: string): Promise<void> {
   });
   if (!res.ok) throw new Error(`API error ${res.status}`);
 }
+
+export async function searchKeywords(query: string) {
+  const res = await apiGet<{ count: number; results: { id: number; name: string }[] }>('/keyword/', { query, page_size: 20 });
+  return res.results ?? [];
+}
+
+export async function searchFoods(query: string) {
+  const res = await apiGet<{ count: number; results: { id: number; name: string }[] }>('/food/', { query, page_size: 20 });
+  return res.results ?? [];
+}
