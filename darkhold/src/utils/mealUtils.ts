@@ -4,7 +4,7 @@ function isValidKeyword(k: Keyword | number): k is Keyword {
   return typeof k === 'object' && k !== null && typeof (k as Keyword).name === 'string';
 }
 
-export function deriveMealType(recipe: Recipe, mealTypes: MealType[]): number | undefined {
+export function deriveMealType(recipe: Pick<Recipe, 'keywords'>, mealTypes: MealType[]): number | undefined {
   const keywords = Array.isArray(recipe.keywords)
     ? recipe.keywords.filter(isValidKeyword).map((k) => k.name.toLowerCase())
     : [];

@@ -47,7 +47,7 @@ describe('deriveMealType', () => {
   });
 
   it('handles recipes with no keywords', () => {
-    const recipe = { id: 1, name: 'Pasta' };
+    const recipe = { id: 1, name: 'Pasta', keywords: [] };
     expect(deriveMealType(recipe, mealTypes)).toBe(3);
   });
 });

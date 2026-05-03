@@ -210,7 +210,7 @@ export function RecipeDetail() {
         <section className="mb-4">
           <h5>Instructions</h5>
           <ol className="ps-3">
-            {steps.map((step, idx) => (
+            {steps.map((step) => (
               <li key={step.id} className="mb-3">
                 {step.name && <strong className="d-block mb-1">{step.name}</strong>}
                 <p className="mb-1" style={{ whiteSpace: 'pre-wrap' }}>{step.instruction}</p>
