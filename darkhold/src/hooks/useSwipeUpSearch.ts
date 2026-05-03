@@ -13,7 +13,7 @@ export function useSwipeUpSearch({ onOpen, threshold = 60, startZone = 80 }: Use
 
   useEffect(() => {
     onOpenRef.current = onOpen;
-  });
+  }, [onOpen]);
 
   useEffect(() => {
     const onTouchStart = (e: TouchEvent) => {
