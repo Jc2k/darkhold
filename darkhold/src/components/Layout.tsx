@@ -90,8 +90,8 @@ export function Layout() {
 
       {/* Bottom tab bar - mobile */}
       <nav
-        className="d-md-none bg-dark border-top border-secondary"
-        style={{ position: 'sticky', bottom: 0, zIndex: 1030, paddingBottom: 'env(safe-area-inset-bottom)' }}
+        className="d-md-none fixed-bottom bg-dark border-top border-secondary"
+        style={{ zIndex: 1030, paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         <div className="d-flex">
           {navItems.map(({ to, Icon, label, exact }) => (
