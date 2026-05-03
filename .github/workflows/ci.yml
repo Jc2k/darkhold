@@ -68,14 +68,23 @@ jobs:
         run: |
           pip install --quiet websockets
           python3 - <<'EOF'
-          import asyncio, websockets, json, sys
+          import asyncio, websockets, json
 
           async def test():
-              async with websockets.connect('ws://localhost:8099/ws') as ws:
-                  msg = await asyncio.wait_for(ws.recv(), timeout=5)
-                  data = json.loads(msg)
-                  assert data.get('type') == 'version', f"Expected version message, got: {data}"
-                  print(f"WebSocket OK: version={data['version']}")
+              last_err = None
+              for attempt in range(15):
+                  try:
+                      async with websockets.connect('ws://localhost:8099/ws') as ws:
+                          msg = await asyncio.wait_for(ws.recv(), timeout=5)
+                          data = json.loads(msg)
+                          assert data.get('type') == 'version', f"Expected version message, got: {data}"
+                          print(f"WebSocket OK: version={data['version']}")
+                          return
+                  except Exception as e:
+                      last_err = e
+                      print(f"Attempt {attempt + 1}/15 failed: {e}")
+                      await asyncio.sleep(1)
+              raise RuntimeError(f"WebSocket not ready after 15 attempts: {last_err}")
 
           asyncio.run(test())
           EOF
