@@ -37,7 +37,6 @@ export function MealPlanAddModal({ recipe, onHide }: Props) {
   const days = getWeekStartingSaturday(weekOffset);
   const [selectedDate, setSelectedDate] = useState<Date>(() => getWeekStartingSaturday(0)[0]);
   const [servings, setServings] = useState<number>(recipe?.servings ?? 2);
-  const [mealTypeIdOverride, setMealTypeIdOverride] = useState<number | null>(null);
   const [note, setNote] = useState('');
 
   const { data: mealTypesData } = useQuery({
@@ -50,7 +49,7 @@ export function MealPlanAddModal({ recipe, onHide }: Props) {
 
   if (!recipe) return null;
 
-  const effectiveMealTypeId = mealTypeIdOverride ?? deriveMealType(recipe, mealTypes);
+  const effectiveMealTypeId = deriveMealType(recipe, mealTypes);
 
   const handleSubmit = async () => {
     const date = formatDate(selectedDate);
@@ -109,18 +108,6 @@ export function MealPlanAddModal({ recipe, onHide }: Props) {
               aria-label="Next week"
             >›</Button>
           </div>
-        </Form.Group>
-
-        <Form.Group className="mb-3">
-          <Form.Label>Meal Type</Form.Label>
-          <Form.Select
-            value={effectiveMealTypeId ?? ''}
-            onChange={(e) => setMealTypeIdOverride(Number(e.target.value))}
-          >
-            {mealTypes.map((mt) => (
-              <option key={mt.id} value={mt.id}>{mt.name}</option>
-            ))}
-          </Form.Select>
         </Form.Group>
 
         <Form.Group className="mb-3">
