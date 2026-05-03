@@ -8,20 +8,20 @@ import { useSwipeUpSearch } from '../hooks/useSwipeUpSearch';
 import { SearchDrawer } from './SearchDrawer';
 
 const navItems = [
-  { to: '/', label: '🏠 Dashboard', exact: true },
-  { to: '/all-recipes', label: '📖 Recipes' },
-  { to: '/search', label: '🔍 Search' },
-  { to: '/meal-plan', label: '📅 Plan' },
-  { to: '/shopping', label: '🛒 Shopping' },
+  { to: '/', icon: '🏠', label: 'Dashboard', exact: true },
+  { to: '/all-recipes', icon: '📖', label: 'Recipes' },
+  { to: '/search', icon: '🔍', label: 'Search' },
+  { to: '/meal-plan', icon: '📅', label: 'Plan' },
+  { to: '/shopping', icon: '🛒', label: 'Shopping' },
 ];
 
 const mobileNavItems = navItems.filter(({ to }) => to !== '/search');
 
 const menuItems = [
-  { to: '/settings', label: '⚙️ Settings' },
-  { to: '/utilities/gas-marks', label: '🔥 Gas Marks' },
-  { to: '/utilities/unit-converter', label: '📐 Unit Converter' },
-  { to: '/utilities/rice-cooking', label: '🍚 Rice Cooking' },
+  { to: '/settings', icon: '⚙️', label: 'Settings' },
+  { to: '/utilities/gas-marks', icon: '🔥', label: 'Gas Marks' },
+  { to: '/utilities/unit-converter', icon: '📐', label: 'Unit Converter' },
+  { to: '/utilities/rice-cooking', icon: '🍚', label: 'Rice Cooking' },
 ];
 
 export function Layout() {
@@ -49,22 +49,22 @@ export function Layout() {
         <Navbar.Toggle />
         <Navbar.Collapse>
           <Nav className="me-auto">
-            {navItems.map(({ to, label, exact }) => (
+            {navItems.map(({ to, icon, label, exact }) => (
               <Nav.Link
                 key={to}
                 as={NavLink}
                 to={to}
                 end={exact}
               >
-                {label}
+                {icon} {label}
               </Nav.Link>
             ))}
           </Nav>
           <Nav>
             <NavDropdown title="☰ Menu" id="desktop-menu-dropdown" align="end">
-              {menuItems.map(({ to, label }) => (
+              {menuItems.map(({ to, icon, label }) => (
                 <NavDropdown.Item key={to} as={NavLink} to={to}>
-                  {label}
+                  {icon} {label}
                 </NavDropdown.Item>
               ))}
             </NavDropdown>
@@ -83,26 +83,28 @@ export function Layout() {
         style={{ zIndex: 1030, paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         <div className="d-flex">
-          {mobileNavItems.map(({ to, label, exact }) => (
+          {mobileNavItems.map(({ to, icon, label, exact }) => (
             <NavLink
               key={to}
               to={to}
               end={exact}
+              aria-label={label}
               className={({ isActive }) =>
-                `flex-fill text-center py-2 text-decoration-none small ${isActive ? 'text-white fw-semibold' : 'text-secondary'}`
+                `flex-fill text-center py-2 text-decoration-none ${isActive ? 'text-white fw-semibold' : 'text-secondary'}`
               }
-              style={{ fontSize: '0.65rem' }}
+              style={{ fontSize: '1.5rem' }}
             >
-              {label}
+              {icon}
             </NavLink>
           ))}
           <button
             type="button"
-            className="flex-fill text-center py-2 text-decoration-none small text-secondary border-0 bg-transparent"
-            style={{ fontSize: '0.65rem' }}
+            aria-label="Menu"
+            className="flex-fill text-center py-2 text-decoration-none text-secondary border-0 bg-transparent"
+            style={{ fontSize: '1.5rem' }}
             onClick={() => setShowMenu(true)}
           >
-            ☰ Menu
+            ☰
           </button>
         </div>
       </nav>
@@ -120,7 +122,7 @@ export function Layout() {
         </Offcanvas.Header>
         <Offcanvas.Body className="p-0">
           <ListGroup variant="flush">
-            {menuItems.map(({ to, label }) => (
+            {menuItems.map(({ to, icon, label }) => (
               <ListGroup.Item
                 key={to}
                 action
@@ -129,7 +131,7 @@ export function Layout() {
                 className="bg-dark text-white border-secondary"
                 onClick={() => setShowMenu(false)}
               >
-                {label}
+                {icon} {label}
               </ListGroup.Item>
             ))}
           </ListGroup>
