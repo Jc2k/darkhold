@@ -1,5 +1,7 @@
 /// <reference types="@rsbuild/core/types" />
 
+declare const __APP_VERSION__: string;
+
 /**
  * Imports the SVG file as a React component.
  * @requires [@rsbuild/plugin-svgr](https://npmjs.com/package/@rsbuild/plugin-svgr)

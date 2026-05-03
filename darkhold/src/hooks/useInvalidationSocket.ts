@@ -2,6 +2,10 @@ import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
 type InvalidationMessage = { type: 'invalidate'; queryKey: string };
+type VersionMessage = { type: 'version'; version: string };
+type SocketMessage = InvalidationMessage | VersionMessage;
+
+const RELOAD_VERSION_KEY = 'darkhold_last_reload_version';
 
 let socket: WebSocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -12,6 +16,14 @@ function getWsUrl(): string {
   return `${protocol}//${window.location.host}/ws`;
 }
 
+function handleVersionMessage(serverVersion: string): void {
+  if (serverVersion === __APP_VERSION__) return;
+  // Avoid an infinite reload loop: only reload once per server version
+  if (sessionStorage.getItem(RELOAD_VERSION_KEY) === serverVersion) return;
+  sessionStorage.setItem(RELOAD_VERSION_KEY, serverVersion);
+  window.location.reload();
+}
+
 function connect(): void {
   if (socket && socket.readyState !== WebSocket.CLOSED) return;
 
@@ -19,8 +31,12 @@ function connect(): void {
 
   socket.onmessage = (e) => {
     try {
-      const msg: InvalidationMessage = JSON.parse(e.data);
-      handlers.forEach((h) => h(msg));
+      const msg: SocketMessage = JSON.parse(e.data);
+      if (msg.type === 'version') {
+        handleVersionMessage(msg.version);
+      } else {
+        handlers.forEach((h) => h(msg));
+      }
     } catch {
       // ignore malformed messages
     }
