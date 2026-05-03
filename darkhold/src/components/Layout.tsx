@@ -1,7 +1,7 @@
-import { Container, Navbar, Nav, Spinner } from 'react-bootstrap';
+import { Container, Navbar, Nav, Spinner, NavDropdown, Offcanvas, ListGroup } from 'react-bootstrap';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useIsFetching, useQueryClient } from '@tanstack/react-query';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import { useInvalidationSocket } from '../hooks/useInvalidationSocket';
 
@@ -14,10 +14,18 @@ const navItems = [
   { to: '/shopping', label: '🛒 Shopping' },
 ];
 
+const menuItems = [
+  { to: '/settings', label: '⚙️ Settings' },
+  { to: '/utilities/gas-marks', label: '🔥 Gas Marks' },
+  { to: '/utilities/unit-converter', label: '📐 Unit Converter' },
+  { to: '/utilities/rice-cooking', label: '🍚 Rice Cooking' },
+];
+
 export function Layout() {
   const navigate = useNavigate();
   const isFetching = useIsFetching();
   const queryClient = useQueryClient();
+  const [showMenu, setShowMenu] = useState(false);
 
   const handleRefresh = useCallback(() => {
     queryClient.refetchQueries();
@@ -48,7 +56,13 @@ export function Layout() {
             ))}
           </Nav>
           <Nav>
-            <Nav.Link as={NavLink} to="/settings">⚙️ Settings</Nav.Link>
+            <NavDropdown title="☰ Menu" id="desktop-menu-dropdown" align="end">
+              {menuItems.map(({ to, label }) => (
+                <NavDropdown.Item key={to} as={NavLink} to={to}>
+                  {label}
+                </NavDropdown.Item>
+              ))}
+            </NavDropdown>
           </Nav>
         </Navbar.Collapse>
       </Navbar>
@@ -77,17 +91,45 @@ export function Layout() {
               {label}
             </NavLink>
           ))}
-          <NavLink
-            to="/settings"
-            className={({ isActive }) =>
-              `flex-fill text-center py-2 text-decoration-none small ${isActive ? 'text-white fw-semibold' : 'text-secondary'}`
-            }
+          <button
+            type="button"
+            className="flex-fill text-center py-2 text-decoration-none small text-secondary border-0 bg-transparent"
             style={{ fontSize: '0.65rem' }}
+            onClick={() => setShowMenu(true)}
           >
-            ⚙️ Settings
-          </NavLink>
+            ☰ Menu
+          </button>
         </div>
       </nav>
+
+      {/* Mobile offcanvas menu */}
+      <Offcanvas
+        show={showMenu}
+        onHide={() => setShowMenu(false)}
+        placement="bottom"
+        className="bg-dark text-white"
+        style={{ maxHeight: '60vh' }}
+      >
+        <Offcanvas.Header closeButton closeVariant="white">
+          <Offcanvas.Title>Menu</Offcanvas.Title>
+        </Offcanvas.Header>
+        <Offcanvas.Body className="p-0">
+          <ListGroup variant="flush">
+            {menuItems.map(({ to, label }) => (
+              <ListGroup.Item
+                key={to}
+                action
+                as={NavLink}
+                to={to}
+                className="bg-dark text-white border-secondary"
+                onClick={() => setShowMenu(false)}
+              >
+                {label}
+              </ListGroup.Item>
+            ))}
+          </ListGroup>
+        </Offcanvas.Body>
+      </Offcanvas>
 
       {/* Background refresh throbber */}
       {isFetching > 0 && (
