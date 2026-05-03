@@ -1,5 +1,11 @@
-const pkg = JSON.parse(Deno.readTextFileSync('./package.json')) as { version: string };
-const VERSION = pkg.version;
+let VERSION: string;
+try {
+  const pkg = JSON.parse(Deno.readTextFileSync('./package.json')) as { version: string };
+  VERSION = pkg.version;
+} catch {
+  console.error('Failed to read package.json: server requires a valid package.json with a version field');
+  Deno.exit(1);
+}
 
 const clients = new Set<WebSocket>();
 
