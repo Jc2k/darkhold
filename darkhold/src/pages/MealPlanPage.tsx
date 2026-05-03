@@ -45,6 +45,10 @@ function shortDay(d: Date): string {
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
+function formatMonthYear(d: Date): string {
+  return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+}
+
 interface EntryCardProps {
   entry: MealPlan;
   onDelete: (id: number) => void;
@@ -422,7 +426,8 @@ export function MealPlanPage() {
     <div>
       <div className="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
         <h2 className="mb-0">Meal Plan</h2>
-        <div className="d-flex gap-2">
+        <div className="d-flex align-items-center gap-2">
+          <span className="text-muted small">{formatMonthYear(startDate)}</span>
           <Button variant="outline-secondary" size="sm" onClick={() => setWeekOffset((w) => w - 1)}>
             ← Prev
           </Button>
