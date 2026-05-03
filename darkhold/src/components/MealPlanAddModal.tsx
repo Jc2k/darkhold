@@ -15,6 +15,10 @@ function formatDate(d: Date): string {
   return d.toISOString().split('T')[0];
 }
 
+function formatMonthYear(d: Date): string {
+  return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+}
+
 function getWeekStartingSaturday(weekOffset: number): Date[] {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -71,6 +75,9 @@ export function MealPlanAddModal({ recipe, onHide }: Props) {
 
         <Form.Group className="mb-3">
           <Form.Label>Date</Form.Label>
+          <div className="d-flex align-items-center justify-content-between mb-1">
+            <span className="text-muted small">{formatMonthYear(days[0])}</span>
+          </div>
           <div className="d-flex align-items-center gap-1 flex-nowrap">
             <Button
               size="sm"
