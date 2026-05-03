@@ -17,7 +17,8 @@ function getWsUrl(): string {
   // from the X-Ingress-Path header so the WebSocket URL includes the ingress
   // prefix (e.g. /api/hassio_ingress/<token>/ws).  For direct access the
   // variable is absent and the URL resolves to the bare /ws path.
-  const basePath = window.__HA_BASE_PATH__ ?? '';
+  const rawBase = window.__HA_BASE_PATH__ ?? '';
+  const basePath = rawBase.startsWith('/') ? rawBase : '';
   return `${protocol}//${window.location.host}${basePath}/ws`;
 }
 
