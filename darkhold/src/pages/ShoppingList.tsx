@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPatch, apiDelete } from '../api/client';
+import { broadcastInvalidation } from '../hooks/useInvalidationSocket';
 import type { Food, SupermarketCategory } from '../api/tandoor-types';
 import { LoadingMascot } from '../components/LoadingMascot';
 import { formatFraction } from '../utils/fractions';
@@ -82,7 +83,10 @@ export function ShoppingList() {
   const toggle = useMutation({
     mutationFn: ({ id, checked }: { id: number; checked: boolean }) =>
       apiPatch(`/shopping-list-entry/${id}/`, { checked }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['shopping-list'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['shopping-list'] });
+      broadcastInvalidation('shopping-list');
+    },
   });
 
   const toggleAll = (entries: ShoppingEntry[], checked: boolean) => {
@@ -114,6 +118,7 @@ export function ShoppingList() {
       .finally(() => {
         setIsClearing(false);
         qc.invalidateQueries({ queryKey: ['shopping-list'] });
+        broadcastInvalidation('shopping-list');
       });
   };
 
