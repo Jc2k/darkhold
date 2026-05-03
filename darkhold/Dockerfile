@@ -27,8 +27,20 @@ RUN chmod +x /run.sh
 COPY --from=builder /app/dist /usr/share/nginx/html
 # Copy package.json for the WebSocket server (reads version at startup)
 COPY --from=builder /app/package.json /package.json
-# Copy Deno binary (target-platform build) and WebSocket server
+# Copy Deno binary (target-platform build) + its bundled glibc runtime, then
+# wire up the glibc dynamic linker symlink for the target architecture.
+# The deno:alpine image bundles glibc at /usr/local/lib/glibc/ and exposes the
+# interpreter via a /lib64 (x86-64) or /lib (arm64) symlink; copy both so the
+# binary resolves its loader inside the musl-based nginx:alpine final image.
 COPY --from=deno-runtime /tmp/deno /usr/local/bin/deno
+COPY --from=deno-runtime /usr/local/lib/glibc /usr/local/lib/glibc
+RUN set -e; \
+    ld=$(find /usr/local/lib/glibc/ -name 'ld-linux-*.so*' | head -1); \
+    name=$(basename "$ld"); \
+    case "$name" in \
+      ld-linux-x86-64*) mkdir -p /lib64 && ln -sf "$ld" "/lib64/$name" ;; \
+      *) mkdir -p /lib && ln -sf "$ld" "/lib/$name" ;; \
+    esac
 COPY server.ts /server.ts
 EXPOSE 8099
 CMD ["/run.sh"]
