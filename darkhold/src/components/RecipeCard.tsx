@@ -9,6 +9,10 @@ interface Props {
   onAddToMealPlan?: (recipe: Recipe) => void;
 }
 
+const IMAGE_HEIGHT = 180;
+const PLACEHOLDER_BG = '#d0d0d0';
+const PLACEHOLDER_ICON_COLOR = '#a0a0a0';
+
 export function RecipeCard({ recipe, onAddToMealPlan }: Props) {
   const navigate = useNavigate();
   const keywords = (Array.isArray(recipe.keywords)
@@ -22,21 +26,23 @@ export function RecipeCard({ recipe, onAddToMealPlan }: Props) {
           <Card.Img
             variant="top"
             src={proxyMediaUrl(recipe.image)}
-            style={{ height: 180, objectFit: 'cover' }}
+            style={{ height: IMAGE_HEIGHT, objectFit: 'cover' }}
             onClick={() => navigate(`/recipe/${recipe.id}`)}
           />
         ) : (
           <div
+            role="img"
+            aria-label="No image available"
             style={{
-              height: 180,
-              background: '#d0d0d0',
+              height: IMAGE_HEIGHT,
+              background: PLACEHOLDER_BG,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
             }}
             onClick={() => navigate(`/recipe/${recipe.id}`)}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 24 24" fill="#a0a0a0" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 24 24" fill={PLACEHOLDER_ICON_COLOR} aria-hidden="true">
               {/* Pizza slice */}
               <path d="M12 2C6.48 2 2 6.48 2 12h10V2zm0 0c5.52 0 10 4.48 10 10h-10V2zM2 12c0 5.52 4.48 10 10 10L12 12H2z"/>
             </svg>
