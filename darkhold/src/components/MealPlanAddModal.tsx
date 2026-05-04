@@ -105,7 +105,17 @@ export function MealPlanAddModal({ recipe, onHide }: Props) {
               onClick={() => setServings((s) => Math.max(1, s - 1))}
               aria-label="Decrease servings"
             >-</Button>
-            <span style={{ minWidth: '2rem', textAlign: 'center' }}>{servings}</span>
+            <Form.Control
+              type="text"
+              inputMode="numeric"
+              value={servings}
+              onChange={(e) => {
+                const val = parseInt(e.target.value, 10);
+                if (!isNaN(val) && val >= 1) setServings(val);
+                else if (e.target.value === '') setServings(1);
+              }}
+              style={{ width: '3.5rem', textAlign: 'center', padding: '0.25rem' }}
+            />
             <Button
               size="sm"
               variant="outline-secondary"
