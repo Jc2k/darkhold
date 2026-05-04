@@ -133,8 +133,7 @@ export function ShoppingList() {
   const entries = data?.results ?? [];
   if (entries.length === 0) {
     return (
-      <div>
-        <h2 className="mb-3">Shopping List</h2>
+      <div className="pt-2">
         <p className="text-muted">Your shopping list is empty! Add recipes to your meal plan.</p>
       </div>
     );
@@ -144,9 +143,8 @@ export function ShoppingList() {
   const categoryNames = Object.keys(groups).filter((k) => groups[k].length > 0);
 
   return (
-    <div>
-      <div className="d-flex align-items-center justify-content-between mb-1">
-        <h2 className="mb-0">Shopping List</h2>
+    <div className="pt-2">
+      <div className="d-flex align-items-center justify-content-end mb-1">
         <Button
           variant="outline-danger"
           size="sm"

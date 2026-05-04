@@ -100,9 +100,7 @@ export function AllRecipes() {
   }
 
   return (
-    <div>
-      <h2 className="mb-3">All Recipes</h2>
-
+    <div className="pt-2">
       {/* Jump-to section sidebar / quick nav */}
       <Nav className="flex-wrap gap-1 mb-4">
         {allGroups.map((tag) => (

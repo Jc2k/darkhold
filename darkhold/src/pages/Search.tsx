@@ -122,9 +122,7 @@ export function Search() {
   const hasQuery = !!(q || keywordIds.length || foodIds.length);
 
   return (
-    <div>
-      <h2 className="mb-3">Search Recipes</h2>
-
+    <div className="pt-2">
       <Form onSubmit={handleSearch} className="mb-2">
         <Row className="g-2 align-items-center">
           <Col>

@@ -370,9 +370,7 @@ export function Dashboard() {
   );
 
   return (
-    <div>
-      <h2 className="mb-4">Dashboard</h2>
-
+    <div className="pt-2">
       <UpcomingMealsShelf
         days={days}
         mealsByDay={mealsByDay}
