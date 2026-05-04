@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import ReactMarkdown from 'react-markdown';
 import { useQuery } from '@tanstack/react-query';
 import { Row, Col, Badge, Alert, Button, Modal } from 'react-bootstrap';
 import { Plus, Play } from 'react-bootstrap-icons';
@@ -43,7 +44,7 @@ function CookingMode({ steps, onClose }: { steps: RecipeStep[]; onClose: () => v
             })}
           </ul>
         )}
-        <p className="fs-5">{current?.instruction}</p>
+        <ReactMarkdown>{current?.instruction ?? ''}</ReactMarkdown>
         {current?.time && <Badge bg="info">{current.time} min</Badge>}
       </Modal.Body>
       <Modal.Footer className="justify-content-between">
@@ -214,7 +215,7 @@ export function RecipeDetail() {
             {steps.map((step) => (
               <li key={step.id} className="mb-3">
                 {step.name && <strong className="d-block mb-1">{step.name}</strong>}
-                <p className="mb-1" style={{ whiteSpace: 'pre-wrap' }}>{step.instruction}</p>
+                <div className="mb-1"><ReactMarkdown>{step.instruction}</ReactMarkdown></div>
                 {step.time != null && step.time !== 0 && <Badge bg="info" className="ms-2">{step.time} min</Badge>}
               </li>
             ))}

@@ -23,6 +23,7 @@
     "react-bootstrap-icons": "^1.11.6",
     "react-bootstrap-typeahead": "^6.4.1",
     "react-dom": "^19.2.5",
+    "react-markdown": "^10.1.0",
     "react-router-dom": "^7.14.2"
   },
   "devDependencies": {
