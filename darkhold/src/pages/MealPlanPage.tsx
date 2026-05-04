@@ -238,7 +238,7 @@ function AddMealModal({ date, onHide, mealTypes }: AddMealModalProps) {
   const [searchError, setSearchError] = useState(false);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [mealTypeId, setMealTypeId] = useState<number>(mealTypes[0]?.id ?? 0);
-  const [servings, setServings] = useState(2);
+  const [servings, setServings] = useState(1);
   const [note, setNote] = useState('');
   const createMeal = useCreateMealPlan();
 
@@ -262,6 +262,7 @@ function AddMealModal({ date, onHide, mealTypes }: AddMealModalProps) {
     if (r) {
       const derived = deriveMealType(r, mealTypes);
       if (derived !== undefined) setMealTypeId(derived);
+      setServings(r.servings ?? 1);
     }
   };
 
@@ -306,12 +307,31 @@ function AddMealModal({ date, onHide, mealTypes }: AddMealModalProps) {
 
         <Form.Group className="mb-3">
           <Form.Label>Servings</Form.Label>
-          <Form.Control
-            type="number"
-            min={1}
-            value={servings}
-            onChange={(e) => setServings(Number(e.target.value))}
-          />
+          <div className="d-flex align-items-center gap-1">
+            <Button
+              size="sm"
+              variant="outline-secondary"
+              onClick={() => setServings((s) => Math.max(1, s - 1))}
+              aria-label="Decrease servings"
+            >-</Button>
+            <Form.Control
+              type="text"
+              inputMode="numeric"
+              value={servings}
+              onChange={(e) => {
+                const val = parseInt(e.target.value, 10);
+                if (!isNaN(val) && val >= 1) setServings(val);
+                else if (e.target.value === '') setServings(1);
+              }}
+              style={{ width: '3.5rem', textAlign: 'center', padding: '0.25rem' }}
+            />
+            <Button
+              size="sm"
+              variant="outline-secondary"
+              onClick={() => setServings((s) => s + 1)}
+              aria-label="Increase servings"
+            >+</Button>
+          </div>
         </Form.Group>
 
         <Form.Group>
