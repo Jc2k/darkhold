@@ -14,6 +14,56 @@ import { LoadingMascot } from '../components/LoadingMascot';
 import { proxyMediaUrl } from '../utils/mediaUrl';
 import { formatFraction } from '../utils/fractions';
 
+type IngredientSection = { header: string | null; items: RecipeIngredient[] };
+
+function splitIngredientSections(ingredients: RecipeIngredient[]): IngredientSection[] {
+  const sections: IngredientSection[] = [];
+  let current: IngredientSection = { header: null, items: [] };
+  for (const ing of ingredients) {
+    if (ing.is_header) {
+      if (current.items.length > 0 || current.header !== null) {
+        sections.push(current);
+      }
+      current = { header: ing.note ?? null, items: [] };
+    } else {
+      current.items.push(ing);
+    }
+  }
+  sections.push(current);
+  return sections.filter((s) => s.header !== null || s.items.length > 0);
+}
+
+function IngredientList({ ingredients, linkFoods = false }: { ingredients: RecipeIngredient[]; linkFoods?: boolean }) {
+  const sections = splitIngredientSections(ingredients);
+  return (
+    <>
+      {sections.map((section, i) => (
+        <div key={`${section.header ?? ''}-${i}`}>
+          {section.header && <strong className="d-block mt-2 mb-1">{section.header}</strong>}
+          <ul className="list-unstyled mb-0">
+            {section.items.map((ing: RecipeIngredient) => {
+              const food = ing.food && typeof ing.food === 'object' ? ing.food as Food : null;
+              const unit = ing.unit as RecipeUnit | null;
+              return (
+                <li key={ing.id} className="mb-1">
+                  {!ing.no_amount && ing.amount != null && <span className="text-muted">{formatFraction(ing.amount)} </span>}
+                  {unit?.name && <span className="text-muted">{unit.name} </span>}
+                  {food ? (
+                    linkFoods ? <Link to={`/ingredient/${food.id}`}>{food.name}</Link> : <span>{food.name}</span>
+                  ) : (
+                    ing.food ? <span>Ingredient #{typeof ing.food === 'number' ? ing.food : ''}</span> : null
+                  )}
+                  {ing.note && <span className="text-muted"> ({ing.note})</span>}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ))}
+    </>
+  );
+}
+
 function CookingMode({ steps, onClose }: { steps: RecipeStep[]; onClose: () => void }) {
   const [index, setIndex] = useState(0);
   const sorted = [...steps].sort((a, b) => a.order - b.order);
@@ -29,20 +79,9 @@ function CookingMode({ steps, onClose }: { steps: RecipeStep[]; onClose: () => v
       <Modal.Body className="d-flex flex-column justify-content-center align-items-center text-center p-4">
         {current?.name && <h5 className="mb-3">{current.name}</h5>}
         {current?.ingredients && current.ingredients.length > 0 && (
-          <ul className="list-unstyled mb-3 text-start w-100">
-            {current.ingredients.map((ing: RecipeIngredient) => {
-              const food = typeof ing.food === 'object' ? ing.food as Food : null;
-              const unit = ing.unit as RecipeUnit | null;
-              return (
-                <li key={ing.id} className="mb-1">
-                  {ing.amount != null && <span className="text-muted">{formatFraction(ing.amount)} </span>}
-                  {unit?.name && <span className="text-muted">{unit.name} </span>}
-                  <span>{food ? food.name : `Ingredient #${typeof ing.food === 'number' ? ing.food : ''}`}</span>
-                  {ing.note && <span className="text-muted"> ({ing.note})</span>}
-                </li>
-              );
-            })}
-          </ul>
+          <div className="mb-3 text-start w-100">
+            <IngredientList ingredients={current.ingredients} />
+          </div>
         )}
         <ReactMarkdown>{current?.instruction ?? ''}</ReactMarkdown>
         {current?.time && <Badge bg="info">{current.time} min</Badge>}
@@ -189,24 +228,7 @@ export function RecipeDetail() {
       {allIngredients.length > 0 && (
         <section className="mb-4">
           <h5>Ingredients</h5>
-          <ul className="list-unstyled">
-            {allIngredients.map((ing: RecipeIngredient) => {
-              const food = typeof ing.food === 'object' ? ing.food as Food : null;
-              const unit = ing.unit as RecipeUnit | null;
-              return (
-                <li key={ing.id} className="mb-1">
-                  {ing.amount != null && <span className="text-muted">{formatFraction(ing.amount)} </span>}
-                  {unit?.name && <span className="text-muted">{unit.name} </span>}
-                  {food ? (
-                    <Link to={`/ingredient/${food.id}`}>{food.name}</Link>
-                  ) : (
-                    <span>Ingredient #{typeof ing.food === 'number' ? ing.food : ''}</span>
-                  )}
-                  {ing.note && <span className="text-muted"> ({ing.note})</span>}
-                </li>
-              );
-            })}
-          </ul>
+          <IngredientList ingredients={allIngredients} linkFoods />
         </section>
       )}
 
