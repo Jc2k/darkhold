@@ -2,7 +2,7 @@ import { Container, Navbar, Nav, Spinner, NavDropdown, Offcanvas, ListGroup } fr
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useIsFetching, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
-import { RocketTakeoff, Book, Search, CalendarDay, Cart4 } from 'react-bootstrap-icons';
+import { RocketTakeoff, Book, Search, CalendarDay, Cart4, JournalRichtext } from 'react-bootstrap-icons';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import { useInvalidationSocket } from '../hooks/useInvalidationSocket';
 
@@ -39,7 +39,7 @@ export function Layout() {
       {/* Top navbar - desktop */}
       <Navbar bg="dark" variant="dark" expand="md" className="d-none d-md-flex px-3">
         <Navbar.Brand style={{ cursor: 'pointer' }} onClick={() => navigate('/')}>
-          🗝️ Darkhold
+          <JournalRichtext className="me-2" /> Darkhold
         </Navbar.Brand>
         <Navbar.Toggle />
         <Navbar.Collapse>
@@ -70,7 +70,7 @@ export function Layout() {
       {/* Top navbar - mobile */}
       <Navbar bg="dark" variant="dark" className="d-md-none px-3 py-2" style={{ paddingTop: 'calc(0.5rem + env(safe-area-inset-top))' }}>
         <Navbar.Brand style={{ cursor: 'pointer' }} onClick={() => navigate('/')}>
-          🗝️ Darkhold
+          <JournalRichtext className="me-2" /> Darkhold
         </Navbar.Brand>
         <button
           type="button"
