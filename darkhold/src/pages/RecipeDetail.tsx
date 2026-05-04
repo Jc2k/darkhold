@@ -38,7 +38,7 @@ function IngredientList({ ingredients, linkFoods = false }: { ingredients: Recip
   return (
     <>
       {sections.map((section, i) => (
-        <div key={i}>
+        <div key={`${section.header ?? ''}-${i}`}>
           {section.header && <strong className="d-block mt-2 mb-1">{section.header}</strong>}
           <ul className="list-unstyled mb-0">
             {section.items.map((ing: RecipeIngredient) => {
