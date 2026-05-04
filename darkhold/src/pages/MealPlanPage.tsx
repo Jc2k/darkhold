@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { Row, Col, Card, Button, Modal, Form, Spinner, Alert } from 'react-bootstrap';
+import { AsyncTypeahead } from 'react-bootstrap-typeahead';
+import 'react-bootstrap-typeahead/css/Typeahead.css';
 import { Trash3, Plus } from 'react-bootstrap-icons';
 import { proxyMediaUrl } from '../utils/mediaUrl';
 import {
@@ -25,7 +27,6 @@ import { useQuery } from '@tanstack/react-query';
 import { apiGet } from '../api/client';
 import type { MealPlan, Recipe, MealType, PaginatedResponse } from '../api/tandoor-types';
 import { deriveMealType } from '../utils/mealUtils';
-import { useRecipeSearch } from '../hooks/useRecipeSearch';
 import { LoadingMascot } from '../components/LoadingMascot';
 
 type WithSortable = { sortable?: { containerId: string } } | undefined;
@@ -232,20 +233,36 @@ interface AddMealModalProps {
 }
 
 function AddMealModal({ date, onHide, mealTypes }: AddMealModalProps) {
-  const [search, setSearch] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [recipeOptions, setRecipeOptions] = useState<Recipe[]>([]);
+  const [searchError, setSearchError] = useState(false);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [mealTypeId, setMealTypeId] = useState<number>(mealTypes[0]?.id ?? 0);
   const [servings, setServings] = useState(2);
   const [note, setNote] = useState('');
   const createMeal = useCreateMealPlan();
 
-  const { data } = useRecipeSearch({ query: search, page_size: 10 });
-  const recipes = data?.pages.flatMap((p) => p.results) ?? [];
+  const handleRecipeSearch = async (query: string) => {
+    setIsSearching(true);
+    setSearchError(false);
+    try {
+      const data = await apiGet<PaginatedResponse<Recipe>>('/recipe/', { query, page_size: 10 });
+      setRecipeOptions(data.results);
+    } catch {
+      setSearchError(true);
+      setRecipeOptions([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
 
-  const handleSelectRecipe = (r: Recipe) => {
+  const handleSelectRecipe = (selected: Recipe[]) => {
+    const r = selected[0] ?? null;
     setSelectedRecipe(r);
-    const derived = deriveMealType(r, mealTypes);
-    if (derived !== undefined) setMealTypeId(derived);
+    if (r) {
+      const derived = deriveMealType(r, mealTypes);
+      if (derived !== undefined) setMealTypeId(derived);
+    }
   };
 
   const handleSubmit = async () => {
@@ -269,28 +286,21 @@ function AddMealModal({ date, onHide, mealTypes }: AddMealModalProps) {
       <Modal.Body>
         <Form.Group className="mb-3">
           <Form.Label>Search Recipe</Form.Label>
-          <Form.Control
-            type="search"
+          <AsyncTypeahead
+            id="add-meal-recipe-search"
+            isLoading={isSearching}
+            labelKey="name"
+            minLength={1}
+            options={recipeOptions}
+            selected={selectedRecipe ? [selectedRecipe] : []}
+            onSearch={handleRecipeSearch}
+            onChange={(opts) => handleSelectRecipe(opts as Recipe[])}
             placeholder="Type to search…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
           />
-          {search && recipes.length > 0 && (
-            <div className="border rounded mt-1" style={{ maxHeight: 200, overflowY: 'auto' }}>
-              {recipes.map((r) => (
-                <div
-                  key={r.id}
-                  className={`px-3 py-2 small ${selectedRecipe?.id === r.id ? 'bg-primary text-white' : ''}`}
-                  style={{ cursor: 'pointer' }}
-                  onClick={() => handleSelectRecipe(r)}
-                >
-                  {r.name}
-                </div>
-              ))}
-            </div>
-          )}
-          {selectedRecipe && (
-            <div className="mt-2 small text-success">✓ Selected: {selectedRecipe.name}</div>
+          {searchError && (
+            <Alert variant="danger" className="py-1 px-2 mt-1 mb-0 small">
+              Failed to load recipes.
+            </Alert>
           )}
         </Form.Group>
 
