@@ -5,31 +5,11 @@ import { useCreateMealPlan } from '../hooks/useMealPlan';
 import { useQuery } from '@tanstack/react-query';
 import { apiGet } from '../api/client';
 import { deriveMealType } from '../utils/mealUtils';
+import { formatDate, formatMonthYear, getWeekStartingSaturday } from '../utils/dateUtils';
 
 interface Props {
   recipe: Recipe | null;
   onHide: () => void;
-}
-
-function formatDate(d: Date): string {
-  return d.toISOString().split('T')[0];
-}
-
-function formatMonthYear(d: Date): string {
-  return d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
-}
-
-function getWeekStartingSaturday(weekOffset: number): Date[] {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const daysUntilSaturday = (6 - today.getDay() + 7) % 7;
-  const saturday = new Date(today);
-  saturday.setDate(today.getDate() + daysUntilSaturday + weekOffset * 7);
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(saturday);
-    d.setDate(saturday.getDate() + i);
-    return d;
-  });
 }
 
 export function MealPlanAddModal({ recipe, onHide }: Props) {
