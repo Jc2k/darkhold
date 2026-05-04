@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Modal, Button, Form, Spinner } from 'react-bootstrap';
 import type { Recipe, MealType } from '../api/tandoor-types';
 import { useCreateMealPlan } from '../hooks/useMealPlan';
@@ -16,8 +16,14 @@ export function MealPlanAddModal({ recipe, onHide }: Props) {
   const [weekOffset, setWeekOffset] = useState(0);
   const days = getWeekStartingSaturday(weekOffset);
   const [selectedDate, setSelectedDate] = useState<Date>(() => getWeekStartingSaturday(0)[0]);
-  const [servings, setServings] = useState<number>(recipe?.servings ?? 2);
+  const [servings, setServings] = useState<number>(recipe?.servings ?? 1);
   const [note, setNote] = useState('');
+
+  useEffect(() => {
+    if (recipe) {
+      setServings(recipe.servings ?? 1);
+    }
+  }, [recipe]);
 
   const { data: mealTypesData } = useQuery({
     queryKey: ['meal-types'],
@@ -92,12 +98,21 @@ export function MealPlanAddModal({ recipe, onHide }: Props) {
 
         <Form.Group className="mb-3">
           <Form.Label>Servings</Form.Label>
-          <Form.Control
-            type="number"
-            min={1}
-            value={servings}
-            onChange={(e) => setServings(Number(e.target.value))}
-          />
+          <div className="d-flex align-items-center gap-1">
+            <Button
+              size="sm"
+              variant="outline-secondary"
+              onClick={() => setServings((s) => Math.max(1, s - 1))}
+              aria-label="Decrease servings"
+            >−</Button>
+            <span style={{ minWidth: '2rem', textAlign: 'center' }}>{servings}</span>
+            <Button
+              size="sm"
+              variant="outline-secondary"
+              onClick={() => setServings((s) => s + 1)}
+              aria-label="Increase servings"
+            >+</Button>
+          </div>
         </Form.Group>
 
         <Form.Group className="mb-3">
