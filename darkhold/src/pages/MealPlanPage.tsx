@@ -54,6 +54,30 @@ const thumbnailStyle: React.CSSProperties = {
   flexShrink: 0,
 };
 
+const PLACEHOLDER_BG = '#d0d0d0';
+const PLACEHOLDER_ICON_COLOR = '#a0a0a0';
+
+function ThumbnailPlaceholder({ dragProps }: { dragProps?: React.HTMLAttributes<HTMLDivElement> & { ref?: React.Ref<HTMLDivElement> } }) {
+  return (
+    <div
+      role="img"
+      aria-label="No image available"
+      style={{
+        ...thumbnailStyle,
+        background: PLACEHOLDER_BG,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+      {...dragProps}
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill={PLACEHOLDER_ICON_COLOR} aria-hidden="true">
+        <path d="M12 2C6.48 2 2 6.48 2 12h10V2zm0 0c5.52 0 10 4.48 10 10h-10V2zM2 12c0 5.52 4.48 10 10 10L12 12H2z"/>
+      </svg>
+    </div>
+  );
+}
+
 function formatDate(d: Date): string {
   return d.toISOString().split('T')[0];
 }
@@ -86,12 +110,14 @@ function EntryCard({ entry, onDelete, onClick, dragging }: EntryCardProps) {
     <Card className={`border-0 ${dragging ? 'shadow-lg' : 'shadow-sm'}`}>
       <Card.Body className="py-2 ps-3 pe-2">
         <div className="d-flex align-items-center gap-2">
-          {thumbnailSrc && (
+          {thumbnailSrc ? (
             <img
               src={thumbnailSrc}
               alt={recipe?.name ?? ''}
               style={{ ...thumbnailStyle, cursor: dragging ? 'grabbing' : 'grab', touchAction: 'none' }}
             />
+          ) : (
+            <ThumbnailPlaceholder />
           )}
           <div className="flex-grow-1" style={{ cursor: 'pointer' }} onClick={() => onClick(entry)}>
             <div className="small fw-semibold">{recipe?.name ?? `Recipe #${entry.recipe}`}</div>
@@ -144,14 +170,13 @@ function SortableEntry({ entry, onDelete, onClick }: SortableEntryProps) {
                 style={{ ...thumbnailStyle, cursor: 'grab', touchAction: 'none' }}
               />
             ) : (
-              <span
-                ref={setActivatorNodeRef}
-                {...listeners}
-                style={{ cursor: 'grab', touchAction: 'none' }}
-                className="text-muted"
-              >
-                ⋮⋮
-              </span>
+              <ThumbnailPlaceholder
+                dragProps={{
+                  ref: setActivatorNodeRef as React.Ref<HTMLDivElement>,
+                  ...listeners,
+                  style: { cursor: 'grab', touchAction: 'none' },
+                }}
+              />
             )}
             <div className="flex-grow-1" style={{ cursor: 'pointer' }} onClick={() => onClick(entry)}>
               <div className="small fw-semibold">{recipe?.name ?? `Recipe #${entry.recipe}`}</div>
