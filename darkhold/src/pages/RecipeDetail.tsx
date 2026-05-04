@@ -235,9 +235,7 @@ export function RecipeDetail() {
       {steps.length === 1 && (
         <section className="mb-4">
           <h5>Instructions</h5>
-          {steps[0].name && <strong className="d-block mb-1">{steps[0].name}</strong>}
           <ReactMarkdown>{steps[0].instruction}</ReactMarkdown>
-          {steps[0].time != null && steps[0].time !== 0 && <Badge bg="info">{steps[0].time} min</Badge>}
         </section>
       )}
 
