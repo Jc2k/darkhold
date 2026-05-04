@@ -313,7 +313,7 @@ function AddMealModal({ date, onHide, mealTypes }: AddMealModalProps) {
               variant="outline-secondary"
               onClick={() => setServings((s) => Math.max(1, s - 1))}
               aria-label="Decrease servings"
-            >−</Button>
+            >-</Button>
             <span style={{ minWidth: '2rem', textAlign: 'center' }}>{servings}</span>
             <Button
               size="sm"
