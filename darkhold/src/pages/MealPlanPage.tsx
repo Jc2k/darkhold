@@ -83,7 +83,7 @@ function EntryCard({ entry, onDelete, onClick, dragging }: EntryCardProps) {
   const thumbnailSrc = recipe?.image ? proxyMediaUrl(recipe.image) : undefined;
   return (
     <Card className={`border-0 ${dragging ? 'shadow-lg' : 'shadow-sm'}`}>
-      <Card.Body className="py-2 px-3">
+      <Card.Body className="py-2 ps-3 pe-2">
         <div className="d-flex align-items-center gap-2">
           {thumbnailSrc && (
             <img
@@ -106,7 +106,7 @@ function EntryCard({ entry, onDelete, onClick, dragging }: EntryCardProps) {
               onClick={() => onDelete(entry.id)}
               aria-label="Remove meal"
             >
-              <Trash3 />
+              <Trash3 size={16} />
             </Button>
           )}
         </div>
@@ -132,7 +132,7 @@ function SortableEntry({ entry, onDelete, onClick }: SortableEntryProps) {
   return (
     <div ref={setNodeRef} style={{ ...style, opacity: isDragging ? 0.3 : 1 }} {...attributes} className="mb-2">
       <Card className="border-0 shadow-sm">
-        <Card.Body className="py-2 px-3">
+        <Card.Body className="py-2 ps-3 pe-2">
           <div className="d-flex align-items-center gap-2">
             {thumbnailSrc ? (
               <img
@@ -165,7 +165,7 @@ function SortableEntry({ entry, onDelete, onClick }: SortableEntryProps) {
               onClick={() => onDelete(entry.id)}
               aria-label="Remove meal"
             >
-              <Trash3 />
+              <Trash3 size={16} />
             </Button>
           </div>
         </Card.Body>
@@ -483,7 +483,7 @@ export function MealPlanPage() {
                       onClick={() => setAddDate(dateKey)}
                       aria-label="Add meal"
                     >
-                      <Plus />
+                      <Plus size={16} />
                     </Button>
                   </Card.Header>
                   <Card.Body className="p-2">
