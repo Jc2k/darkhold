@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Row, Col, Card, Button, Modal, Form, Spinner, Alert } from 'react-bootstrap';
+import { Row, Col, Card, Button, InputGroup, Modal, Form, Spinner, Alert } from 'react-bootstrap';
 import { AsyncTypeahead } from 'react-bootstrap-typeahead';
 import 'react-bootstrap-typeahead/css/Typeahead.css';
 import { Trash3, Plus } from 'react-bootstrap-icons';
@@ -337,9 +337,8 @@ function AddMealModal({ date, onHide, mealTypes }: AddMealModalProps) {
 
         <Form.Group className="mb-3">
           <Form.Label>Servings</Form.Label>
-          <div className="d-flex align-items-center gap-1">
+          <InputGroup>
             <Button
-              size="sm"
               variant="outline-secondary"
               onClick={() => setServings((s) => Math.max(1, s - 1))}
               aria-label="Decrease servings"
@@ -353,15 +352,14 @@ function AddMealModal({ date, onHide, mealTypes }: AddMealModalProps) {
                 if (!isNaN(val) && val >= 1) setServings(val);
                 else if (e.target.value === '') setServings(1);
               }}
-              style={{ width: '3.5rem', textAlign: 'center', padding: '0.25rem' }}
+              style={{ textAlign: 'center' }}
             />
             <Button
-              size="sm"
               variant="outline-secondary"
               onClick={() => setServings((s) => s + 1)}
               aria-label="Increase servings"
             >+</Button>
-          </div>
+          </InputGroup>
         </Form.Group>
 
         <Form.Group>
