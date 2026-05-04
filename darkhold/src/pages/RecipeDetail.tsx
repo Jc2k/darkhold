@@ -196,6 +196,16 @@ export function RecipeDetail() {
       <Row className="align-items-start mb-2">
         <Col>
           <h2 className="mb-1">{recipe.name}</h2>
+          <div className="d-flex flex-wrap gap-3 mb-1 small text-muted">
+            {recipe.cooking_time != null && <span>🕐 Cook: {recipe.cooking_time} min</span>}
+            {recipe.waiting_time != null && <span>⏳ Wait: {recipe.waiting_time} min</span>}
+            {recipe.servings != null && <span>🍽️ Serves: {recipe.servings}</span>}
+            {recipe.source_url && (
+              <a href={recipe.source_url} target="_blank" rel="noopener noreferrer">
+                🔗 Source
+              </a>
+            )}
+          </div>
           {recipe.rating != null && (
             <div className="text-warning mb-1 fs-5">
               {'★'.repeat(Math.round(recipe.rating))}
@@ -213,17 +223,6 @@ export function RecipeDetail() {
       </Row>
 
       {recipe.description && <p className="text-muted">{recipe.description}</p>}
-
-      <div className="d-flex flex-wrap gap-3 mb-3 small text-muted">
-        {recipe.cooking_time != null && <span>🕐 Cook: {recipe.cooking_time} min</span>}
-        {recipe.waiting_time != null && <span>⏳ Wait: {recipe.waiting_time} min</span>}
-        {recipe.servings != null && <span>🍽️ Serves: {recipe.servings}</span>}
-        {recipe.source_url && (
-          <a href={recipe.source_url} target="_blank" rel="noopener noreferrer">
-            🔗 Source
-          </a>
-        )}
-      </div>
 
       {allIngredients.length > 0 && (
         <section className="mb-4">
