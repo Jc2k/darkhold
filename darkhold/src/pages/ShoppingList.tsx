@@ -136,7 +136,7 @@ export function ShoppingList() {
     return (
       <div className="d-flex flex-column align-items-center justify-content-center" style={{ minHeight: '60vh' }}>
         <Cart4 size={64} className="text-muted mb-3" />
-        <p className="text-muted">Your shopping list is empty! Add recipes to your meal plan.</p>
+        <p className="text-muted text-center">Your shopping list is empty! Add recipes to your meal plan.</p>
       </div>
     );
   }
