@@ -121,33 +121,16 @@ export function RecipeDetail() {
 
   return (
     <div>
-      {recipe.image && (
-        <img
-          src={proxyMediaUrl(recipe.image)}
-          alt={recipe.name}
-          className="w-100 rounded mb-3"
-          style={{ maxHeight: 320, objectFit: 'cover' }}
-        />
-      )}
-
-      <Row className="align-items-start mb-2">
-        <Col>
-          <h2 className="mb-1">{recipe.name}</h2>
-          {recipe.rating != null && (
-            <div className="text-warning mb-1 fs-5">
-              {'★'.repeat(Math.round(recipe.rating))}
-              {'☆'.repeat(5 - Math.round(recipe.rating))}
-            </div>
-          )}
-          <div className="mb-2">
-            {keywords.map((k) => (
-              <TagBadge key={k.id} keyword={k} />
-            ))}
-          </div>
-          <NutritionBadge nutrition={recipe.nutrition} />
-          <RecipeFoodProperties foodProperties={recipe.food_properties} servings={recipe.servings} />
-        </Col>
-        <Col xs="auto" className="d-flex flex-column gap-2">
+      <div className="position-relative mb-3">
+        {recipe.image && (
+          <img
+            src={proxyMediaUrl(recipe.image)}
+            alt={recipe.name}
+            className="w-100 rounded"
+            style={{ maxHeight: 320, objectFit: 'cover', display: 'block' }}
+          />
+        )}
+        <div className="position-absolute top-0 end-0 d-flex flex-column gap-2 p-2" style={{ background: 'rgba(0,0,0,0.25)', borderBottomLeftRadius: 8 }}>
           <Button
             variant="success"
             size="sm"
@@ -168,6 +151,25 @@ export function RecipeDetail() {
               <Play />
             </Button>
           )}
+        </div>
+      </div>
+
+      <Row className="align-items-start mb-2">
+        <Col>
+          <h2 className="mb-1">{recipe.name}</h2>
+          {recipe.rating != null && (
+            <div className="text-warning mb-1 fs-5">
+              {'★'.repeat(Math.round(recipe.rating))}
+              {'☆'.repeat(5 - Math.round(recipe.rating))}
+            </div>
+          )}
+          <div className="mb-2">
+            {keywords.map((k) => (
+              <TagBadge key={k.id} keyword={k} />
+            ))}
+          </div>
+          <NutritionBadge nutrition={recipe.nutrition} />
+          <RecipeFoodProperties foodProperties={recipe.food_properties} servings={recipe.servings} />
         </Col>
       </Row>
 
