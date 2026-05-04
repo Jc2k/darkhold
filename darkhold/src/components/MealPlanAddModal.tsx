@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Modal, Button, Form, Spinner } from 'react-bootstrap';
+import { Modal, Button, Form, InputGroup, Spinner } from 'react-bootstrap';
 import type { Recipe, MealType } from '../api/tandoor-types';
 import { useCreateMealPlan } from '../hooks/useMealPlan';
 import { useQuery } from '@tanstack/react-query';
@@ -98,9 +98,8 @@ export function MealPlanAddModal({ recipe, onHide }: Props) {
 
         <Form.Group className="mb-3">
           <Form.Label>Servings</Form.Label>
-          <div className="d-flex align-items-center gap-1">
+          <InputGroup>
             <Button
-              size="sm"
               variant="outline-secondary"
               onClick={() => setServings((s) => Math.max(1, s - 1))}
               aria-label="Decrease servings"
@@ -114,15 +113,14 @@ export function MealPlanAddModal({ recipe, onHide }: Props) {
                 if (!isNaN(val) && val >= 1) setServings(val);
                 else if (e.target.value === '') setServings(1);
               }}
-              style={{ width: '3.5rem', textAlign: 'center', padding: '0.25rem' }}
+              style={{ textAlign: 'center' }}
             />
             <Button
-              size="sm"
               variant="outline-secondary"
               onClick={() => setServings((s) => s + 1)}
               aria-label="Increase servings"
             >+</Button>
-          </div>
+          </InputGroup>
         </Form.Group>
 
         <Form.Group className="mb-3">
