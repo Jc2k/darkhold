@@ -44,12 +44,11 @@ export function Layout() {
         <Navbar.Toggle />
         <Navbar.Collapse>
           <Nav className="me-auto">
-            {navItems.map(({ to, Icon, label, exact }) => (
+            {navItems.map(({ to, Icon, label }) => (
               <Nav.Link
                 key={to}
                 as={NavLink}
                 to={to}
-                end={exact}
               >
                 <Icon className="me-1" /> {label}
               </Nav.Link>
@@ -94,11 +93,10 @@ export function Layout() {
         style={{ zIndex: 1030, paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         <div className="d-flex">
-          {navItems.map(({ to, Icon, label, exact }) => (
+          {navItems.map(({ to, Icon, label }) => (
             <NavLink
               key={to}
               to={to}
-              end={exact}
               aria-label={label}
               className={({ isActive }) =>
                 `flex-fill text-center py-2 text-decoration-none ${isActive ? 'text-white fw-semibold' : 'text-secondary'}`
