@@ -23,16 +23,18 @@ export function RecipeFoodProperties({
 
   const per = servings && servings > 0 ? servings : 1;
 
+  const hasIncomplete = props.some((p) => p.missing_value);
+
   return (
     <small className="text-muted">
       {props.map((p, i) => (
         <span key={p.id}>
           {i > 0 && ' · '}
           {p.name}: {Math.round(p.total_value / per)} {p.unit ?? ''}
-          {p.missing_value && <span title="Some ingredients are missing data"> ⚠️</span>}
         </span>
       ))}
       {servings != null && servings > 1 && <span className="ms-1">(per serving)</span>}
+      {hasIncomplete && <span className="ms-1">(incomplete)</span>}
     </small>
   );
 }
