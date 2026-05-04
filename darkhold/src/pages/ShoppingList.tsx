@@ -1,4 +1,5 @@
 import { ListGroup, Form, Alert, Badge, Spinner, Button } from 'react-bootstrap';
+import { Cart4 } from 'react-bootstrap-icons';
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -133,7 +134,8 @@ export function ShoppingList() {
   const entries = data?.results ?? [];
   if (entries.length === 0) {
     return (
-      <div className="pt-2">
+      <div className="d-flex flex-column align-items-center justify-content-center" style={{ minHeight: '60vh' }}>
+        <Cart4 size={64} className="text-muted mb-3" />
         <p className="text-muted">Your shopping list is empty! Add recipes to your meal plan.</p>
       </div>
     );
