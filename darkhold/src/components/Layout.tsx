@@ -84,7 +84,7 @@ export function Layout() {
       </Navbar>
 
       {/* Page content */}
-      <Container fluid className="flex-grow-1 py-3 pb-md-3 pb-5">
+      <Container fluid className="flex-grow-1 py-3 pb-md-3 page-content">
         <Outlet />
       </Container>
 
@@ -116,6 +116,7 @@ export function Layout() {
         show={showMenu}
         onHide={() => setShowMenu(false)}
         placement="bottom"
+        scroll={true}
         className="bg-dark text-white"
         style={{ maxHeight: '60vh' }}
       >
