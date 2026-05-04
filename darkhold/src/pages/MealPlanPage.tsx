@@ -9,6 +9,7 @@ import {
   DragOverlay,
   closestCenter,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   useDroppable,
@@ -52,6 +53,8 @@ const thumbnailStyle: React.CSSProperties = {
   objectFit: 'cover',
   borderRadius: 4,
   flexShrink: 0,
+  WebkitTouchCallout: 'none',
+  userSelect: 'none',
 };
 
 const PLACEHOLDER_BG = '#d0d0d0';
@@ -409,6 +412,7 @@ export function MealPlanPage() {
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
   );
 
   const days = Array.from({ length: 7 }, (_, i) => addDays(startDate, i));
