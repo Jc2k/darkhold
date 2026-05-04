@@ -114,6 +114,7 @@ function EntryCard({ entry, onDelete, onClick, dragging }: EntryCardProps) {
             <img
               src={thumbnailSrc}
               alt={recipe?.name ?? ''}
+              draggable={false}
               style={{ ...thumbnailStyle, cursor: dragging ? 'grabbing' : 'grab', touchAction: 'none' }}
             />
           ) : (
@@ -167,6 +168,7 @@ function SortableEntry({ entry, onDelete, onClick }: SortableEntryProps) {
                 {...listeners}
                 src={thumbnailSrc}
                 alt={recipe?.name ?? ''}
+                draggable={false}
                 style={{ ...thumbnailStyle, cursor: 'grab', touchAction: 'none' }}
               />
             ) : (
@@ -476,10 +478,11 @@ export function MealPlanPage() {
       updateMeal.mutate({
         id: activeEntryId,
         data: {
-          from_date: targetContainerId,
-          to_date: targetContainerId,
           recipe: recipeId,
           meal_type: mealTypeId,
+          from_date: targetContainerId,
+          to_date: targetContainerId,
+          servings: entry.servings ?? 1,
         },
       });
     }
