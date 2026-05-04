@@ -7,7 +7,7 @@ import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import { useInvalidationSocket } from '../hooks/useInvalidationSocket';
 
 const navItems = [
-  { to: '/', Icon: RocketTakeoff, label: 'Dashboard', exact: true },
+  { to: '/dashboard', Icon: RocketTakeoff, label: 'Dashboard' },
   { to: '/all-recipes', Icon: Book, label: 'Recipes' },
   { to: '/search', Icon: Search, label: 'Search' },
   { to: '/meal-plan', Icon: CalendarDay, label: 'Plan' },
