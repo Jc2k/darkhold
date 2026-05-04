@@ -68,7 +68,7 @@ export function Layout() {
       </Navbar>
 
       {/* Top navbar - mobile */}
-      <Navbar bg="dark" variant="dark" className="d-md-none px-3 py-2">
+      <Navbar bg="dark" variant="dark" className="d-md-none px-3 py-2" style={{ paddingTop: 'calc(0.5rem + env(safe-area-inset-top))' }}>
         <Navbar.Brand style={{ cursor: 'pointer' }} onClick={() => navigate('/')}>
           🗝️ Darkhold
         </Navbar.Brand>
