@@ -449,9 +449,8 @@ export function MealPlanPage() {
   }
 
   return (
-    <div>
+    <div className="pt-2">
       <div className="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
-        <h2 className="mb-0">Meal Plan</h2>
         <div className="d-flex align-items-center gap-2">
           <span className="text-muted small">{formatMonthYear(startDate)}</span>
           <Button variant="outline-secondary" size="sm" onClick={() => setWeekOffset((w) => w - 1)}>
