@@ -38,8 +38,8 @@ export function Layout() {
     <div className="d-flex flex-column min-vh-100">
       {/* Top navbar - desktop */}
       <Navbar bg="dark" variant="dark" expand="md" className="d-none d-md-flex px-3">
-        <Navbar.Brand style={{ cursor: 'pointer' }} onClick={() => navigate('/')}>
-          <JournalRichtext className="me-2 align-text-bottom" /> Recipes
+        <Navbar.Brand className="d-inline-flex align-items-center" style={{ cursor: 'pointer' }} onClick={() => navigate('/')}>
+          <JournalRichtext className="me-2" /> Recipes
         </Navbar.Brand>
         <Navbar.Toggle />
         <Navbar.Collapse>
@@ -68,8 +68,8 @@ export function Layout() {
 
       {/* Top navbar - mobile */}
       <Navbar bg="dark" variant="dark" className="d-md-none px-3 pb-2" style={{ paddingTop: 'calc(0.5rem + env(safe-area-inset-top))' }}>
-        <Navbar.Brand style={{ cursor: 'pointer' }} onClick={() => navigate('/')}>
-          <JournalRichtext className="me-2 align-text-bottom" /> Recipes
+        <Navbar.Brand className="d-inline-flex align-items-center" style={{ cursor: 'pointer' }} onClick={() => navigate('/')}>
+          <JournalRichtext className="me-2" /> Recipes
         </Navbar.Brand>
         <button
           type="button"
