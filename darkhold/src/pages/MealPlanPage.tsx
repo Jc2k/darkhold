@@ -90,6 +90,7 @@ function EntryCard({ entry, onDelete, onClick, dragging }: EntryCardProps) {
             <img
               src={thumbnailSrc}
               alt={recipe?.name ?? ''}
+              draggable={false}
               style={{ ...thumbnailStyle, cursor: dragging ? 'grabbing' : 'grab', touchAction: 'none' }}
             />
           )}
@@ -141,6 +142,7 @@ function SortableEntry({ entry, onDelete, onClick }: SortableEntryProps) {
                 {...listeners}
                 src={thumbnailSrc}
                 alt={recipe?.name ?? ''}
+                draggable={false}
                 style={{ ...thumbnailStyle, cursor: 'grab', touchAction: 'none' }}
               />
             ) : (
