@@ -71,8 +71,12 @@ export interface RecipeIngredient {
   id: number;
   amount?: number | null;
   unit?: RecipeUnit | null;
-  food: Food | number;
+  food: Food | number | null;
   note?: string | null;
+  /** When true, this entry is a section header (uses note as label, no food/unit/amount) */
+  is_header?: boolean;
+  /** When true, amount is not shown even if present */
+  no_amount?: boolean;
 }
 
 /** Keyword/tag for recipes */
