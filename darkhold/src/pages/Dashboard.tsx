@@ -68,6 +68,18 @@ interface UpcomingMealsShelfProps {
 }
 
 function UpcomingMealsShelf({ days, mealsByDay, loading, error, onAddToMealPlan }: UpcomingMealsShelfProps) {
+  // Flatten days into individual card items so all cards sit in one horizontal row.
+  // The date label is shown only above the first card of each day group.
+  const DATE_LABEL_HEIGHT = '1.4rem';
+  const items = days.flatMap((day) => {
+    const key = formatDate(day);
+    const recipes = mealsByDay[key] ?? [];
+    if (recipes.length === 0) {
+      return [{ day, recipe: null, isFirstOfDay: true }];
+    }
+    return recipes.map((recipe, index) => ({ day, recipe, isFirstOfDay: index === 0 }));
+  });
+
   return (
     <section className="mb-4">
       <div className="d-flex align-items-center justify-content-between mb-2">
@@ -83,27 +95,34 @@ function UpcomingMealsShelf({ days, mealsByDay, loading, error, onAddToMealPlan 
           className="d-flex gap-3 hide-scrollbar"
           style={{ overflowX: 'auto', scrollSnapType: 'x mandatory' }}
         >
-          {days.map((day) => {
-            const key = formatDate(day);
-            const recipes = mealsByDay[key] ?? [];
-            return (
-              <div key={key} style={{ minWidth: 200, maxWidth: 200, scrollSnapAlign: 'start', flexShrink: 0 }}>
-                <div className="text-muted small fw-semibold mb-1 text-center">{shortDay(day)}</div>
-                {recipes.length > 0 ? (
-                  recipes.map((r) => (
-                    <RecipeCard key={r.id} recipe={r} onAddToMealPlan={onAddToMealPlan} />
-                  ))
-                ) : (
-                  <div
-                    className="d-flex align-items-center justify-content-center text-muted border rounded"
-                    style={{ height: 120, fontSize: '0.8rem', borderStyle: 'dashed' as const }}
-                  >
-                    No meal planned
-                  </div>
-                )}
+          {items.map(({ day, recipe, isFirstOfDay }) => (
+            <div
+              key={recipe ? `${formatDate(day)}-${recipe.id}` : `${formatDate(day)}-empty`}
+              style={{
+                minWidth: 200,
+                maxWidth: 200,
+                flexShrink: 0,
+                scrollSnapAlign: isFirstOfDay ? 'start' : 'none',
+              }}
+            >
+              <div
+                className="text-muted small fw-semibold mb-1 text-center"
+                style={{ height: DATE_LABEL_HEIGHT }}
+              >
+                {isFirstOfDay ? shortDay(day) : null}
               </div>
-            );
-          })}
+              {recipe ? (
+                <RecipeCard recipe={recipe} onAddToMealPlan={onAddToMealPlan} />
+              ) : (
+                <div
+                  className="d-flex align-items-center justify-content-center text-muted border rounded"
+                  style={{ height: 120, fontSize: '0.8rem', borderStyle: 'dashed' as const }}
+                >
+                  No meal planned
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       )}
     </section>
