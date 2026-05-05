@@ -34,6 +34,14 @@ type WithSortable = { sortable?: { containerId: string } } | undefined;
 
 const noop = () => {};
 
+const navButtonStyle: React.CSSProperties = {
+  minWidth: 44,
+  minHeight: 44,
+  fontSize: '1.5rem',
+  lineHeight: 1,
+  padding: '0 0.5rem',
+};
+
 const circleButtonStyle: React.CSSProperties = {
   width: 28,
   height: 28,
@@ -95,9 +103,6 @@ function shortDay(d: Date): string {
   return d.toLocaleDateString('en-GB', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
-function formatMonthYear(d: Date): string {
-  return d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
-}
 
 interface EntryCardProps {
   entry: MealPlan;
@@ -502,19 +507,29 @@ export function MealPlanPage() {
 
   return (
     <div className="pt-2">
-      <div className="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
-        <div className="d-flex align-items-center gap-2">
-          <span className="text-muted small">{formatMonthYear(startDate)}</span>
-          <Button variant="outline-secondary" size="sm" onClick={() => setWeekOffset((w) => w - 1)}>
-            ← Prev
-          </Button>
-          <Button variant="outline-secondary" size="sm" onClick={() => setWeekOffset(0)}>
+      <div className="d-flex align-items-center mb-3">
+        <Button
+          variant="outline-secondary"
+          onClick={() => setWeekOffset((w) => w - 1)}
+          aria-label="Previous week"
+          style={navButtonStyle}
+        >‹</Button>
+        <div className="flex-grow-1 text-center">
+          <Button
+            variant="outline-secondary"
+            size="sm"
+            onClick={() => setWeekOffset(0)}
+            aria-label="Go to current week"
+          >
             Today
           </Button>
-          <Button variant="outline-secondary" size="sm" onClick={() => setWeekOffset((w) => w + 1)}>
-            Next →
-          </Button>
         </div>
+        <Button
+          variant="outline-secondary"
+          onClick={() => setWeekOffset((w) => w + 1)}
+          aria-label="Next week"
+          style={navButtonStyle}
+        >›</Button>
       </div>
 
       {isLoading && <LoadingMascot />}
