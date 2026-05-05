@@ -105,41 +105,51 @@ function CookingMode({ steps, onClose }: { steps: RecipeStep[]; onClose: () => v
   );
 }
 
+function formatNutrientValue(value: number, unit?: string | null): string {
+  return `${Math.round(value)}${unit ? `\u00a0${unit}` : ''}`;
+}
+
 function NutritionOverlay({
   foodProperties,
   servings,
+  onClose,
 }: {
   foodProperties: Record<string, FoodProperty>;
   servings?: number | null;
+  onClose: () => void;
 }) {
-  const props = Object.values(foodProperties)
-    .filter((p) => p.total_value > 0)
+  const nutrients = Object.values(foodProperties)
+    .filter((n) => n.total_value > 0)
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
-  if (props.length === 0) return null;
+  if (nutrients.length === 0) return null;
 
   const per = servings && servings > 0 ? servings : 1;
 
   // Try to find a property representing serving weight in grams (e.g. "Weight" with unit "g").
-  const weightProp = props.find(
-    (p) => p.unit?.trim().toLowerCase() === 'g' && /weight/i.test(p.name),
+  const weightProp = nutrients.find(
+    (n) => n.unit?.trim().toLowerCase() === 'g' && /weight/i.test(n.name),
   );
   const servingWeightG = weightProp ? weightProp.total_value / per : null;
 
-  const hasAnyMissing = props.some((p) => p.missing_value);
+  const hasAnyMissing = nutrients.some((n) => n.missing_value);
 
   return (
     <div
       className="position-absolute top-0 start-0 w-100 h-100 overflow-auto"
       style={{ background: 'rgba(0,0,0,0.82)', zIndex: 5 }}
+      role="region"
       aria-label="Nutrition information"
+      onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
+      // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+      tabIndex={0}
     >
-      <div className="px-3 py-2 text-white" style={{ fontSize: '0.78rem' }}>
-        <p className="mb-1 fw-bold text-center" style={{ fontSize: '0.85rem' }}>
+      <div className="px-3 py-2 text-white" style={{ fontSize: '0.875rem' }}>
+        <p className="mb-1 fw-bold text-center" style={{ fontSize: '0.95rem' }}>
           Nutrition Information
         </p>
         {servings != null && servings > 1 && (
-          <p className="mb-1 text-center text-white-50" style={{ fontSize: '0.72rem' }}>
+          <p className="mb-1 text-center text-white-50" style={{ fontSize: '0.8rem' }}>
             Serving size: 1 of {servings}
           </p>
         )}
@@ -152,25 +162,22 @@ function NutritionOverlay({
             </tr>
           </thead>
           <tbody>
-            {props.map((p) => {
-              const perServing = p.total_value / per;
+            {nutrients.map((n) => {
+              const perServing = n.total_value / per;
               const per100g =
                 servingWeightG != null ? (perServing / servingWeightG) * 100 : null;
               return (
-                <tr key={p.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.15)' }}>
+                <tr key={n.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.15)' }}>
                   <td className="py-1">
-                    {p.name}
-                    {p.unit ? ` (${p.unit})` : ''}
-                    {p.missing_value ? '\u00a0*' : ''}
+                    {n.name}
+                    {n.unit ? ` (${n.unit})` : ''}
+                    {n.missing_value ? '\u00a0*' : ''}
                   </td>
                   <td className="text-end py-1">
-                    {Math.round(perServing)}
-                    {p.unit ? `\u00a0${p.unit}` : ''}
+                    {formatNutrientValue(perServing, n.unit)}
                   </td>
                   <td className="text-end py-1">
-                    {per100g != null
-                      ? `${Math.round(per100g)}${p.unit ? `\u00a0${p.unit}` : ''}`
-                      : '–'}
+                    {per100g != null ? formatNutrientValue(per100g, n.unit) : '–'}
                   </td>
                 </tr>
               );
@@ -178,12 +185,12 @@ function NutritionOverlay({
           </tbody>
         </table>
         {hasAnyMissing && (
-          <p className="mb-0 text-warning" style={{ fontSize: '0.7rem' }}>
+          <p className="mb-0 text-warning" style={{ fontSize: '0.8rem' }}>
             * Nutritional data missing for one or more ingredients
           </p>
         )}
         {servingWeightG == null && (
-          <p className="mb-0 text-white-50" style={{ fontSize: '0.7rem' }}>
+          <p className="mb-0 text-white-50" style={{ fontSize: '0.8rem' }}>
             Per 100g values unavailable (no serving weight defined)
           </p>
         )}
@@ -256,7 +263,7 @@ export function RecipeDetail() {
           />
         )}
         {showNutrition && recipe.food_properties && (
-          <NutritionOverlay foodProperties={recipe.food_properties} servings={recipe.servings} />
+          <NutritionOverlay foodProperties={recipe.food_properties} servings={recipe.servings} onClose={() => setShowNutrition(false)} />
         )}
         <div className="position-absolute top-0 end-0 d-flex flex-column gap-2 p-2" style={{ background: 'rgba(0,0,0,0.25)', borderBottomLeftRadius: 8, zIndex: 10 }}>
           <Button
