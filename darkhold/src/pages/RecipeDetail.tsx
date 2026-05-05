@@ -327,7 +327,13 @@ export function RecipeDetailContent({ recipe, servingsOverride, mealPlanNote }: 
               variant="light"
               size="sm"
               style={circleButtonStyle}
-              onClick={() => navigator.share({ title: recipe.name, url: window.location.href })}
+              onClick={async () => {
+                try {
+                  await navigator.share({ title: recipe.name, url: window.location.href });
+                } catch {
+                  // User cancelled or share failed — nothing to do
+                }
+              }}
               aria-label="Share recipe"
             >
               <Share />
