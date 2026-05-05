@@ -11,6 +11,7 @@ import { MealPlanAddModal } from '../components/MealPlanAddModal';
 import { LoadingMascot } from '../components/LoadingMascot';
 import { proxyMediaUrl } from '../utils/mediaUrl';
 import { formatFraction } from '../utils/fractions';
+import { useRecipeWeightG } from '../hooks/useRecipeWeightG';
 
 type IngredientSection = { header: string | null; items: RecipeIngredient[] };
 
@@ -112,10 +113,12 @@ function formatNutrientValue(value: number, unit?: string | null): string {
 function NutritionOverlay({
   foodProperties,
   servings,
+  ingredients,
   onClose,
 }: {
   foodProperties: Record<string, FoodProperty>;
   servings?: number | null;
+  ingredients: RecipeIngredient[];
   onClose: () => void;
 }) {
   const nutrients = Object.values(foodProperties)
@@ -130,7 +133,15 @@ function NutritionOverlay({
   const weightProp = nutrients.find(
     (n) => n.unit?.trim().toLowerCase() === 'g' && /weight/i.test(n.name),
   );
-  const servingWeightG = weightProp ? weightProp.total_value / per : null;
+  const explicitServingWeightG = weightProp ? weightProp.total_value / per : null;
+
+  // Progressive weight estimate from ingredient units (background queries refine this).
+  const { weightG: estimatedTotalG, isApproximate, isLoading: weightLoading } = useRecipeWeightG(ingredients);
+  const estimatedServingWeightG = estimatedTotalG != null ? estimatedTotalG / per : null;
+
+  // Prefer the explicit property weight; fall back to the progressive estimate.
+  const servingWeightG = explicitServingWeightG ?? estimatedServingWeightG;
+  const weightIsApproximate = explicitServingWeightG == null && isApproximate;
 
   const hasAnyMissing = nutrients.some((n) => n.missing_value);
 
@@ -158,7 +169,7 @@ function NutritionOverlay({
             <tr style={{ borderBottom: '2px solid rgba(255,255,255,0.5)' }}>
               <th className="text-start pb-1">Nutrient</th>
               <th className="text-end pb-1">Per serving</th>
-              <th className="text-end pb-1">Per 100g</th>
+              <th className="text-end pb-1">Per 100g{weightIsApproximate ? <span aria-label="approximate"> ~</span> : ''}</th>
             </tr>
           </thead>
           <tbody>
@@ -177,7 +188,7 @@ function NutritionOverlay({
                     {formatNutrientValue(perServing, n.unit)}
                   </td>
                   <td className="text-end py-1">
-                    {per100g != null ? formatNutrientValue(per100g, n.unit) : '–'}
+                    {per100g != null ? formatNutrientValue(per100g, n.unit) : weightLoading ? '…' : '–'}
                   </td>
                 </tr>
               );
@@ -189,7 +200,12 @@ function NutritionOverlay({
             * Nutritional data missing for one or more ingredients
           </p>
         )}
-        {servingWeightG == null && (
+        {weightIsApproximate && (
+          <p className="mb-0 text-white-50" style={{ fontSize: '0.8rem' }}>
+            ~ Per 100g values are estimated from ingredient units
+          </p>
+        )}
+        {servingWeightG == null && !weightLoading && (
           <p className="mb-0 text-white-50" style={{ fontSize: '0.8rem' }}>
             Per 100g values unavailable (no serving weight defined)
           </p>
@@ -263,7 +279,7 @@ export function RecipeDetail() {
           />
         )}
         {showNutrition && recipe.food_properties && (
-          <NutritionOverlay foodProperties={recipe.food_properties} servings={recipe.servings} onClose={() => setShowNutrition(false)} />
+          <NutritionOverlay foodProperties={recipe.food_properties} servings={recipe.servings} ingredients={allIngredients} onClose={() => setShowNutrition(false)} />
         )}
         <div className="position-absolute top-0 end-0 d-flex flex-column gap-2 p-2" style={{ background: 'rgba(0,0,0,0.25)', borderBottomLeftRadius: 8, zIndex: 10 }}>
           <Button

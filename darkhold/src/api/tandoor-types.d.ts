@@ -176,6 +176,16 @@ export interface Unit {
   base_unit?: Unit | number | null;
 }
 
+/** Tandoor unit conversion record */
+export interface UnitConversion {
+  id: number;
+  base_amount: number;
+  base_unit: RecipeUnit;
+  converted_amount: number;
+  converted_unit: RecipeUnit;
+  food?: Food | number | null;
+}
+
 /** User profile */
 export interface User {
   id: number;
