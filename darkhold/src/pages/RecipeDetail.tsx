@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { useQuery } from '@tanstack/react-query';
 import { Row, Col, Badge, Alert, Button, Modal } from 'react-bootstrap';
-import { Plus, Play, Info, Pencil, DashCircle, PlusCircle, Share } from 'react-bootstrap-icons';
+import { Plus, Play, Info, Pencil, DashCircle, PlusCircle, Clock, HourglassSplit, People, BoxArrowUpRight, Share } from 'react-bootstrap-icons';
 import { apiGet } from '../api/client';
 import type { Recipe, RecipeIngredient, RecipeStep, RecipeUnit, Food, Keyword, FoodProperty } from '../api/tandoor-types';
 import { TagBadge } from '../components/TagBadge';
@@ -219,7 +219,7 @@ function NutritionOverlay({
 
 const MIN_SERVINGS = 1;
 
-const circleButtonStyle = { width: 32, height: 32, padding: 0, borderRadius: '50%', lineHeight: 1, fontSize: '1.25rem' };
+const circleButtonStyle = { width: 32, height: 32, padding: 0, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' };
 
 interface RecipeDetailContentProps {
   recipe: Recipe;
@@ -346,11 +346,11 @@ export function RecipeDetailContent({ recipe, servingsOverride, mealPlanNote }: 
         <Col>
           <h2 className="mb-1">{recipe.name}</h2>
           <div className="d-flex flex-wrap gap-3 mb-1 small text-muted">
-            {recipe.cooking_time != null && <span>🕐 Cook: {recipe.cooking_time} min</span>}
-            {recipe.waiting_time != null && <span>⏳ Wait: {recipe.waiting_time} min</span>}
+            {recipe.cooking_time != null && <span className="d-inline-flex align-items-center gap-1"><Clock /> Cook: {recipe.cooking_time} min</span>}
+            {recipe.waiting_time != null && <span className="d-inline-flex align-items-center gap-1"><HourglassSplit /> Wait: {recipe.waiting_time} min</span>}
             {recipe.servings != null && (
               <span className="d-inline-flex align-items-center gap-1">
-                🍽️ Serves:
+                <People /> Serves:
                 <Button
                   variant="link"
                   className="p-0 text-muted"
@@ -383,8 +383,8 @@ export function RecipeDetailContent({ recipe, servingsOverride, mealPlanNote }: 
               </span>
             )}
             {recipe.source_url && (
-              <a href={recipe.source_url} target="_blank" rel="noopener noreferrer">
-                🔗 Source
+              <a href={recipe.source_url} target="_blank" rel="noopener noreferrer" className="d-inline-flex align-items-center gap-1">
+                <BoxArrowUpRight /> Source
               </a>
             )}
           </div>
