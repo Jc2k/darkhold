@@ -3,12 +3,10 @@ import { useParams, Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { useQuery } from '@tanstack/react-query';
 import { Row, Col, Badge, Alert, Button, Modal } from 'react-bootstrap';
-import { Plus, Play } from 'react-bootstrap-icons';
+import { Plus, Play, InfoCircle } from 'react-bootstrap-icons';
 import { apiGet } from '../api/client';
-import type { Recipe, RecipeIngredient, RecipeStep, RecipeUnit, Food, Keyword } from '../api/tandoor-types';
+import type { Recipe, RecipeIngredient, RecipeStep, RecipeUnit, Food, Keyword, FoodProperty } from '../api/tandoor-types';
 import { TagBadge } from '../components/TagBadge';
-import { NutritionBadge } from '../components/NutritionBadge';
-import { RecipeFoodProperties } from '../components/FoodPropertiesTable';
 import { MealPlanAddModal } from '../components/MealPlanAddModal';
 import { LoadingMascot } from '../components/LoadingMascot';
 import { proxyMediaUrl } from '../utils/mediaUrl';
@@ -107,12 +105,100 @@ function CookingMode({ steps, onClose }: { steps: RecipeStep[]; onClose: () => v
   );
 }
 
+function NutritionOverlay({
+  foodProperties,
+  servings,
+}: {
+  foodProperties: Record<string, FoodProperty>;
+  servings?: number | null;
+}) {
+  const props = Object.values(foodProperties)
+    .filter((p) => p.total_value > 0)
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+  if (props.length === 0) return null;
+
+  const per = servings && servings > 0 ? servings : 1;
+
+  // Try to find a property representing serving weight in grams (e.g. "Weight" with unit "g").
+  const weightProp = props.find(
+    (p) => p.unit?.trim().toLowerCase() === 'g' && /weight/i.test(p.name),
+  );
+  const servingWeightG = weightProp ? weightProp.total_value / per : null;
+
+  const hasAnyMissing = props.some((p) => p.missing_value);
+
+  return (
+    <div
+      className="position-absolute top-0 start-0 w-100 h-100 overflow-auto"
+      style={{ background: 'rgba(0,0,0,0.82)', zIndex: 5 }}
+      aria-label="Nutrition information"
+    >
+      <div className="px-3 py-2 text-white" style={{ fontSize: '0.78rem' }}>
+        <p className="mb-1 fw-bold text-center" style={{ fontSize: '0.85rem' }}>
+          Nutrition Information
+        </p>
+        {servings != null && servings > 1 && (
+          <p className="mb-1 text-center text-white-50" style={{ fontSize: '0.72rem' }}>
+            Serving size: 1 of {servings}
+          </p>
+        )}
+        <table className="w-100 mb-1" style={{ borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ borderBottom: '2px solid rgba(255,255,255,0.5)' }}>
+              <th className="text-start pb-1">Nutrient</th>
+              <th className="text-end pb-1">Per serving</th>
+              <th className="text-end pb-1">Per 100g</th>
+            </tr>
+          </thead>
+          <tbody>
+            {props.map((p) => {
+              const perServing = p.total_value / per;
+              const per100g =
+                servingWeightG != null ? (perServing / servingWeightG) * 100 : null;
+              return (
+                <tr key={p.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.15)' }}>
+                  <td className="py-1">
+                    {p.name}
+                    {p.unit ? ` (${p.unit})` : ''}
+                    {p.missing_value ? '\u00a0*' : ''}
+                  </td>
+                  <td className="text-end py-1">
+                    {Math.round(perServing)}
+                    {p.unit ? `\u00a0${p.unit}` : ''}
+                  </td>
+                  <td className="text-end py-1">
+                    {per100g != null
+                      ? `${Math.round(per100g)}${p.unit ? `\u00a0${p.unit}` : ''}`
+                      : '–'}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        {hasAnyMissing && (
+          <p className="mb-0 text-warning" style={{ fontSize: '0.7rem' }}>
+            * Nutritional data missing for one or more ingredients
+          </p>
+        )}
+        {servingWeightG == null && (
+          <p className="mb-0 text-white-50" style={{ fontSize: '0.7rem' }}>
+            Per 100g values unavailable (no serving weight defined)
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 const circleButtonStyle = { width: 32, height: 32, padding: 0, borderRadius: '50%', lineHeight: 1, fontSize: '1.25rem' };
 
 export function RecipeDetail() {
   const { id } = useParams<{ id: string }>();
   const [planRecipe, setPlanRecipe] = useState<Recipe | null>(null);
   const [cookingMode, setCookingMode] = useState(false);
+  const [showNutrition, setShowNutrition] = useState(false);
 
   const { data: recipe, isLoading, isError } = useQuery({
     queryKey: ['recipe', id],
@@ -169,7 +255,10 @@ export function RecipeDetail() {
             style={{ maxHeight: 320, objectFit: 'cover', display: 'block' }}
           />
         )}
-        <div className="position-absolute top-0 end-0 d-flex flex-column gap-2 p-2" style={{ background: 'rgba(0,0,0,0.25)', borderBottomLeftRadius: 8 }}>
+        {showNutrition && recipe.food_properties && (
+          <NutritionOverlay foodProperties={recipe.food_properties} servings={recipe.servings} />
+        )}
+        <div className="position-absolute top-0 end-0 d-flex flex-column gap-2 p-2" style={{ background: 'rgba(0,0,0,0.25)', borderBottomLeftRadius: 8, zIndex: 10 }}>
           <Button
             variant="success"
             size="sm"
@@ -188,6 +277,18 @@ export function RecipeDetail() {
               aria-label="Start cooking mode"
             >
               <Play />
+            </Button>
+          )}
+          {recipe.food_properties && Object.keys(recipe.food_properties).length > 0 && (
+            <Button
+              variant={showNutrition ? 'info' : 'light'}
+              size="sm"
+              style={circleButtonStyle}
+              onClick={() => setShowNutrition((v) => !v)}
+              aria-label={showNutrition ? 'Hide nutrition information' : 'Show nutrition information'}
+              aria-pressed={showNutrition}
+            >
+              <InfoCircle />
             </Button>
           )}
         </div>
@@ -217,8 +318,6 @@ export function RecipeDetail() {
               <TagBadge key={k.id} keyword={k} />
             ))}
           </div>
-          <NutritionBadge nutrition={recipe.nutrition} />
-          <RecipeFoodProperties foodProperties={recipe.food_properties} servings={recipe.servings} />
         </Col>
       </Row>
 
