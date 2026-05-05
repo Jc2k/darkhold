@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { useQuery } from '@tanstack/react-query';
 import { Row, Col, Badge, Alert, Button, Modal } from 'react-bootstrap';
-import { Plus, Play, Info, Pencil } from 'react-bootstrap-icons';
+import { Plus, Play, Info, Pencil, DashCircle, PlusCircle } from 'react-bootstrap-icons';
 import { apiGet } from '../api/client';
 import type { Recipe, RecipeIngredient, RecipeStep, RecipeUnit, Food, Keyword, FoodProperty } from '../api/tandoor-types';
 import { TagBadge } from '../components/TagBadge';
@@ -217,6 +217,8 @@ function NutritionOverlay({
   );
 }
 
+const MIN_SERVINGS = 1;
+
 const circleButtonStyle = { width: 32, height: 32, padding: 0, borderRadius: '50%', lineHeight: 1, fontSize: '1.25rem' };
 
 interface RecipeDetailContentProps {
@@ -233,6 +235,13 @@ export function RecipeDetailContent({ recipe, servingsOverride, mealPlanNote }: 
   const [showNutrition, setShowNutrition] = useState(false);
   const { tandoor_external_url: externalUrl } = useAppConfig();
 
+  const [userServings, setUserServings] = useState<number>(servingsOverride ?? recipe.servings ?? 1);
+
+  // Keep userServings in sync if the recipe or override changes (e.g. navigation)
+  useEffect(() => {
+    setUserServings(servingsOverride ?? recipe.servings ?? 1);
+  }, [recipe.id, servingsOverride, recipe.servings]);
+
   const keywords = Array.isArray(recipe.keywords)
     ? recipe.keywords.filter((k): k is Keyword => typeof k === 'object')
     : [];
@@ -243,11 +252,9 @@ export function RecipeDetailContent({ recipe, servingsOverride, mealPlanNote }: 
   const allIngredients: RecipeIngredient[] = steps.flatMap((s) => s.ingredients ?? []);
 
   const scaleFactor =
-    servingsOverride != null && servingsOverride > 0 && recipe.servings != null && recipe.servings > 0
-      ? servingsOverride / recipe.servings
+    recipe.servings != null && recipe.servings > 0
+      ? userServings / recipe.servings
       : undefined;
-
-  const effectiveServings = servingsOverride ?? recipe.servings;
 
   return (
     <div>
@@ -266,7 +273,7 @@ export function RecipeDetailContent({ recipe, servingsOverride, mealPlanNote }: 
           />
         )}
         {showNutrition && recipe.food_properties && (
-          <NutritionOverlay foodProperties={recipe.food_properties} servings={recipe.servings} ingredients={allIngredients} onClose={() => setShowNutrition(false)} />
+          <NutritionOverlay foodProperties={recipe.food_properties} servings={userServings} ingredients={allIngredients} onClose={() => setShowNutrition(false)} />
         )}
         <div className="position-absolute top-0 end-0 d-flex flex-column gap-2 p-2" style={{ background: 'rgba(0,0,0,0.25)', borderBottomLeftRadius: 8, zIndex: 10 }}>
           <Button
@@ -324,11 +331,37 @@ export function RecipeDetailContent({ recipe, servingsOverride, mealPlanNote }: 
           <div className="d-flex flex-wrap gap-3 mb-1 small text-muted">
             {recipe.cooking_time != null && <span>🕐 Cook: {recipe.cooking_time} min</span>}
             {recipe.waiting_time != null && <span>⏳ Wait: {recipe.waiting_time} min</span>}
-            {effectiveServings != null && (
-              <span>
-                🍽️ Serves: {effectiveServings}
-                {servingsOverride != null && recipe.servings != null && servingsOverride !== recipe.servings && (
-                  <span className="text-muted"> (recipe: {recipe.servings})</span>
+            {recipe.servings != null && (
+              <span className="d-inline-flex align-items-center gap-1">
+                🍽️ Serves:
+                <Button
+                  variant="link"
+                  className="p-0 text-muted"
+                  style={{ lineHeight: 1 }}
+                  onClick={() => setUserServings((s) => Math.max(MIN_SERVINGS, s - 1))}
+                  aria-label="Decrease servings"
+                  disabled={userServings <= MIN_SERVINGS}
+                >
+                  <DashCircle />
+                </Button>
+                <strong>{userServings}</strong>
+                <Button
+                  variant="link"
+                  className="p-0 text-muted"
+                  style={{ lineHeight: 1 }}
+                  onClick={() => setUserServings((s) => s + 1)}
+                  aria-label="Increase servings"
+                >
+                  <PlusCircle />
+                </Button>
+                {servingsOverride != null ? (
+                  servingsOverride === userServings
+                    ? <Badge bg="info" style={{ fontSize: '0.7em' }}>meal plan</Badge>
+                    : <span className="text-muted" style={{ fontSize: '0.8em' }}>(meal plan: {servingsOverride})</span>
+                ) : (
+                  recipe.servings === userServings
+                    ? <Badge bg="secondary" style={{ fontSize: '0.7em' }}>default</Badge>
+                    : <span className="text-muted" style={{ fontSize: '0.8em' }}>(default: {recipe.servings})</span>
                 )}
               </span>
             )}
