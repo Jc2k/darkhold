@@ -73,7 +73,7 @@ export function BookDetail() {
   const isLoading = bookLoading || recipesLoading;
   const isError = bookError || recipesError;
 
-  if (isLoading) {
+  if (isLoading && !book) {
     return <LoadingMascot label="Loading book…" />;
   }
 

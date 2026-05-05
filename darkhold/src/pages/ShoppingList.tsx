@@ -123,7 +123,7 @@ export function ShoppingList() {
       });
   };
 
-  if (isLoading) {
+  if (isLoading && !data) {
     return <LoadingMascot />;
   }
 

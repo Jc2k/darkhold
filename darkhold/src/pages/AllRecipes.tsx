@@ -91,7 +91,7 @@ export function AllRecipes() {
     sectionRefs.current[tag]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  if (isLoading) {
+  if (isLoading && !data) {
     return <LoadingMascot label="Loading all recipes…" />;
   }
 
