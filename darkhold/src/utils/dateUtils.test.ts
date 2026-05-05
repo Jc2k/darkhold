@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatDate, getWeekStartingSaturday } from './dateUtils';
+import { formatDate, formatMonthYear, getWeekStartingSaturday } from './dateUtils';
 
 describe('formatDate', () => {
   it('formats a date using local date components, not UTC', () => {
@@ -22,6 +22,23 @@ describe('formatDate', () => {
   it('handles start of year', () => {
     const d = new Date(2024, 0, 1); // Jan 1 2024
     expect(formatDate(d)).toBe('2024-01-01');
+  });
+});
+
+describe('formatMonthYear', () => {
+  it('formats a date as long month name and year', () => {
+    const d = new Date(2024, 0, 15); // Jan 15 2024
+    expect(formatMonthYear(d)).toMatch(/January\s+2024/);
+  });
+
+  it('formats December correctly', () => {
+    const d = new Date(2023, 11, 1); // Dec 1 2023
+    expect(formatMonthYear(d)).toMatch(/December\s+2023/);
+  });
+
+  it('formats a mid-year month correctly', () => {
+    const d = new Date(2025, 5, 20); // Jun 20 2025
+    expect(formatMonthYear(d)).toMatch(/June\s+2025/);
   });
 });
 

@@ -20,6 +20,25 @@ Examples:
 
 Breaking changes must include `BREAKING CHANGE:` in the commit footer, or append `!` after the type/scope (e.g. `feat!: remove legacy endpoint`).
 
+## Testing
+
+Tests are co-located next to source files as `*.test.ts` or `*.test.tsx` files.
+
+- **Run all frontend tests**: `npm test` (inside the `darkhold/` directory) — runs vitest against `src/**/*.test.{ts,tsx}`
+- **Run server tests**: `deno task test` (inside the `darkhold/` directory)
+- **Test framework**: [vitest](https://vitest.dev/) with jsdom environment; use `describe`, `it`, `expect`, and `vi` from `vitest`
+
+**When to write tests:**
+- Any new utility function or module in `src/utils/` **must** include a co-located test file covering all exported functions.
+- Any new standalone logic in `src/api/` (e.g. helper functions) **must** be tested.
+- New React hooks that contain pure logic (e.g. derived state, localStorage reads) **should** be tested where practical.
+- Components and pages do not require tests unless they contain non-trivial logic not captured elsewhere.
+
+**Test style guidelines:**
+- Mock `fetch` using `vi.stubGlobal('fetch', vi.fn())` and restore with `vi.unstubAllGlobals()` in `afterEach`.
+- Use `localStorage` directly in tests — jsdom provides a working implementation.
+- Keep tests fast and side-effect-free; avoid starting real servers or making real HTTP requests.
+
 ## Commands
 
 - `deno task dev` - Start the dev server
