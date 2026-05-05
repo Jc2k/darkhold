@@ -34,6 +34,14 @@ type WithSortable = { sortable?: { containerId: string } } | undefined;
 
 const noop = () => {};
 
+const navButtonStyle: React.CSSProperties = {
+  minWidth: 44,
+  minHeight: 44,
+  fontSize: '1.5rem',
+  lineHeight: 1,
+  padding: '0 0.5rem',
+};
+
 const circleButtonStyle: React.CSSProperties = {
   width: 28,
   height: 28,
@@ -504,13 +512,14 @@ export function MealPlanPage() {
           variant="outline-secondary"
           onClick={() => setWeekOffset((w) => w - 1)}
           aria-label="Previous week"
-          style={{ minWidth: 44, minHeight: 44, fontSize: '1.5rem', lineHeight: 1, padding: '0 0.5rem' }}
+          style={navButtonStyle}
         >‹</Button>
         <div className="flex-grow-1 text-center">
           <Button
             variant="outline-secondary"
             size="sm"
             onClick={() => setWeekOffset(0)}
+            aria-label="Go to current week"
           >
             Today
           </Button>
@@ -519,7 +528,7 @@ export function MealPlanPage() {
           variant="outline-secondary"
           onClick={() => setWeekOffset((w) => w + 1)}
           aria-label="Next week"
-          style={{ minWidth: 44, minHeight: 44, fontSize: '1.5rem', lineHeight: 1, padding: '0 0.5rem' }}
+          style={navButtonStyle}
         >›</Button>
       </div>
 
