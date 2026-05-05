@@ -2,6 +2,10 @@ import { useQuery } from '@tanstack/react-query';
 
 export interface AppConfig {
   tandoor_external_url?: string;
+  /** True when the server has a default token configured and nginx will inject
+   *  it for requests that carry no personal token.  The SPA uses this to skip
+   *  the /settings redirect for unauthenticated users. */
+  has_default_token?: boolean;
 }
 
 export async function fetchAppConfig(): Promise<AppConfig> {
@@ -20,12 +24,12 @@ export async function fetchAppConfig(): Promise<AppConfig> {
   }
 }
 
-export function useAppConfig(): AppConfig {
-  const { data } = useQuery({
+export function useAppConfig(): AppConfig & { isConfigLoading: boolean } {
+  const { data, isLoading } = useQuery({
     queryKey: ['app-config'],
     queryFn: fetchAppConfig,
     staleTime: Infinity,
     gcTime: Infinity,
   });
-  return data ?? {};
+  return { ...(data ?? {}), isConfigLoading: isLoading };
 }

@@ -17,6 +17,8 @@ import { BookDetail } from './pages/BookDetail';
 import { GasMarks } from './pages/GasMarks';
 import { UnitConverter } from './pages/UnitConverter';
 import { RiceCooking } from './pages/RiceCooking';
+import { LoadingMascot } from './components/LoadingMascot';
+import { useAppConfig } from './hooks/useAppConfig';
 
 function getHomepage(): string {
   const pref = localStorage.getItem('homepage_pref') || 'dashboard';
@@ -25,10 +27,23 @@ function getHomepage(): string {
   return '/dashboard';
 }
 
+/** Guards a route behind authentication.
+ *
+ * Access is allowed when either:
+ *  - the user has a personal API token stored in localStorage, or
+ *  - the server has a default token configured (nginx injects it for every
+ *    request that carries no personal token).
+ *
+ * While app-config is still loading we show a spinner to avoid a premature
+ * redirect to /settings on first load. */
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const token = localStorage.getItem('tandoor_token');
-  if (!token) return <Navigate to="/settings" replace />;
-  return <>{children}</>;
+  const { has_default_token, isConfigLoading } = useAppConfig();
+
+  if (token) return <>{children}</>;
+  if (isConfigLoading) return <LoadingMascot />;
+  if (has_default_token) return <>{children}</>;
+  return <Navigate to="/settings" replace />;
 }
 
 const router = createBrowserRouter([

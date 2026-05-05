@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { useQuery } from '@tanstack/react-query';
 import { Row, Col, Badge, Alert, Button, Modal } from 'react-bootstrap';
-import { Plus, Play, Info, Pencil, DashCircle, PlusCircle } from 'react-bootstrap-icons';
+import { Plus, Play, Info, Pencil, DashCircle, PlusCircle, Share } from 'react-bootstrap-icons';
 import { apiGet } from '../api/client';
 import type { Recipe, RecipeIngredient, RecipeStep, RecipeUnit, Food, Keyword, FoodProperty } from '../api/tandoor-types';
 import { TagBadge } from '../components/TagBadge';
@@ -320,6 +320,17 @@ export function RecipeDetailContent({ recipe, servingsOverride, mealPlanNote }: 
               aria-label="Edit recipe in Tandoor"
             >
               <Pencil />
+            </Button>
+          )}
+          {typeof navigator.share === 'function' && (
+            <Button
+              variant="light"
+              size="sm"
+              style={circleButtonStyle}
+              onClick={() => navigator.share({ title: recipe.name, url: window.location.href })}
+              aria-label="Share recipe"
+            >
+              <Share />
             </Button>
           )}
         </div>
