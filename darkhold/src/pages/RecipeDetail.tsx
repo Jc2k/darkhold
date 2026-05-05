@@ -137,7 +137,7 @@ function NutritionOverlay({
   return (
     <div
       className="position-absolute top-0 start-0 w-100 h-100 overflow-auto"
-      style={{ background: 'rgba(0,0,0,0.82)', zIndex: 5 }}
+      style={{ background: 'rgba(0,0,0,0.82)', zIndex: 5, WebkitOverflowScrolling: 'touch' }}
       role="region"
       aria-label="Nutrition information"
       onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
@@ -153,12 +153,12 @@ function NutritionOverlay({
             Serving size: 1 of {servings}
           </p>
         )}
-        <table className="w-100 mb-1" style={{ borderCollapse: 'collapse' }}>
+        <table className="w-100 mb-1" style={{ borderCollapse: 'collapse', border: '1px solid rgba(255,255,255,0.3)' }}>
           <thead>
             <tr style={{ borderBottom: '2px solid rgba(255,255,255,0.5)' }}>
-              <th className="text-start pb-1">Nutrient</th>
-              <th className="text-end pb-1">Per serving</th>
-              <th className="text-end pb-1">Per 100g</th>
+              <th className="text-start pb-1 px-1">Nutrient</th>
+              <th className="text-end pb-1 px-1">Per serving</th>
+              <th className="text-end pb-1 px-1">Per 100g</th>
             </tr>
           </thead>
           <tbody>
@@ -167,16 +167,16 @@ function NutritionOverlay({
               const per100g =
                 servingWeightG != null ? (perServing / servingWeightG) * 100 : null;
               return (
-                <tr key={n.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.15)' }}>
-                  <td className="py-1">
+                <tr key={n.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.2)' }}>
+                  <td className="py-1 px-1">
                     {n.name}
                     {n.unit ? ` (${n.unit})` : ''}
                     {n.missing_value ? '\u00a0*' : ''}
                   </td>
-                  <td className="text-end py-1">
+                  <td className="text-end py-1 px-1">
                     {formatNutrientValue(perServing, n.unit)}
                   </td>
-                  <td className="text-end py-1">
+                  <td className="text-end py-1 px-1">
                     {per100g != null ? formatNutrientValue(per100g, n.unit) : '–'}
                   </td>
                 </tr>
