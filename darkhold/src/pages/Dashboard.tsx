@@ -361,7 +361,7 @@ export function Dashboard() {
 
   const quickEasy = useDashboardShelf(
     ['recipes', 'quick-easy'],
-    () => apiGet<PaginatedResponse<Recipe>>('/recipe/', { cooking_time__lte: 30, page_size: 10 }),
+    () => apiGet<PaginatedResponse<Recipe>>('/recipe/', { cooking_time__lte: 30, sort_order: '?', page_size: 10 }),
   );
 
   const recentlyAdded = useDashboardShelf(
