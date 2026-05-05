@@ -41,12 +41,12 @@ describe('apiGet', () => {
     expect((opts.headers as Record<string, string>)['Authorization']).toBe('Bearer test-token');
   });
 
-  it('falls back to empty string token when none is stored', async () => {
+  it('omits Authorization header when no token is stored', async () => {
     localStorage.clear();
     const fn = mockFetch(okJson({}));
     await apiGet('/recipe/');
     const [, opts] = fn.mock.calls[0] as [string, RequestInit];
-    expect((opts.headers as Record<string, string>)['Authorization']).toBe('Bearer ');
+    expect((opts.headers as Record<string, string>)['Authorization']).toBeUndefined();
   });
 
   it('appends query parameters to the URL', async () => {
