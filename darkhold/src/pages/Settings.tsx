@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Card, Form, Button, Alert, InputGroup, Spinner } from 'react-bootstrap';
 import { useSettings, type HomepageSetting } from '../hooks/useSettings';
 import { useAppConfig } from '../hooks/useAppConfig';
@@ -13,12 +14,20 @@ export function Settings() {
   const [saved, setSaved] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const locationState = location.state as { from?: { pathname: string } } | undefined;
+  const from = locationState?.from?.pathname ?? null;
 
   const handleSave = () => {
     setToken(draft);
     setSaved(true);
     setTestResult(null);
-    setTimeout(() => setSaved(false), 2000);
+    if (from) {
+      navigate(from, { replace: true });
+    } else {
+      setTimeout(() => setSaved(false), 2000);
+    }
   };
 
   const handleTest = async () => {

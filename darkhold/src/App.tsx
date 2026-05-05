@@ -1,6 +1,6 @@
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
-import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider, Navigate, useLocation } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Dashboard } from './pages/Dashboard';
@@ -35,15 +35,19 @@ function getHomepage(): string {
  *    request that carries no personal token).
  *
  * While app-config is still loading we show a spinner to avoid a premature
- * redirect to /settings on first load. */
+ * redirect to /settings on first load.
+ *
+ * When redirecting to /settings the original location is passed via
+ * router state so Settings can redirect back after the token is saved. */
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const token = localStorage.getItem('tandoor_token');
   const { has_default_token, isConfigLoading } = useAppConfig();
+  const location = useLocation();
 
   if (token) return <>{children}</>;
   if (isConfigLoading) return <LoadingMascot />;
   if (has_default_token) return <>{children}</>;
-  return <Navigate to="/settings" replace />;
+  return <Navigate to="/settings" state={{ from: location }} replace />;
 }
 
 const router = createBrowserRouter([
