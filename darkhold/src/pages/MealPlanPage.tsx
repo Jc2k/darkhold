@@ -220,8 +220,8 @@ function DroppableDay({ dateKey, children }: DroppableDayProps) {
   return (
     <div
       ref={setNodeRef}
+      className="meal-plan-day"
       style={{
-        minHeight: 40,
         borderRadius: 4,
         backgroundColor: isOver ? 'rgba(13, 110, 253, 0.08)' : undefined,
         transition: 'background-color 0.15s',
@@ -517,7 +517,7 @@ export function MealPlanPage() {
         <div className="flex-grow-1 text-center">
           <Button
             variant="outline-secondary"
-            size="sm"
+            style={{ minHeight: 44, padding: '0 1rem' }}
             onClick={() => setWeekOffset(0)}
             aria-label="Go to current week"
           >

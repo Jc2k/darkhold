@@ -52,6 +52,16 @@
   }
 }
 
+.meal-plan-day {
+  min-height: 40px;
+}
+
+@media (min-width: 768px) {
+  .meal-plan-day {
+    min-height: 130px;
+  }
+}
+
 body {
   margin: 0;
   font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
