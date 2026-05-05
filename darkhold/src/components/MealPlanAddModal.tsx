@@ -100,10 +100,10 @@ export function MealPlanAddModal({ recipe, onHide }: Props) {
           <Form.Label>Servings</Form.Label>
           <InputGroup>
             <Button
-              className="px-3"
               variant="outline-secondary"
               onClick={() => setServings((s) => Math.max(1, s - 1))}
               aria-label="Decrease servings"
+              style={{ width: '2.5rem' }}
             >-</Button>
             <Form.Control
               type="text"
@@ -117,10 +117,10 @@ export function MealPlanAddModal({ recipe, onHide }: Props) {
               style={{ textAlign: 'center' }}
             />
             <Button
-              className="px-3"
               variant="outline-secondary"
               onClick={() => setServings((s) => s + 1)}
               aria-label="Increase servings"
+              style={{ width: '2.5rem' }}
             >+</Button>
           </InputGroup>
         </Form.Group>
