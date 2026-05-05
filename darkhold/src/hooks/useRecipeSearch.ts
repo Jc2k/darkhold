@@ -7,6 +7,9 @@ interface SearchParams {
   keywords?: number[];
   foods?: number[];
   page_size?: number;
+  rating?: number;
+  cooking_time__lte?: number;
+  new?: boolean;
 }
 
 export function useRecipeSearch(params: SearchParams) {
@@ -18,6 +21,9 @@ export function useRecipeSearch(params: SearchParams) {
         ...(params.keywords?.length ? { keywords: params.keywords.join(',') } : {}),
         ...(params.foods?.length ? { foods: params.foods.join(',') } : {}),
         ...(params.page_size ? { page_size: params.page_size } : {}),
+        ...(params.rating !== undefined ? { rating: params.rating } : {}),
+        ...(params.cooking_time__lte !== undefined ? { cooking_time__lte: params.cooking_time__lte } : {}),
+        ...(params.new ? { new: true } : {}),
         page: pageParam as number,
       }),
     getNextPageParam: (last, pages) => (last.next ? pages.length + 1 : undefined),
