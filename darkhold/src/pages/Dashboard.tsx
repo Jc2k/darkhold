@@ -98,6 +98,7 @@ function UpcomingMealsShelf({ days, mealsByDay, loading, error, onAddToMealPlan 
           {items.map(({ day, recipe, isFirstOfDay }) => (
             <div
               key={recipe ? `${formatDate(day)}-${recipe.id}` : `${formatDate(day)}-empty`}
+              className="d-flex flex-column"
               style={{
                 minWidth: 200,
                 maxWidth: 200,
@@ -111,16 +112,18 @@ function UpcomingMealsShelf({ days, mealsByDay, loading, error, onAddToMealPlan 
               >
                 {isFirstOfDay ? shortDay(day) : null}
               </div>
-              {recipe ? (
-                <RecipeCard recipe={recipe} onAddToMealPlan={onAddToMealPlan} />
-              ) : (
-                <div
-                  className="d-flex align-items-center justify-content-center text-muted border rounded"
-                  style={{ height: 120, fontSize: '0.8rem', borderStyle: 'dashed' as const }}
-                >
-                  No meal planned
-                </div>
-              )}
+              <div className="flex-grow-1">
+                {recipe ? (
+                  <RecipeCard recipe={recipe} onAddToMealPlan={onAddToMealPlan} />
+                ) : (
+                  <div
+                    className="d-flex h-100 align-items-center justify-content-center text-muted border rounded"
+                    style={{ fontSize: '0.8rem', borderStyle: 'dashed' as const }}
+                  >
+                    No meal planned
+                  </div>
+                )}
+              </div>
             </div>
           ))}
         </div>
