@@ -155,9 +155,10 @@ interface SortableEntryProps {
   entry: MealPlan;
   onDelete: (id: number) => void;
   onClick: (entry: MealPlan) => void;
+  isPending?: boolean;
 }
 
-function SortableEntry({ entry, onDelete, onClick }: SortableEntryProps) {
+function SortableEntry({ entry, onDelete, onClick, isPending }: SortableEntryProps) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: entry.id,
   });
@@ -167,45 +168,63 @@ function SortableEntry({ entry, onDelete, onClick }: SortableEntryProps) {
 
   return (
     <div ref={setNodeRef} style={{ ...style, opacity: isDragging ? 0.3 : 1 }} {...attributes} className="mb-2">
-      <Card className="border-0 shadow-sm">
-        <Card.Body className="py-2 ps-3 pe-2">
-          <div className="d-flex align-items-center gap-2">
-            {thumbnailSrc ? (
-              <img
-                ref={setActivatorNodeRef}
-                {...listeners}
-                src={thumbnailSrc}
-                alt={recipe?.name ?? ''}
-                draggable={false}
-                style={{ ...thumbnailStyle, cursor: 'grab', touchAction: 'none' }}
-              />
-            ) : (
-              <ThumbnailPlaceholder
-                dragProps={{
-                  ref: setActivatorNodeRef as React.Ref<HTMLDivElement>,
-                  ...listeners,
-                  style: { cursor: 'grab', touchAction: 'none' },
-                }}
-              />
-            )}
-            <div className="flex-grow-1" style={{ cursor: 'pointer' }} onClick={() => onClick(entry)}>
-              <div className="small fw-semibold">{recipe?.name ?? `Recipe #${entry.recipe}`}</div>
-              {entry.note && (
-                <div className="text-muted" style={{ fontSize: '0.7rem' }}>{entry.note}</div>
+      <div style={{ position: 'relative' }}>
+        <Card className="border-0 shadow-sm" style={isPending ? { opacity: 0.55 } : undefined}>
+          <Card.Body className="py-2 ps-3 pe-2">
+            <div className="d-flex align-items-center gap-2">
+              {thumbnailSrc ? (
+                <img
+                  ref={setActivatorNodeRef}
+                  {...listeners}
+                  src={thumbnailSrc}
+                  alt={recipe?.name ?? ''}
+                  draggable={false}
+                  style={{ ...thumbnailStyle, cursor: 'grab', touchAction: 'none' }}
+                />
+              ) : (
+                <ThumbnailPlaceholder
+                  dragProps={{
+                    ref: setActivatorNodeRef as React.Ref<HTMLDivElement>,
+                    ...listeners,
+                    style: { cursor: 'grab', touchAction: 'none' },
+                  }}
+                />
               )}
+              <div className="flex-grow-1" style={{ cursor: 'pointer' }} onClick={() => onClick(entry)}>
+                <div className="small fw-semibold">{recipe?.name ?? `Recipe #${entry.recipe}`}</div>
+                {entry.note && (
+                  <div className="text-muted" style={{ fontSize: '0.7rem' }}>{entry.note}</div>
+                )}
+              </div>
+              <Button
+                variant="danger"
+                size="sm"
+                style={circleButtonStyle}
+                onClick={() => onDelete(entry.id)}
+                aria-label="Remove meal"
+              >
+                <Trash3 size={16} />
+              </Button>
             </div>
-            <Button
-              variant="danger"
-              size="sm"
-              style={circleButtonStyle}
-              onClick={() => onDelete(entry.id)}
-              aria-label="Remove meal"
-            >
-              <Trash3 size={16} />
-            </Button>
+          </Card.Body>
+        </Card>
+        {isPending && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              borderRadius: 4,
+              backgroundColor: 'rgba(200, 200, 200, 0.35)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              pointerEvents: 'none',
+            }}
+          >
+            <Spinner size="sm" variant="secondary" />
           </div>
-        </Card.Body>
-      </Card>
+        )}
+      </div>
     </div>
   );
 }
@@ -399,6 +418,8 @@ export function MealPlanPage() {
   const [detailEntry, setDetailEntry] = useState<MealPlan | null>(null);
   const [addDate, setAddDate] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<number | null>(null);
+  // Maps entry id -> optimistic target date for in-flight cross-day moves
+  const [pendingMoves, setPendingMoves] = useState<Map<number, string>>(new Map());
 
   const today = new Date();
   const daysBackToSaturday = (today.getDay() + 1) % 7;
@@ -422,15 +443,15 @@ export function MealPlanPage() {
 
   const days = Array.from({ length: 7 }, (_, i) => addDays(startDate, i));
 
-  const entriesByDay = (entries: MealPlan[]) =>
-    days.reduce<Record<string, MealPlan[]>>((acc, day) => {
-      const key = formatDate(day);
-      acc[key] = entries.filter((e) => e.from_date.split('T')[0] === key);
-      return acc;
-    }, {});
-
   const allEntries = data?.results ?? [];
-  const byDay = entriesByDay(allEntries);
+  const byDay = days.reduce<Record<string, MealPlan[]>>((acc, day) => {
+    const key = formatDate(day);
+    acc[key] = allEntries.filter((e) => {
+      const effectiveDate = pendingMoves.get(e.id) ?? e.from_date.split('T')[0];
+      return effectiveDate === key;
+    });
+    return acc;
+  }, {});
 
   // Local state for DnD ordering within each day (visual only)
   const [dayOrder, setDayOrder] = useState<Record<string, number[]>>({});
@@ -439,7 +460,11 @@ export function MealPlanPage() {
     const entries = byDay[dateKey] ?? [];
     const order = dayOrder[dateKey];
     if (!order) return entries;
-    return order.map((id) => entries.find((e) => e.id === id)).filter((e): e is MealPlan => !!e);
+    const ordered = order.map((id) => entries.find((e) => e.id === id)).filter((e): e is MealPlan => !!e);
+    // Include any entries not yet in the stored order (e.g. freshly moved entries)
+    const orderedIds = new Set(order);
+    const extras = entries.filter((e) => !orderedIds.has(e.id));
+    return [...ordered, ...extras];
   };
 
   const activeEntry = activeId != null ? allEntries.find((e) => e.id === activeId) ?? null : null;
@@ -479,21 +504,42 @@ export function MealPlanPage() {
       const reordered = arrayMove(entries, oldIndex, newIndex);
       setDayOrder((prev) => ({ ...prev, [activeContainerId]: reordered.map((e) => e.id) }));
     } else {
-      // Cross-day move: update from_date via API
+      // Cross-day move: optimistically update UI then confirm via API
       const entry = allEntries.find((e) => e.id === activeEntryId);
       if (!entry) return;
       const recipeId = typeof entry.recipe === 'object' ? entry.recipe.id : entry.recipe;
       const mealTypeId = typeof entry.meal_type === 'object' ? entry.meal_type.id : entry.meal_type;
-      updateMeal.mutate({
-        id: activeEntryId,
-        data: {
-          recipe: recipeId,
-          meal_type: mealTypeId,
-          from_date: targetContainerId,
-          to_date: targetContainerId,
-          servings: entry.servings ?? 1,
-        },
+
+      // Immediately show the entry in the new day and clear stale day orders
+      setPendingMoves((prev) => new Map(prev).set(activeEntryId, targetContainerId));
+      setDayOrder((prev) => {
+        const next = { ...prev };
+        delete next[activeContainerId];
+        delete next[targetContainerId];
+        return next;
       });
+
+      updateMeal.mutate(
+        {
+          id: activeEntryId,
+          data: {
+            recipe: recipeId,
+            meal_type: mealTypeId,
+            from_date: targetContainerId,
+            to_date: targetContainerId,
+            servings: entry.servings ?? 1,
+          },
+        },
+        {
+          onSettled: () => {
+            setPendingMoves((prev) => {
+              const next = new Map(prev);
+              next.delete(activeEntryId);
+              return next;
+            });
+          },
+        },
+      );
     }
   };
 
@@ -575,6 +621,7 @@ export function MealPlanPage() {
                             entry={entry}
                             onDelete={(id) => deleteMeal.mutate(id)}
                             onClick={setDetailEntry}
+                            isPending={pendingMoves.has(entry.id)}
                           />
                         ))}
                       </SortableContext>
