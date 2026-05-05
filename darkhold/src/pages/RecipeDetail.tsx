@@ -169,7 +169,7 @@ function NutritionOverlay({
             <tr style={{ borderBottom: '2px solid rgba(255,255,255,0.5)' }}>
               <th className="text-start pb-1">Nutrient</th>
               <th className="text-end pb-1">Per serving</th>
-              <th className="text-end pb-1">Per 100g{weightIsApproximate ? ' ~' : ''}</th>
+              <th className="text-end pb-1">Per 100g{weightIsApproximate ? <span aria-label="approximate"> ~</span> : ''}</th>
             </tr>
           </thead>
           <tbody>

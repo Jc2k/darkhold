@@ -32,7 +32,7 @@ export const UNIT_NAME_TO_GRAMS: Record<string, number> = {
   liters: 1000,
   tsp: 4.92892,
   teaspoon: 4.92892,
-  teaspoons: 4.92892,
+  teaspoons: 4.92892, // 1 US tsp ≈ 4.93 ml; assumes water density
   tbsp: 14.7868,
   tablespoon: 14.7868,
   tablespoons: 14.7868,

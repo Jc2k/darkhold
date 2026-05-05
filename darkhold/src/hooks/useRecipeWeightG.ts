@@ -41,7 +41,7 @@ export function useRecipeWeightG(ingredients: RecipeIngredient[]): RecipeWeightR
         }),
       staleTime: (query: Query<PaginatedResponse<UnitConversion>>) => {
         const data = query.state.data;
-        return data && data.results && data.results.length > 0 ? Infinity : ONE_HOUR;
+        return (data?.results?.length ?? 0) > 0 ? Infinity : ONE_HOUR;
       },
       gcTime: Infinity,
     })),
