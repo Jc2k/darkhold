@@ -16,12 +16,22 @@ Add this repository to your Home Assistant add-on store and install **Recipes**.
 ### First Launch
 
 1. Open the Recipes web UI via the HA ingress link.
-2. You will be redirected to the **Settings** page on first launch.
+2. You will be redirected to the **Settings** page on first launch (only when no default token is configured).
 3. Generate a Tandoor API token:
    - Open Tandoor → User menu → API Token
    - Copy the token
 4. Paste the token in the Recipes Settings page and click **Save**.
 5. Choose your preferred homepage (Dashboard, All Recipes, or Meal Plan).
+
+### Default (Read-Only) Token
+
+For shared household use you can configure a **default token** in the add-on options.  When set, nginx injects that token into every API request that arrives without a personal token, so family members who haven't configured their own token can browse recipes without any setup.
+
+```yaml
+tandoor_default_token: "<your-read-only-api-token>"
+```
+
+Personal tokens (set on the Settings page) always take precedence, so the per-user write path still uses the correct token for attribution.  The default token itself is never sent to the browser; it lives only in the server-side nginx configuration.
 
 ## Proxy / CORS Configuration
 

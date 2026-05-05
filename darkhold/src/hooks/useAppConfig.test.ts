@@ -16,6 +16,16 @@ describe('fetchAppConfig', () => {
     expect(config).toEqual({ tandoor_external_url: 'https://tandoor.example.com' });
   });
 
+  it('returns has_default_token when present in the response', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ has_default_token: true }),
+    }));
+
+    const config = await fetchAppConfig();
+    expect(config).toEqual({ has_default_token: true });
+  });
+
   it('returns empty object when the response is not ok', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: false,

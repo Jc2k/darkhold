@@ -27,7 +27,9 @@ ports_description:
 options:
   tandoor_url: "http://tandoor:8080"
   tandoor_external_url: ""
+  tandoor_default_token: ""
 
 schema:
   tandoor_url: "str"
   tandoor_external_url: "str?"
+  tandoor_default_token: "str?"
