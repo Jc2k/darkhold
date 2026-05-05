@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { useQuery } from '@tanstack/react-query';
 import { Row, Col, Badge, Alert, Button, Modal } from 'react-bootstrap';
-import { Plus, Play, InfoCircle } from 'react-bootstrap-icons';
+import { Plus, Play, Info } from 'react-bootstrap-icons';
 import { apiGet } from '../api/client';
 import type { Recipe, RecipeIngredient, RecipeStep, RecipeUnit, Food, Keyword, FoodProperty } from '../api/tandoor-types';
 import { TagBadge } from '../components/TagBadge';
@@ -144,7 +144,7 @@ function NutritionOverlay({
       // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
       tabIndex={0}
     >
-      <div className="px-3 py-2 text-white" style={{ fontSize: '0.875rem' }}>
+      <div className="px-3 py-2 text-white" style={{ fontSize: '0.875rem', paddingRight: '3.5rem' }}>
         <p className="mb-1 fw-bold text-center" style={{ fontSize: '0.95rem' }}>
           Nutrition Information
         </p>
@@ -295,7 +295,7 @@ export function RecipeDetail() {
               aria-label={showNutrition ? 'Hide nutrition information' : 'Show nutrition information'}
               aria-pressed={showNutrition}
             >
-              <InfoCircle />
+              <Info />
             </Button>
           )}
         </div>
