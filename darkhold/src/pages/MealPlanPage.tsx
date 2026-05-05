@@ -532,7 +532,7 @@ export function MealPlanPage() {
         >›</Button>
       </div>
 
-      {isLoading && <LoadingMascot />}
+      {isLoading && !data && <LoadingMascot />}
 
       <DndContext
         sensors={sensors}

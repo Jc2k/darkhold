@@ -84,7 +84,7 @@ export function Books() {
 
   const isLoading = booksLoading || entriesLoading;
 
-  if (isLoading) {
+  if (isLoading && !books) {
     return <LoadingMascot label="Loading books…" />;
   }
 

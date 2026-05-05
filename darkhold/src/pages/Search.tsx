@@ -186,7 +186,7 @@ export function Search() {
         <Alert variant="danger">Failed to load recipes. Check your API token in Settings.</Alert>
       )}
 
-      {isLoading ? (
+      {isLoading && !data ? (
         <LoadingMascot label="Searching recipes…" />
       ) : (
         <>

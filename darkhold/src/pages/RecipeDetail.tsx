@@ -250,7 +250,7 @@ export function RecipeDetail() {
     };
   }, [recipe]);
 
-  if (isLoading) {
+  if (isLoading && !recipe) {
     return <LoadingMascot />;
   }
 
