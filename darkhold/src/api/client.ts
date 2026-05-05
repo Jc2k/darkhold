@@ -20,8 +20,9 @@ function buildUrl(
 }
 
 function authHeaders(): HeadersInit {
+  const token = getToken();
   return {
-    Authorization: `Bearer ${getToken()}`,
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
     "Content-Type": "application/json",
   };
 }
