@@ -9,14 +9,17 @@ import { addToMealPlanButtonStyle } from '../utils/buttonStyles';
 interface Props {
   recipe: Recipe;
   onAddToMealPlan?: (recipe: Recipe) => void;
+  /** Override the navigation target when clicking the card. Defaults to /recipe/:id */
+  linkTo?: string;
 }
 
 const IMAGE_HEIGHT = 180;
 const PLACEHOLDER_BG = '#d0d0d0';
 const PLACEHOLDER_ICON_COLOR = '#a0a0a0';
 
-export function RecipeCard({ recipe, onAddToMealPlan }: Props) {
+export function RecipeCard({ recipe, onAddToMealPlan, linkTo }: Props) {
   const navigate = useNavigate();
+  const destination = linkTo ?? `/recipe/${recipe.id}`;
   const keywords = (Array.isArray(recipe.keywords)
     ? recipe.keywords.filter((k): k is Keyword => typeof k === 'object')
     : []);
@@ -29,7 +32,7 @@ export function RecipeCard({ recipe, onAddToMealPlan }: Props) {
             variant="top"
             src={proxyMediaUrl(recipe.image)}
             style={{ height: IMAGE_HEIGHT, objectFit: 'cover' }}
-            onClick={() => navigate(`/recipe/${recipe.id}`)}
+            onClick={() => navigate(destination)}
           />
         ) : (
           <div
@@ -42,7 +45,7 @@ export function RecipeCard({ recipe, onAddToMealPlan }: Props) {
               alignItems: 'center',
               justifyContent: 'center',
             }}
-            onClick={() => navigate(`/recipe/${recipe.id}`)}
+            onClick={() => navigate(destination)}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 24 24" fill={PLACEHOLDER_ICON_COLOR} aria-hidden="true">
               {/* Pizza slice */}
@@ -70,7 +73,7 @@ export function RecipeCard({ recipe, onAddToMealPlan }: Props) {
           </Button>
         )}
       </div>
-      <Card.Body onClick={() => navigate(`/recipe/${recipe.id}`)}>
+      <Card.Body onClick={() => navigate(destination)}>
         <Card.Title className="fs-6">{recipe.name}</Card.Title>
         {recipe.rating != null && (
           <div className="text-warning mb-1">{'★'.repeat(Math.round(recipe.rating))}</div>

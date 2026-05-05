@@ -10,6 +10,7 @@ import { MealPlanPage } from './pages/MealPlanPage';
 import { ShoppingList } from './pages/ShoppingList';
 import { Settings } from './pages/Settings';
 import { RecipeDetail } from './pages/RecipeDetail';
+import { MealPlanEntryDetail } from './pages/MealPlanEntryDetail';
 import { IngredientDetail } from './pages/IngredientDetail';
 import { Books } from './pages/Books';
 import { BookDetail } from './pages/BookDetail';
@@ -64,6 +65,10 @@ const router = createBrowserRouter([
       {
         path: 'recipe/:id',
         element: <AuthGuard><RecipeDetail /></AuthGuard>,
+      },
+      {
+        path: 'meal-plan-entry/:entryId',
+        element: <AuthGuard><MealPlanEntryDetail /></AuthGuard>,
       },
       {
         path: 'ingredient/:id',

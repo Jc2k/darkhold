@@ -61,7 +61,7 @@ function RecipeShelf({ title, searchLink, recipes, loading, error, onAddToMealPl
 
 interface UpcomingMealsShelfProps {
   days: Date[];
-  mealsByDay: Record<string, Recipe[]>;
+  mealsByDay: Record<string, MealPlan[]>;
   loading: boolean;
   error: boolean;
   onAddToMealPlan: (r: Recipe) => void;
@@ -71,13 +71,13 @@ function UpcomingMealsShelf({ days, mealsByDay, loading, error, onAddToMealPlan 
   // Flatten days into individual card items so all cards sit in one horizontal row.
   // The date label is shown only above the first card of each day group.
   const DATE_LABEL_HEIGHT = '1.4rem';
-  const items = days.flatMap((day): Array<{ day: Date; recipe: Recipe | null; isFirstOfDay: boolean }> => {
+  const items = days.flatMap((day): Array<{ day: Date; entry: MealPlan | null; isFirstOfDay: boolean }> => {
     const key = formatDate(day);
-    const recipes = mealsByDay[key] ?? [];
-    if (recipes.length === 0) {
-      return [{ day, recipe: null, isFirstOfDay: true }];
+    const entries = mealsByDay[key] ?? [];
+    if (entries.length === 0) {
+      return [{ day, entry: null, isFirstOfDay: true }];
     }
-    return recipes.map((recipe, index) => ({ day, recipe, isFirstOfDay: index === 0 }));
+    return entries.map((entry, index) => ({ day, entry, isFirstOfDay: index === 0 }));
   });
 
   return (
@@ -95,37 +95,44 @@ function UpcomingMealsShelf({ days, mealsByDay, loading, error, onAddToMealPlan 
           className="d-flex gap-3 hide-scrollbar"
           style={{ overflowX: 'auto', scrollSnapType: 'x mandatory' }}
         >
-          {items.map(({ day, recipe, isFirstOfDay }) => (
-            <div
-              key={recipe ? `${formatDate(day)}-${recipe.id}` : `${formatDate(day)}-empty`}
-              className="d-flex flex-column"
-              style={{
-                minWidth: 200,
-                maxWidth: 200,
-                flexShrink: 0,
-                scrollSnapAlign: isFirstOfDay ? 'start' : 'none',
-              }}
-            >
+          {items.map(({ day, entry, isFirstOfDay }) => {
+            const recipe = entry && typeof entry.recipe === 'object' ? entry.recipe : null;
+            return (
               <div
-                className="text-muted small fw-semibold mb-1 text-center"
-                style={{ height: DATE_LABEL_HEIGHT }}
+                key={entry ? `${formatDate(day)}-${entry.id}` : `${formatDate(day)}-empty`}
+                className="d-flex flex-column"
+                style={{
+                  minWidth: 200,
+                  maxWidth: 200,
+                  flexShrink: 0,
+                  scrollSnapAlign: isFirstOfDay ? 'start' : 'none',
+                }}
               >
-                {isFirstOfDay ? shortDay(day) : null}
+                <div
+                  className="text-muted small fw-semibold mb-1 text-center"
+                  style={{ height: DATE_LABEL_HEIGHT }}
+                >
+                  {isFirstOfDay ? shortDay(day) : null}
+                </div>
+                <div className="flex-grow-1">
+                  {entry && recipe ? (
+                    <RecipeCard
+                      recipe={recipe}
+                      onAddToMealPlan={onAddToMealPlan}
+                      linkTo={`/meal-plan-entry/${entry.id}`}
+                    />
+                  ) : (
+                    <div
+                      className="d-flex h-100 align-items-center justify-content-center text-muted border rounded"
+                      style={{ fontSize: '0.8rem', borderStyle: 'dashed' as const }}
+                    >
+                      No meal planned
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="flex-grow-1">
-                {recipe ? (
-                  <RecipeCard recipe={recipe} onAddToMealPlan={onAddToMealPlan} />
-                ) : (
-                  <div
-                    className="d-flex h-100 align-items-center justify-content-center text-muted border rounded"
-                    style={{ fontSize: '0.8rem', borderStyle: 'dashed' as const }}
-                  >
-                    No meal planned
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </section>
@@ -422,7 +429,7 @@ export function Dashboard() {
 
   const days = Array.from({ length: 8 }, (_, i) => addDays(today, i));
 
-  const mealsByDay: Record<string, Recipe[]> = {};
+  const mealsByDay: Record<string, MealPlan[]> = {};
   for (const day of days) {
     mealsByDay[formatDate(day)] = [];
   }
@@ -432,7 +439,7 @@ export function Dashboard() {
   for (const mp of sortedEntries) {
     const key = mp.from_date.split('T')[0];
     if (key in mealsByDay && typeof mp.recipe === 'object') {
-      mealsByDay[key].push(mp.recipe);
+      mealsByDay[key].push(mp);
     }
   }
 

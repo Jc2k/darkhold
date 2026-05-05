@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Row, Col, Card, Button, InputGroup, Modal, Form, Spinner, Alert } from 'react-bootstrap';
 import { AsyncTypeahead } from 'react-bootstrap-typeahead';
 import 'react-bootstrap-typeahead/css/Typeahead.css';
@@ -249,34 +250,6 @@ function DroppableDay({ dateKey, children }: DroppableDayProps) {
   );
 }
 
-interface EntryDetailModalProps {
-  entry: MealPlan | null;
-  onHide: () => void;
-}
-
-function EntryDetailModal({ entry, onHide }: EntryDetailModalProps) {
-  if (!entry) return null;
-  const recipe = typeof entry.recipe === 'object' ? entry.recipe : null;
-  const mealType = typeof entry.meal_type === 'object' ? entry.meal_type : null;
-
-  return (
-    <Modal show={!!entry} onHide={onHide} centered>
-      <Modal.Header closeButton>
-        <Modal.Title className="fs-6">{recipe?.name ?? 'Meal Plan Entry'}</Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        <p><strong>Date:</strong> {entry.from_date}</p>
-        <p><strong>Meal type:</strong> {mealType ? mealType.name : String(entry.meal_type)}</p>
-        {entry.servings != null && <p><strong>Servings:</strong> {entry.servings}</p>}
-        {entry.note && <p><strong>Notes:</strong> {entry.note}</p>}
-        {recipe?.description && <p className="text-muted small">{recipe.description}</p>}
-      </Modal.Body>
-      <Modal.Footer>
-        <Button variant="secondary" onClick={onHide}>Close</Button>
-      </Modal.Footer>
-    </Modal>
-  );
-}
 
 interface AddMealModalProps {
   date: string;
@@ -412,8 +385,8 @@ function AddMealModal({ date, onHide, mealTypes }: AddMealModalProps) {
 }
 
 export function MealPlanPage() {
+  const navigate = useNavigate();
   const [weekOffset, setWeekOffset] = useState(0);
-  const [detailEntry, setDetailEntry] = useState<MealPlan | null>(null);
   const [addDate, setAddDate] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<number | null>(null);
   // Maps entry id -> optimistic target date for in-flight cross-day moves
@@ -594,7 +567,7 @@ export function MealPlanPage() {
                             key={entry.id}
                             entry={entry}
                             onDelete={(id) => deleteMeal.mutate(id)}
-                            onClick={setDetailEntry}
+                            onClick={(e) => navigate(`/meal-plan-entry/${e.id}`)}
                             isPending={pendingMoves.has(entry.id)}
                           />
                         ))}
@@ -624,7 +597,6 @@ export function MealPlanPage() {
         </DragOverlay>
       </DndContext>
 
-      <EntryDetailModal entry={detailEntry} onHide={() => setDetailEntry(null)} />
       {addDate && (
         <AddMealModal date={addDate} onHide={() => setAddDate(null)} mealTypes={mealTypes} />
       )}
