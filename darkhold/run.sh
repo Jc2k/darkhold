@@ -3,8 +3,11 @@ set -e
 
 OPTIONS_FILE=/data/options.json
 
+TANDOOR_EXTERNAL_URL=""
+
 if [ -f "$OPTIONS_FILE" ]; then
     TANDOOR_URL=$(jq -r '.tandoor_url // empty' "$OPTIONS_FILE")
+    TANDOOR_EXTERNAL_URL=$(jq -r '.tandoor_external_url // empty' "$OPTIONS_FILE")
 fi
 
 if [ -z "$TANDOOR_URL" ]; then
@@ -16,6 +19,10 @@ export TANDOOR_URL
 envsubst '${TANDOOR_URL}' \
     < /etc/nginx/conf.d/darkhold.conf.template \
     > /etc/nginx/conf.d/darkhold.conf
+
+# Write runtime config for the frontend
+jq -n --arg url "$TANDOOR_EXTERNAL_URL" '{"tandoor_external_url": $url}' \
+    > /usr/share/nginx/html/app-config.json
 
 # Start WebSocket broadcast server in background
 deno run --allow-net --allow-read=/package.json /server.ts &

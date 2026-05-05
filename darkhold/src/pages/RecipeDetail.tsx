@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { useQuery } from '@tanstack/react-query';
 import { Row, Col, Badge, Alert, Button, Modal } from 'react-bootstrap';
-import { Plus, Play, Info } from 'react-bootstrap-icons';
+import { Plus, Play, Info, Pencil } from 'react-bootstrap-icons';
 import { apiGet } from '../api/client';
 import type { Recipe, RecipeIngredient, RecipeStep, RecipeUnit, Food, Keyword, FoodProperty } from '../api/tandoor-types';
 import { TagBadge } from '../components/TagBadge';
@@ -12,6 +12,7 @@ import { LoadingMascot } from '../components/LoadingMascot';
 import { proxyMediaUrl } from '../utils/mediaUrl';
 import { formatFraction } from '../utils/fractions';
 import { useRecipeWeightG } from '../hooks/useRecipeWeightG';
+import { useAppConfig } from '../hooks/useAppConfig';
 
 type IngredientSection = { header: string | null; items: RecipeIngredient[] };
 
@@ -222,6 +223,7 @@ export function RecipeDetail() {
   const [planRecipe, setPlanRecipe] = useState<Recipe | null>(null);
   const [cookingMode, setCookingMode] = useState(false);
   const [showNutrition, setShowNutrition] = useState(false);
+  const { tandoor_external_url: externalUrl } = useAppConfig();
 
   const { data: recipe, isLoading, isError } = useQuery({
     queryKey: ['recipe', id],
@@ -312,6 +314,20 @@ export function RecipeDetail() {
               aria-pressed={showNutrition}
             >
               <Info />
+            </Button>
+          )}
+          {externalUrl && (
+            <Button
+              as="a"
+              href={`${externalUrl}/edit/recipe/${id}/`}
+              target="_blank"
+              rel="noopener noreferrer"
+              variant="light"
+              size="sm"
+              style={circleButtonStyle}
+              aria-label="Edit recipe in Tandoor"
+            >
+              <Pencil />
             </Button>
           )}
         </div>
