@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Row, Col, Card, Button, InputGroup, Modal, Form, Spinner, Alert } from 'react-bootstrap';
 import { AsyncTypeahead } from 'react-bootstrap-typeahead';
 import 'react-bootstrap-typeahead/css/Typeahead.css';
@@ -425,6 +425,12 @@ export function MealPlanPage() {
   const endDate = addDays(startDate, 6);
 
   const { data, isLoading, isError } = useMealPlan(startDate, endDate);
+
+  // Only show the full-screen spinner on the very first load.
+  // Once data has been received at least once, week navigation and background
+  // refreshes should rely solely on the corner progress spinner.
+  const hasEverHadData = useRef(false);
+  if (data !== undefined) hasEverHadData.current = true;
   const deleteMeal = useDeleteMealPlan();
   const updateMeal = useUpdateMealPlan();
 
@@ -547,7 +553,7 @@ export function MealPlanPage() {
         >›</Button>
       </div>
 
-      {isLoading && !data && <LoadingMascot />}
+      {!hasEverHadData.current && isLoading && <LoadingMascot />}
 
       <DndContext
         sensors={sensors}
