@@ -217,6 +217,8 @@ function NutritionOverlay({
   );
 }
 
+const MIN_SERVINGS = 1;
+
 const circleButtonStyle = { width: 32, height: 32, padding: 0, borderRadius: '50%', lineHeight: 1, fontSize: '1.25rem' };
 
 interface RecipeDetailContentProps {
@@ -233,8 +235,7 @@ export function RecipeDetailContent({ recipe, servingsOverride, mealPlanNote }: 
   const [showNutrition, setShowNutrition] = useState(false);
   const { tandoor_external_url: externalUrl } = useAppConfig();
 
-  const defaultServings = servingsOverride ?? recipe.servings ?? 1;
-  const [userServings, setUserServings] = useState<number>(defaultServings);
+  const [userServings, setUserServings] = useState<number>(servingsOverride ?? recipe.servings ?? 1);
 
   // Keep userServings in sync if the recipe or override changes (e.g. navigation)
   useEffect(() => {
@@ -337,9 +338,9 @@ export function RecipeDetailContent({ recipe, servingsOverride, mealPlanNote }: 
                   variant="link"
                   className="p-0 text-muted"
                   style={{ lineHeight: 1 }}
-                  onClick={() => setUserServings((s) => Math.max(1, s - 1))}
+                  onClick={() => setUserServings((s) => Math.max(MIN_SERVINGS, s - 1))}
                   aria-label="Decrease servings"
-                  disabled={userServings <= 1}
+                  disabled={userServings <= MIN_SERVINGS}
                 >
                   <DashCircle />
                 </Button>
@@ -353,21 +354,14 @@ export function RecipeDetailContent({ recipe, servingsOverride, mealPlanNote }: 
                 >
                   <PlusCircle />
                 </Button>
-                {servingsOverride != null && servingsOverride !== userServings && (
-                  <span className="text-muted" style={{ fontSize: '0.8em' }}>
-                    (meal plan: {servingsOverride})
-                  </span>
-                )}
-                {servingsOverride == null && recipe.servings !== userServings && (
-                  <span className="text-muted" style={{ fontSize: '0.8em' }}>
-                    (default: {recipe.servings})
-                  </span>
-                )}
-                {servingsOverride != null && servingsOverride === userServings && (
-                  <Badge bg="info" style={{ fontSize: '0.7em' }}>meal plan</Badge>
-                )}
-                {servingsOverride == null && recipe.servings === userServings && (
-                  <Badge bg="secondary" style={{ fontSize: '0.7em' }}>default</Badge>
+                {servingsOverride != null ? (
+                  servingsOverride === userServings
+                    ? <Badge bg="info" style={{ fontSize: '0.7em' }}>meal plan</Badge>
+                    : <span className="text-muted" style={{ fontSize: '0.8em' }}>(meal plan: {servingsOverride})</span>
+                ) : (
+                  recipe.servings === userServings
+                    ? <Badge bg="secondary" style={{ fontSize: '0.7em' }}>default</Badge>
+                    : <span className="text-muted" style={{ fontSize: '0.8em' }}>(default: {recipe.servings})</span>
                 )}
               </span>
             )}
