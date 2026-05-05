@@ -221,6 +221,66 @@ function SeasonalShelf({
   );
 }
 
+async function fetchRecentMealPlans(fromDate: string, toDate: string): Promise<MealPlan[]> {
+  const all: MealPlan[] = [];
+  let page = 1;
+  let hasNext = true;
+  while (hasNext) {
+    const data = await apiGet<PaginatedResponse<MealPlan>>('/meal-plan/', {
+      from_date: fromDate,
+      to_date: toDate,
+      page_size: 100,
+      page,
+    });
+    all.push(...data.results);
+    hasNext = !!data.next;
+    page++;
+  }
+  return all;
+}
+
+function useRegularsShelf() {
+  const today = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
+  const sixWeeksAgo = useMemo(() => addDays(today, -42), [today]);
+
+  return useQuery({
+    queryKey: ['meal-plan', 'regulars', formatDate(sixWeeksAgo), formatDate(today)],
+    queryFn: async () => {
+      const entries = await fetchRecentMealPlans(formatDate(sixWeeksAgo), formatDate(today));
+
+      const recipeById = new Map<number, Recipe>();
+      const countById = new Map<number, number>();
+
+      for (const mp of entries) {
+        if (typeof mp.recipe === 'object') {
+          const id = mp.recipe.id;
+          countById.set(id, (countById.get(id) ?? 0) + 1);
+          recipeById.set(id, mp.recipe);
+        }
+      }
+
+      const regulars: Recipe[] = [];
+      for (const [id, recipe] of recipeById) {
+        if ((countById.get(id) ?? 0) >= 2) {
+          regulars.push(recipe);
+        }
+      }
+
+      // Fisher-Yates shuffle
+      for (let i = regulars.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [regulars[i], regulars[j]] = [regulars[j], regulars[i]];
+      }
+
+      return { results: regulars.slice(0, 10), count: regulars.length };
+    },
+  });
+}
+
 async function fetchAllBooks(): Promise<RecipeBook[]> {
   const all: RecipeBook[] = [];
   let page = 1;
@@ -369,6 +429,8 @@ export function Dashboard() {
     () => apiGet<PaginatedResponse<Recipe>>('/recipe/', { new: true, sort_order: '-id', page_size: 10 }),
   );
 
+  const regulars = useRegularsShelf();
+
   return (
     <div className="pt-2">
       <UpcomingMealsShelf
@@ -403,6 +465,15 @@ export function Dashboard() {
         recipes={recentlyAdded.data?.results ?? []}
         loading={recentlyAdded.isLoading}
         error={recentlyAdded.isError}
+        onAddToMealPlan={setModalRecipe}
+      />
+
+      <RecipeShelf
+        title="🔁 Regulars"
+        searchLink="/meal-plan"
+        recipes={regulars.data?.results ?? []}
+        loading={regulars.isLoading}
+        error={regulars.isError}
         onAddToMealPlan={setModalRecipe}
       />
 
