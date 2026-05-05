@@ -22,21 +22,38 @@ export interface RecipeWeightResult {
  *   when the endpoint returns an empty list.
  */
 export function useRecipeWeightG(ingredients: RecipeIngredient[]): RecipeWeightResult {
-  // Collect unique unit IDs from real (non-header, non-zero) ingredients
-  const unitIds = [
-    ...new Set(
+  // Collect unique (unit_id, food_id) pairs from real (non-header, non-zero) ingredients.
+  // Food-specific queries let Tandoor return density overrides for that food.
+  const pairs = [
+    ...new Map(
       ingredients
-        .filter((ing) => !ing.is_header && ing.amount != null && ing.amount !== 0 && ing.unit && typeof ing.unit === 'object')
-        .map((ing) => (ing.unit as { id: number }).id),
-    ),
+        .filter(
+          (ing) =>
+            !ing.is_header &&
+            ing.amount != null &&
+            ing.amount !== 0 &&
+            ing.unit &&
+            typeof ing.unit === 'object',
+        )
+        .map((ing) => {
+          const unitId = (ing.unit as { id: number }).id;
+          const foodId = ing.food
+            ? typeof ing.food === 'object'
+              ? ing.food.id
+              : (ing.food as number)
+            : null;
+          return [`${unitId}:${foodId ?? ''}`, { unitId, foodId }] as const;
+        }),
+    ).values(),
   ];
 
   const queryResults = useQueries({
-    queries: unitIds.map((unitId) => ({
-      queryKey: ['unit-conversion', unitId],
+    queries: pairs.map(({ unitId, foodId }) => ({
+      queryKey: ['unit-conversion', unitId, foodId ?? null],
       queryFn: () =>
         apiGet<PaginatedResponse<UnitConversion>>('/unit-conversion/', {
           base_unit: unitId,
+          ...(foodId != null ? { food: foodId } : {}),
           page_size: 100,
         }),
       staleTime: (query: Query<PaginatedResponse<UnitConversion>>) => {

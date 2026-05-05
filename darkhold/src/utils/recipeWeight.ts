@@ -58,25 +58,47 @@ function isGramUnit(name: string): boolean {
 
 /**
  * Resolves how many grams one unit of `unitId` equals, using Tandoor's
- * unit-conversion records.  Returns null if no direct path is found.
+ * unit-conversion records.  When `foodId` is given, food-specific conversions
+ * are tried first; generic (no-food) conversions are used as a fallback.
+ * Returns null if no direct path is found.
  */
 export function resolveUnitToGrams(
   unitId: number,
   conversions: UnitConversion[],
+  foodId?: number | null,
 ): number | null {
-  for (const conv of conversions) {
-    if (conv.base_amount <= 0 || conv.converted_amount <= 0) continue;
+  function convFoodId(conv: UnitConversion): number | null {
+    if (!conv.food) return null;
+    return typeof conv.food === 'object' ? conv.food.id : conv.food;
+  }
 
-    // base_unit is our unit and converted_unit is grams
+  function gramsPerUnit(conv: UnitConversion): number | null {
+    if (conv.base_amount <= 0 || conv.converted_amount <= 0) return null;
     if (conv.base_unit.id === unitId && isGramUnit(conv.converted_unit.name)) {
       return conv.converted_amount / conv.base_amount;
     }
-
-    // converted_unit is our unit and base_unit is grams
     if (conv.converted_unit.id === unitId && isGramUnit(conv.base_unit.name)) {
       return conv.base_amount / conv.converted_amount;
     }
+    return null;
   }
+
+  // Prefer food-specific conversions when a food ID is supplied
+  if (foodId != null) {
+    for (const conv of conversions) {
+      if (convFoodId(conv) !== foodId) continue;
+      const g = gramsPerUnit(conv);
+      if (g !== null) return g;
+    }
+  }
+
+  // Fall back to generic (no-food) conversions
+  for (const conv of conversions) {
+    if (convFoodId(conv) != null) continue;
+    const g = gramsPerUnit(conv);
+    if (g !== null) return g;
+  }
+
   return null;
 }
 
@@ -107,8 +129,14 @@ export function estimateIngredientWeightG(
     return { grams: amount, approximate: false };
   }
 
-  // Try exact Tandoor conversion
-  const exactGramsPerUnit = resolveUnitToGrams(unit.id, conversions);
+  const foodId = ing.food
+    ? typeof ing.food === 'object'
+      ? ing.food.id
+      : (ing.food as number)
+    : null;
+
+  // Try exact Tandoor conversion (food-specific first, then generic)
+  const exactGramsPerUnit = resolveUnitToGrams(unit.id, conversions, foodId);
   if (exactGramsPerUnit !== null) {
     return { grams: amount * exactGramsPerUnit, approximate: false };
   }
