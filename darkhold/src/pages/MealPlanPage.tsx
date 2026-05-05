@@ -18,9 +18,7 @@ import {
 } from '@dnd-kit/core';
 import {
   SortableContext,
-  verticalListSortingStrategy,
   useSortable,
-  arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useMealPlan, useDeleteMealPlan, useCreateMealPlan, useUpdateMealPlan } from '../hooks/useMealPlan';
@@ -453,20 +451,6 @@ export function MealPlanPage() {
     return acc;
   }, {});
 
-  // Local state for DnD ordering within each day (visual only)
-  const [dayOrder, setDayOrder] = useState<Record<string, number[]>>({});
-
-  const getOrdered = (dateKey: string): MealPlan[] => {
-    const entries = byDay[dateKey] ?? [];
-    const order = dayOrder[dateKey];
-    if (!order) return entries;
-    const ordered = order.map((id) => entries.find((e) => e.id === id)).filter((e): e is MealPlan => !!e);
-    // Include any entries not yet in the stored order (e.g. freshly moved entries)
-    const orderedIds = new Set(order);
-    const extras = entries.filter((e) => !orderedIds.has(e.id));
-    return [...ordered, ...extras];
-  };
-
   const activeEntry = activeId != null ? allEntries.find((e) => e.id === activeId) ?? null : null;
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -494,53 +478,38 @@ export function MealPlanPage() {
       targetContainerId = overContainerId;
     }
 
-    if (activeContainerId === targetContainerId) {
-      // Within-day reorder
-      if (active.id === over.id) return;
-      const entries = getOrdered(activeContainerId);
-      const oldIndex = entries.findIndex((e) => e.id === active.id);
-      const newIndex = entries.findIndex((e) => e.id === over.id);
-      if (oldIndex === -1 || newIndex === -1) return;
-      const reordered = arrayMove(entries, oldIndex, newIndex);
-      setDayOrder((prev) => ({ ...prev, [activeContainerId]: reordered.map((e) => e.id) }));
-    } else {
-      // Cross-day move: optimistically update UI then confirm via API
-      const entry = allEntries.find((e) => e.id === activeEntryId);
-      if (!entry) return;
-      const recipeId = typeof entry.recipe === 'object' ? entry.recipe.id : entry.recipe;
-      const mealTypeId = typeof entry.meal_type === 'object' ? entry.meal_type.id : entry.meal_type;
+    if (activeContainerId === targetContainerId) return;
 
-      // Immediately show the entry in the new day and clear stale day orders
-      setPendingMoves((prev) => new Map(prev).set(activeEntryId, targetContainerId));
-      setDayOrder((prev) => {
-        const next = { ...prev };
-        delete next[activeContainerId];
-        delete next[targetContainerId];
-        return next;
-      });
+    // Cross-day move: optimistically update UI then confirm via API
+    const entry = allEntries.find((e) => e.id === activeEntryId);
+    if (!entry) return;
+    const recipeId = typeof entry.recipe === 'object' ? entry.recipe.id : entry.recipe;
+    const mealTypeId = typeof entry.meal_type === 'object' ? entry.meal_type.id : entry.meal_type;
 
-      updateMeal.mutate(
-        {
-          id: activeEntryId,
-          data: {
-            recipe: recipeId,
-            meal_type: mealTypeId,
-            from_date: targetContainerId,
-            to_date: targetContainerId,
-            servings: entry.servings ?? 1,
-          },
+    // Immediately show the entry in the new day
+    setPendingMoves((prev) => new Map(prev).set(activeEntryId, targetContainerId));
+
+    updateMeal.mutate(
+      {
+        id: activeEntryId,
+        data: {
+          recipe: recipeId,
+          meal_type: mealTypeId,
+          from_date: targetContainerId,
+          to_date: targetContainerId,
+          servings: entry.servings ?? 1,
         },
-        {
-          onSettled: () => {
-            setPendingMoves((prev) => {
-              const next = new Map(prev);
-              next.delete(activeEntryId);
-              return next;
-            });
-          },
+      },
+      {
+        onSettled: () => {
+          setPendingMoves((prev) => {
+            const next = new Map(prev);
+            next.delete(activeEntryId);
+            return next;
+          });
         },
-      );
-    }
+      },
+    );
   };
 
   const handleDragCancel = () => {
@@ -591,7 +560,7 @@ export function MealPlanPage() {
           {days.map((day) => {
             const dateKey = formatDate(day);
             const isToday = dateKey === formatDate(new Date());
-            const entries = getOrdered(dateKey);
+            const entries = byDay[dateKey] ?? [];
 
             return (
               <Col key={dateKey}>
@@ -613,7 +582,6 @@ export function MealPlanPage() {
                       <SortableContext
                         id={dateKey}
                         items={entries.map((e) => e.id)}
-                        strategy={verticalListSortingStrategy}
                       >
                         {entries.map((entry) => (
                           <SortableEntry
