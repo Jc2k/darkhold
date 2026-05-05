@@ -366,7 +366,7 @@ export function Dashboard() {
 
   const recentlyAdded = useDashboardShelf(
     ['recipes', 'recent'],
-    () => apiGet<PaginatedResponse<Recipe>>('/recipe/', { new: true, page_size: 10 }),
+    () => apiGet<PaginatedResponse<Recipe>>('/recipe/', { new: true, sort_order: '-id', page_size: 10 }),
   );
 
   return (
