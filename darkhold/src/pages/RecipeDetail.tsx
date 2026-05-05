@@ -144,7 +144,7 @@ function NutritionOverlay({
       // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
       tabIndex={0}
     >
-      <div className="px-3 py-2 text-white" style={{ fontSize: '0.875rem', paddingRight: '3.5rem' }}>
+      <div className="ps-3 py-2 text-white" style={{ fontSize: '0.875rem', paddingRight: '3.5rem' }}>
         <p className="mb-1 fw-bold text-center" style={{ fontSize: '0.95rem' }}>
           Nutrition Information
         </p>
