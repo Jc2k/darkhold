@@ -506,7 +506,7 @@ export function MealPlanPage() {
   }
 
   return (
-    <div className="pt-2">
+    <div className="pt-2 meal-plan-page">
       <div className="d-flex align-items-center mb-3">
         <Button
           variant="outline-secondary"
