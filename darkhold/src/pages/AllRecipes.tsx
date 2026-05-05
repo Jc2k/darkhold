@@ -8,7 +8,7 @@ import { LoadingMascot } from '../components/LoadingMascot';
 import { MealPlanAddModal } from '../components/MealPlanAddModal';
 import { ALL_RECIPES_STALE_TIME, ALL_RECIPES_GC_TIME } from '../utils/cacheConfig';
 
-const GROUP_TAGS = ['Breakfast', 'Lunch', 'Quickies', 'Salad', 'Snack', 'Burger', 'Noodles', 'Pasta', 'Curry', 'Sunday', 'Baking'];
+const GROUP_TAGS = ['Breakfast', 'Lunch', 'Quickies', 'Burger', 'Noodles', 'Pasta', 'Curry', 'Sunday', 'Baking', 'Snack'];
 
 function groupRecipes(recipes: Recipe[], kwMap: Record<number, string>): Record<string, Recipe[]> {
   const groups: Record<string, Recipe[]> = {};
