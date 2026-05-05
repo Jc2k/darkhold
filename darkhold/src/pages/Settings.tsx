@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { Card, Form, Button, Alert, InputGroup, Spinner } from 'react-bootstrap';
 import { useSettings, type HomepageSetting } from '../hooks/useSettings';
+import { useAppConfig } from '../hooks/useAppConfig';
 import { apiGet } from '../api/client';
 import type { User } from '../api/tandoor-types';
 
 export function Settings() {
   const { token, setToken, homepage, setHomepage } = useSettings();
+  const { tandoor_external_url: externalUrl } = useAppConfig();
   const [draft, setDraft] = useState(token);
   const [showToken, setShowToken] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -55,7 +57,11 @@ export function Settings() {
               </Button>
             </InputGroup>
             <Form.Text className="text-muted">
-              Find your token at Tandoor → Settings → API Tokens.
+              {externalUrl ? (
+                <>Find your token at <a href={`${externalUrl}/settings/api/`} target="_blank" rel="noopener noreferrer">Tandoor → Settings → API Tokens</a>.</>
+              ) : (
+                <>Find your token at Tandoor → Settings → API Tokens.</>
+              )}
             </Form.Text>
           </Form.Group>
 

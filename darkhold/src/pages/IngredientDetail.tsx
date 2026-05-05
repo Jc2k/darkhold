@@ -1,17 +1,20 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Row, Col, Spinner, Alert } from 'react-bootstrap';
+import { Row, Col, Spinner, Alert, Button } from 'react-bootstrap';
+import { Pencil } from 'react-bootstrap-icons';
 import { apiGet } from '../api/client';
 import type { Food, PaginatedResponse, Recipe } from '../api/tandoor-types';
 import { RecipeCard } from '../components/RecipeCard';
 import { MealPlanAddModal } from '../components/MealPlanAddModal';
 import { LoadingMascot } from '../components/LoadingMascot';
 import { FoodPropertiesTable } from '../components/FoodPropertiesTable';
+import { useAppConfig } from '../hooks/useAppConfig';
 
 export function IngredientDetail() {
   const { id } = useParams<{ id: string }>();
   const [modalRecipe, setModalRecipe] = useState<Recipe | null>(null);
+  const { tandoor_external_url: externalUrl } = useAppConfig();
 
   const { data: food, isLoading: foodLoading, isError: foodError } = useQuery({
     queryKey: ['food', id],
@@ -35,7 +38,22 @@ export function IngredientDetail() {
 
   return (
     <div>
-      <h2 className="mb-1">{food.name}</h2>
+      <div className="d-flex align-items-center gap-2 mb-1">
+        <h2 className="mb-0">{food.name}</h2>
+        {externalUrl && (
+          <Button
+            as="a"
+            href={`${externalUrl}/edit/Food/${id}/`}
+            target="_blank"
+            rel="noopener noreferrer"
+            variant="outline-secondary"
+            size="sm"
+            aria-label="Edit ingredient in Tandoor"
+          >
+            <Pencil />
+          </Button>
+        )}
+      </div>
       {food.description && <p className="text-muted">{food.description}</p>}
       <FoodPropertiesTable
         properties={food.properties}

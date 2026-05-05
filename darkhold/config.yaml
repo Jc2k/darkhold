@@ -26,6 +26,8 @@ ports_description:
 # Required Home Assistant add-on options
 options:
   tandoor_url: "http://tandoor:8080"
+  tandoor_external_url: ""
 
 schema:
   tandoor_url: "str"
+  tandoor_external_url: "str?"
