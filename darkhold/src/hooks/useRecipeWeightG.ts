@@ -1,4 +1,5 @@
 import { useQueries } from '@tanstack/react-query';
+import type { Query } from '@tanstack/react-query';
 import { apiGet } from '../api/client';
 import type { RecipeIngredient, UnitConversion, PaginatedResponse } from '../api/tandoor-types';
 import { ONE_HOUR } from '../utils/cacheConfig';
@@ -38,7 +39,7 @@ export function useRecipeWeightG(ingredients: RecipeIngredient[]): RecipeWeightR
           base_unit: unitId,
           page_size: 100,
         }),
-      staleTime: (query: { state: { data?: PaginatedResponse<UnitConversion> } }) => {
+      staleTime: (query: Query<PaginatedResponse<UnitConversion>>) => {
         const data = query.state.data;
         return data && data.results && data.results.length > 0 ? Infinity : ONE_HOUR;
       },

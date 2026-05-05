@@ -100,11 +100,7 @@ export function estimateIngredientWeightG(
   if (amount == null || amount === 0) return null;
 
   const unit = ing.unit && typeof ing.unit === 'object' ? ing.unit : null;
-
-  // Ingredient has no unit — assume grams (common for weighed ingredients)
-  if (!unit) {
-    return { grams: amount, approximate: true };
-  }
+  if (!unit) return null;
 
   // Unit is already grams
   if (isGramUnit(unit.name)) {

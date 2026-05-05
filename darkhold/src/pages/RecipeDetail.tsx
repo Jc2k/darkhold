@@ -133,15 +133,15 @@ function NutritionOverlay({
   const weightProp = nutrients.find(
     (n) => n.unit?.trim().toLowerCase() === 'g' && /weight/i.test(n.name),
   );
-  const propServingWeightG = weightProp ? weightProp.total_value / per : null;
+  const explicitServingWeightG = weightProp ? weightProp.total_value / per : null;
 
   // Progressive weight estimate from ingredient units (background queries refine this).
   const { weightG: estimatedTotalG, isApproximate, isLoading: weightLoading } = useRecipeWeightG(ingredients);
   const estimatedServingWeightG = estimatedTotalG != null ? estimatedTotalG / per : null;
 
   // Prefer the explicit property weight; fall back to the progressive estimate.
-  const servingWeightG = propServingWeightG ?? estimatedServingWeightG;
-  const weightIsApproximate = propServingWeightG == null && isApproximate;
+  const servingWeightG = explicitServingWeightG ?? estimatedServingWeightG;
+  const weightIsApproximate = explicitServingWeightG == null && isApproximate;
 
   const hasAnyMissing = nutrients.some((n) => n.missing_value);
 
