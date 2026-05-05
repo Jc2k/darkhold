@@ -59,6 +59,11 @@ export function Search() {
 
   const keywordIds = (searchParams.get('keywords') || '').split(',').map(Number).filter(Boolean);
   const foodIds = (searchParams.get('foods') || '').split(',').map(Number).filter(Boolean);
+  const ratingParam = searchParams.get('rating');
+  const rating = ratingParam !== null ? Number(ratingParam) : undefined;
+  const cookingTimeLteParam = searchParams.get('cooking_time__lte');
+  const cookingTimeLte = cookingTimeLteParam !== null ? Number(cookingTimeLteParam) : undefined;
+  const newOnly = searchParams.get('new') === 'true';
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,7 +102,7 @@ export function Search() {
   };
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, isError } =
-    useRecipeSearch({ query: q, keywords: keywordIds, foods: foodIds });
+    useRecipeSearch({ query: q, keywords: keywordIds, foods: foodIds, rating, cooking_time__lte: cookingTimeLte, new: newOnly });
 
   const recipes = data?.pages.flatMap((p) => p.results) ?? [];
 
@@ -119,7 +124,7 @@ export function Search() {
     return () => { if (el) observer.unobserve(el); };
   }, [handleObserver]);
 
-  const hasQuery = !!(q || keywordIds.length || foodIds.length);
+  const hasQuery = !!(q || keywordIds.length || foodIds.length || rating !== undefined || cookingTimeLte !== undefined || newOnly);
 
   return (
     <div className="pt-2">
