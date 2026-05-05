@@ -52,12 +52,12 @@
   }
 }
 
-.meal-plan-day {
+.meal-plan-page .meal-plan-day {
   min-height: 40px;
 }
 
 @media (min-width: 768px) {
-  .meal-plan-day {
+  .meal-plan-page .meal-plan-day {
     min-height: 130px;
   }
 }
