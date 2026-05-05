@@ -10,6 +10,7 @@ interface SearchParams {
   rating?: number;
   cooking_time__lte?: number;
   new?: boolean;
+  sort_order?: string;
 }
 
 export function useRecipeSearch(params: SearchParams) {
@@ -24,6 +25,7 @@ export function useRecipeSearch(params: SearchParams) {
         ...(params.rating !== undefined ? { rating: params.rating } : {}),
         ...(params.cooking_time__lte !== undefined ? { cooking_time__lte: params.cooking_time__lte } : {}),
         ...(params.new ? { new: true } : {}),
+        ...(params.sort_order ? { sort_order: params.sort_order } : {}),
         page: pageParam as number,
       }),
     getNextPageParam: (last, pages) => (last.next ? pages.length + 1 : undefined),

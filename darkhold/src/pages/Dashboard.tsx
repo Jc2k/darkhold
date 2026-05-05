@@ -366,7 +366,7 @@ export function Dashboard() {
 
   const recentlyAdded = useDashboardShelf(
     ['recipes', 'recent'],
-    () => apiGet<PaginatedResponse<Recipe>>('/recipe/', { new: true, page_size: 10 }),
+    () => apiGet<PaginatedResponse<Recipe>>('/recipe/', { new: true, sort_order: '-id', page_size: 10 }),
   );
 
   return (
@@ -399,7 +399,7 @@ export function Dashboard() {
 
       <RecipeShelf
         title="🆕 Recently Added"
-        searchLink="/search?new=true"
+        searchLink="/search?new=true&sort_order=-id"
         recipes={recentlyAdded.data?.results ?? []}
         loading={recentlyAdded.isLoading}
         error={recentlyAdded.isError}
