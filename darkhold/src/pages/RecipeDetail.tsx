@@ -33,7 +33,7 @@ function splitIngredientSections(ingredients: RecipeIngredient[]): IngredientSec
   return sections.filter((s) => s.header !== null || s.items.length > 0);
 }
 
-function IngredientList({ ingredients, linkFoods = false }: { ingredients: RecipeIngredient[]; linkFoods?: boolean }) {
+function IngredientList({ ingredients, linkFoods = false, scaleFactor }: { ingredients: RecipeIngredient[]; linkFoods?: boolean; scaleFactor?: number }) {
   const sections = splitIngredientSections(ingredients);
   return (
     <>
@@ -44,9 +44,10 @@ function IngredientList({ ingredients, linkFoods = false }: { ingredients: Recip
             {section.items.map((ing: RecipeIngredient) => {
               const food = ing.food && typeof ing.food === 'object' ? ing.food as Food : null;
               const unit = ing.unit as RecipeUnit | null;
+              const displayAmount = ing.amount != null && scaleFactor != null ? ing.amount * scaleFactor : ing.amount;
               return (
                 <li key={ing.id} className="mb-1">
-                  {!ing.no_amount && ing.amount != null && <span className="text-muted">{formatFraction(ing.amount)} </span>}
+                  {!ing.no_amount && displayAmount != null && <span className="text-muted">{formatFraction(displayAmount)} </span>}
                   {unit?.name && <span className="text-muted">{unit.name} </span>}
                   {food ? (
                     linkFoods ? <Link to={`/ingredient/${food.id}`}>{food.name}</Link> : <span>{food.name}</span>
@@ -64,7 +65,7 @@ function IngredientList({ ingredients, linkFoods = false }: { ingredients: Recip
   );
 }
 
-function CookingMode({ steps, onClose }: { steps: RecipeStep[]; onClose: () => void }) {
+function CookingMode({ steps, scaleFactor, onClose }: { steps: RecipeStep[]; scaleFactor?: number; onClose: () => void }) {
   const [index, setIndex] = useState(0);
   const sorted = [...steps].sort((a, b) => a.order - b.order);
   const current = sorted[index];
@@ -80,7 +81,7 @@ function CookingMode({ steps, onClose }: { steps: RecipeStep[]; onClose: () => v
         {current?.name && <h5 className="mb-3">{current.name}</h5>}
         {current?.ingredients && current.ingredients.length > 0 && (
           <div className="mb-3 text-start w-100">
-            <IngredientList ingredients={current.ingredients} />
+            <IngredientList ingredients={current.ingredients} scaleFactor={scaleFactor} />
           </div>
         )}
         <ReactMarkdown>{current?.instruction ?? ''}</ReactMarkdown>
@@ -218,47 +219,19 @@ function NutritionOverlay({
 
 const circleButtonStyle = { width: 32, height: 32, padding: 0, borderRadius: '50%', lineHeight: 1, fontSize: '1.25rem' };
 
-export function RecipeDetail() {
-  const { id } = useParams<{ id: string }>();
+interface RecipeDetailContentProps {
+  recipe: Recipe;
+  /** Servings override from a meal plan entry. Scales ingredient amounts when set. */
+  servingsOverride?: number | null;
+  /** Note from a meal plan entry, shown as a banner above the recipe. */
+  mealPlanNote?: string | null;
+}
+
+export function RecipeDetailContent({ recipe, servingsOverride, mealPlanNote }: RecipeDetailContentProps) {
   const [planRecipe, setPlanRecipe] = useState<Recipe | null>(null);
   const [cookingMode, setCookingMode] = useState(false);
   const [showNutrition, setShowNutrition] = useState(false);
   const { tandoor_external_url: externalUrl } = useAppConfig();
-
-  const { data: recipe, isLoading, isError } = useQuery({
-    queryKey: ['recipe', id],
-    queryFn: () => apiGet<Recipe>(`/recipe/${id}/`),
-    enabled: !!id,
-  });
-
-  // Inject JSON-LD
-  useEffect(() => {
-    if (!recipe) return;
-    const script = document.createElement('script');
-    script.type = 'application/ld+json';
-    script.id = 'recipe-jsonld';
-    script.text = JSON.stringify({
-      '@context': 'https://schema.org',
-      '@type': 'Recipe',
-      name: recipe.name,
-      description: recipe.description,
-      image: recipe.image,
-      recipeYield: recipe.servings,
-      totalTime: recipe.cooking_time ? `PT${recipe.cooking_time}M` : undefined,
-    });
-    document.head.appendChild(script);
-    return () => {
-      document.getElementById('recipe-jsonld')?.remove();
-    };
-  }, [recipe]);
-
-  if (isLoading && !recipe) {
-    return <LoadingMascot />;
-  }
-
-  if (isError || !recipe) {
-    return <Alert variant="danger">Failed to load recipe.</Alert>;
-  }
 
   const keywords = Array.isArray(recipe.keywords)
     ? recipe.keywords.filter((k): k is Keyword => typeof k === 'object')
@@ -269,8 +242,20 @@ export function RecipeDetail() {
   // Collect all ingredients from all steps
   const allIngredients: RecipeIngredient[] = steps.flatMap((s) => s.ingredients ?? []);
 
+  const scaleFactor =
+    servingsOverride != null && servingsOverride > 0 && recipe.servings != null && recipe.servings > 0
+      ? servingsOverride / recipe.servings
+      : undefined;
+
+  const effectiveServings = servingsOverride ?? recipe.servings;
+
   return (
     <div>
+      {mealPlanNote && (
+        <Alert variant="info" className="mb-3">
+          <strong>Meal plan note:</strong> {mealPlanNote}
+        </Alert>
+      )}
       <div className="position-relative mb-3">
         {recipe.image && (
           <img
@@ -319,7 +304,7 @@ export function RecipeDetail() {
           {externalUrl && (
             <Button
               as="a"
-              href={`${externalUrl}/edit/recipe/${id}/`}
+              href={`${externalUrl}/edit/recipe/${recipe.id}/`}
               target="_blank"
               rel="noopener noreferrer"
               variant="light"
@@ -339,7 +324,14 @@ export function RecipeDetail() {
           <div className="d-flex flex-wrap gap-3 mb-1 small text-muted">
             {recipe.cooking_time != null && <span>🕐 Cook: {recipe.cooking_time} min</span>}
             {recipe.waiting_time != null && <span>⏳ Wait: {recipe.waiting_time} min</span>}
-            {recipe.servings != null && <span>🍽️ Serves: {recipe.servings}</span>}
+            {effectiveServings != null && (
+              <span>
+                🍽️ Serves: {effectiveServings}
+                {servingsOverride != null && recipe.servings != null && servingsOverride !== recipe.servings && (
+                  <span className="text-muted"> (recipe: {recipe.servings})</span>
+                )}
+              </span>
+            )}
             {recipe.source_url && (
               <a href={recipe.source_url} target="_blank" rel="noopener noreferrer">
                 🔗 Source
@@ -365,7 +357,7 @@ export function RecipeDetail() {
       {allIngredients.length > 0 && (
         <section className="mb-4">
           <h5>Ingredients</h5>
-          <IngredientList ingredients={allIngredients} linkFoods />
+          <IngredientList ingredients={allIngredients} linkFoods scaleFactor={scaleFactor} />
         </section>
       )}
 
@@ -392,10 +384,56 @@ export function RecipeDetail() {
       )}
 
       {cookingMode && steps.length > 0 && (
-        <CookingMode steps={steps} onClose={() => setCookingMode(false)} />
+        <CookingMode steps={steps} scaleFactor={scaleFactor} onClose={() => setCookingMode(false)} />
       )}
 
       <MealPlanAddModal recipe={planRecipe} onHide={() => setPlanRecipe(null)} />
     </div>
   );
 }
+
+export function RecipeDetail() {
+  const { id } = useParams<{ id: string }>();
+
+  const { data: recipe, isLoading, isError } = useQuery({
+    queryKey: ['recipe', id],
+    queryFn: () => apiGet<Recipe>(`/recipe/${id}/`),
+    enabled: !!id,
+  });
+
+  useRecipeJsonLd(recipe);
+
+  if (isLoading && !recipe) {
+    return <LoadingMascot />;
+  }
+
+  if (isError || !recipe) {
+    return <Alert variant="danger">Failed to load recipe.</Alert>;
+  }
+
+  return <RecipeDetailContent recipe={recipe} />;
+}
+
+function useRecipeJsonLd(recipe: Recipe | undefined) {
+  useEffect(() => {
+    if (!recipe) return;
+    const script = document.createElement('script');
+    script.type = 'application/ld+json';
+    script.id = 'recipe-jsonld';
+    script.text = JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'Recipe',
+      name: recipe.name,
+      description: recipe.description,
+      image: recipe.image,
+      recipeYield: recipe.servings,
+      totalTime: recipe.cooking_time ? `PT${recipe.cooking_time}M` : undefined,
+    });
+    document.head.appendChild(script);
+    return () => {
+      document.getElementById('recipe-jsonld')?.remove();
+    };
+  }, [recipe]);
+}
+
+export { useRecipeJsonLd };
