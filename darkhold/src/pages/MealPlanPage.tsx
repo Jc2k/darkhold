@@ -409,6 +409,11 @@ export function MealPlanPage() {
   const deleteMeal = useDeleteMealPlan();
   const updateMeal = useUpdateMealPlan();
 
+  const handleDelete = (id: number) => {
+    if (!hasPersonalToken) return;
+    deleteMeal.mutate(id);
+  };
+
   const { data: mealTypesData } = useQuery({
     queryKey: ['meal-types'],
     queryFn: () => apiGet<PaginatedResponse<MealType>>('/meal-type/'),
@@ -571,7 +576,7 @@ export function MealPlanPage() {
                           <SortableEntry
                             key={entry.id}
                             entry={entry}
-                            onDelete={(id) => { if (hasPersonalToken) deleteMeal.mutate(id); }}
+                            onDelete={handleDelete}
                             onClick={(e) => navigate(`/meal-plan-entry/${e.id}`)}
                             isPending={pendingMoves.has(entry.id)}
                           />
