@@ -39,6 +39,16 @@ Tests are co-located next to source files as `*.test.ts` or `*.test.tsx` files.
 - Use `localStorage` directly in tests — jsdom provides a working implementation.
 - Keep tests fast and side-effect-free; avoid starting real servers or making real HTTP requests.
 
+## Pre-Commit Checks
+
+Before every `git commit`, always run all of the following from the `darkhold/` directory and fix any failures:
+
+1. `npm test` — frontend unit tests (vitest)
+2. `npx tsc --noEmit` — TypeScript type checking
+3. `deno task test` — server unit tests
+
+Do not commit if any of these fail.
+
 ## Commands
 
 - `deno task dev` - Start the dev server
