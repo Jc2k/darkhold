@@ -64,7 +64,7 @@ export function Search() {
   const cookingTimeLteParam = searchParams.get('cooking_time__lte');
   const cookingTimeLte = cookingTimeLteParam !== null ? Number(cookingTimeLteParam) : undefined;
   const newOnly = searchParams.get('new') === 'true';
-  const sortOrder = searchParams.get('sort_order') ?? undefined;
+  const sortOrder = searchParams.get('sort_order') || undefined;
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
