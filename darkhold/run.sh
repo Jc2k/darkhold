@@ -20,8 +20,9 @@ envsubst '${TANDOOR_URL}' \
     < /etc/nginx/conf.d/darkhold.conf.template \
     > /etc/nginx/conf.d/darkhold.conf
 
-# Write runtime config for the frontend
-jq -n --arg url "$TANDOOR_EXTERNAL_URL" '{"tandoor_external_url": $url}' \
+# Write runtime config for the frontend (omit key when URL is not configured)
+jq -n --arg url "$TANDOOR_EXTERNAL_URL" \
+    'if $url == "" then {} else {"tandoor_external_url": $url} end' \
     > /usr/share/nginx/html/app-config.json
 
 # Start WebSocket broadcast server in background
