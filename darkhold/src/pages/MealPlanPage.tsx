@@ -28,6 +28,7 @@ import { apiGet } from '../api/client';
 import type { MealPlan, Recipe, MealType, PaginatedResponse } from '../api/tandoor-types';
 import { deriveMealType } from '../utils/mealUtils';
 import { LoadingMascot } from '../components/LoadingMascot';
+import { NoTokenAlert } from '../components/NoTokenAlert';
 
 type WithSortable = { sortable?: { containerId: string } } | undefined;
 
@@ -391,6 +392,7 @@ export function MealPlanPage() {
   const [activeId, setActiveId] = useState<number | null>(null);
   // Maps entry id -> optimistic target date for in-flight cross-day moves
   const [pendingMoves, setPendingMoves] = useState<Map<number, string>>(new Map());
+  const hasPersonalToken = Boolean(localStorage.getItem('tandoor_token'));
 
   const today = new Date();
   const daysBackToSaturday = (today.getDay() + 1) % 7;
@@ -406,6 +408,11 @@ export function MealPlanPage() {
   if (data !== undefined) hasEverHadData.current = true;
   const deleteMeal = useDeleteMealPlan();
   const updateMeal = useUpdateMealPlan();
+
+  const handleDelete = (id: number) => {
+    if (!hasPersonalToken) return;
+    deleteMeal.mutate(id);
+  };
 
   const { data: mealTypesData } = useQuery({
     queryKey: ['meal-types'],
@@ -440,6 +447,7 @@ export function MealPlanPage() {
     const { active, over } = event;
     setActiveId(null);
     if (!over) return;
+    if (!hasPersonalToken) return;
 
     const activeEntryId = active.id as number;
     const activeContainerId = (active.data.current as WithSortable)?.sortable?.containerId;
@@ -501,6 +509,7 @@ export function MealPlanPage() {
 
   return (
     <div className="pt-2 meal-plan-page">
+      {!hasPersonalToken && <NoTokenAlert />}
       <div className="d-flex align-items-center mb-3">
         <Button
           variant="outline-secondary"
@@ -551,6 +560,7 @@ export function MealPlanPage() {
                       size="sm"
                       style={circleButtonStyle}
                       onClick={() => setAddDate(dateKey)}
+                      disabled={!hasPersonalToken}
                       aria-label="Add meal"
                     >
                       <Plus size={16} />
@@ -566,7 +576,7 @@ export function MealPlanPage() {
                           <SortableEntry
                             key={entry.id}
                             entry={entry}
-                            onDelete={(id) => deleteMeal.mutate(id)}
+                            onDelete={handleDelete}
                             onClick={(e) => navigate(`/meal-plan-entry/${e.id}`)}
                             isPending={pendingMoves.has(entry.id)}
                           />

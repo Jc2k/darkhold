@@ -7,6 +7,7 @@ import { apiGet, apiPatch, apiDelete } from '../api/client';
 import { broadcastInvalidation } from '../hooks/useInvalidationSocket';
 import type { Food, SupermarketCategory } from '../api/tandoor-types';
 import { LoadingMascot } from '../components/LoadingMascot';
+import { NoTokenAlert } from '../components/NoTokenAlert';
 import { formatFraction } from '../utils/fractions';
 
 interface ShoppingEntry {
@@ -75,6 +76,7 @@ export function ShoppingList() {
   const [pendingIds, setPendingIds] = useState<Set<number>>(new Set());
   const [isClearing, setIsClearing] = useState(false);
   const [clearError, setClearError] = useState<string | null>(null);
+  const hasPersonalToken = Boolean(localStorage.getItem('tandoor_token'));
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['shopping-list'],
@@ -91,6 +93,7 @@ export function ShoppingList() {
   });
 
   const toggleAll = (entries: ShoppingEntry[], checked: boolean) => {
+    if (!hasPersonalToken) return;
     const ids = entries.map((e) => e.id);
     setPendingIds((prev: Set<number>) => new Set([...prev, ...ids]));
     Promise.allSettled(entries.map((entry) => toggle.mutateAsync({ id: entry.id, checked })))
@@ -104,6 +107,7 @@ export function ShoppingList() {
   };
 
   const clearAll = (entries: ShoppingEntry[]) => {
+    if (!hasPersonalToken) return;
     if (!window.confirm(`Remove all ${entries.length} item${entries.length !== 1 ? 's' : ''} from your shopping list?`)) {
       return;
     }
@@ -146,12 +150,13 @@ export function ShoppingList() {
 
   return (
     <div className="pt-2">
+      {!hasPersonalToken && <NoTokenAlert />}
       <div className="d-flex align-items-center justify-content-end mb-1">
         <Button
           variant="outline-danger"
           size="sm"
           onClick={() => clearAll(entries)}
-          disabled={isClearing}
+          disabled={isClearing || !hasPersonalToken}
         >
           {isClearing ? <><Spinner animation="border" size="sm" className="me-1" />Clearing…</> : 'Clear'}
         </Button>
@@ -183,9 +188,9 @@ export function ShoppingList() {
                       <button
                         type="button"
                         className="btn p-0 d-flex align-items-center justify-content-center flex-shrink-0 mt-1"
-                        style={{ width: '2.25rem', height: '2.25rem', background: 'none', border: 'none', cursor: isPending ? 'wait' : 'pointer' }}
+                        style={{ width: '2.25rem', height: '2.25rem', background: 'none', border: 'none', cursor: isPending ? 'wait' : hasPersonalToken ? 'pointer' : 'default' }}
                         onClick={() => toggleAll(agg.entries, !agg.allChecked)}
-                        disabled={isPending}
+                        disabled={isPending || !hasPersonalToken}
                         aria-label={agg.allChecked ? `Uncheck ${foodName}` : `Check ${foodName}`}
                         aria-pressed={agg.allChecked}
                       >

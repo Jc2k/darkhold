@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Modal, Button, Form, InputGroup, Spinner } from 'react-bootstrap';
+import { Modal, Button, Form, InputGroup, Spinner, Alert } from 'react-bootstrap';
+import { Link } from 'react-router-dom';
 import type { Recipe, MealType } from '../api/tandoor-types';
 import { useCreateMealPlan } from '../hooks/useMealPlan';
 import { useQuery } from '@tanstack/react-query';
@@ -18,6 +19,7 @@ export function MealPlanAddModal({ recipe, onHide }: Props) {
   const [selectedDate, setSelectedDate] = useState<Date>(() => getWeekStartingSaturday(0)[0]);
   const [servings, setServings] = useState<number>(recipe?.servings ?? 1);
   const [note, setNote] = useState('');
+  const hasPersonalToken = Boolean(localStorage.getItem('tandoor_token'));
 
   useEffect(() => {
     if (recipe) {
@@ -38,6 +40,7 @@ export function MealPlanAddModal({ recipe, onHide }: Props) {
   const effectiveMealTypeId = deriveMealType(recipe, mealTypes);
 
   const handleSubmit = async () => {
+    if (!hasPersonalToken) return;
     const date = formatDate(selectedDate);
     await createMealPlan.mutateAsync({
       recipe: recipe.id as unknown as Recipe,
@@ -138,9 +141,16 @@ export function MealPlanAddModal({ recipe, onHide }: Props) {
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={onHide}>Cancel</Button>
-        <Button variant="success" onClick={handleSubmit} disabled={createMealPlan.isPending}>
-          {createMealPlan.isPending ? <Spinner size="sm" /> : 'Add to Plan'}
-        </Button>
+        {!hasPersonalToken ? (
+          <Alert variant="warning" className="mb-0 py-2 px-3 d-flex align-items-center gap-2">
+            <span>A personal API token is required.</span>
+            <Alert.Link as={Link} to="/settings" onClick={onHide}>Go to Settings →</Alert.Link>
+          </Alert>
+        ) : (
+          <Button variant="success" onClick={handleSubmit} disabled={createMealPlan.isPending}>
+            {createMealPlan.isPending ? <Spinner size="sm" /> : 'Add to Plan'}
+          </Button>
+        )}
       </Modal.Footer>
     </Modal>
   );
