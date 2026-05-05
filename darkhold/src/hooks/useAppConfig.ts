@@ -4,11 +4,15 @@ export interface AppConfig {
   tandoor_external_url?: string;
 }
 
-async function fetchAppConfig(): Promise<AppConfig> {
+export async function fetchAppConfig(): Promise<AppConfig> {
   try {
     const res = await fetch('/app-config.json');
     if (!res.ok) return {};
-    return res.json() as Promise<AppConfig>;
+    try {
+      return (await res.json()) as AppConfig;
+    } catch {
+      return {};
+    }
   } catch {
     return {};
   }
