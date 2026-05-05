@@ -1,6 +1,6 @@
-# Darkhold Configuration
+# Recipes Configuration
 
-Darkhold is a React SPA frontend for [Tandoor](https://tandoor.dev). It is designed to be run as a [Home Assistant add-on](https://www.home-assistant.io/addons/).
+Recipes is a React SPA frontend for [Tandoor](https://tandoor.dev). It is designed to be run as a [Home Assistant add-on](https://www.home-assistant.io/addons/).
 
 ## Home Assistant Add-on Setup
 
@@ -11,25 +11,25 @@ Darkhold is a React SPA frontend for [Tandoor](https://tandoor.dev). It is desig
 
 ### Installation
 
-Add this repository to your Home Assistant add-on store and install **Darkhold**.
+Add this repository to your Home Assistant add-on store and install **Recipes**.
 
 ### First Launch
 
-1. Open the Darkhold web UI via the HA ingress link.
+1. Open the Recipes web UI via the HA ingress link.
 2. You will be redirected to the **Settings** page on first launch.
 3. Generate a Tandoor API token:
    - Open Tandoor → User menu → API Token
    - Copy the token
-4. Paste the token in the Darkhold Settings page and click **Save**.
+4. Paste the token in the Recipes Settings page and click **Save**.
 5. Choose your preferred homepage (Dashboard, All Recipes, or Meal Plan).
 
 ## Proxy / CORS Configuration
 
-Darkhold handles CORS by **proxying all Tandoor API requests through its own nginx server**. There is no need to configure CORS headers on Tandoor or on the Nginx Proxy Manager.
+Recipes handles CORS by **proxying all Tandoor API requests through its own nginx server**. There is no need to configure CORS headers on Tandoor or on the Nginx Proxy Manager.
 
 | Request path | Routed to |
 |---|---|
-| `/api/*` (inside Darkhold container) | `<tandoor_url>/api/*` (defaults to `http://tandoor:8080/api/*`) |
+| `/api/*` (inside Recipes container) | `<tandoor_url>/api/*` (defaults to `http://tandoor:8080/api/*`) |
 | All other paths | Served as the React SPA |
 
 The internal hostname `tandoor` and port `8080` are the defaults for the Tandoor add-on. If your Tandoor add-on uses a different hostname or port, set the **`tandoor_url`** option in the add-on configuration (e.g. `http://my-tandoor:8080`).
@@ -56,9 +56,9 @@ deno task build
 
 ## iOS "Add to Home Screen"
 
-Darkhold ships a PWA manifest (`public/manifest.json`) and the appropriate Apple meta tags. To use it as a standalone iOS app:
+Recipes ships a PWA manifest (`public/manifest.json`) and the appropriate Apple meta tags. To use it as a standalone iOS app:
 
-1. Open the Darkhold URL in Safari on iOS.
+1. Open the Recipes URL in Safari on iOS.
 2. Tap the **Share** button → **Add to Home Screen**.
 3. The app will open full-screen without the Safari chrome.
 
@@ -74,4 +74,4 @@ Darkhold ships a PWA manifest (`public/manifest.json`) and the appropriate Apple
 
 ## API Token Security
 
-The Tandoor API token is stored in the browser's `localStorage`. This is appropriate for a personal-use home network app. Do not expose the Darkhold instance to the public internet without additional authentication (e.g. the HA authentication layer).
+The Tandoor API token is stored in the browser's `localStorage`. This is appropriate for a personal-use home network app. Do not expose the Recipes instance to the public internet without additional authentication (e.g. the HA authentication layer).

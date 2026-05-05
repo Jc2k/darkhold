@@ -1,6 +1,6 @@
 {
-  "name": "Darkhold",
-  "short_name": "Darkhold",
+  "name": "Recipes",
+  "short_name": "Recipes",
   "description": "Frontend for the Tandoor recipe manager",
   "start_url": "/",
   "display": "standalone",
