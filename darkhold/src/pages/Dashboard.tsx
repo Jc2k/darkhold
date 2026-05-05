@@ -71,7 +71,7 @@ function UpcomingMealsShelf({ days, mealsByDay, loading, error, onAddToMealPlan 
   // Flatten days into individual card items so all cards sit in one horizontal row.
   // The date label is shown only above the first card of each day group.
   const DATE_LABEL_HEIGHT = '1.4rem';
-  const items = days.flatMap((day) => {
+  const items = days.flatMap((day): Array<{ day: Date; recipe: Recipe | null; isFirstOfDay: boolean }> => {
     const key = formatDate(day);
     const recipes = mealsByDay[key] ?? [];
     if (recipes.length === 0) {
