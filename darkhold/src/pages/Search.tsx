@@ -64,6 +64,7 @@ export function Search() {
   const cookingTimeLteParam = searchParams.get('cooking_time__lte');
   const cookingTimeLte = cookingTimeLteParam !== null ? Number(cookingTimeLteParam) : undefined;
   const newOnly = searchParams.get('new') === 'true';
+  const sortOrder = searchParams.get('sort_order') ?? undefined;
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,7 +103,7 @@ export function Search() {
   };
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, isError } =
-    useRecipeSearch({ query: q, keywords: keywordIds, foods: foodIds, rating, cooking_time__lte: cookingTimeLte, new: newOnly });
+    useRecipeSearch({ query: q, keywords: keywordIds, foods: foodIds, rating, cooking_time__lte: cookingTimeLte, new: newOnly, sort_order: sortOrder });
 
   const recipes = data?.pages.flatMap((p) => p.results) ?? [];
 

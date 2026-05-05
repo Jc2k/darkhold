@@ -399,7 +399,7 @@ export function Dashboard() {
 
       <RecipeShelf
         title="🆕 Recently Added"
-        searchLink="/search?new=true"
+        searchLink="/search?new=true&sort_order=-id"
         recipes={recentlyAdded.data?.results ?? []}
         loading={recentlyAdded.isLoading}
         error={recentlyAdded.isError}
