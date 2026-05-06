@@ -27,6 +27,7 @@ import { useQuery } from '@tanstack/react-query';
 import { apiGet } from '../api/client';
 import type { MealPlan, Recipe, MealType, PaginatedResponse } from '../api/tandoor-types';
 import { deriveMealType } from '../utils/mealUtils';
+import { formatMonthYear, getWeekStartingSaturday } from '../utils/dateUtils';
 import { LoadingMascot } from '../components/LoadingMascot';
 import { NoTokenAlert } from '../components/NoTokenAlert';
 import { CookLogModal } from '../components/CookLogModal';
@@ -465,6 +466,26 @@ function EditMealModal({ entry, onHide }: EditMealModalProps) {
   const [note, setNote] = useState<string>(entry.note ?? '');
   const updateMeal = useUpdateMealPlan();
 
+  // Initialise the week picker to the week that contains the entry's current date.
+  const initialWeekOffset = (() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const daysUntilSat = (6 - today.getDay() + 7) % 7;
+    const baseSat = new Date(today);
+    baseSat.setDate(today.getDate() + daysUntilSat);
+    const [y, m, d] = entry.from_date.split('-').map(Number);
+    const entryDate = new Date(y, m - 1, d);
+    entryDate.setHours(0, 0, 0, 0);
+    const daysSinceSat = (entryDate.getDay() - 6 + 7) % 7;
+    const entrySat = new Date(entryDate);
+    entrySat.setDate(entryDate.getDate() - daysSinceSat);
+    return Math.round((entrySat.getTime() - baseSat.getTime()) / (7 * 24 * 60 * 60 * 1000));
+  })();
+
+  const [weekOffset, setWeekOffset] = useState(initialWeekOffset);
+  const days = getWeekStartingSaturday(weekOffset);
+  const [selectedDate, setSelectedDate] = useState<string>(entry.from_date.split('T')[0]);
+
   const handleSubmit = async () => {
     const recipeId = typeof entry.recipe === 'object' ? entry.recipe.id : entry.recipe;
     const mealTypeId = typeof entry.meal_type === 'object' ? entry.meal_type.id : entry.meal_type;
@@ -473,8 +494,8 @@ function EditMealModal({ entry, onHide }: EditMealModalProps) {
       data: {
         recipe: recipeId as unknown as Recipe,
         meal_type: mealTypeId as unknown as MealType,
-        from_date: entry.from_date,
-        ...(entry.to_date ? { to_date: entry.to_date } : {}),
+        from_date: selectedDate,
+        to_date: selectedDate,
         servings,
         note,
       },
@@ -490,6 +511,44 @@ function EditMealModal({ entry, onHide }: EditMealModalProps) {
         </Modal.Title>
       </Modal.Header>
       <Modal.Body>
+        <Form.Group className="mb-3">
+          <Form.Label>Date</Form.Label>
+          <div className="d-flex align-items-center justify-content-between mb-1">
+            <span className="text-muted small">{formatMonthYear(days[0])}</span>
+          </div>
+          <div className="d-flex align-items-center gap-1 flex-nowrap">
+            <Button
+              size="sm"
+              variant="outline-secondary"
+              onClick={() => setWeekOffset((w) => w - 1)}
+              aria-label="Previous week"
+            >‹</Button>
+            {days.map((d) => (
+              <Button
+                key={d.toISOString()}
+                size="sm"
+                variant={formatDate(d) === selectedDate ? 'primary' : 'outline-secondary'}
+                onClick={() => setSelectedDate(formatDate(d))}
+                className="d-flex flex-column align-items-center px-2 py-1 flex-fill"
+                style={{ minWidth: 0 }}
+              >
+                <span style={{ fontSize: '0.65rem', lineHeight: 1 }}>
+                  {d.toLocaleDateString('en-GB', { weekday: 'short' })}
+                </span>
+                <span style={{ fontSize: '0.85rem', lineHeight: 1.2, fontWeight: 600 }}>
+                  {d.getDate()}
+                </span>
+              </Button>
+            ))}
+            <Button
+              size="sm"
+              variant="outline-secondary"
+              onClick={() => setWeekOffset((w) => w + 1)}
+              aria-label="Next week"
+            >›</Button>
+          </div>
+        </Form.Group>
+
         <Form.Group className="mb-3">
           <Form.Label>Servings</Form.Label>
           <InputGroup>
