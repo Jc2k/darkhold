@@ -138,18 +138,20 @@ function CookingMode({
           Step {index + 1} of {sorted.length}
         </Modal.Title>
       </Modal.Header>
-      <Modal.Body className="d-flex flex-column justify-content-center align-items-center text-center p-4">
-        {current?.name && <h5 className="mb-3">{current.name}</h5>}
-        {current?.ingredients && current.ingredients.length > 0 && (
-          <div className="mb-3 text-start w-100">
-            <IngredientList
-              ingredients={current.ingredients}
-              scaleFactor={scaleFactor}
-            />
-          </div>
-        )}
-        <ReactMarkdown>{current?.instruction ?? ""}</ReactMarkdown>
-        {current?.time && <Badge bg="info">{current.time} min</Badge>}
+      <Modal.Body className="d-flex flex-column justify-content-center align-items-center p-4">
+        <div className="w-100" style={{ maxWidth: 720 }}>
+          {current?.name && <h5 className="mb-3">{current.name}</h5>}
+          {current?.ingredients && current.ingredients.length > 0 && (
+            <div className="mb-3">
+              <IngredientList
+                ingredients={current.ingredients}
+                scaleFactor={scaleFactor}
+              />
+            </div>
+          )}
+          <ReactMarkdown>{current?.instruction ?? ""}</ReactMarkdown>
+          {!!current?.time && <Badge bg="info">{current.time} min</Badge>}
+        </div>
       </Modal.Body>
       <Modal.Footer className="justify-content-between">
         <Button
