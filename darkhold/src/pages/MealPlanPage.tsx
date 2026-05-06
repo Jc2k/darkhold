@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Row, Col, Card, Table, Button, InputGroup, Modal, Form, Spinner, Alert } from 'react-bootstrap';
 import { AsyncTypeahead } from 'react-bootstrap-typeahead';
 import 'react-bootstrap-typeahead/css/Typeahead.css';
-import { Trash3, Plus, Check2Circle } from 'react-bootstrap-icons';
+import { Trash3, Plus, Check2Circle, PencilSquare } from 'react-bootstrap-icons';
 import { proxyMediaUrl } from '../utils/mediaUrl';
 import {
   DndContext,
@@ -27,6 +27,7 @@ import { useQuery } from '@tanstack/react-query';
 import { apiGet } from '../api/client';
 import type { MealPlan, Recipe, MealType, PaginatedResponse } from '../api/tandoor-types';
 import { deriveMealType } from '../utils/mealUtils';
+import { formatMonthYear, getWeekStartingSaturday } from '../utils/dateUtils';
 import { LoadingMascot } from '../components/LoadingMascot';
 import { NoTokenAlert } from '../components/NoTokenAlert';
 import { CookLogModal } from '../components/CookLogModal';
@@ -112,12 +113,13 @@ interface EntryCardProps {
   entry: MealPlan;
   onDelete: (id: number) => void;
   onClick: (entry: MealPlan) => void;
+  onEdit?: (entry: MealPlan) => void;
   dragging?: boolean;
   isCooked?: boolean;
   onLogCook?: (entry: MealPlan) => void;
 }
 
-function EntryCard({ entry, onDelete, onClick, dragging, isCooked, onLogCook }: EntryCardProps) {
+function EntryCard({ entry, onDelete, onClick, onEdit, dragging, isCooked, onLogCook }: EntryCardProps) {
   const recipe = typeof entry.recipe === 'object' ? entry.recipe : null;
   const thumbnailSrc = recipe?.image ? proxyMediaUrl(recipe.image) : undefined;
   return (
@@ -151,6 +153,17 @@ function EntryCard({ entry, onDelete, onClick, dragging, isCooked, onLogCook }: 
               <Check2Circle size={16} />
             </Button>
           )}
+          {!dragging && onEdit && (
+            <Button
+              variant="outline-secondary"
+              size="sm"
+              style={circleButtonStyle}
+              onClick={(e) => { e.stopPropagation(); onEdit(entry); }}
+              aria-label="Edit meal"
+            >
+              <PencilSquare size={16} />
+            </Button>
+          )}
           {!dragging && (
             <Button
               variant="danger"
@@ -172,12 +185,13 @@ interface SortableEntryProps {
   entry: MealPlan;
   onDelete: (id: number) => void;
   onClick: (entry: MealPlan) => void;
+  onEdit?: (entry: MealPlan) => void;
   isPending?: boolean;
   isCooked?: boolean;
   onLogCook?: (entry: MealPlan) => void;
 }
 
-function SortableEntry({ entry, onDelete, onClick, isPending, isCooked, onLogCook }: SortableEntryProps) {
+function SortableEntry({ entry, onDelete, onClick, onEdit, isPending, isCooked, onLogCook }: SortableEntryProps) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: entry.id,
   });
@@ -224,6 +238,17 @@ function SortableEntry({ entry, onDelete, onClick, isPending, isCooked, onLogCoo
                   aria-label="Log as cooked"
                 >
                   <Check2Circle size={16} />
+                </Button>
+              )}
+              {onEdit && (
+                <Button
+                  variant="outline-secondary"
+                  size="sm"
+                  style={circleButtonStyle}
+                  onClick={(e) => { e.stopPropagation(); onEdit(entry); }}
+                  aria-label="Edit meal"
+                >
+                  <PencilSquare size={16} />
                 </Button>
               )}
               <Button
@@ -430,6 +455,150 @@ function AddMealModal({ date, onHide, mealTypes, initialMealTypeId }: AddMealMod
   );
 }
 
+interface EditMealModalProps {
+  entry: MealPlan;
+  onHide: () => void;
+}
+
+function EditMealModal({ entry, onHide }: EditMealModalProps) {
+  const recipe = typeof entry.recipe === 'object' ? entry.recipe : null;
+  const [servings, setServings] = useState<number>(entry.servings ?? 1);
+  const [note, setNote] = useState<string>(entry.note ?? '');
+  const updateMeal = useUpdateMealPlan();
+
+  // Initialise the week picker to the week that contains the entry's current date.
+  const initialWeekOffset = (() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const daysUntilSat = (6 - today.getDay() + 7) % 7;
+    const baseSat = new Date(today);
+    baseSat.setDate(today.getDate() + daysUntilSat);
+    const [y, m, d] = entry.from_date.split('T')[0].split('-').map(Number);
+    const entryDate = new Date(y, m - 1, d);
+    entryDate.setHours(0, 0, 0, 0);
+    const daysSinceSat = (entryDate.getDay() - 6 + 7) % 7;
+    const entrySat = new Date(entryDate);
+    entrySat.setDate(entryDate.getDate() - daysSinceSat);
+    return Math.round((entrySat.getTime() - baseSat.getTime()) / (7 * 24 * 60 * 60 * 1000));
+  })();
+
+  const [weekOffset, setWeekOffset] = useState(initialWeekOffset);
+  const days = getWeekStartingSaturday(weekOffset);
+  const [selectedDate, setSelectedDate] = useState<string>(entry.from_date.split('T')[0]);
+
+  const handleSubmit = async () => {
+    const recipeId = typeof entry.recipe === 'object' ? entry.recipe.id : entry.recipe;
+    const mealTypeId = typeof entry.meal_type === 'object' ? entry.meal_type.id : entry.meal_type;
+    await updateMeal.mutateAsync({
+      id: entry.id,
+      data: {
+        recipe: recipeId as unknown as Recipe,
+        meal_type: mealTypeId as unknown as MealType,
+        from_date: selectedDate,
+        to_date: selectedDate,
+        servings,
+        note,
+      },
+    });
+    onHide();
+  };
+
+  return (
+    <Modal show onHide={onHide} centered>
+      <Modal.Header closeButton>
+        <Modal.Title className="fs-6" style={{ overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+          Edit "{recipe?.name ?? `Recipe #${entry.recipe}`}"
+        </Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <Form.Group className="mb-3">
+          <Form.Label>Date</Form.Label>
+          <div className="d-flex align-items-center justify-content-between mb-1">
+            <span className="text-muted small">{formatMonthYear(days[0])}</span>
+          </div>
+          <div className="d-flex align-items-center gap-1 flex-nowrap">
+            <Button
+              size="sm"
+              variant="outline-secondary"
+              onClick={() => setWeekOffset((w) => w - 1)}
+              aria-label="Previous week"
+            >‹</Button>
+            {days.map((d) => (
+              <Button
+                key={d.toISOString()}
+                size="sm"
+                variant={formatDate(d) === selectedDate ? 'primary' : 'outline-secondary'}
+                onClick={() => setSelectedDate(formatDate(d))}
+                className="d-flex flex-column align-items-center px-2 py-1 flex-fill"
+                style={{ minWidth: 0 }}
+              >
+                <span style={{ fontSize: '0.65rem', lineHeight: 1 }}>
+                  {d.toLocaleDateString('en-GB', { weekday: 'short' })}
+                </span>
+                <span style={{ fontSize: '0.85rem', lineHeight: 1.2, fontWeight: 600 }}>
+                  {d.getDate()}
+                </span>
+              </Button>
+            ))}
+            <Button
+              size="sm"
+              variant="outline-secondary"
+              onClick={() => setWeekOffset((w) => w + 1)}
+              aria-label="Next week"
+            >›</Button>
+          </div>
+        </Form.Group>
+
+        <Form.Group className="mb-3">
+          <Form.Label>Servings</Form.Label>
+          <InputGroup>
+            <Button
+              className="px-3"
+              variant="outline-secondary"
+              onClick={() => setServings((s) => Math.max(1, s - 1))}
+              aria-label="Decrease servings"
+            >-</Button>
+            <Form.Control
+              type="text"
+              inputMode="numeric"
+              value={servings}
+              onChange={(e) => {
+                const val = parseInt(e.target.value, 10);
+                if (!isNaN(val) && val >= 1) setServings(val);
+                else if (e.target.value === '') setServings(1);
+              }}
+              style={{ textAlign: 'center' }}
+            />
+            <Button
+              className="px-3"
+              variant="outline-secondary"
+              onClick={() => setServings((s) => s + 1)}
+              aria-label="Increase servings"
+            >+</Button>
+          </InputGroup>
+        </Form.Group>
+
+        <Form.Group>
+          <Form.Label>Notes</Form.Label>
+          <Form.Control
+            as="textarea"
+            rows={2}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="Optional notes…"
+          />
+        </Form.Group>
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="secondary" onClick={onHide}>Cancel</Button>
+        <Button variant="primary" onClick={handleSubmit} disabled={updateMeal.isPending}>
+          {updateMeal.isPending ? <Spinner size="sm" /> : 'Save'}
+        </Button>
+      </Modal.Footer>
+    </Modal>
+  );
+}
+
 interface MealPlanTableViewProps {
   days: Date[];
   mealTypes: MealType[];
@@ -441,6 +610,7 @@ interface MealPlanTableViewProps {
   onEntryClick: (entry: MealPlan) => void;
   onAddMeal: (date: string, mealTypeId: number) => void;
   onLogCook: (entry: MealPlan) => void;
+  onEdit: (entry: MealPlan) => void;
   cookLogData: CookedByDate | undefined;
 }
 
@@ -455,6 +625,7 @@ function MealPlanTableView({
   onEntryClick,
   onAddMeal,
   onLogCook,
+  onEdit,
   cookLogData,
 }: MealPlanTableViewProps) {
   return (
@@ -501,6 +672,7 @@ function MealPlanTableView({
                                 entry={entry}
                                 onDelete={onDelete}
                                 onClick={onEntryClick}
+                                onEdit={onEdit}
                                 isPending={pendingMoves.has(entry.id)}
                                 isCooked={cooked}
                                 onLogCook={isPastOrToday ? onLogCook : undefined}
@@ -539,6 +711,7 @@ export function MealPlanPage() {
   const [addModal, setAddModal] = useState<{ date: string; mealTypeId?: number } | null>(null);
   const [activeId, setActiveId] = useState<number | null>(null);
   const [cookLogEntry, setCookLogEntry] = useState<MealPlan | null>(null);
+  const [editEntry, setEditEntry] = useState<MealPlan | null>(null);
   // Maps entry id -> optimistic target date for in-flight cross-day moves
   const [pendingMoves, setPendingMoves] = useState<Map<number, string>>(new Map());
   const hasPersonalToken = Boolean(localStorage.getItem('tandoor_token'));
@@ -783,6 +956,7 @@ export function MealPlanPage() {
                                 entry={entry}
                                 onDelete={handleDelete}
                                 onClick={(e) => navigate(`/meal-plan-entry/${e.id}`)}
+                                onEdit={setEditEntry}
                                 isPending={pendingMoves.has(entry.id)}
                                 isCooked={cooked}
                                 onLogCook={isPastOrToday ? setCookLogEntry : undefined}
@@ -817,6 +991,7 @@ export function MealPlanPage() {
             onEntryClick={(e) => navigate(`/meal-plan-entry/${e.id}`)}
             onAddMeal={(date, mealTypeId) => setAddModal({ date, mealTypeId })}
             onLogCook={setCookLogEntry}
+            onEdit={setEditEntry}
             cookLogData={cookLogData}
           />
         </div>
@@ -848,6 +1023,12 @@ export function MealPlanPage() {
           recipeId={cookLogRecipeId}
           mealPlanDate={cookLogDate}
           mealType={cookLogMealType}
+        />
+      )}
+      {editEntry && (
+        <EditMealModal
+          entry={editEntry}
+          onHide={() => setEditEntry(null)}
         />
       )}
     </div>
