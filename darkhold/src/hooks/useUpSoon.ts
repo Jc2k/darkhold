@@ -52,11 +52,24 @@ export async function fetchUpSoonData(): Promise<UpSoonData | null> {
   const book = books.find((b) => b.name === UP_SOON_BOOK_NAME);
   if (!book) return null;
   const entries = await fetchAllEntriesForBook(book.id);
+
+  const validEntries = entries.filter((e) => e.recipe != null);
+
+  // The Tandoor API may return `recipe` as a plain ID rather than a full object.
+  // Fetch the full recipe for any such entries so the shelf can display them.
+  const enrichedEntries = await Promise.all(
+    validEntries.map(async (e) => {
+      const recipe: Recipe =
+        typeof e.recipe === 'number'
+          ? await apiGet<Recipe>(`/recipe/${e.recipe}/`)
+          : (e.recipe as Recipe);
+      return { entryId: e.id, recipeId: recipe.id, recipe };
+    }),
+  );
+
   return {
     bookId: book.id,
-    entries: entries
-      .filter((e) => e.recipe != null)
-      .map((e) => ({ entryId: e.id, recipeId: e.recipe.id, recipe: e.recipe })),
+    entries: enrichedEntries,
   };
 }
 
@@ -88,6 +101,25 @@ export function useAddToUpSoon() {
       }
       return apiPost<RecipeBookEntry>('/recipe-book-entry/', { book: bookId, recipe: recipeId });
     },
+    onMutate: async (recipeId) => {
+      await qc.cancelQueries({ queryKey: ['up-soon'] });
+      const previous = qc.getQueryData<UpSoonData | null>(['up-soon']);
+      if (previous) {
+        qc.setQueryData<UpSoonData | null>(['up-soon'], {
+          ...previous,
+          entries: [
+            ...previous.entries,
+            { entryId: -1, recipeId, recipe: { id: recipeId, name: '', created_by: 0 } },
+          ],
+        });
+      }
+      return { previous };
+    },
+    onError: (_err, _recipeId, context) => {
+      if (context?.previous !== undefined) {
+        qc.setQueryData(['up-soon'], context.previous);
+      }
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['up-soon'] });
       broadcastInvalidation('up-soon');
@@ -104,6 +136,22 @@ export function useRemoveFromUpSoon() {
       const entry = data?.entries.find((e) => e.recipeId === recipeId);
       if (!entry) throw new Error('Cannot remove recipe: not found in Up Soon book');
       await apiDelete(`/recipe-book-entry/${entry.entryId}/`);
+    },
+    onMutate: async (recipeId) => {
+      await qc.cancelQueries({ queryKey: ['up-soon'] });
+      const previous = qc.getQueryData<UpSoonData | null>(['up-soon']);
+      if (previous) {
+        qc.setQueryData<UpSoonData | null>(['up-soon'], {
+          ...previous,
+          entries: previous.entries.filter((e) => e.recipeId !== recipeId),
+        });
+      }
+      return { previous };
+    },
+    onError: (_err, _recipeId, context) => {
+      if (context?.previous !== undefined) {
+        qc.setQueryData(['up-soon'], context.previous);
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['up-soon'] });

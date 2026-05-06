@@ -108,6 +108,40 @@ describe('fetchUpSoonData', () => {
     expect(result!.entries).toHaveLength(0);
   });
 
+  it('fetches full recipe when entry returns recipe as a number', async () => {
+    const fetchMock = vi
+      .fn()
+      // GET /recipe-book/ (page 1)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({ count: 1, results: [makeBook(42, UP_SOON_BOOK_NAME)], next: null }),
+      })
+      // GET /recipe-book-entry/?book=42 (page 1) — recipe returned as plain number
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            count: 1,
+            results: [{ id: 7, book: 42, book_content: makeBook(42, UP_SOON_BOOK_NAME), recipe: 100 }],
+            next: null,
+          }),
+      })
+      // GET /recipe/100/ — full recipe fetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ id: 100, name: 'Pasta', created_by: 1 }),
+      });
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await fetchUpSoonData();
+    expect(result).not.toBeNull();
+    expect(result!.entries).toHaveLength(1);
+    expect(result!.entries[0].recipeId).toBe(100);
+    expect(result!.entries[0].recipe.name).toBe('Pasta');
+  });
+
   it('filters out entries without a recipe', async () => {
     const fetchMock = vi
       .fn()

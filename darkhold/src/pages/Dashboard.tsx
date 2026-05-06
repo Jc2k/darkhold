@@ -373,8 +373,9 @@ function BooksShelf() {
     const map = new Map<number, string>();
     for (const entry of entries) {
       const bookId = typeof entry.book === 'object' ? entry.book.id : entry.book;
-      if (!map.has(bookId) && entry.recipe?.image) {
-        map.set(bookId, entry.recipe.image);
+      const recipe = typeof entry.recipe === 'object' ? entry.recipe : null;
+      if (!map.has(bookId) && recipe?.image) {
+        map.set(bookId, recipe.image);
       }
     }
     return map;

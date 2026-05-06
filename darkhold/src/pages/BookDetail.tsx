@@ -83,7 +83,7 @@ export function BookDetail() {
 
   const recipes = filterId !== null
     ? (filterRecipes ?? [])
-    : (entries?.map((entry) => entry.recipe).filter(Boolean) ?? []);
+    : (entries?.map((entry) => entry.recipe).filter((r): r is Recipe => typeof r === 'object' && r !== null) ?? []);
 
   return (
     <div>
