@@ -25,6 +25,7 @@ import type {
   Food,
   Keyword,
   FoodProperty,
+  PaginatedResponse,
 } from "../api/tandoor-types";
 import { TagBadge } from "../components/TagBadge";
 import { MealPlanAddModal } from "../components/MealPlanAddModal";
@@ -651,11 +652,32 @@ export function RecipeDetail() {
     // Users relying on a default/shared server token don't have a personal
     // identity in Tandoor, so logging their views would be meaningless.
     if (!localStorage.getItem('tandoor_token')) return;
+
+    // Capture the recipe from cache now so we can update the recently-viewed
+    // list optimistically (before the network round-trip completes).
+    const recipeData = queryClient.getQueryData<Recipe>(['recipe', id]);
+    if (recipeData) {
+      queryClient.setQueryData<PaginatedResponse<Recipe>>(['recently-viewed'], (old) => {
+        const existing = old?.results ?? [];
+        const filtered = existing.filter((r) => r.id !== recipeData.id);
+        return {
+          count: old?.count ?? 1,
+          next: old?.next ?? null,
+          previous: old?.previous ?? null,
+          results: [recipeData, ...filtered].slice(0, 10),
+        };
+      });
+    }
+
     // Fire-and-forget — never block the viewing experience.
     apiPost('/view-log/', { recipe: Number(id) }).then(() => {
+      // Invalidate so the shelf re-syncs with the server in the background.
       queryClient.invalidateQueries({ queryKey: ['recently-viewed'] });
       broadcastInvalidation('recently-viewed');
-    }).catch(() => {});
+    }).catch(() => {
+      // Roll back the optimistic update by re-fetching from the server.
+      queryClient.invalidateQueries({ queryKey: ['recently-viewed'] });
+    });
     // Only record a view when navigating to a different recipe.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
