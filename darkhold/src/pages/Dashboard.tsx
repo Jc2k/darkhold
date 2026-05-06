@@ -3,14 +3,13 @@ import type { ReactNode } from 'react';
 import { Spinner, Button } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Book, BookmarkFill, Check2Circle } from 'react-bootstrap-icons';
+import { BookmarkFill, Check2Circle } from 'react-bootstrap-icons';
 import { apiGet } from '../api/client';
-import type { Recipe, Keyword, MealPlan, MealType, RecipeBook, RecipeBookEntry, PaginatedResponse } from '../api/tandoor-types';
+import type { Recipe, Keyword, MealPlan, MealType, PaginatedResponse } from '../api/tandoor-types';
 import { RecipeCard } from '../components/RecipeCard';
-import { BookCard } from '../components/BookCard';
 import { MealPlanAddModal } from '../components/MealPlanAddModal';
 import { CookLogModal } from '../components/CookLogModal';
-import { getFilterId } from '../utils/bookUtils';
+
 import { useUpSoonData } from '../hooks/useUpSoon';
 import { useCookLog } from '../hooks/useCookLog';
 import { smallCircleButtonStyle } from '../utils/buttonStyles';
@@ -177,77 +176,28 @@ function useDashboardShelf(queryKey: string[], queryFn: () => Promise<PaginatedR
   return useQuery({ queryKey, queryFn });
 }
 
-interface SeasonConfig {
-  tag: string;
-  title: string;
-  emoji: string;
-}
-
-const SEASON_CONFIGS: SeasonConfig[] = [
-  { tag: 'spring',    title: 'Spring',    emoji: '🌸' },
-  { tag: 'summer',    title: 'Summer',    emoji: '☀️' },
-  { tag: 'autumn',    title: 'Autumn',    emoji: '🍂' },
-  { tag: 'winter',    title: 'Winter',    emoji: '❄️' },
-  { tag: 'christmas', title: 'Christmas', emoji: '🎄' },
-];
-
-/**
- * Returns the set of season tags that are currently active for the given date.
- * Each meteorological season has ~2-week overlaps with the adjacent seasons.
- * Christmas is active throughout December.
- */
-function getActiveSeasons(date: Date): Set<string> {
-  const month = date.getMonth() + 1; // 1-12
-  const day = date.getDate();
-  const active = new Set<string>();
-
-  // Spring: Feb 15 – Jun 14
-  if ((month === 2 && day >= 15) || (month >= 3 && month <= 5) || (month === 6 && day <= 14)) {
-    active.add('spring');
-  }
-  // Summer: May 15 – Sep 14
-  if ((month === 5 && day >= 15) || (month >= 6 && month <= 8) || (month === 9 && day <= 14)) {
-    active.add('summer');
-  }
-  // Autumn: Aug 15 – Dec 14
-  if ((month === 8 && day >= 15) || (month >= 9 && month <= 11) || (month === 12 && day <= 14)) {
-    active.add('autumn');
-  }
-  // Winter: Nov 15 – Mar 14
-  if ((month === 11 && day >= 15) || month === 12 || month === 1 || month === 2 || (month === 3 && day <= 14)) {
-    active.add('winter');
-  }
-  // Christmas: all of December
-  if (month === 12) {
-    active.add('christmas');
-  }
-
-  return active;
-}
-
-function useSeasonalShelf(tag: string, enabled: boolean) {
-  // Step 1: look up the keyword by exact name so we can filter by ID rather
-  // than using keywords_name (which does an icontains/substring match and
-  // returns recipes tagged with unrelated keywords like "spring onion").
+function useTagShelf(tag: string) {
+  // Step 1: look up the keyword by exact name to get its ID.
   const keywordQuery = useQuery({
     queryKey: ['keywords', 'by-name', tag],
     queryFn: async () => {
-      // page_size of 100 is intentionally large: seasonal tag names are short
-      // and distinct, so there will never be 100 keywords matching one query.
       const data = await apiGet<PaginatedResponse<Keyword>>('/keyword/', { query: tag, page_size: 100 });
       return data.results.find((k) => k.name.toLowerCase() === tag.toLowerCase()) ?? null;
     },
-    enabled,
   });
 
   const keywordId = keywordQuery.data?.id;
 
-  // Step 2: fetch recipes filtered by the exact keyword ID.
+  // Step 2: fetch recipes filtered by keyword, sorted by cook date (most recent first) then newest first.
   const recipeQuery = useQuery({
-    queryKey: ['recipes', 'seasonal', tag],
-    // queryFn is only called when keywordId is defined (see `enabled` below).
-    queryFn: () => apiGet<PaginatedResponse<Recipe>>('/recipe/', { keywords: keywordId as number, page_size: 10 }),
-    enabled: enabled && keywordId !== undefined,
+    queryKey: ['recipes', 'tag', tag],
+    queryFn: () =>
+      apiGet<PaginatedResponse<Recipe>>('/recipe/', {
+        keywords: keywordId as number,
+        sort_order: '-lastcooked',
+        page_size: 10,
+      }),
+    enabled: keywordId !== undefined,
   });
 
   return {
@@ -258,23 +208,32 @@ function useSeasonalShelf(tag: string, enabled: boolean) {
   };
 }
 
-function SeasonalShelf({
+interface TagShelfConfig {
+  tag: string;
+  title: string;
+  emoji: string;
+}
+
+const TAG_SHELF_CONFIGS: TagShelfConfig[] = [
+  { tag: 'Adam',     title: 'Adam',     emoji: '👨‍🍳' },
+  { tag: 'soy-free', title: 'Soy Free', emoji: '🌱' },
+  { tag: 'pasta',    title: 'Pasta',    emoji: '🍝' },
+];
+
+function TagShelf({
   config,
-  enabled,
   onAddToMealPlan,
 }: {
-  config: SeasonConfig;
-  enabled: boolean;
+  config: TagShelfConfig;
   onAddToMealPlan: (r: Recipe) => void;
 }) {
-  const query = useSeasonalShelf(config.tag, enabled);
-  if (!enabled) return null;
+  const query = useTagShelf(config.tag);
   const searchLink = query.keywordId
     ? `/search?keywords=${query.keywordId}`
-    : `/search?q=${config.tag}`;
+    : `/search?q=${encodeURIComponent(config.tag)}`;
   return (
     <RecipeShelf
-      title={`${config.emoji} ${config.title} Recipes`}
+      title={`${config.emoji} ${config.title}`}
       searchLink={searchLink}
       recipes={query.data?.results ?? []}
       loading={query.isLoading}
@@ -344,32 +303,6 @@ function useRegularsShelf() {
   });
 }
 
-async function fetchAllBooks(): Promise<RecipeBook[]> {
-  const all: RecipeBook[] = [];
-  let page = 1;
-  let hasNext = true;
-  while (hasNext) {
-    const data = await apiGet<PaginatedResponse<RecipeBook>>('/recipe-book/', { page_size: 100, page });
-    all.push(...data.results);
-    hasNext = !!data.next;
-    page++;
-  }
-  return all;
-}
-
-async function fetchAllBookEntries(): Promise<RecipeBookEntry[]> {
-  const all: RecipeBookEntry[] = [];
-  let page = 1;
-  let hasNext = true;
-  while (hasNext) {
-    const data = await apiGet<PaginatedResponse<RecipeBookEntry>>('/recipe-book-entry/', { page_size: 100, page });
-    all.push(...data.results);
-    hasNext = !!data.next;
-    page++;
-  }
-  return all;
-}
-
 function UpSoonShelf({ onAddToMealPlan }: { onAddToMealPlan: (r: Recipe) => void }) {
   const { data, isLoading, isError } = useUpSoonData();
 
@@ -386,81 +319,6 @@ function UpSoonShelf({ onAddToMealPlan }: { onAddToMealPlan: (r: Recipe) => void
       error={isError}
       onAddToMealPlan={onAddToMealPlan}
     />
-  );
-}
-
-function BooksShelf() {
-  const { data: books, isLoading: booksLoading, isError: booksError } = useQuery({
-    queryKey: ['books'],
-    queryFn: fetchAllBooks,
-  });
-
-  const { data: entries, isLoading: entriesLoading } = useQuery({
-    queryKey: ['book-entries'],
-    queryFn: fetchAllBookEntries,
-  });
-
-  const coverImages = useMemo(() => {
-    if (!entries) return new Map<number, string>();
-    const map = new Map<number, string>();
-    for (const entry of entries) {
-      const bookId = typeof entry.book === 'object' ? entry.book.id : entry.book;
-      const recipe = typeof entry.recipe === 'object' ? entry.recipe : null;
-      if (!map.has(bookId) && recipe?.image) {
-        map.set(bookId, recipe.image);
-      }
-    }
-    return map;
-  }, [entries]);
-
-  const booksWithFilter = useMemo(() => books?.filter((b) => b.filter != null) ?? [], [books]);
-
-  const { data: filterCovers } = useQuery({
-    queryKey: ['book-filter-covers', booksWithFilter.map((b) => b.id)],
-    queryFn: async () => {
-      const map = new Map<number, string>();
-      await Promise.all(
-        booksWithFilter.map(async (book) => {
-          const filterId = getFilterId(book.filter);
-          if (filterId === null) return;
-          const data = await apiGet<PaginatedResponse<Recipe>>('/recipe/', { keywords: filterId, page_size: 1 });
-          const image = data.results[0]?.image;
-          if (image) map.set(book.id, image);
-        })
-      );
-      return map;
-    },
-    enabled: booksWithFilter.length > 0,
-  });
-
-  const isBooksShelfLoading = booksLoading || entriesLoading;
-
-  if (!isBooksShelfLoading && !booksError && (!books || books.length === 0)) return null;
-
-  return (
-    <section className="mb-4">
-      <div className="d-flex align-items-center justify-content-between mb-2">
-        <h5 className="mb-0"><Book className="me-2" />Books</h5>
-        <Link to="/books" className="small text-muted">
-          See all →
-        </Link>
-      </div>
-      {isBooksShelfLoading && <Spinner size="sm" />}
-      {booksError && <span className="text-danger small">Failed to load</span>}
-      <div
-        className="d-flex gap-3 pb-2 hide-scrollbar"
-        style={{ overflowX: 'auto', scrollSnapType: 'x mandatory' }}
-      >
-        {books?.map((book) => {
-          const cover = coverImages.get(book.id) ?? filterCovers?.get(book.id) ?? null;
-          return (
-            <div key={book.id} style={{ minWidth: 200, maxWidth: 200, scrollSnapAlign: 'start' }}>
-              <BookCard book={book} coverImage={cover} />
-            </div>
-          );
-        })}
-      </div>
-    </section>
   );
 }
 
@@ -493,7 +351,7 @@ export function Dashboard() {
 
   const today = new Date();
   const todayStr = formatDate(today);
-  const activeSeasons = getActiveSeasons(today);
+
   const weekAhead = new Date();
   weekAhead.setDate(weekAhead.getDate() + 7);
 
@@ -539,16 +397,6 @@ export function Dashboard() {
     }
   }
 
-  const topRated = useDashboardShelf(
-    ['recipes', 'top-rated'],
-    () => apiGet<PaginatedResponse<Recipe>>('/recipe/', { rating: 4, page_size: 10 }),
-  );
-
-  const quickEasy = useDashboardShelf(
-    ['recipes', 'quick-easy'],
-    () => apiGet<PaginatedResponse<Recipe>>('/recipe/', { cooking_time__lte: 30, sort_order: '?', page_size: 10 }),
-  );
-
   const recentlyAdded = useDashboardShelf(
     ['recipes', 'recent'],
     () => apiGet<PaginatedResponse<Recipe>>('/recipe/', { new: true, sort_order: '-id', page_size: 10 }),
@@ -568,36 +416,7 @@ export function Dashboard() {
         onLogCook={setCookLogEntry}
       />
 
-      <RecentlyViewedShelf onAddToMealPlan={setModalRecipe} />
-
       <UpSoonShelf onAddToMealPlan={setModalRecipe} />
-
-      <RecipeShelf
-        title="⭐ Top Rated"
-        searchLink="/search?rating=4"
-        recipes={topRated.data?.results ?? []}
-        loading={topRated.isLoading}
-        error={topRated.isError}
-        onAddToMealPlan={setModalRecipe}
-      />
-
-      <RecipeShelf
-        title="⚡ Quick & Easy"
-        searchLink="/search?cooking_time__lte=30"
-        recipes={quickEasy.data?.results ?? []}
-        loading={quickEasy.isLoading}
-        error={quickEasy.isError}
-        onAddToMealPlan={setModalRecipe}
-      />
-
-      <RecipeShelf
-        title="🆕 Recently Added"
-        searchLink="/search?new=true&sort_order=-id"
-        recipes={recentlyAdded.data?.results ?? []}
-        loading={recentlyAdded.isLoading}
-        error={recentlyAdded.isError}
-        onAddToMealPlan={setModalRecipe}
-      />
 
       <RecipeShelf
         title="🔁 Regulars"
@@ -608,16 +427,24 @@ export function Dashboard() {
         onAddToMealPlan={setModalRecipe}
       />
 
-      {SEASON_CONFIGS.map((config) => (
-        <SeasonalShelf
+      <RecentlyViewedShelf onAddToMealPlan={setModalRecipe} />
+
+      <RecipeShelf
+        title="🆕 Recently Added"
+        searchLink="/search?new=true&sort_order=-id"
+        recipes={recentlyAdded.data?.results ?? []}
+        loading={recentlyAdded.isLoading}
+        error={recentlyAdded.isError}
+        onAddToMealPlan={setModalRecipe}
+      />
+
+      {TAG_SHELF_CONFIGS.map((config) => (
+        <TagShelf
           key={config.tag}
           config={config}
-          enabled={activeSeasons.has(config.tag)}
           onAddToMealPlan={setModalRecipe}
         />
       ))}
-
-      <BooksShelf />
 
       <MealPlanAddModal recipe={modalRecipe} onHide={() => setModalRecipe(null)} />
       {cookLogEntry && (
