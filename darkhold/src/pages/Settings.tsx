@@ -71,6 +71,7 @@ export function Settings() {
               ) : (
                 <>Find your token at Tandoor → Settings → API Tokens.</>
               )}
+              {' '}Create a <strong>read write</strong> token with a long expiry (e.g. set the year to 2070).
             </Form.Text>
           </Form.Group>
 
