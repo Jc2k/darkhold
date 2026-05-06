@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Spinner, Button } from 'react-bootstrap';
+import { Button } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { BookmarkFill, Check2Circle } from 'react-bootstrap-icons';
@@ -9,6 +9,7 @@ import type { Recipe, Keyword, MealPlan, MealType, PaginatedResponse } from '../
 import { RecipeCard } from '../components/RecipeCard';
 import { MealPlanAddModal } from '../components/MealPlanAddModal';
 import { CookLogModal } from '../components/CookLogModal';
+import { LoadingMascot } from '../components/LoadingMascot';
 
 import { useUpSoonData } from '../hooks/useUpSoon';
 import { useCookLog } from '../hooks/useCookLog';
@@ -38,7 +39,8 @@ interface ShelfProps {
 }
 
 function RecipeShelf({ title, searchLink, recipes, loading, error, onAddToMealPlan }: ShelfProps) {
-  if (!loading && !error && recipes.length === 0) return null;
+  if (loading) return null;
+  if (!error && recipes.length === 0) return null;
   return (
     <section className="mb-4">
       <div className="d-flex align-items-center justify-content-between mb-2">
@@ -49,7 +51,6 @@ function RecipeShelf({ title, searchLink, recipes, loading, error, onAddToMealPl
           </Link>
         )}
       </div>
-      {loading && <Spinner size="sm" />}
       {error && <span className="text-danger small">Failed to load</span>}
       <div
         className="d-flex gap-3 pb-2 hide-scrollbar"
@@ -96,6 +97,8 @@ function UpcomingMealsShelf({ days, mealsByDay, loading, error, onAddToMealPlan,
     return entries.map((entry, index) => ({ day, entry, isFirstOfDay: index === 0 }));
   });
 
+  if (loading) return null;
+
   return (
     <section className="mb-4">
       <div className="d-flex align-items-center justify-content-between mb-2">
@@ -104,70 +107,67 @@ function UpcomingMealsShelf({ days, mealsByDay, loading, error, onAddToMealPlan,
           See all →
         </Link>
       </div>
-      {loading && <Spinner size="sm" />}
       {error && <span className="text-danger small">Failed to load</span>}
-      {!loading && !error && (
-        <div
-          className="d-flex gap-3 hide-scrollbar"
-          style={{ overflowX: 'auto', scrollSnapType: 'x mandatory' }}
-        >
-          {items.map(({ day, entry, isFirstOfDay }) => {
-            const recipe = entry && typeof entry.recipe === 'object' ? entry.recipe : null;
-            const dateKey = formatDate(day);
-            const isEligible = dateKey <= todayStr && entry !== null && recipe !== null;
-            const recipeId = recipe?.id ?? 0;
-            const isCooked = isEligible && cookedToday.includes(recipeId);
-            return (
+      <div
+        className="d-flex gap-3 hide-scrollbar"
+        style={{ overflowX: 'auto', scrollSnapType: 'x mandatory' }}
+      >
+        {items.map(({ day, entry, isFirstOfDay }) => {
+          const recipe = entry && typeof entry.recipe === 'object' ? entry.recipe : null;
+          const dateKey = formatDate(day);
+          const isEligible = dateKey <= todayStr && entry !== null && recipe !== null;
+          const recipeId = recipe?.id ?? 0;
+          const isCooked = isEligible && cookedToday.includes(recipeId);
+          return (
+            <div
+              key={entry ? `${formatDate(day)}-${entry.id}` : `${formatDate(day)}-empty`}
+              className="d-flex flex-column"
+              style={{
+                minWidth: 200,
+                maxWidth: 200,
+                flexShrink: 0,
+                scrollSnapAlign: isFirstOfDay ? 'start' : 'none',
+              }}
+            >
               <div
-                key={entry ? `${formatDate(day)}-${entry.id}` : `${formatDate(day)}-empty`}
-                className="d-flex flex-column"
-                style={{
-                  minWidth: 200,
-                  maxWidth: 200,
-                  flexShrink: 0,
-                  scrollSnapAlign: isFirstOfDay ? 'start' : 'none',
-                }}
+                className="text-muted small fw-semibold mb-1 text-center"
+                style={{ height: DATE_LABEL_HEIGHT }}
               >
-                <div
-                  className="text-muted small fw-semibold mb-1 text-center"
-                  style={{ height: DATE_LABEL_HEIGHT }}
-                >
-                  {isFirstOfDay ? shortDay(day) : null}
-                </div>
-                <div className="flex-grow-1" style={{ position: 'relative' }}>
-                  {entry && recipe ? (
-                    <>
-                      <RecipeCard
-                        recipe={recipe}
-                        onAddToMealPlan={onAddToMealPlan}
-                        linkTo={`/meal-plan-entry/${entry.id}`}
-                      />
-                      {isEligible && !isCooked && (
-                        <Button
-                          variant="outline-secondary"
-                          size="sm"
-                          style={cookLogButtonStyle}
-                          onClick={(e) => { e.stopPropagation(); onLogCook(entry); }}
-                          aria-label="Log as cooked"
-                        >
-                          <Check2Circle size={14} />
-                        </Button>
-                      )}
-                    </>
-                  ) : (
-                    <div
-                      className="d-flex h-100 align-items-center justify-content-center text-muted border rounded"
-                      style={{ fontSize: '0.8rem', borderStyle: 'dashed' as const }}
-                    >
-                      No meal planned
-                    </div>
-                  )}
-                </div>
+                {isFirstOfDay ? shortDay(day) : null}
               </div>
-            );
-          })}
-        </div>
-      )}
+              <div className="flex-grow-1" style={{ position: 'relative' }}>
+                {entry && recipe ? (
+                  <>
+                    <RecipeCard
+                      recipe={recipe}
+                      onAddToMealPlan={onAddToMealPlan}
+                      linkTo={`/meal-plan-entry/${entry.id}`}
+                    />
+                    {isEligible && !isCooked && (
+                      <Button
+                        variant="outline-secondary"
+                        size="sm"
+                        style={cookLogButtonStyle}
+                        onClick={(e) => { e.stopPropagation(); onLogCook(entry); }}
+                        aria-label="Log as cooked"
+                      >
+                        <Check2Circle size={14} />
+                      </Button>
+                    )}
+                  </>
+                ) : (
+                  <div
+                    className="d-flex h-100 align-items-center justify-content-center text-muted border rounded"
+                    style={{ fontSize: '0.8rem', borderStyle: 'dashed' as const }}
+                  >
+                    No meal planned
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </section>
   );
 }
@@ -306,7 +306,8 @@ function useRegularsShelf() {
 function UpSoonShelf({ onAddToMealPlan }: { onAddToMealPlan: (r: Recipe) => void }) {
   const { data, isLoading, isError } = useUpSoonData();
 
-  if (!isLoading && !isError && (!data || data.entries.length === 0)) return null;
+  if (isLoading) return null;
+  if (!isError && (!data || data.entries.length === 0)) return null;
 
   const recipes = data?.entries.map((e) => e.recipe) ?? [];
 
@@ -332,7 +333,8 @@ function RecentlyViewedShelf({ onAddToMealPlan }: { onAddToMealPlan: (r: Recipe)
     }),
   );
 
-  if (!isLoading && !isError && (!data || data.results.length === 0)) return null;
+  if (isLoading) return null;
+  if (!isError && (!data || data.results.length === 0)) return null;
 
   return (
     <RecipeShelf
@@ -403,6 +405,15 @@ export function Dashboard() {
   );
 
   const regulars = useRegularsShelf();
+
+  // On cold start (no cached data), show a full-page spinner until at least one
+  // shelf query has settled so shelves don't flash in an empty state then vanish.
+  const isInitialDashboardLoad =
+    mealPlanQuery.isLoading && regulars.isLoading && recentlyAdded.isLoading;
+
+  if (isInitialDashboardLoad) {
+    return <LoadingMascot />;
+  }
 
   return (
     <div className="pt-2">
