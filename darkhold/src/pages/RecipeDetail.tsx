@@ -37,6 +37,8 @@ import { useRecipeWeightG } from "../hooks/useRecipeWeightG";
 import { useAppConfig } from "../hooks/useAppConfig";
 import { broadcastInvalidation } from "../hooks/useInvalidationSocket";
 
+const MAX_RECENTLY_VIEWED_ITEMS = 10;
+
 type IngredientSection = { header: string | null; items: RecipeIngredient[] };
 
 function splitIngredientSections(
@@ -661,10 +663,10 @@ export function RecipeDetail() {
         const existing = old?.results ?? [];
         const filtered = existing.filter((r) => r.id !== recipeData.id);
         return {
-          count: old?.count ?? 1,
+          count: old?.count ?? filtered.length + 1,
           next: old?.next ?? null,
           previous: old?.previous ?? null,
-          results: [recipeData, ...filtered].slice(0, 10),
+          results: [recipeData, ...filtered].slice(0, MAX_RECENTLY_VIEWED_ITEMS),
         };
       });
     }
