@@ -123,6 +123,8 @@ export interface MealType {
   icon?: string;
   color?: string;
   order?: number;
+  /** Time of day for this meal type (HH:MM or HH:MM:SS), used for cook log timestamps */
+  time?: string | null;
 }
 
 /** Shopping list item */
@@ -234,4 +236,14 @@ export interface RecipeBookEntry {
   book: RecipeBook | number;
   book_content: RecipeBook;
   recipe: Recipe | number;
+}
+
+/** Cook log entry */
+export interface CookLog {
+  id: number;
+  recipe: Recipe | number;
+  rating?: number | null;
+  comment?: string | null;
+  created_by?: number;
+  created_at: string; // ISO 8601 datetime
 }

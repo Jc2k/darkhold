@@ -1,14 +1,18 @@
 import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Spinner } from 'react-bootstrap';
+import { Spinner, Button } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { BookmarkFill } from 'react-bootstrap-icons';
+import { BookmarkFill, Check2Circle } from 'react-bootstrap-icons';
 import { apiGet } from '../api/client';
-import type { Recipe, Keyword, MealPlan, PaginatedResponse } from '../api/tandoor-types';
+import type { Recipe, Keyword, MealPlan, MealType, PaginatedResponse } from '../api/tandoor-types';
 import { RecipeCard } from '../components/RecipeCard';
 import { MealPlanAddModal } from '../components/MealPlanAddModal';
+import { CookLogModal } from '../components/CookLogModal';
+
 import { useUpSoonData } from '../hooks/useUpSoon';
+import { useCookLog } from '../hooks/useCookLog';
+import { smallCircleButtonStyle } from '../utils/buttonStyles';
 
 function formatDate(d: Date): string {
   return d.toISOString().split('T')[0];
@@ -67,12 +71,22 @@ interface UpcomingMealsShelfProps {
   loading: boolean;
   error: boolean;
   onAddToMealPlan: (r: Recipe) => void;
+  cookedToday: number[];
+  onLogCook: (entry: MealPlan) => void;
 }
 
-function UpcomingMealsShelf({ days, mealsByDay, loading, error, onAddToMealPlan }: UpcomingMealsShelfProps) {
+const cookLogButtonStyle: React.CSSProperties = {
+  ...smallCircleButtonStyle,
+  position: 'absolute',
+  bottom: 8,
+  left: 8,
+};
+
+function UpcomingMealsShelf({ days, mealsByDay, loading, error, onAddToMealPlan, cookedToday, onLogCook }: UpcomingMealsShelfProps) {
   // Flatten days into individual card items so all cards sit in one horizontal row.
   // The date label is shown only above the first card of each day group.
   const DATE_LABEL_HEIGHT = '1.4rem';
+  const todayStr = formatDate(new Date());
   const items = days.flatMap((day): Array<{ day: Date; entry: MealPlan | null; isFirstOfDay: boolean }> => {
     const key = formatDate(day);
     const entries = mealsByDay[key] ?? [];
@@ -99,6 +113,10 @@ function UpcomingMealsShelf({ days, mealsByDay, loading, error, onAddToMealPlan 
         >
           {items.map(({ day, entry, isFirstOfDay }) => {
             const recipe = entry && typeof entry.recipe === 'object' ? entry.recipe : null;
+            const dateKey = formatDate(day);
+            const isEligible = dateKey <= todayStr && entry !== null && recipe !== null;
+            const recipeId = recipe?.id ?? 0;
+            const isCooked = isEligible && cookedToday.includes(recipeId);
             return (
               <div
                 key={entry ? `${formatDate(day)}-${entry.id}` : `${formatDate(day)}-empty`}
@@ -116,13 +134,26 @@ function UpcomingMealsShelf({ days, mealsByDay, loading, error, onAddToMealPlan 
                 >
                   {isFirstOfDay ? shortDay(day) : null}
                 </div>
-                <div className="flex-grow-1">
+                <div className="flex-grow-1" style={{ position: 'relative' }}>
                   {entry && recipe ? (
-                    <RecipeCard
-                      recipe={recipe}
-                      onAddToMealPlan={onAddToMealPlan}
-                      linkTo={`/meal-plan-entry/${entry.id}`}
-                    />
+                    <>
+                      <RecipeCard
+                        recipe={recipe}
+                        onAddToMealPlan={onAddToMealPlan}
+                        linkTo={`/meal-plan-entry/${entry.id}`}
+                      />
+                      {isEligible && !isCooked && (
+                        <Button
+                          variant="outline-secondary"
+                          size="sm"
+                          style={cookLogButtonStyle}
+                          onClick={(e) => { e.stopPropagation(); onLogCook(entry); }}
+                          aria-label="Log as cooked"
+                        >
+                          <Check2Circle size={14} />
+                        </Button>
+                      )}
+                    </>
                   ) : (
                     <div
                       className="d-flex h-100 align-items-center justify-content-center text-muted border rounded"
@@ -316,10 +347,26 @@ function RecentlyViewedShelf({ onAddToMealPlan }: { onAddToMealPlan: (r: Recipe)
 
 export function Dashboard() {
   const [modalRecipe, setModalRecipe] = useState<Recipe | null>(null);
+  const [cookLogEntry, setCookLogEntry] = useState<MealPlan | null>(null);
 
   const today = new Date();
+  const todayStr = formatDate(today);
+
   const weekAhead = new Date();
   weekAhead.setDate(weekAhead.getDate() + 7);
+
+  // Derived cook log modal props — computed outside JSX to avoid inline IIFEs.
+  const cookLogMealType =
+    cookLogEntry && typeof cookLogEntry.meal_type === 'object'
+      ? (cookLogEntry.meal_type as MealType)
+      : undefined;
+  const cookLogRecipeId =
+    cookLogEntry
+      ? typeof cookLogEntry.recipe === 'object'
+        ? cookLogEntry.recipe.id
+        : (cookLogEntry.recipe as number)
+      : 0;
+  const cookLogDate = cookLogEntry?.from_date.split('T')[0] ?? '';
 
   const mealPlanQuery = useQuery({
     queryKey: ['meal-plan', formatDate(today), formatDate(weekAhead)],
@@ -329,6 +376,10 @@ export function Dashboard() {
         to_date: formatDate(weekAhead),
       }),
   });
+
+  // Fetch cook log for today only — upcoming shelf only shows ticks on today's meals.
+  const { data: cookLogData } = useCookLog(todayStr, todayStr);
+  const cookedToday: number[] = cookLogData?.[todayStr] ?? [];
 
   const days = Array.from({ length: 8 }, (_, i) => addDays(today, i));
 
@@ -361,6 +412,8 @@ export function Dashboard() {
         loading={mealPlanQuery.isLoading}
         error={mealPlanQuery.isError}
         onAddToMealPlan={setModalRecipe}
+        cookedToday={cookedToday}
+        onLogCook={setCookLogEntry}
       />
 
       <UpSoonShelf onAddToMealPlan={setModalRecipe} />
@@ -394,6 +447,15 @@ export function Dashboard() {
       ))}
 
       <MealPlanAddModal recipe={modalRecipe} onHide={() => setModalRecipe(null)} />
+      {cookLogEntry && (
+        <CookLogModal
+          show
+          onHide={() => setCookLogEntry(null)}
+          recipeId={cookLogRecipeId}
+          mealPlanDate={cookLogDate}
+          mealType={cookLogMealType}
+        />
+      )}
     </div>
   );
 }

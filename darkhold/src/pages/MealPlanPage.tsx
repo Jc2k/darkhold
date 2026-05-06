@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Row, Col, Card, Button, InputGroup, Modal, Form, Spinner, Alert } from 'react-bootstrap';
 import { AsyncTypeahead } from 'react-bootstrap-typeahead';
 import 'react-bootstrap-typeahead/css/Typeahead.css';
-import { Trash3, Plus } from 'react-bootstrap-icons';
+import { Trash3, Plus, Check2Circle } from 'react-bootstrap-icons';
 import { proxyMediaUrl } from '../utils/mediaUrl';
 import {
   DndContext,
@@ -29,6 +29,9 @@ import type { MealPlan, Recipe, MealType, PaginatedResponse } from '../api/tando
 import { deriveMealType } from '../utils/mealUtils';
 import { LoadingMascot } from '../components/LoadingMascot';
 import { NoTokenAlert } from '../components/NoTokenAlert';
+import { CookLogModal } from '../components/CookLogModal';
+import { useCookLog, isCookedOnDate } from '../hooks/useCookLog';
+import { smallCircleButtonStyle } from '../utils/buttonStyles';
 
 type WithSortable = { sortable?: { containerId: string } } | undefined;
 
@@ -42,18 +45,7 @@ const navButtonStyle: React.CSSProperties = {
   padding: '0 0.5rem',
 };
 
-const circleButtonStyle: React.CSSProperties = {
-  width: 28,
-  height: 28,
-  padding: 0,
-  borderRadius: '50%',
-  lineHeight: 1,
-  fontSize: '1rem',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  flexShrink: 0,
-};
+const circleButtonStyle = smallCircleButtonStyle;
 
 const thumbnailStyle: React.CSSProperties = {
   width: 36,
@@ -109,9 +101,11 @@ interface EntryCardProps {
   onDelete: (id: number) => void;
   onClick: (entry: MealPlan) => void;
   dragging?: boolean;
+  isCooked?: boolean;
+  onLogCook?: (entry: MealPlan) => void;
 }
 
-function EntryCard({ entry, onDelete, onClick, dragging }: EntryCardProps) {
+function EntryCard({ entry, onDelete, onClick, dragging, isCooked, onLogCook }: EntryCardProps) {
   const recipe = typeof entry.recipe === 'object' ? entry.recipe : null;
   const thumbnailSrc = recipe?.image ? proxyMediaUrl(recipe.image) : undefined;
   return (
@@ -134,6 +128,17 @@ function EntryCard({ entry, onDelete, onClick, dragging }: EntryCardProps) {
               <div className="text-muted" style={{ fontSize: '0.7rem' }}>{entry.note}</div>
             )}
           </div>
+          {!dragging && !isCooked && onLogCook && (
+            <Button
+              variant="outline-secondary"
+              size="sm"
+              style={circleButtonStyle}
+              onClick={(e) => { e.stopPropagation(); onLogCook(entry); }}
+              aria-label="Log as cooked"
+            >
+              <Check2Circle size={16} />
+            </Button>
+          )}
           {!dragging && (
             <Button
               variant="danger"
@@ -156,9 +161,11 @@ interface SortableEntryProps {
   onDelete: (id: number) => void;
   onClick: (entry: MealPlan) => void;
   isPending?: boolean;
+  isCooked?: boolean;
+  onLogCook?: (entry: MealPlan) => void;
 }
 
-function SortableEntry({ entry, onDelete, onClick, isPending }: SortableEntryProps) {
+function SortableEntry({ entry, onDelete, onClick, isPending, isCooked, onLogCook }: SortableEntryProps) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: entry.id,
   });
@@ -196,6 +203,17 @@ function SortableEntry({ entry, onDelete, onClick, isPending }: SortableEntryPro
                   <div className="text-muted" style={{ fontSize: '0.7rem' }}>{entry.note}</div>
                 )}
               </div>
+              {!isCooked && onLogCook && (
+                <Button
+                  variant="outline-secondary"
+                  size="sm"
+                  style={circleButtonStyle}
+                  onClick={(e) => { e.stopPropagation(); onLogCook(entry); }}
+                  aria-label="Log as cooked"
+                >
+                  <Check2Circle size={16} />
+                </Button>
+              )}
               <Button
                 variant="danger"
                 size="sm"
@@ -390,16 +408,24 @@ export function MealPlanPage() {
   const [weekOffset, setWeekOffset] = useState(0);
   const [addDate, setAddDate] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<number | null>(null);
+  const [cookLogEntry, setCookLogEntry] = useState<MealPlan | null>(null);
   // Maps entry id -> optimistic target date for in-flight cross-day moves
   const [pendingMoves, setPendingMoves] = useState<Map<number, string>>(new Map());
   const hasPersonalToken = Boolean(localStorage.getItem('tandoor_token'));
 
   const today = new Date();
+  const todayStr = formatDate(today);
   const daysBackToSaturday = (today.getDay() + 1) % 7;
   const startDate = addDays(today, -daysBackToSaturday + weekOffset * 7);
   const endDate = addDays(startDate, 6);
 
   const { data, isLoading, isError } = useMealPlan(startDate, endDate);
+
+  // Fetch cook logs for the past/today portion of the displayed week.
+  // Only dates <= today can have cook logs; use the week start or today
+  // (whichever is earlier) as the fromDate.
+  const cookLogFrom = formatDate(startDate) <= todayStr ? formatDate(startDate) : todayStr;
+  const { data: cookLogData } = useCookLog(cookLogFrom, todayStr);
 
   // Only show the full-screen spinner on the very first load.
   // Once data has been received at least once, week navigation and background
@@ -507,6 +533,19 @@ export function MealPlanPage() {
     return <Alert variant="danger">Failed to load meal plan.</Alert>;
   }
 
+  // Derived cook log modal props — computed outside JSX to avoid inline IIFEs.
+  const cookLogMealType =
+    cookLogEntry && typeof cookLogEntry.meal_type === 'object'
+      ? (cookLogEntry.meal_type as MealType)
+      : undefined;
+  const cookLogRecipeId =
+    cookLogEntry
+      ? typeof cookLogEntry.recipe === 'object'
+        ? cookLogEntry.recipe.id
+        : (cookLogEntry.recipe as number)
+      : 0;
+  const cookLogDate = cookLogEntry?.from_date.split('T')[0] ?? '';
+
   return (
     <div className="pt-2 meal-plan-page">
       {!hasPersonalToken && <NoTokenAlert />}
@@ -548,6 +587,7 @@ export function MealPlanPage() {
           {days.map((day) => {
             const dateKey = formatDate(day);
             const isToday = dateKey === formatDate(new Date());
+            const isPastOrToday = dateKey <= todayStr;
             const entries = byDay[dateKey] ?? [];
 
             return (
@@ -572,15 +612,22 @@ export function MealPlanPage() {
                         id={dateKey}
                         items={entries.map((e) => e.id)}
                       >
-                        {entries.map((entry) => (
-                          <SortableEntry
-                            key={entry.id}
-                            entry={entry}
-                            onDelete={handleDelete}
-                            onClick={(e) => navigate(`/meal-plan-entry/${e.id}`)}
-                            isPending={pendingMoves.has(entry.id)}
-                          />
-                        ))}
+                        {entries.map((entry) => {
+                          const recipeId =
+                            typeof entry.recipe === 'object' ? entry.recipe.id : entry.recipe;
+                          const cooked = isPastOrToday && isCookedOnDate(cookLogData, recipeId, dateKey);
+                          return (
+                            <SortableEntry
+                              key={entry.id}
+                              entry={entry}
+                              onDelete={handleDelete}
+                              onClick={(e) => navigate(`/meal-plan-entry/${e.id}`)}
+                              isPending={pendingMoves.has(entry.id)}
+                              isCooked={cooked}
+                              onLogCook={isPastOrToday ? setCookLogEntry : undefined}
+                            />
+                          );
+                        })}
                       </SortableContext>
                       {entries.length === 0 && (
                         <p className="text-muted text-center mb-0" style={{ fontSize: '0.75rem' }}>
@@ -609,6 +656,15 @@ export function MealPlanPage() {
 
       {addDate && (
         <AddMealModal date={addDate} onHide={() => setAddDate(null)} mealTypes={mealTypes} />
+      )}
+      {cookLogEntry && (
+        <CookLogModal
+          show
+          onHide={() => setCookLogEntry(null)}
+          recipeId={cookLogRecipeId}
+          mealPlanDate={cookLogDate}
+          mealType={cookLogMealType}
+        />
       )}
     </div>
   );

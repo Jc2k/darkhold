@@ -58,6 +58,7 @@ export function MealPlanEntryDetail() {
         recipe={recipe}
         servingsOverride={servingsOverride}
         mealPlanNote={note}
+        mealPlanEntry={entry}
       />
     </>
   );
