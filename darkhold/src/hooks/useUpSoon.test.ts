@@ -49,13 +49,26 @@ describe('fetchUpSoonData', () => {
             next: null,
           }),
       })
-      // Second call: GET /recipe-book-entry/?book=42 (page 1)
+      // Second call: GET /recipe-book-entry/?book=42 (page 1) — Promise.all, entries first
       .mockResolvedValueOnce({
         ok: true,
         json: () =>
           Promise.resolve({
             count: 2,
             results: [makeEntry(1, 100, 'Pasta', 42), makeEntry(2, 200, 'Soup', 42)],
+            next: null,
+          }),
+      })
+      // Third call: GET /recipe/?books_and=42 (page 1) — Promise.all, recipes second
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            count: 2,
+            results: [
+              { id: 100, name: 'Pasta', created_by: 1 },
+              { id: 200, name: 'Soup', created_by: 1 },
+            ],
             next: null,
           }),
       });
@@ -93,7 +106,13 @@ describe('fetchUpSoonData', () => {
             next: null,
           }),
       })
-      // GET /recipe-book-entry/?book=55 page 1 — no entries
+      // GET /recipe-book-entry/?book=55 page 1 — no entries (Promise.all, entries first)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({ count: 0, results: [], next: null }),
+      })
+      // GET /recipe/?books_and=55 page 1 — no recipes (Promise.all, recipes second)
       .mockResolvedValueOnce({
         ok: true,
         json: () =>
@@ -127,10 +146,10 @@ describe('fetchUpSoonData', () => {
             next: null,
           }),
       })
-      // GET /recipe/100/ — full recipe fetch
+      // GET /recipe/?books_and=42 (page 1) — full recipe fetched via books_and
       .mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({ id: 100, name: 'Pasta', created_by: 1 }),
+        json: () => Promise.resolve({ count: 1, results: [{ id: 100, name: 'Pasta', created_by: 1 }], next: null }),
       });
 
     vi.stubGlobal('fetch', fetchMock);
@@ -150,6 +169,7 @@ describe('fetchUpSoonData', () => {
         json: () =>
           Promise.resolve({ count: 1, results: [makeBook(42, UP_SOON_BOOK_NAME)], next: null }),
       })
+      // Entries: one valid, one with null recipe
       .mockResolvedValueOnce({
         ok: true,
         json: () =>
@@ -160,6 +180,16 @@ describe('fetchUpSoonData', () => {
               // Entry with null recipe (shouldn't happen but defensive)
               { id: 2, book: 42, book_content: makeBook(42, UP_SOON_BOOK_NAME), recipe: null },
             ],
+            next: null,
+          }),
+      })
+      // GET /recipe/?books_and=42 — only the valid recipe is returned
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            count: 1,
+            results: [{ id: 100, name: 'Valid', created_by: 1 }],
             next: null,
           }),
       });

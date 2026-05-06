@@ -47,30 +47,47 @@ async function fetchAllEntriesForBook(bookId: number): Promise<RecipeBookEntry[]
   return all;
 }
 
+async function fetchAllRecipesForBook(bookId: number): Promise<Recipe[]> {
+  const all: Recipe[] = [];
+  let page = 1;
+  let hasNext = true;
+  while (hasNext) {
+    const data = await apiGet<PaginatedResponse<Recipe>>('/recipe/', {
+      books_and: bookId,
+      page_size: 100,
+      page,
+    });
+    all.push(...data.results);
+    hasNext = !!data.next;
+    page++;
+  }
+  return all;
+}
+
 export async function fetchUpSoonData(): Promise<UpSoonData | null> {
   const books = await fetchAllBooks();
   const book = books.find((b) => b.name === UP_SOON_BOOK_NAME);
   if (!book) return null;
-  const entries = await fetchAllEntriesForBook(book.id);
 
-  const validEntries = entries.filter((e) => e.recipe != null);
+  // Fetch entries (for the entryId needed for deletion) and full recipe objects in parallel.
+  // Using /recipe/?books_and= is more efficient than fetching each recipe individually.
+  const [entries, recipes] = await Promise.all([
+    fetchAllEntriesForBook(book.id),
+    fetchAllRecipesForBook(book.id),
+  ]);
 
-  // The Tandoor API may return `recipe` as a plain ID rather than a full object.
-  // Fetch the full recipe for any such entries so the shelf can display them.
-  const enrichedEntries = await Promise.all(
-    validEntries.map(async (e) => {
-      const recipe: Recipe =
-        typeof e.recipe === 'number'
-          ? await apiGet<Recipe>(`/recipe/${e.recipe}/`)
-          : (e.recipe as Recipe);
-      return { entryId: e.id, recipeId: recipe.id, recipe };
-    }),
-  );
+  const recipeById = new Map<number, Recipe>(recipes.map((r) => [r.id, r]));
 
-  return {
-    bookId: book.id,
-    entries: enrichedEntries,
-  };
+  const enrichedEntries: UpSoonEntry[] = [];
+  for (const entry of entries) {
+    if (entry.recipe == null) continue;
+    const recipeId = typeof entry.recipe === 'number' ? entry.recipe : entry.recipe.id;
+    const recipe = recipeById.get(recipeId);
+    if (!recipe) continue;
+    enrichedEntries.push({ entryId: entry.id, recipeId, recipe });
+  }
+
+  return { bookId: book.id, entries: enrichedEntries };
 }
 
 /** Shared query hook — multiple components can call this and get the same cached data. */
