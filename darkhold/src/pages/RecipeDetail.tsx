@@ -15,7 +15,9 @@ import {
   People,
   BoxArrowUpRight,
   Share,
+  Check2Circle,
 } from "react-bootstrap-icons";
+import { OverlayTrigger, Popover } from "react-bootstrap";
 import { apiGet, apiPost } from "../api/client";
 import type {
   Recipe,
@@ -25,10 +27,13 @@ import type {
   Food,
   Keyword,
   FoodProperty,
+  MealPlan,
+  MealType,
   PaginatedResponse,
 } from "../api/tandoor-types";
 import { TagBadge } from "../components/TagBadge";
 import { MealPlanAddModal } from "../components/MealPlanAddModal";
+import { CookLogModal } from "../components/CookLogModal";
 import { LoadingMascot } from "../components/LoadingMascot";
 import { UpSoonButton } from "../components/UpSoonButton";
 import { proxyMediaUrl } from "../utils/mediaUrl";
@@ -36,6 +41,7 @@ import { formatFraction } from "../utils/fractions";
 import { useRecipeWeightG } from "../hooks/useRecipeWeightG";
 import { useAppConfig } from "../hooks/useAppConfig";
 import { broadcastInvalidation } from "../hooks/useInvalidationSocket";
+import { useCookLog, isCookedOnDate } from "../hooks/useCookLog";
 
 const MAX_RECENTLY_VIEWED_ITEMS = 10;
 
@@ -341,16 +347,20 @@ interface RecipeDetailContentProps {
   servingsOverride?: number | null;
   /** Note from a meal plan entry, shown as a banner above the recipe. */
   mealPlanNote?: string | null;
+  /** The full meal plan entry, used to show the cook log tick button. */
+  mealPlanEntry?: MealPlan | null;
 }
 
 export function RecipeDetailContent({
   recipe,
   servingsOverride,
   mealPlanNote,
+  mealPlanEntry,
 }: RecipeDetailContentProps) {
   const [planRecipe, setPlanRecipe] = useState<Recipe | null>(null);
   const [cookingMode, setCookingMode] = useState(false);
   const [showNutrition, setShowNutrition] = useState(false);
+  const [showCookLog, setShowCookLog] = useState(false);
   const { tandoor_external_url: externalUrl } = useAppConfig();
 
   const [userServings, setUserServings] = useState<number>(
@@ -361,6 +371,26 @@ export function RecipeDetailContent({
   useEffect(() => {
     setUserServings(servingsOverride ?? recipe.servings ?? 1);
   }, [recipe.id, servingsOverride, recipe.servings]);
+
+  // Determine whether to show the cook log tick button.
+  const entryDate = mealPlanEntry?.from_date?.split('T')[0] ?? null;
+  const today = new Date().toISOString().split('T')[0];
+  const isEligibleForCookLog = entryDate !== null && entryDate <= today;
+
+  const { data: cookLogData } = useCookLog(
+    entryDate ?? today,
+    entryDate ?? today,
+  );
+  const isCooked = isEligibleForCookLog
+    ? isCookedOnDate(cookLogData, recipe.id, entryDate!)
+    : false;
+
+  const mealType =
+    mealPlanEntry && typeof mealPlanEntry.meal_type === 'object'
+      ? (mealPlanEntry.meal_type as MealType)
+      : null;
+
+  const hasPersonalToken = Boolean(localStorage.getItem('tandoor_token'));
 
   const keywords = Array.isArray(recipe.keywords)
     ? recipe.keywords.filter((k): k is Keyword => typeof k === "object")
@@ -416,6 +446,41 @@ export function RecipeDetailContent({
           >
             <Plus />
           </Button>
+          {isEligibleForCookLog && !isCooked && !hasPersonalToken && (
+            <OverlayTrigger
+              trigger="click"
+              placement="bottom"
+              rootClose
+              overlay={
+                <Popover>
+                  <Popover.Body className="p-2">
+                    A personal API token is required.{' '}
+                    <Link to="/settings">Go to Settings →</Link>
+                  </Popover.Body>
+                </Popover>
+              }
+            >
+              <Button
+                variant="outline-secondary"
+                size="sm"
+                style={circleButtonStyle}
+                aria-label="Log as cooked"
+              >
+                <Check2Circle />
+              </Button>
+            </OverlayTrigger>
+          )}
+          {isEligibleForCookLog && !isCooked && hasPersonalToken && (
+            <Button
+              variant="secondary"
+              size="sm"
+              style={circleButtonStyle}
+              onClick={() => setShowCookLog(true)}
+              aria-label="Log as cooked"
+            >
+              <Check2Circle />
+            </Button>
+          )}
           <UpSoonButton recipeId={recipe.id} style={circleButtonStyle} />
           {steps.length > 0 && (
             <Button
@@ -628,6 +693,15 @@ export function RecipeDetailContent({
         recipe={planRecipe}
         onHide={() => setPlanRecipe(null)}
       />
+      {isEligibleForCookLog && entryDate && (
+        <CookLogModal
+          show={showCookLog}
+          onHide={() => setShowCookLog(false)}
+          recipeId={recipe.id}
+          mealPlanDate={entryDate}
+          mealType={mealType}
+        />
+      )}
     </div>
   );
 }
