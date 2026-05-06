@@ -167,10 +167,6 @@ function useTagShelf(tag: string) {
         page_size: 10,
       }),
     enabled: keywordId !== undefined,
-    select: (data: PaginatedResponse<Recipe>) => ({
-      ...data,
-      results: [...data.results].sort((a, b) => b.id - a.id),
-    }),
   });
 
   return {
