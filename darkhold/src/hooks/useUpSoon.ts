@@ -95,7 +95,7 @@ export function useRemoveFromUpSoon() {
     mutationFn: async (recipeId: number) => {
       const data = qc.getQueryData<UpSoonData | null>(['up-soon']);
       const entry = data?.entries.find((e) => e.recipeId === recipeId);
-      if (!entry) throw new Error('Recipe not in Up Soon');
+      if (!entry) throw new Error('Cannot remove recipe: not found in Up Soon book');
       await apiDelete(`/recipe-book-entry/${entry.entryId}/`);
     },
     onSuccess: () => {

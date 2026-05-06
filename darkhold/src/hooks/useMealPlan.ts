@@ -57,7 +57,10 @@ export function useCreateMealPlan() {
       broadcastInvalidation('shopping-list');
 
       // Remove from Up Soon if this recipe is in the list
-      const recipeId = variables.recipe as unknown as number;
+      const recipeId =
+        typeof variables.recipe === 'object'
+          ? (variables.recipe as { id?: number } | null)?.id
+          : (variables.recipe as unknown as number | undefined);
       if (recipeId) {
         const upSoonData = qc.getQueryData<UpSoonData | null>(['up-soon']);
         const entry = upSoonData?.entries.find((e) => e.recipeId === recipeId);

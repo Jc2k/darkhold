@@ -357,7 +357,8 @@ function UpSoonShelf({ onAddToMealPlan }: { onAddToMealPlan: (r: Recipe) => void
   );
 }
 
-function BooksShelf() {  const { data: books, isLoading: booksLoading, isError: booksError } = useQuery({
+function BooksShelf() {
+  const { data: books, isLoading: booksLoading, isError: booksError } = useQuery({
     queryKey: ['books'],
     queryFn: fetchAllBooks,
   });
