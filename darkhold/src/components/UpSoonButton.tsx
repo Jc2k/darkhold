@@ -1,5 +1,6 @@
-import { Button, Spinner } from 'react-bootstrap';
+import { Button, Spinner, OverlayTrigger, Popover } from 'react-bootstrap';
 import { BookmarkPlus, BookmarkDash } from 'react-bootstrap-icons';
+import { Link } from 'react-router-dom';
 import { useUpSoonForRecipe } from '../hooks/useUpSoon';
 
 interface Props {
@@ -11,7 +12,35 @@ export function UpSoonButton({ recipeId, style }: Props) {
   const hasPersonalToken = Boolean(localStorage.getItem('tandoor_token'));
   const { isLoading, isInUpSoon, isPending, toggle } = useUpSoonForRecipe(recipeId);
 
-  if (!hasPersonalToken || isLoading) return null;
+  if (isLoading) return null;
+
+  if (!hasPersonalToken) {
+    return (
+      <OverlayTrigger
+        trigger="click"
+        placement="bottom"
+        rootClose
+        overlay={
+          <Popover>
+            <Popover.Body className="p-2">
+              A personal API token is required.{' '}
+              <Link to="/settings">Go to Settings →</Link>
+            </Popover.Body>
+          </Popover>
+        }
+      >
+        <Button
+          variant="outline-secondary"
+          size="sm"
+          style={style}
+          onClick={(e) => e.stopPropagation()}
+          aria-label="Add to Up Soon"
+        >
+          <BookmarkPlus />
+        </Button>
+      </OverlayTrigger>
+    );
+  }
 
   return (
     <Button
