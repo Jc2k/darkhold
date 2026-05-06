@@ -13,6 +13,7 @@ import { CookLogModal } from '../components/CookLogModal';
 import { getFilterId } from '../utils/bookUtils';
 import { useUpSoonData } from '../hooks/useUpSoon';
 import { useCookLog } from '../hooks/useCookLog';
+import { smallCircleButtonStyle } from '../utils/buttonStyles';
 
 function formatDate(d: Date): string {
   return d.toISOString().split('T')[0];
@@ -76,14 +77,7 @@ interface UpcomingMealsShelfProps {
 }
 
 const cookLogButtonStyle: React.CSSProperties = {
-  width: 28,
-  height: 28,
-  padding: 0,
-  borderRadius: '50%',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  fontSize: '1rem',
+  ...smallCircleButtonStyle,
   position: 'absolute',
   bottom: 8,
   left: 8,
@@ -503,6 +497,19 @@ export function Dashboard() {
   const weekAhead = new Date();
   weekAhead.setDate(weekAhead.getDate() + 7);
 
+  // Derived cook log modal props — computed outside JSX to avoid inline IIFEs.
+  const cookLogMealType =
+    cookLogEntry && typeof cookLogEntry.meal_type === 'object'
+      ? (cookLogEntry.meal_type as MealType)
+      : undefined;
+  const cookLogRecipeId =
+    cookLogEntry
+      ? typeof cookLogEntry.recipe === 'object'
+        ? cookLogEntry.recipe.id
+        : (cookLogEntry.recipe as number)
+      : 0;
+  const cookLogDate = cookLogEntry?.from_date.split('T')[0] ?? '';
+
   const mealPlanQuery = useQuery({
     queryKey: ['meal-plan', formatDate(today), formatDate(weekAhead)],
     queryFn: () =>
@@ -613,22 +620,15 @@ export function Dashboard() {
       <BooksShelf />
 
       <MealPlanAddModal recipe={modalRecipe} onHide={() => setModalRecipe(null)} />
-      {cookLogEntry && (() => {
-        const entryDate = cookLogEntry.from_date.split('T')[0];
-        const mealType =
-          typeof cookLogEntry.meal_type === 'object' ? cookLogEntry.meal_type as MealType : undefined;
-        const recipeId =
-          typeof cookLogEntry.recipe === 'object' ? cookLogEntry.recipe.id : cookLogEntry.recipe;
-        return (
-          <CookLogModal
-            show
-            onHide={() => setCookLogEntry(null)}
-            recipeId={recipeId}
-            mealPlanDate={entryDate}
-            mealType={mealType}
-          />
-        );
-      })()}
+      {cookLogEntry && (
+        <CookLogModal
+          show
+          onHide={() => setCookLogEntry(null)}
+          recipeId={cookLogRecipeId}
+          mealPlanDate={cookLogDate}
+          mealType={cookLogMealType}
+        />
+      )}
     </div>
   );
 }

@@ -31,6 +31,7 @@ import { LoadingMascot } from '../components/LoadingMascot';
 import { NoTokenAlert } from '../components/NoTokenAlert';
 import { CookLogModal } from '../components/CookLogModal';
 import { useCookLog, isCookedOnDate } from '../hooks/useCookLog';
+import { smallCircleButtonStyle } from '../utils/buttonStyles';
 
 type WithSortable = { sortable?: { containerId: string } } | undefined;
 
@@ -44,18 +45,7 @@ const navButtonStyle: React.CSSProperties = {
   padding: '0 0.5rem',
 };
 
-const circleButtonStyle: React.CSSProperties = {
-  width: 28,
-  height: 28,
-  padding: 0,
-  borderRadius: '50%',
-  lineHeight: 1,
-  fontSize: '1rem',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  flexShrink: 0,
-};
+const circleButtonStyle = smallCircleButtonStyle;
 
 const thumbnailStyle: React.CSSProperties = {
   width: 36,
@@ -543,6 +533,19 @@ export function MealPlanPage() {
     return <Alert variant="danger">Failed to load meal plan.</Alert>;
   }
 
+  // Derived cook log modal props — computed outside JSX to avoid inline IIFEs.
+  const cookLogMealType =
+    cookLogEntry && typeof cookLogEntry.meal_type === 'object'
+      ? (cookLogEntry.meal_type as MealType)
+      : undefined;
+  const cookLogRecipeId =
+    cookLogEntry
+      ? typeof cookLogEntry.recipe === 'object'
+        ? cookLogEntry.recipe.id
+        : (cookLogEntry.recipe as number)
+      : 0;
+  const cookLogDate = cookLogEntry?.from_date.split('T')[0] ?? '';
+
   return (
     <div className="pt-2 meal-plan-page">
       {!hasPersonalToken && <NoTokenAlert />}
@@ -654,22 +657,15 @@ export function MealPlanPage() {
       {addDate && (
         <AddMealModal date={addDate} onHide={() => setAddDate(null)} mealTypes={mealTypes} />
       )}
-      {cookLogEntry && (() => {
-        const entryDate = cookLogEntry.from_date.split('T')[0];
-        const mealType =
-          typeof cookLogEntry.meal_type === 'object' ? cookLogEntry.meal_type as MealType : undefined;
-        const recipeId =
-          typeof cookLogEntry.recipe === 'object' ? cookLogEntry.recipe.id : cookLogEntry.recipe;
-        return (
-          <CookLogModal
-            show
-            onHide={() => setCookLogEntry(null)}
-            recipeId={recipeId}
-            mealPlanDate={entryDate}
-            mealType={mealType}
-          />
-        );
-      })()}
+      {cookLogEntry && (
+        <CookLogModal
+          show
+          onHide={() => setCookLogEntry(null)}
+          recipeId={cookLogRecipeId}
+          mealPlanDate={cookLogDate}
+          mealType={cookLogMealType}
+        />
+      )}
     </div>
   );
 }
