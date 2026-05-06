@@ -8,7 +8,7 @@ import { LoadingMascot } from '../components/LoadingMascot';
 import { MealPlanAddModal } from '../components/MealPlanAddModal';
 import { ALL_RECIPES_STALE_TIME, ALL_RECIPES_GC_TIME } from '../utils/cacheConfig';
 
-const GROUP_TAGS = ['Breakfast', 'Lunch', 'Quickies', 'Burger', 'Noodles', 'Pasta', 'Curry', 'Sunday', 'Baking', 'Snack'];
+const GROUP_TAGS = ['Breakfast', 'Lunch', 'Quickies', 'Burger', 'Noodles', 'Pasta', 'Curry', 'Pizza', 'Sunday', 'Baking', 'Snack'];
 
 function groupRecipes(recipes: Recipe[], kwMap: Record<number, string>): Record<string, Recipe[]> {
   const groups: Record<string, Recipe[]> = {};
@@ -102,7 +102,7 @@ export function AllRecipes() {
   return (
     <div className="pt-2">
       {/* Jump-to section sidebar / quick nav */}
-      <Nav className="flex-wrap gap-1 mb-4">
+      <Nav className="flex-wrap gap-1 mb-4 justify-content-center">
         {allGroups.map((tag) => (
           groups[tag]?.length > 0 && (
             <Nav.Link
