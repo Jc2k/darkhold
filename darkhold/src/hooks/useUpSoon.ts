@@ -47,17 +47,47 @@ async function fetchAllEntriesForBook(bookId: number): Promise<RecipeBookEntry[]
   return all;
 }
 
+async function fetchAllRecipesForBook(bookId: number): Promise<Recipe[]> {
+  const all: Recipe[] = [];
+  let page = 1;
+  let hasNext = true;
+  while (hasNext) {
+    const data = await apiGet<PaginatedResponse<Recipe>>('/recipe/', {
+      books_and: bookId,
+      page_size: 100,
+      page,
+    });
+    all.push(...data.results);
+    hasNext = !!data.next;
+    page++;
+  }
+  return all;
+}
+
 export async function fetchUpSoonData(): Promise<UpSoonData | null> {
   const books = await fetchAllBooks();
   const book = books.find((b) => b.name === UP_SOON_BOOK_NAME);
   if (!book) return null;
-  const entries = await fetchAllEntriesForBook(book.id);
-  return {
-    bookId: book.id,
-    entries: entries
-      .filter((e) => e.recipe != null)
-      .map((e) => ({ entryId: e.id, recipeId: e.recipe.id, recipe: e.recipe })),
-  };
+
+  // Fetch entries (for the entryId needed for deletion) and full recipe objects in parallel.
+  // Using /recipe/?books_and= is more efficient than fetching each recipe individually.
+  const [entries, recipes] = await Promise.all([
+    fetchAllEntriesForBook(book.id),
+    fetchAllRecipesForBook(book.id),
+  ]);
+
+  const recipeById = new Map<number, Recipe>(recipes.map((r) => [r.id, r]));
+
+  const enrichedEntries: UpSoonEntry[] = [];
+  for (const entry of entries) {
+    if (entry.recipe == null) continue;
+    const recipeId = typeof entry.recipe === 'number' ? entry.recipe : entry.recipe.id;
+    const recipe = recipeById.get(recipeId);
+    if (!recipe) continue;
+    enrichedEntries.push({ entryId: entry.id, recipeId, recipe });
+  }
+
+  return { bookId: book.id, entries: enrichedEntries };
 }
 
 /** Shared query hook — multiple components can call this and get the same cached data. */
@@ -88,6 +118,25 @@ export function useAddToUpSoon() {
       }
       return apiPost<RecipeBookEntry>('/recipe-book-entry/', { book: bookId, recipe: recipeId });
     },
+    onMutate: async (recipeId) => {
+      await qc.cancelQueries({ queryKey: ['up-soon'] });
+      const previous = qc.getQueryData<UpSoonData | null>(['up-soon']);
+      if (previous) {
+        qc.setQueryData<UpSoonData | null>(['up-soon'], {
+          ...previous,
+          entries: [
+            ...previous.entries,
+            { entryId: -1, recipeId, recipe: { id: recipeId, name: '', created_by: 0 } },
+          ],
+        });
+      }
+      return { previous };
+    },
+    onError: (_err, _recipeId, context) => {
+      if (context?.previous !== undefined) {
+        qc.setQueryData(['up-soon'], context.previous);
+      }
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['up-soon'] });
       broadcastInvalidation('up-soon');
@@ -104,6 +153,22 @@ export function useRemoveFromUpSoon() {
       const entry = data?.entries.find((e) => e.recipeId === recipeId);
       if (!entry) throw new Error('Cannot remove recipe: not found in Up Soon book');
       await apiDelete(`/recipe-book-entry/${entry.entryId}/`);
+    },
+    onMutate: async (recipeId) => {
+      await qc.cancelQueries({ queryKey: ['up-soon'] });
+      const previous = qc.getQueryData<UpSoonData | null>(['up-soon']);
+      if (previous) {
+        qc.setQueryData<UpSoonData | null>(['up-soon'], {
+          ...previous,
+          entries: previous.entries.filter((e) => e.recipeId !== recipeId),
+        });
+      }
+      return { previous };
+    },
+    onError: (_err, _recipeId, context) => {
+      if (context?.previous !== undefined) {
+        qc.setQueryData(['up-soon'], context.previous);
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['up-soon'] });

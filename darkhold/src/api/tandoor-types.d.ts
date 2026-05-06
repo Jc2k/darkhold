@@ -233,5 +233,5 @@ export interface RecipeBookEntry {
   id: number;
   book: RecipeBook | number;
   book_content: RecipeBook;
-  recipe: Recipe;
+  recipe: Recipe | number;
 }
