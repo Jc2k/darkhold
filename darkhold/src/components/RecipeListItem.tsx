@@ -3,6 +3,7 @@ import { ListGroup, Button } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import type { Recipe } from '../api/tandoor-types';
 import { addToMealPlanButtonStyle } from '../utils/buttonStyles';
+import { UpSoonButton } from './UpSoonButton';
 
 interface Props {
   recipe: Recipe;
@@ -22,6 +23,7 @@ export const RecipeListItem = memo(function RecipeListItem({ recipe, onAddToMeal
         {recipe.cooking_time != null && (
           <small className="text-muted">{recipe.cooking_time} min</small>
         )}
+        <UpSoonButton recipeId={recipe.id} style={{ ...addToMealPlanButtonStyle, flexShrink: 0 }} />
         {onAddToMealPlan && (
           <Button
             variant="success"

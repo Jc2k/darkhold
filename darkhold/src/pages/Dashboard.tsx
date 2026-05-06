@@ -1,14 +1,16 @@
 import { useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
 import { Spinner } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Book } from 'react-bootstrap-icons';
+import { Book, BookmarkFill } from 'react-bootstrap-icons';
 import { apiGet } from '../api/client';
 import type { Recipe, Keyword, MealPlan, RecipeBook, RecipeBookEntry, PaginatedResponse } from '../api/tandoor-types';
 import { RecipeCard } from '../components/RecipeCard';
 import { BookCard } from '../components/BookCard';
 import { MealPlanAddModal } from '../components/MealPlanAddModal';
 import { getFilterId } from '../utils/bookUtils';
+import { useUpSoonData } from '../hooks/useUpSoon';
 
 function formatDate(d: Date): string {
   return d.toISOString().split('T')[0];
@@ -25,7 +27,7 @@ function shortDay(date: Date): string {
 }
 
 interface ShelfProps {
-  title: string;
+  title: ReactNode;
   searchLink: string;
   recipes: Recipe[];
   loading: boolean;
@@ -336,6 +338,25 @@ async function fetchAllBookEntries(): Promise<RecipeBookEntry[]> {
   return all;
 }
 
+function UpSoonShelf({ onAddToMealPlan }: { onAddToMealPlan: (r: Recipe) => void }) {
+  const { data, isLoading, isError } = useUpSoonData();
+
+  if (!isLoading && !isError && (!data || data.entries.length === 0)) return null;
+
+  const recipes = data?.entries.map((e) => e.recipe) ?? [];
+
+  return (
+    <RecipeShelf
+      title={<><BookmarkFill className="me-2 text-warning" />Up Soon</>}
+      searchLink="/books"
+      recipes={recipes}
+      loading={isLoading}
+      error={isError}
+      onAddToMealPlan={onAddToMealPlan}
+    />
+  );
+}
+
 function BooksShelf() {
   const { data: books, isLoading: booksLoading, isError: booksError } = useQuery({
     queryKey: ['books'],
@@ -469,6 +490,8 @@ export function Dashboard() {
         error={mealPlanQuery.isError}
         onAddToMealPlan={setModalRecipe}
       />
+
+      <UpSoonShelf onAddToMealPlan={setModalRecipe} />
 
       <RecipeShelf
         title="⭐ Top Rated"

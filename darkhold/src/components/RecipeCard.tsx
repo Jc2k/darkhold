@@ -5,6 +5,7 @@ import type { Recipe, Keyword } from '../api/tandoor-types';
 import { TagBadge } from './TagBadge';
 import { proxyMediaUrl } from '../utils/mediaUrl';
 import { addToMealPlanButtonStyle } from '../utils/buttonStyles';
+import { UpSoonButton } from './UpSoonButton';
 
 interface Props {
   recipe: Recipe;
@@ -72,6 +73,15 @@ export function RecipeCard({ recipe, onAddToMealPlan, linkTo }: Props) {
             <Plus />
           </Button>
         )}
+        <UpSoonButton
+          recipeId={recipe.id}
+          style={{
+            ...addToMealPlanButtonStyle,
+            position: 'absolute',
+            bottom: 8,
+            right: onAddToMealPlan ? 48 : 8,
+          }}
+        />
       </div>
       <Card.Body onClick={() => navigate(destination)}>
         <Card.Title className="fs-6">{recipe.name}</Card.Title>

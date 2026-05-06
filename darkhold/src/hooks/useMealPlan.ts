@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPost, apiPatch, apiDelete } from '../api/client';
 import type { MealPlan, PaginatedResponse } from '../api/tandoor-types';
 import { broadcastInvalidation } from './useInvalidationSocket';
+import type { UpSoonData } from './useUpSoon';
 
 function formatDate(d: Date): string {
   return d.toISOString().split('T')[0];
@@ -49,11 +50,30 @@ export function useCreateMealPlan() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: Partial<MealPlan>) => apiPost<MealPlan>('/meal-plan/', data),
-    onSuccess: () => {
+    onSuccess: async (_result, variables) => {
       qc.invalidateQueries({ queryKey: ['meal-plan'] });
       qc.invalidateQueries({ queryKey: ['shopping-list'] });
       broadcastInvalidation('meal-plan');
       broadcastInvalidation('shopping-list');
+
+      // Remove from Up Soon if this recipe is in the list
+      const recipeId =
+        typeof variables.recipe === 'object'
+          ? (variables.recipe as { id?: number } | null)?.id
+          : (variables.recipe as unknown as number | undefined);
+      if (recipeId) {
+        const upSoonData = qc.getQueryData<UpSoonData | null>(['up-soon']);
+        const entry = upSoonData?.entries.find((e) => e.recipeId === recipeId);
+        if (entry) {
+          try {
+            await apiDelete(`/recipe-book-entry/${entry.entryId}/`);
+            qc.invalidateQueries({ queryKey: ['up-soon'] });
+            broadcastInvalidation('up-soon');
+          } catch {
+            // Non-fatal: up-soon removal failed, but the meal plan was added successfully
+          }
+        }
+      }
     },
   });
 }
