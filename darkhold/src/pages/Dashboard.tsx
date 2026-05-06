@@ -9,6 +9,7 @@ import type { Recipe, Keyword, MealPlan, MealType, PaginatedResponse } from '../
 import { RecipeCard } from '../components/RecipeCard';
 import { MealPlanAddModal } from '../components/MealPlanAddModal';
 import { CookLogModal } from '../components/CookLogModal';
+import { LoadingMascot } from '../components/LoadingMascot';
 
 import { useUpSoonData } from '../hooks/useUpSoon';
 import { useCookLog } from '../hooks/useCookLog';
@@ -403,6 +404,15 @@ export function Dashboard() {
   );
 
   const regulars = useRegularsShelf();
+
+  // On cold start (no cached data), show a full-page spinner until at least one
+  // shelf query has settled so shelves don't flash in an empty state then vanish.
+  const isInitialDashboardLoad =
+    mealPlanQuery.isLoading && regulars.isLoading && recentlyAdded.isLoading;
+
+  if (isInitialDashboardLoad) {
+    return <LoadingMascot />;
+  }
 
   return (
     <div className="pt-2">
