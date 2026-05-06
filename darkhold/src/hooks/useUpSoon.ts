@@ -148,13 +148,10 @@ export function useAddToUpSoon() {
 export function useRemoveFromUpSoon() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (recipeId: number) => {
-      const data = qc.getQueryData<UpSoonData | null>(['up-soon']);
-      const entry = data?.entries.find((e) => e.recipeId === recipeId);
-      if (!entry) throw new Error('Cannot remove recipe: not found in Up Soon book');
-      await apiDelete(`/recipe-book-entry/${entry.entryId}/`);
+    mutationFn: async ({ entryId }: { recipeId: number; entryId: number }) => {
+      await apiDelete(`/recipe-book-entry/${entryId}/`);
     },
-    onMutate: async (recipeId) => {
+    onMutate: async ({ recipeId }) => {
       await qc.cancelQueries({ queryKey: ['up-soon'] });
       const previous = qc.getQueryData<UpSoonData | null>(['up-soon']);
       if (previous) {
@@ -197,7 +194,10 @@ export function useUpSoonForRecipe(recipeId: number) {
     isPending: addMutation.isPending || removeMutation.isPending,
     toggle: () => {
       if (isInUpSoon) {
-        removeMutation.mutate(recipeId);
+        const entry = data?.entries.find((e) => e.recipeId === recipeId);
+        if (entry) {
+          removeMutation.mutate({ recipeId, entryId: entry.entryId });
+        }
       } else {
         addMutation.mutate(recipeId);
       }
