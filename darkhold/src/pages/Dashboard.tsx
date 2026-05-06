@@ -28,7 +28,7 @@ function shortDay(date: Date): string {
 
 interface ShelfProps {
   title: ReactNode;
-  searchLink: string;
+  searchLink?: string;
   recipes: Recipe[];
   loading: boolean;
   error: boolean;
@@ -41,9 +41,11 @@ function RecipeShelf({ title, searchLink, recipes, loading, error, onAddToMealPl
     <section className="mb-4">
       <div className="d-flex align-items-center justify-content-between mb-2">
         <h5 className="mb-0">{title}</h5>
-        <Link to={searchLink} className="small text-muted">
-          See all →
-        </Link>
+        {searchLink && (
+          <Link to={searchLink} className="small text-muted">
+            See all →
+          </Link>
+        )}
       </div>
       {loading && <Spinner size="sm" />}
       {error && <span className="text-danger small">Failed to load</span>}
@@ -432,6 +434,29 @@ function BooksShelf() {
   );
 }
 
+function RecentlyViewedShelf({ onAddToMealPlan }: { onAddToMealPlan: (r: Recipe) => void }) {
+  const { data, isLoading, isError } = useDashboardShelf(
+    ['recipes', 'recently-viewed'],
+    () => apiGet<PaginatedResponse<Recipe>>('/recipe/', {
+      sort_order: '-lastviewed',
+      viewedon_gte: '2000-01-01',
+      page_size: 10,
+    }),
+  );
+
+  if (!isLoading && !isError && (!data || data.results.length === 0)) return null;
+
+  return (
+    <RecipeShelf
+      title="🕐 Recently Viewed"
+      recipes={data?.results ?? []}
+      loading={isLoading}
+      error={isError}
+      onAddToMealPlan={onAddToMealPlan}
+    />
+  );
+}
+
 export function Dashboard() {
   const [modalRecipe, setModalRecipe] = useState<Recipe | null>(null);
 
@@ -491,6 +516,8 @@ export function Dashboard() {
         error={mealPlanQuery.isError}
         onAddToMealPlan={setModalRecipe}
       />
+
+      <RecentlyViewedShelf onAddToMealPlan={setModalRecipe} />
 
       <UpSoonShelf onAddToMealPlan={setModalRecipe} />
 
