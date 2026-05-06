@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Row, Col, Card, Button, InputGroup, Modal, Form, Spinner, Alert } from 'react-bootstrap';
+import { Row, Col, Card, Table, Button, InputGroup, Modal, Form, Spinner, Alert } from 'react-bootstrap';
 import { AsyncTypeahead } from 'react-bootstrap-typeahead';
 import 'react-bootstrap-typeahead/css/Typeahead.css';
 import { Trash3, Plus, Check2Circle } from 'react-bootstrap-icons';
@@ -30,7 +30,7 @@ import { deriveMealType } from '../utils/mealUtils';
 import { LoadingMascot } from '../components/LoadingMascot';
 import { NoTokenAlert } from '../components/NoTokenAlert';
 import { CookLogModal } from '../components/CookLogModal';
-import { useCookLog, isCookedOnDate } from '../hooks/useCookLog';
+import { useCookLog, isCookedOnDate, type CookedByDate } from '../hooks/useCookLog';
 import { smallCircleButtonStyle } from '../utils/buttonStyles';
 
 type WithSortable = { sortable?: { containerId: string } } | undefined;
@@ -93,6 +93,18 @@ function addDays(d: Date, n: number): Date {
 
 function shortDay(d: Date): string {
   return d.toLocaleDateString('en-GB', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+/**
+ * Container IDs come in two forms:
+ *   - card view:  "YYYY-MM-DD"          (no meal type)
+ *   - table view: "YYYY-MM-DD__<id>"    (date + meal type ID separated by "__")
+ */
+function parseContainerId(id: string): { date: string; mealTypeId: number | null } {
+  const sep = id.indexOf('__');
+  if (sep === -1) return { date: id, mealTypeId: null };
+  const parsed = parseInt(id.slice(sep + 2), 10);
+  return { date: id.slice(0, sep), mealTypeId: isNaN(parsed) ? null : parsed };
 }
 
 
@@ -274,14 +286,15 @@ interface AddMealModalProps {
   date: string;
   onHide: () => void;
   mealTypes: MealType[];
+  initialMealTypeId?: number;
 }
 
-function AddMealModal({ date, onHide, mealTypes }: AddMealModalProps) {
+function AddMealModal({ date, onHide, mealTypes, initialMealTypeId }: AddMealModalProps) {
   const [isSearching, setIsSearching] = useState(false);
   const [recipeOptions, setRecipeOptions] = useState<Recipe[]>([]);
   const [searchError, setSearchError] = useState(false);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
-  const [mealTypeId, setMealTypeId] = useState<number>(mealTypes[0]?.id ?? 0);
+  const [mealTypeId, setMealTypeId] = useState<number>(initialMealTypeId ?? mealTypes[0]?.id ?? 0);
   const [servings, setServings] = useState(1);
   const [note, setNote] = useState('');
   const createMeal = useCreateMealPlan();
@@ -349,6 +362,20 @@ function AddMealModal({ date, onHide, mealTypes }: AddMealModalProps) {
           )}
         </Form.Group>
 
+        {mealTypes.length > 0 && (
+          <Form.Group className="mb-3">
+            <Form.Label>Meal Type</Form.Label>
+            <Form.Select
+              value={mealTypeId}
+              onChange={(e) => setMealTypeId(Number(e.target.value))}
+            >
+              {mealTypes.map((mt) => (
+                <option key={mt.id} value={mt.id}>{mt.name}</option>
+              ))}
+            </Form.Select>
+          </Form.Group>
+        )}
+
         <Form.Group className="mb-3">
           <Form.Label>Servings</Form.Label>
           <InputGroup>
@@ -403,10 +430,113 @@ function AddMealModal({ date, onHide, mealTypes }: AddMealModalProps) {
   );
 }
 
+interface MealPlanTableViewProps {
+  days: Date[];
+  mealTypes: MealType[];
+  byDayAndMealType: Record<string, Record<number, MealPlan[]>>;
+  todayStr: string;
+  pendingMoves: Map<number, string>;
+  hasPersonalToken: boolean;
+  onDelete: (id: number) => void;
+  onEntryClick: (entry: MealPlan) => void;
+  onAddMeal: (date: string, mealTypeId: number) => void;
+  onLogCook: (entry: MealPlan) => void;
+  cookLogData: CookedByDate | undefined;
+}
+
+function MealPlanTableView({
+  days,
+  mealTypes,
+  byDayAndMealType,
+  todayStr,
+  pendingMoves,
+  hasPersonalToken,
+  onDelete,
+  onEntryClick,
+  onAddMeal,
+  onLogCook,
+  cookLogData,
+}: MealPlanTableViewProps) {
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <Table bordered size="sm" className="meal-plan-table mb-0" style={{ tableLayout: 'fixed', minWidth: 600 }}>
+        <colgroup>
+          <col style={{ width: '12%' }} />
+          {mealTypes.map((mt) => <col key={mt.id} />)}
+        </colgroup>
+        <thead>
+          <tr>
+            <th className="py-2 ps-2 text-muted fw-semibold" style={{ fontSize: '0.75rem' }}>Day</th>
+            {mealTypes.map((mt) => (
+              <th key={mt.id} className="py-2 ps-2 fw-semibold" style={{ fontSize: '0.75rem' }}>
+                {mt.name}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {days.map((day) => {
+            const dateKey = formatDate(day);
+            const isToday = dateKey === todayStr;
+            const isPastOrToday = dateKey <= todayStr;
+            return (
+              <tr key={dateKey} className={isToday ? 'table-primary' : undefined}>
+                <td className="py-2 ps-2 align-top">
+                  <small className="fw-semibold" style={{ whiteSpace: 'nowrap' }}>{shortDay(day)}</small>
+                </td>
+                {mealTypes.map((mt) => {
+                  const containerId = `${dateKey}__${mt.id}`;
+                  const entries = byDayAndMealType[dateKey]?.[mt.id] ?? [];
+                  return (
+                    <td key={mt.id} className="p-1 align-top">
+                      <DroppableDay dateKey={containerId}>
+                        <SortableContext id={containerId} items={entries.map((e) => e.id)}>
+                          {entries.map((entry) => {
+                            const recipeId =
+                              typeof entry.recipe === 'object' ? entry.recipe.id : entry.recipe;
+                            const cooked = isPastOrToday && isCookedOnDate(cookLogData, recipeId, dateKey);
+                            return (
+                              <SortableEntry
+                                key={entry.id}
+                                entry={entry}
+                                onDelete={onDelete}
+                                onClick={onEntryClick}
+                                isPending={pendingMoves.has(entry.id)}
+                                isCooked={cooked}
+                                onLogCook={isPastOrToday ? onLogCook : undefined}
+                              />
+                            );
+                          })}
+                        </SortableContext>
+                        <div className="d-flex justify-content-end mt-1">
+                          <Button
+                            variant="outline-success"
+                            size="sm"
+                            style={circleButtonStyle}
+                            onClick={() => onAddMeal(dateKey, mt.id)}
+                            disabled={!hasPersonalToken}
+                            aria-label={`Add ${mt.name} on ${dateKey}`}
+                          >
+                            <Plus size={16} />
+                          </Button>
+                        </div>
+                      </DroppableDay>
+                    </td>
+                  );
+                })}
+              </tr>
+            );
+          })}
+        </tbody>
+      </Table>
+    </div>
+  );
+}
+
 export function MealPlanPage() {
   const navigate = useNavigate();
   const [weekOffset, setWeekOffset] = useState(0);
-  const [addDate, setAddDate] = useState<string | null>(null);
+  const [addModal, setAddModal] = useState<{ date: string; mealTypeId?: number } | null>(null);
   const [activeId, setActiveId] = useState<number | null>(null);
   const [cookLogEntry, setCookLogEntry] = useState<MealPlan | null>(null);
   // Maps entry id -> optimistic target date for in-flight cross-day moves
@@ -446,6 +576,8 @@ export function MealPlanPage() {
   });
   const mealTypes = mealTypesData?.results ?? [];
 
+  const sortedMealTypes = [...mealTypes].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
@@ -457,11 +589,35 @@ export function MealPlanPage() {
   const byDay = days.reduce<Record<string, MealPlan[]>>((acc, day) => {
     const key = formatDate(day);
     acc[key] = allEntries.filter((e) => {
-      const effectiveDate = pendingMoves.get(e.id) ?? e.from_date.split('T')[0];
+      const pendingTarget = pendingMoves.get(e.id);
+      const effectiveDate = pendingTarget
+        ? parseContainerId(pendingTarget).date
+        : e.from_date.split('T')[0];
       return effectiveDate === key;
     });
     return acc;
   }, {});
+
+  const byDayAndMealType = days.reduce<Record<string, Record<number, MealPlan[]>>>((acc, day) => {
+    const dateKey = formatDate(day);
+    acc[dateKey] = {};
+    for (const mt of sortedMealTypes) acc[dateKey][mt.id] = [];
+    return acc;
+  }, {});
+  for (const e of allEntries) {
+    const pendingTarget = pendingMoves.get(e.id);
+    let effectiveDate: string;
+    let effectiveMtId: number;
+    if (pendingTarget) {
+      const { date, mealTypeId: pendingMtId } = parseContainerId(pendingTarget);
+      effectiveDate = date;
+      effectiveMtId = pendingMtId ?? (typeof e.meal_type === 'object' ? e.meal_type.id : e.meal_type);
+    } else {
+      effectiveDate = e.from_date.split('T')[0];
+      effectiveMtId = typeof e.meal_type === 'object' ? e.meal_type.id : e.meal_type;
+    }
+    byDayAndMealType[effectiveDate]?.[effectiveMtId]?.push(e);
+  }
 
   const activeEntry = activeId != null ? allEntries.find((e) => e.id === activeId) ?? null : null;
 
@@ -493,13 +649,16 @@ export function MealPlanPage() {
 
     if (activeContainerId === targetContainerId) return;
 
-    // Cross-day move: optimistically update UI then confirm via API
+    // Cross-container move: optimistically update UI then confirm via API
     const entry = allEntries.find((e) => e.id === activeEntryId);
     if (!entry) return;
     const recipeId = typeof entry.recipe === 'object' ? entry.recipe.id : entry.recipe;
-    const mealTypeId = typeof entry.meal_type === 'object' ? entry.meal_type.id : entry.meal_type;
+    const entryMealTypeId = typeof entry.meal_type === 'object' ? entry.meal_type.id : entry.meal_type;
 
-    // Immediately show the entry in the new day
+    const { date: targetDate, mealTypeId: targetMealTypeId } = parseContainerId(targetContainerId);
+    const newMealTypeId = targetMealTypeId ?? entryMealTypeId;
+
+    // Immediately show the entry in the new container
     setPendingMoves((prev) => new Map(prev).set(activeEntryId, targetContainerId));
 
     updateMeal.mutate(
@@ -507,9 +666,9 @@ export function MealPlanPage() {
         id: activeEntryId,
         data: {
           recipe: recipeId,
-          meal_type: mealTypeId,
-          from_date: targetContainerId,
-          to_date: targetContainerId,
+          meal_type: newMealTypeId,
+          from_date: targetDate,
+          to_date: targetDate,
           servings: entry.servings ?? 1,
         },
       },
@@ -583,64 +742,84 @@ export function MealPlanPage() {
         onDragEnd={handleDragEnd}
         onDragCancel={handleDragCancel}
       >
-        <Row xs={1} sm={2} md={3} lg={4} className="g-3">
-          {days.map((day) => {
-            const dateKey = formatDate(day);
-            const isToday = dateKey === formatDate(new Date());
-            const isPastOrToday = dateKey <= todayStr;
-            const entries = byDay[dateKey] ?? [];
+        {/* Card grid — shown on small/medium screens */}
+        <div className="d-lg-none">
+          <Row xs={1} sm={2} md={3} className="g-3">
+            {days.map((day) => {
+              const dateKey = formatDate(day);
+              const isToday = dateKey === formatDate(new Date());
+              const isPastOrToday = dateKey <= todayStr;
+              const entries = byDay[dateKey] ?? [];
 
-            return (
-              <Col key={dateKey}>
-                <Card className={isToday ? 'border-primary' : ''}>
-                  <Card.Header className={`py-2 d-flex justify-content-between align-items-center ${isToday ? 'bg-primary text-white' : ''}`}>
-                    <small className="fw-semibold">{shortDay(day)}</small>
-                    <Button
-                      variant="success"
-                      size="sm"
-                      style={circleButtonStyle}
-                      onClick={() => setAddDate(dateKey)}
-                      disabled={!hasPersonalToken}
-                      aria-label="Add meal"
-                    >
-                      <Plus size={16} />
-                    </Button>
-                  </Card.Header>
-                  <Card.Body className="p-2">
-                    <DroppableDay dateKey={dateKey}>
-                      <SortableContext
-                        id={dateKey}
-                        items={entries.map((e) => e.id)}
+              return (
+                <Col key={dateKey}>
+                  <Card className={isToday ? 'border-primary' : ''}>
+                    <Card.Header className={`py-2 d-flex justify-content-between align-items-center ${isToday ? 'bg-primary text-white' : ''}`}>
+                      <small className="fw-semibold">{shortDay(day)}</small>
+                      <Button
+                        variant="success"
+                        size="sm"
+                        style={circleButtonStyle}
+                        onClick={() => setAddModal({ date: dateKey })}
+                        disabled={!hasPersonalToken}
+                        aria-label="Add meal"
                       >
-                        {entries.map((entry) => {
-                          const recipeId =
-                            typeof entry.recipe === 'object' ? entry.recipe.id : entry.recipe;
-                          const cooked = isPastOrToday && isCookedOnDate(cookLogData, recipeId, dateKey);
-                          return (
-                            <SortableEntry
-                              key={entry.id}
-                              entry={entry}
-                              onDelete={handleDelete}
-                              onClick={(e) => navigate(`/meal-plan-entry/${e.id}`)}
-                              isPending={pendingMoves.has(entry.id)}
-                              isCooked={cooked}
-                              onLogCook={isPastOrToday ? setCookLogEntry : undefined}
-                            />
-                          );
-                        })}
-                      </SortableContext>
-                      {entries.length === 0 && (
-                        <p className="text-muted text-center mb-0" style={{ fontSize: '0.75rem' }}>
-                          No meals
-                        </p>
-                      )}
-                    </DroppableDay>
-                  </Card.Body>
-                </Card>
-              </Col>
-            );
-          })}
-        </Row>
+                        <Plus size={16} />
+                      </Button>
+                    </Card.Header>
+                    <Card.Body className="p-2">
+                      <DroppableDay dateKey={dateKey}>
+                        <SortableContext
+                          id={dateKey}
+                          items={entries.map((e) => e.id)}
+                        >
+                          {entries.map((entry) => {
+                            const recipeId =
+                              typeof entry.recipe === 'object' ? entry.recipe.id : entry.recipe;
+                            const cooked = isPastOrToday && isCookedOnDate(cookLogData, recipeId, dateKey);
+                            return (
+                              <SortableEntry
+                                key={entry.id}
+                                entry={entry}
+                                onDelete={handleDelete}
+                                onClick={(e) => navigate(`/meal-plan-entry/${e.id}`)}
+                                isPending={pendingMoves.has(entry.id)}
+                                isCooked={cooked}
+                                onLogCook={isPastOrToday ? setCookLogEntry : undefined}
+                              />
+                            );
+                          })}
+                        </SortableContext>
+                        {entries.length === 0 && (
+                          <p className="text-muted text-center mb-0" style={{ fontSize: '0.75rem' }}>
+                            No meals
+                          </p>
+                        )}
+                      </DroppableDay>
+                    </Card.Body>
+                  </Card>
+                </Col>
+              );
+            })}
+          </Row>
+        </div>
+
+        {/* Spreadsheet table — shown on large screens and above */}
+        <div className="d-none d-lg-block">
+          <MealPlanTableView
+            days={days}
+            mealTypes={sortedMealTypes}
+            byDayAndMealType={byDayAndMealType}
+            todayStr={todayStr}
+            pendingMoves={pendingMoves}
+            hasPersonalToken={hasPersonalToken}
+            onDelete={handleDelete}
+            onEntryClick={(e) => navigate(`/meal-plan-entry/${e.id}`)}
+            onAddMeal={(date, mealTypeId) => setAddModal({ date, mealTypeId })}
+            onLogCook={setCookLogEntry}
+            cookLogData={cookLogData}
+          />
+        </div>
 
         <DragOverlay>
           {activeEntry && (
@@ -654,8 +833,13 @@ export function MealPlanPage() {
         </DragOverlay>
       </DndContext>
 
-      {addDate && (
-        <AddMealModal date={addDate} onHide={() => setAddDate(null)} mealTypes={mealTypes} />
+      {addModal && (
+        <AddMealModal
+          date={addModal.date}
+          initialMealTypeId={addModal.mealTypeId}
+          onHide={() => setAddModal(null)}
+          mealTypes={mealTypes}
+        />
       )}
       {cookLogEntry && (
         <CookLogModal
