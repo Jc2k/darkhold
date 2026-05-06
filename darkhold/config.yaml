@@ -1,6 +1,6 @@
 name: "Darkhold"
 description: "A mobile-first recipe manager frontend for Tandoor"
-version: "1.57.0"
+version: "1.58.0"
 slug: "darkhold"
 url: "https://github.com/Jc2k/darkhold"
 image: "ghcr.io/jc2k/darkhold"
