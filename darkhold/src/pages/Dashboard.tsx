@@ -436,7 +436,7 @@ function BooksShelf() {
 
 function RecentlyViewedShelf({ onAddToMealPlan }: { onAddToMealPlan: (r: Recipe) => void }) {
   const { data, isLoading, isError } = useDashboardShelf(
-    ['recipes', 'recently-viewed'],
+    ['recently-viewed'],
     () => apiGet<PaginatedResponse<Recipe>>('/recipe/', {
       sort_order: '-lastviewed',
       viewedon_gte: '2000-01-01',

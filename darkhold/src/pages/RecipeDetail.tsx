@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Row, Col, Badge, Alert, Button, Modal } from "react-bootstrap";
 import {
   Plus,
@@ -34,6 +34,7 @@ import { proxyMediaUrl } from "../utils/mediaUrl";
 import { formatFraction } from "../utils/fractions";
 import { useRecipeWeightG } from "../hooks/useRecipeWeightG";
 import { useAppConfig } from "../hooks/useAppConfig";
+import { broadcastInvalidation } from "../hooks/useInvalidationSocket";
 
 type IngredientSection = { header: string | null; items: RecipeIngredient[] };
 
@@ -630,6 +631,7 @@ export function RecipeDetailContent({
 
 export function RecipeDetail() {
   const { id } = useParams<{ id: string }>();
+  const queryClient = useQueryClient();
 
   const {
     data: recipe,
@@ -650,7 +652,10 @@ export function RecipeDetail() {
     // identity in Tandoor, so logging their views would be meaningless.
     if (!localStorage.getItem('tandoor_token')) return;
     // Fire-and-forget — never block the viewing experience.
-    apiPost('/view-log/', { recipe: Number(id) }).catch(() => {});
+    apiPost('/view-log/', { recipe: Number(id) }).then(() => {
+      queryClient.invalidateQueries({ queryKey: ['recently-viewed'] });
+      broadcastInvalidation('recently-viewed');
+    }).catch(() => {});
     // Only record a view when navigating to a different recipe.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
