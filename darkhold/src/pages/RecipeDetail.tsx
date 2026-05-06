@@ -17,6 +17,7 @@ import {
   Share,
 } from "react-bootstrap-icons";
 import { apiGet } from "../api/client";
+import { addRecentlyViewed } from "../hooks/useRecentlyViewed";
 import type {
   Recipe,
   RecipeIngredient,
@@ -640,6 +641,10 @@ export function RecipeDetail() {
   });
 
   useRecipeJsonLd(recipe);
+
+  useEffect(() => {
+    if (recipe) addRecentlyViewed(recipe);
+  }, [recipe]);
 
   if (isLoading && !recipe) {
     return <LoadingMascot />;

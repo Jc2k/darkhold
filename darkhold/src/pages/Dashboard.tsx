@@ -11,6 +11,7 @@ import { BookCard } from '../components/BookCard';
 import { MealPlanAddModal } from '../components/MealPlanAddModal';
 import { getFilterId } from '../utils/bookUtils';
 import { useUpSoonData } from '../hooks/useUpSoon';
+import { useRecentlyViewed } from '../hooks/useRecentlyViewed';
 
 function formatDate(d: Date): string {
   return d.toISOString().split('T')[0];
@@ -28,7 +29,7 @@ function shortDay(date: Date): string {
 
 interface ShelfProps {
   title: ReactNode;
-  searchLink: string;
+  searchLink?: string;
   recipes: Recipe[];
   loading: boolean;
   error: boolean;
@@ -41,9 +42,11 @@ function RecipeShelf({ title, searchLink, recipes, loading, error, onAddToMealPl
     <section className="mb-4">
       <div className="d-flex align-items-center justify-content-between mb-2">
         <h5 className="mb-0">{title}</h5>
-        <Link to={searchLink} className="small text-muted">
-          See all →
-        </Link>
+        {searchLink && (
+          <Link to={searchLink} className="small text-muted">
+            See all →
+          </Link>
+        )}
       </div>
       {loading && <Spinner size="sm" />}
       {error && <span className="text-danger small">Failed to load</span>}
@@ -432,6 +435,20 @@ function BooksShelf() {
   );
 }
 
+function RecentlyViewedShelf({ onAddToMealPlan }: { onAddToMealPlan: (r: Recipe) => void }) {
+  const recipes = useRecentlyViewed();
+  if (recipes.length === 0) return null;
+  return (
+    <RecipeShelf
+      title="🕐 Recently Viewed"
+      recipes={recipes as Recipe[]}
+      loading={false}
+      error={false}
+      onAddToMealPlan={onAddToMealPlan}
+    />
+  );
+}
+
 export function Dashboard() {
   const [modalRecipe, setModalRecipe] = useState<Recipe | null>(null);
 
@@ -491,6 +508,8 @@ export function Dashboard() {
         error={mealPlanQuery.isError}
         onAddToMealPlan={setModalRecipe}
       />
+
+      <RecentlyViewedShelf onAddToMealPlan={setModalRecipe} />
 
       <UpSoonShelf onAddToMealPlan={setModalRecipe} />
 
