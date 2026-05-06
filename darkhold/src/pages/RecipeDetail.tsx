@@ -16,8 +16,7 @@ import {
   BoxArrowUpRight,
   Share,
 } from "react-bootstrap-icons";
-import { apiGet } from "../api/client";
-import { addRecentlyViewed } from "../hooks/useRecentlyViewed";
+import { apiGet, apiPost } from "../api/client";
 import type {
   Recipe,
   RecipeIngredient,
@@ -643,10 +642,11 @@ export function RecipeDetail() {
   useRecipeJsonLd(recipe);
 
   useEffect(() => {
-    if (recipe) addRecentlyViewed(recipe);
-    // Only record a view when navigating to a different recipe, not on field updates.
+    if (!id) return;
+    apiPost('/view-log/', { recipe: Number(id) }).catch(() => {/* ignore — view log is non-critical */});
+    // Only record a view when navigating to a different recipe.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [recipe?.id]);
+  }, [id]);
 
   if (isLoading && !recipe) {
     return <LoadingMascot />;

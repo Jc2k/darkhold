@@ -11,7 +11,6 @@ import { BookCard } from '../components/BookCard';
 import { MealPlanAddModal } from '../components/MealPlanAddModal';
 import { getFilterId } from '../utils/bookUtils';
 import { useUpSoonData } from '../hooks/useUpSoon';
-import { useRecentlyViewed } from '../hooks/useRecentlyViewed';
 
 function formatDate(d: Date): string {
   return d.toISOString().split('T')[0];
@@ -436,14 +435,23 @@ function BooksShelf() {
 }
 
 function RecentlyViewedShelf({ onAddToMealPlan }: { onAddToMealPlan: (r: Recipe) => void }) {
-  const recipes = useRecentlyViewed();
-  if (recipes.length === 0) return null;
+  const { data, isLoading, isError } = useDashboardShelf(
+    ['recipes', 'recently-viewed'],
+    () => apiGet<PaginatedResponse<Recipe>>('/recipe/', {
+      sort_order: '-lastviewed',
+      viewedon_gte: '2000-01-01',
+      page_size: 10,
+    }),
+  );
+
+  if (!isLoading && !isError && (!data || data.results.length === 0)) return null;
+
   return (
     <RecipeShelf
       title="🕐 Recently Viewed"
-      recipes={recipes}
-      loading={false}
-      error={false}
+      recipes={data?.results ?? []}
+      loading={isLoading}
+      error={isError}
       onAddToMealPlan={onAddToMealPlan}
     />
   );
