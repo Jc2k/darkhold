@@ -15,7 +15,7 @@ export function UpSoonButton({ recipeId, style }: Props) {
 
   return (
     <Button
-      variant={isInUpSoon ? 'warning' : 'outline-secondary'}
+      variant={isInUpSoon ? 'warning' : 'secondary'}
       size="sm"
       style={style}
       onClick={(e) => {
