@@ -225,6 +225,7 @@ export interface RecipeBook {
   order?: number;
   filter?: Keyword | number | null;
   created_by?: number;
+  shared?: number[];
 }
 
 /** Entry linking a recipe to a recipe book */

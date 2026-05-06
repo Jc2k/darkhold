@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPost, apiDelete } from '../api/client';
-import type { RecipeBook, RecipeBookEntry, Recipe, PaginatedResponse } from '../api/tandoor-types';
+import type { RecipeBook, RecipeBookEntry, Recipe, User, PaginatedResponse } from '../api/tandoor-types';
 import { broadcastInvalidation } from './useInvalidationSocket';
 
 export const UP_SOON_BOOK_NAME = 'Up Soon';
@@ -68,6 +68,13 @@ export function useUpSoonData() {
   });
 }
 
+/** Creates the "Up Soon" book shared with all household members. */
+export async function createUpSoonBook(): Promise<RecipeBook> {
+  const users = await apiGet<User[]>('/user/');
+  const shared = users.map((u) => u.id);
+  return apiPost<RecipeBook>('/recipe-book/', { name: UP_SOON_BOOK_NAME, shared });
+}
+
 /** Adds a recipe to the "Up Soon" book, creating the book if it doesn't exist yet. */
 export function useAddToUpSoon() {
   const qc = useQueryClient();
@@ -76,7 +83,7 @@ export function useAddToUpSoon() {
       // Get or create the "Up Soon" book
       let bookId: number | null = qc.getQueryData<UpSoonData | null>(['up-soon'])?.bookId ?? null;
       if (!bookId) {
-        const book = await apiPost<RecipeBook>('/recipe-book/', { name: UP_SOON_BOOK_NAME });
+        const book = await createUpSoonBook();
         bookId = book.id;
       }
       return apiPost<RecipeBookEntry>('/recipe-book-entry/', { book: bookId, recipe: recipeId });

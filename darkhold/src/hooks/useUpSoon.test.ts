@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { fetchUpSoonData, UP_SOON_BOOK_NAME } from './useUpSoon';
+import { fetchUpSoonData, createUpSoonBook, UP_SOON_BOOK_NAME } from './useUpSoon';
 
 const makeBook = (id: number, name: string) => ({
   id,
@@ -135,5 +135,54 @@ describe('fetchUpSoonData', () => {
     const result = await fetchUpSoonData();
     expect(result!.entries).toHaveLength(1);
     expect(result!.entries[0].recipeId).toBe(100);
+  });
+});
+
+describe('createUpSoonBook', () => {
+  it('fetches users and creates book with shared set to all user IDs', async () => {
+    const fetchMock = vi
+      .fn()
+      // First call: GET /user/
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve([{ id: 1, username: 'alice' }, { id: 2, username: 'bob' }]),
+      })
+      // Second call: POST /recipe-book/
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ id: 99, name: UP_SOON_BOOK_NAME, shared: [1, 2] }),
+      });
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    const book = await createUpSoonBook();
+    expect(book.id).toBe(99);
+    expect(book.name).toBe(UP_SOON_BOOK_NAME);
+
+    const postCall = fetchMock.mock.calls[1];
+    const postBody = JSON.parse(postCall[1].body);
+    expect(postBody.name).toBe(UP_SOON_BOOK_NAME);
+    expect(postBody.shared).toEqual([1, 2]);
+  });
+
+  it('creates book shared with empty array when no users are returned', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve([]),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ id: 10, name: UP_SOON_BOOK_NAME, shared: [] }),
+      });
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    const book = await createUpSoonBook();
+    expect(book.id).toBe(10);
+
+    const postBody = JSON.parse(fetchMock.mock.calls[1][1].body);
+    expect(postBody.shared).toEqual([]);
   });
 });
