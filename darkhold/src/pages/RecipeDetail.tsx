@@ -644,7 +644,9 @@ export function RecipeDetail() {
 
   useEffect(() => {
     if (recipe) addRecentlyViewed(recipe);
-  }, [recipe]);
+    // Only record a view when navigating to a different recipe, not on field updates.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recipe?.id]);
 
   if (isLoading && !recipe) {
     return <LoadingMascot />;

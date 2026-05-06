@@ -441,7 +441,7 @@ function RecentlyViewedShelf({ onAddToMealPlan }: { onAddToMealPlan: (r: Recipe)
   return (
     <RecipeShelf
       title="🕐 Recently Viewed"
-      recipes={recipes as Recipe[]}
+      recipes={recipes}
       loading={false}
       error={false}
       onAddToMealPlan={onAddToMealPlan}
