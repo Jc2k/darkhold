@@ -643,7 +643,12 @@ export function RecipeDetail() {
 
   useEffect(() => {
     if (!id) return;
-    apiPost('/view-log/', { recipe: Number(id) }).catch(() => {/* ignore — view log is non-critical */});
+    // Only record view logs for authenticated users with a personal token.
+    // Users relying on a default/shared server token don't have a personal
+    // identity in Tandoor, so logging their views would be meaningless.
+    if (!localStorage.getItem('tandoor_token')) return;
+    // Fire-and-forget — never block the viewing experience.
+    apiPost('/view-log/', { recipe: Number(id) }).catch(() => {});
     // Only record a view when navigating to a different recipe.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
