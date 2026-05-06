@@ -473,7 +473,7 @@ function EditMealModal({ entry, onHide }: EditMealModalProps) {
     const daysUntilSat = (6 - today.getDay() + 7) % 7;
     const baseSat = new Date(today);
     baseSat.setDate(today.getDate() + daysUntilSat);
-    const [y, m, d] = entry.from_date.split('-').map(Number);
+    const [y, m, d] = entry.from_date.split('T')[0].split('-').map(Number);
     const entryDate = new Date(y, m - 1, d);
     entryDate.setHours(0, 0, 0, 0);
     const daysSinceSat = (entryDate.getDay() - 6 + 7) % 7;
