@@ -9,6 +9,7 @@ import type { Recipe, RecipeIngredient, RecipeStep, RecipeUnit, Food, Keyword, F
 import { TagBadge } from '../components/TagBadge';
 import { MealPlanAddModal } from '../components/MealPlanAddModal';
 import { LoadingMascot } from '../components/LoadingMascot';
+import { UpSoonButton } from '../components/UpSoonButton';
 import { proxyMediaUrl } from '../utils/mediaUrl';
 import { formatFraction } from '../utils/fractions';
 import { useRecipeWeightG } from '../hooks/useRecipeWeightG';
@@ -285,6 +286,7 @@ export function RecipeDetailContent({ recipe, servingsOverride, mealPlanNote }: 
           >
             <Plus />
           </Button>
+          <UpSoonButton recipeId={recipe.id} style={circleButtonStyle} />
           {steps.length > 0 && (
             <Button
               variant="primary"
