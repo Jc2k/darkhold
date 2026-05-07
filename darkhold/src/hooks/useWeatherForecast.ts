@@ -59,6 +59,22 @@ export function getWeatherDisruptionBand(day: WeatherDayForecast): WeatherDisrup
   return 'ok';
 }
 
+export async function parseWeatherForecastResponse(res: Pick<Response, 'headers' | 'json'>): Promise<WeatherForecastPayload | null> {
+  const contentType = res.headers.get('content-type')?.toLowerCase() ?? '';
+  if (contentType && !contentType.includes('application/json')) {
+    return null;
+  }
+
+  try {
+    return (await res.json()) as WeatherForecastPayload;
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      return null;
+    }
+    throw error;
+  }
+}
+
 async function fetchWeatherForecast(fromDate: string, toDate: string): Promise<WeatherDayForecast[]> {
   const url = `/weather-forecast?from=${fromDate}&to=${toDate}`;
   const res = await fetch(url);
@@ -68,7 +84,8 @@ async function fetchWeatherForecast(fromDate: string, toDate: string): Promise<W
     if (res.status === 404) return [];
     throw new Error(`Weather forecast fetch failed: ${res.status}`);
   }
-  const data = (await res.json()) as WeatherForecastPayload;
+  const data = await parseWeatherForecastResponse(res);
+  if (!data) return [];
   return parseWeatherForecastPayload(data);
 }
 
