@@ -54,6 +54,7 @@ import { CookLogModal } from '../components/CookLogModal';
 import { useCookLog, isCookedOnDate, type CookedByDate } from '../hooks/useCookLog';
 import { smallCircleButtonStyle } from '../utils/buttonStyles';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
+import { DroppableTableRow } from './DroppableTableRow';
 
 type WithSortable = { sortable?: { containerId: string } } | undefined;
 
@@ -425,7 +426,6 @@ function DroppableDay({ dateKey, children }: DroppableDayProps) {
   );
 }
 
-
 interface AddMealModalProps {
   date: string;
   onHide: () => void;
@@ -770,7 +770,11 @@ function MealPlanTableView({
             const dayEvents = calendarEventsByDate?.[dateKey] ?? [];
             const dayWeather = weatherByDate?.[dateKey];
             return (
-              <tr key={dateKey} className={`meal-plan-mobile-row d-block d-lg-table-row border rounded mb-3 mb-lg-0 ${isToday ? 'table-primary border-primary' : ''}`}>
+              <DroppableTableRow
+                key={dateKey}
+                dateKey={dateKey}
+                className={`meal-plan-mobile-row d-block d-lg-table-row border rounded mb-3 mb-lg-0 ${isToday ? 'table-primary border-primary' : ''}`}
+              >
                 <td className={`meal-plan-mobile-cell d-block d-lg-table-cell py-2 px-2 align-top ${isToday ? 'bg-primary text-white' : 'bg-body-tertiary'}`}>
                   <div className="d-flex justify-content-between align-items-center">
                     <div className="d-flex flex-column align-items-start gap-1">
@@ -792,7 +796,15 @@ function MealPlanTableView({
                   const containerId = `${dateKey}__${mt.id}`;
                   const entries = byDayAndMealType[dateKey]?.[mt.id] ?? [];
                   return (
-                    <td key={mt.id} className="meal-plan-mobile-cell d-block d-lg-table-cell p-1 align-top">
+                    <td
+                      key={mt.id}
+                      className={`meal-plan-mobile-cell d-block d-lg-table-cell p-1 align-top ${entries.length === 0 ? 'meal-plan-mobile-empty' : ''}`}
+                    >
+                      {entries.length > 0 && (
+                        <div className="meal-plan-mobile-meal-type-label d-lg-none px-2 pt-1 text-muted fw-semibold">
+                          {mt.name}
+                        </div>
+                      )}
                       <DroppableDay dateKey={containerId}>
                         <SortableContext id={containerId} items={entries.map((e) => e.id)}>
                           {entries.map((entry) => {
@@ -822,7 +834,7 @@ function MealPlanTableView({
                     <DayCalendarWeatherInfo dayEvents={dayEvents} weather={dayWeather} />
                   </td>
                 )}
-              </tr>
+              </DroppableTableRow>
             );
           })}
         </tbody>

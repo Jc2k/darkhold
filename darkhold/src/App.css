@@ -66,6 +66,17 @@
   overflow-wrap: anywhere;
 }
 
+.meal-plan-page .meal-plan-mobile-empty {
+  display: none !important;
+}
+
+@media (max-width: 991.98px) {
+  .meal-plan-page .meal-plan-row-drop-target {
+    outline: 2px solid rgba(var(--bs-primary-rgb), 0.35);
+    outline-offset: -2px;
+  }
+}
+
 @media (min-width: 768px) {
   .meal-plan-page .meal-plan-day {
     min-height: 130px;
@@ -76,6 +87,10 @@
   .meal-plan-page .meal-plan-mobile-row,
   .meal-plan-page .meal-plan-mobile-cell {
     width: auto;
+  }
+
+  .meal-plan-page .meal-plan-mobile-empty {
+    display: table-cell !important;
   }
 
   .meal-plan-page .meal-plan-table {
