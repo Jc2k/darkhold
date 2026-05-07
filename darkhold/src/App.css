@@ -53,7 +53,7 @@
 }
 
 .meal-plan-page .meal-plan-row-drop-target {
-  outline: 2px solid rgba(13, 110, 253, 0.35);
+  outline: 2px solid rgba(var(--bs-primary-rgb), 0.35);
   outline-offset: -2px;
 }
 

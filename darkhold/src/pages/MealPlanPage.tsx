@@ -433,10 +433,11 @@ interface DroppableTableRowProps {
 
 function DroppableTableRow({ dateKey, className, children }: DroppableTableRowProps) {
   const { setNodeRef, isOver } = useDroppable({ id: dateKey });
+  const rowClassName = [className, isOver ? 'meal-plan-row-drop-target' : ''].filter(Boolean).join(' ');
   return (
     <tr
       ref={setNodeRef}
-      className={`${className ?? ''} ${isOver ? 'meal-plan-row-drop-target' : ''}`.trim()}
+      className={rowClassName}
     >
       {children}
     </tr>
