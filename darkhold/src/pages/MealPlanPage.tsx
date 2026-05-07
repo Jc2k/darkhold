@@ -322,6 +322,11 @@ function AddMealModal({ date, onHide, mealTypes, initialMealTypeId }: AddMealMod
   const [servings, setServings] = useState(1);
   const [note, setNote] = useState('');
   const createMeal = useCreateMealPlan();
+  const resolveMealTypeId = (recipe: Recipe | null): number | undefined => {
+    if (initialMealTypeId) return initialMealTypeId;
+    if (!recipe) return mealTypes[0]?.id;
+    return deriveMealType(recipe, mealTypes) ?? mealTypes[0]?.id;
+  };
 
   const handleRecipeSearch = async (query: string) => {
     setIsSearching(true);
@@ -347,9 +352,7 @@ function AddMealModal({ date, onHide, mealTypes, initialMealTypeId }: AddMealMod
 
   const handleSubmit = async () => {
     if (!selectedRecipe) return;
-    const resolvedMealTypeId = initialMealTypeId
-      ?? deriveMealType(selectedRecipe, mealTypes)
-      ?? mealTypes[0]?.id;
+    const resolvedMealTypeId = resolveMealTypeId(selectedRecipe);
     if (!resolvedMealTypeId) return;
     await createMeal.mutateAsync({
       recipe: selectedRecipe.id as unknown as Recipe,
@@ -432,11 +435,7 @@ function AddMealModal({ date, onHide, mealTypes, initialMealTypeId }: AddMealMod
         <Button variant="secondary" onClick={onHide}>Cancel</Button>
         <Button
           variant="success"
-          disabled={
-            !selectedRecipe
-            || createMeal.isPending
-            || !(initialMealTypeId ?? (selectedRecipe ? deriveMealType(selectedRecipe, mealTypes) : undefined) ?? mealTypes[0]?.id)
-          }
+          disabled={!selectedRecipe || createMeal.isPending || !resolveMealTypeId(selectedRecipe)}
           onClick={handleSubmit}
         >
           {createMeal.isPending ? <Spinner size="sm" /> : 'Add'}
