@@ -30,6 +30,8 @@ RUN chmod +x /run.sh
 COPY --from=builder /app/dist /usr/share/nginx/html
 # Copy package.json for the WebSocket server (reads version at startup)
 COPY --from=builder /app/package.json /package.json
+# Copy the server's npm dependency so Deno can resolve it at runtime.
+COPY --from=builder /app/node_modules/ical.js /node_modules/ical.js
 # Copy Deno binary (target-platform build) + its bundled glibc runtime, then
 # wire up the glibc dynamic linker symlink for the target architecture.
 # The deno:alpine image bundles glibc at /usr/local/lib/glibc/ and exposes the
