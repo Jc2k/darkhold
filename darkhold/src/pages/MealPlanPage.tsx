@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Row, Col, Card, Table, Button, InputGroup, Modal, Form, Spinner, Alert } from 'react-bootstrap';
+import { Card, Table, Button, InputGroup, Modal, Form, Spinner, Alert } from 'react-bootstrap';
 import { AsyncTypeahead } from 'react-bootstrap-typeahead';
 import 'react-bootstrap-typeahead/css/Typeahead.css';
 import {
@@ -740,14 +740,14 @@ function MealPlanTableView({
 }: MealPlanTableViewProps) {
   return (
     <div style={{ overflowX: 'auto' }}>
-      <Table bordered size="sm" className="meal-plan-table mb-0" style={{ tableLayout: 'fixed', minWidth: 600 }}>
+      <Table bordered size="sm" className="meal-plan-table mb-0 w-100" style={{ tableLayout: 'fixed' }}>
         <colgroup>
           <col style={{ width: '12%' }} />
           {mealTypes.map((mt) => <col key={mt.id} />)}
           {(calendarEventsByDate || weatherByDate) && <col style={{ width: '24%' }} />}
         </colgroup>
         <thead>
-          <tr>
+          <tr className="d-none d-lg-table-row">
             <th className="py-2 ps-2 text-muted fw-semibold" style={{ fontSize: '0.75rem' }}>Day</th>
             {mealTypes.map((mt) => (
               <th key={mt.id} className="py-2 ps-2 fw-semibold" style={{ fontSize: '0.75rem' }}>
@@ -759,7 +759,7 @@ function MealPlanTableView({
             )}
           </tr>
         </thead>
-        <tbody>
+        <tbody className="d-block d-lg-table-row-group">
           {days.map((day) => {
             const dateKey = formatDate(day);
             const isToday = dateKey === todayStr;
@@ -767,27 +767,29 @@ function MealPlanTableView({
             const dayEvents = calendarEventsByDate?.[dateKey] ?? [];
             const dayWeather = weatherByDate?.[dateKey];
             return (
-              <tr key={dateKey} className={isToday ? 'table-primary' : undefined}>
-                <td className="py-2 ps-2 align-top">
-                  <div className="d-flex flex-column align-items-start gap-1">
-                    <small className="fw-semibold" style={{ whiteSpace: 'nowrap' }}>{shortDay(day)}</small>
-                    <Button
-                      variant="outline-success"
-                      size="sm"
-                      style={circleButtonStyle}
-                      onClick={() => onAddMeal(dateKey)}
-                      disabled={!hasPersonalToken}
-                      aria-label={`Add meal on ${dateKey}`}
-                    >
-                      <Plus size={16} />
-                    </Button>
+              <tr key={dateKey} className={`d-block d-lg-table-row border rounded mb-3 mb-lg-0 ${isToday ? 'table-primary border-primary' : ''}`}>
+                <td className={`d-block d-lg-table-cell py-2 px-2 align-top ${isToday ? 'bg-primary text-white' : 'bg-body-tertiary'}`}>
+                  <div className="d-flex justify-content-between align-items-center">
+                    <div className="d-flex flex-column align-items-start gap-1">
+                      <small className="fw-semibold" style={{ whiteSpace: 'nowrap' }}>{shortDay(day)}</small>
+                      <Button
+                        variant={isToday ? 'light' : 'outline-success'}
+                        size="sm"
+                        style={circleButtonStyle}
+                        onClick={() => onAddMeal(dateKey)}
+                        disabled={!hasPersonalToken}
+                        aria-label={`Add meal on ${dateKey}`}
+                      >
+                        <Plus size={16} />
+                      </Button>
+                    </div>
                   </div>
                 </td>
                 {mealTypes.map((mt) => {
                   const containerId = `${dateKey}__${mt.id}`;
                   const entries = byDayAndMealType[dateKey]?.[mt.id] ?? [];
                   return (
-                    <td key={mt.id} className="p-1 align-top">
+                    <td key={mt.id} className="d-block d-lg-table-cell p-1 align-top">
                       <DroppableDay dateKey={containerId}>
                         <SortableContext id={containerId} items={entries.map((e) => e.id)}>
                           {entries.map((entry) => {
@@ -813,7 +815,7 @@ function MealPlanTableView({
                   );
                 })}
                 {(calendarEventsByDate || weatherByDate) && (
-                  <td className="p-1 align-top">
+                  <td className="d-block d-lg-table-cell p-1 align-top">
                     <DayCalendarWeatherInfo dayEvents={dayEvents} weather={dayWeather} />
                   </td>
                 )}
@@ -906,18 +908,6 @@ export function MealPlanPage() {
   const days = Array.from({ length: 7 }, (_, i) => addDays(startDate, i));
 
   const allEntries = data?.results ?? [];
-  const byDay = days.reduce<Record<string, MealPlan[]>>((acc, day) => {
-    const key = formatDate(day);
-    acc[key] = allEntries.filter((e) => {
-      const pendingTarget = pendingMoves.get(e.id);
-      const effectiveDate = pendingTarget
-        ? parseContainerId(pendingTarget).date
-        : e.from_date.split('T')[0];
-      return effectiveDate === key;
-    });
-    return acc;
-  }, {});
-
   const byDayAndMealType = days.reduce<Record<string, Record<number, MealPlan[]>>>((acc, day) => {
     const dateKey = formatDate(day);
     acc[dateKey] = {};
@@ -1072,78 +1062,7 @@ export function MealPlanPage() {
         onDragEnd={handleDragEnd}
         onDragCancel={handleDragCancel}
       >
-        {/* Card grid — shown on small/medium screens */}
-        <div className="d-lg-none">
-          <Row xs={1} sm={2} md={3} className="g-3">
-            {days.map((day) => {
-              const dateKey = formatDate(day);
-              const isToday = dateKey === formatDate(new Date());
-              const isPastOrToday = dateKey <= todayStr;
-              const entries = byDay[dateKey] ?? [];
-
-              return (
-                <Col key={dateKey}>
-                  <Card className={isToday ? 'border-primary' : ''}>
-                    <Card.Header className={`py-2 d-flex justify-content-between align-items-center ${isToday ? 'bg-primary text-white' : ''}`}>
-                      <small className="fw-semibold">{shortDay(day)}</small>
-                      <Button
-                        variant="success"
-                        size="sm"
-                        style={circleButtonStyle}
-                        onClick={() => setAddModal({ date: dateKey })}
-                        disabled={!hasPersonalToken}
-                        aria-label="Add meal"
-                      >
-                        <Plus size={16} />
-                      </Button>
-                    </Card.Header>
-                    <Card.Body className="p-2">
-                      <DroppableDay dateKey={dateKey}>
-                        <SortableContext
-                          id={dateKey}
-                          items={entries.map((e) => e.id)}
-                        >
-                          {entries.map((entry) => {
-                            const recipeId =
-                              typeof entry.recipe === 'object' ? entry.recipe.id : entry.recipe;
-                            const cooked = isPastOrToday && isCookedOnDate(cookLogData, recipeId, dateKey);
-                            return (
-                              <SortableEntry
-                                key={entry.id}
-                                entry={entry}
-                                onDelete={handleDelete}
-                                onClick={(e) => navigate(`/meal-plan-entry/${e.id}`)}
-                                onEdit={setEditEntry}
-                                isPending={pendingMoves.has(entry.id)}
-                                isCooked={cooked}
-                                onLogCook={isPastOrToday ? setCookLogEntry : undefined}
-                              />
-                            );
-                          })}
-                        </SortableContext>
-                        {entries.length === 0 && (
-                          <p className="text-muted text-center mb-0" style={{ fontSize: '0.75rem' }}>
-                            No meals
-                          </p>
-                        )}
-                      </DroppableDay>
-                      <div className="mt-1">
-                        <DayCalendarWeatherInfo
-                          dayEvents={calendarEventsByDate[dateKey] ?? []}
-                          weather={weatherByDate[dateKey]}
-                          centered
-                        />
-                      </div>
-                    </Card.Body>
-                  </Card>
-                </Col>
-              );
-            })}
-          </Row>
-        </div>
-
-        {/* Spreadsheet table — shown on large screens and above */}
-        <div className="d-none d-lg-block" style={{ paddingLeft: '2rem', paddingRight: '2rem', marginTop: '2rem' }}>
+        <div style={{ paddingLeft: '0.5rem', paddingRight: '0.5rem', marginTop: '1rem' }}>
           <MealPlanTableView
             days={days}
             mealTypes={sortedMealTypes}
