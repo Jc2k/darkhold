@@ -232,6 +232,31 @@ Deno.test('parseIcal expands recurring weekly event', () => {
   if (!dates.includes('2025-05-12')) throw new Error('missing 2025-05-12');
 });
 
+Deno.test('parseIcal keeps all-day Monday recurring dates on Monday', () => {
+  const ical = [
+    'BEGIN:VCALENDAR',
+    'BEGIN:VEVENT',
+    'SUMMARY:Bank Holiday',
+    'DTSTART;VALUE=DATE:20250505',
+    'DTEND;VALUE=DATE:20250506',
+    'RRULE:FREQ=WEEKLY;BYDAY=MO;COUNT=2',
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].join('\r\n');
+
+  const rangeStart = new Date('2025-05-01T00:00:00Z');
+  const rangeEnd = new Date('2025-05-20T23:59:59Z');
+  const events = parseIcal(ical, rangeStart, rangeEnd);
+
+  if (events.length !== 2) throw new Error(`expected 2 events, got ${events.length}`);
+  const starts = events.map((e) => e.start);
+  if (!starts.includes('2025-05-05')) throw new Error('missing Monday 2025-05-05');
+  if (!starts.includes('2025-05-12')) throw new Error('missing Monday 2025-05-12');
+  if (starts.includes('2025-05-04') || starts.includes('2025-05-11')) {
+    throw new Error(`all-day Monday events shifted to Sunday: ${JSON.stringify(starts)}`);
+  }
+});
+
 Deno.test('parseIcal handles line folding in SUMMARY', () => {
   const ical = 'BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:Long summar\r\n y text\r\nDTSTART:20250507T100000Z\r\nEND:VEVENT\r\nEND:VCALENDAR';
   const events = parseIcal(ical, new Date('2025-05-07T00:00:00Z'), new Date('2025-05-07T23:59:59Z'));

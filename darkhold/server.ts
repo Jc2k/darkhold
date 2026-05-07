@@ -167,8 +167,18 @@ export async function fetchFeedEvents(
 const MAX_RRULE_ITER = 5000;
 
 /** Format an ICAL.Time as ISO 8601: YYYY-MM-DD for all-day events, UTC ISO string for timed. */
-function formatIcalTime(t: { isDate: boolean; toJSDate(): Date }): string {
+function formatIcalTime(
+  t: { isDate: boolean; toJSDate(): Date; year?: number; month?: number; day?: number },
+): string {
   if (t.isDate) {
+    // For DATE values, use ICAL calendar fields directly to avoid timezone
+    // conversion shifting the event by a day in non-UTC environments.
+    if (typeof t.year === 'number' && typeof t.month === 'number' && typeof t.day === 'number') {
+      const y = t.year;
+      const m = String(t.month).padStart(2, '0');
+      const d = String(t.day).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
     const js = t.toJSDate();
     const y = js.getUTCFullYear();
     const m = String(js.getUTCMonth() + 1).padStart(2, '0');
@@ -219,7 +229,7 @@ export function parseIcal(
       const iter = event.iterator();
       let startTime;
       let count = 0;
-      while (count < MAX_RRULE_ITER && (startTime = iter.next()) !== null) {
+      while (count < MAX_RRULE_ITER && (startTime = iter.next()) != null) {
         count++;
         if (startTime.compare(rangeEndICAL) > 0) break;
         if (startTime.compare(rangeStartICAL) >= 0) {
