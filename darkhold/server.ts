@@ -362,11 +362,17 @@ Deno.serve({ port: 8098, hostname: "127.0.0.1" }, async (req: Request): Promise<
     return handleCalendarEvents(req);
   }
 
-  if (req.headers.get("upgrade") !== "websocket") {
+  if (req.headers.get("upgrade")?.toLowerCase() !== "websocket") {
     return new Response("Not found", { status: 404 });
   }
 
-  const { socket, response } = Deno.upgradeWebSocket(req);
+  // Avoid websocket extension negotiation for compatibility with emulated ARM
+  // runtimes used in CI, where extension handling can crash the Deno process.
+  const wsHeaders = new Headers(req.headers);
+  wsHeaders.delete('sec-websocket-extensions');
+  const wsReq = new Request(req, { headers: wsHeaders });
+
+  const { socket, response } = Deno.upgradeWebSocket(wsReq);
 
   socket.onopen = () => {
     clients.add(socket);
