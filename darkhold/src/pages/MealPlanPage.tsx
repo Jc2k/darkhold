@@ -180,14 +180,21 @@ function DayCalendarWeatherInfo({ dayEvents, weather, centered }: DayCalendarWea
           <div className="d-flex align-items-center gap-1" style={{ whiteSpace: 'nowrap', justifyContent: centered ? 'center' : undefined }}>
             {weatherIconForCode(weather.weatherCode)}
             <span>{weatherSummaryForCode(weather.weatherCode)}</span>
-            <span>{Math.round(weather.tempMinC)}–{Math.round(weather.tempMaxC)}°C</span>
+            <span>{Math.round(weather.tempMinC)}-{Math.round(weather.tempMaxC)}°C</span>
           </div>
           <div style={{ whiteSpace: 'nowrap' }}>
             Sunrise {formatWeatherTime(weather.sunrise)} · Sunset {formatWeatherTime(weather.sunset)}
           </div>
           {disruptionBand && (
-            <div className={weatherDisruptionClassName(disruptionBand)}>
-              {weatherDisruptionLabel(disruptionBand)} ({Math.round(weather.precipitationProbabilityMax)}% / {weather.precipitationSumMm.toFixed(1)} mm)
+            <div
+              className={weatherDisruptionClassName(disruptionBand)}
+              aria-label={`${weatherDisruptionLabel(disruptionBand)}: precipitation probability ${Math.round(weather.precipitationProbabilityMax)} percent, expected rainfall ${weather.precipitationSumMm.toFixed(1)} millimeters`}
+            >
+              {weatherDisruptionLabel(disruptionBand)} (
+              <span title="precipitation probability / expected rainfall">
+                {Math.round(weather.precipitationProbabilityMax)}% / {weather.precipitationSumMm.toFixed(1)} mm
+              </span>
+              )
             </div>
           )}
         </div>

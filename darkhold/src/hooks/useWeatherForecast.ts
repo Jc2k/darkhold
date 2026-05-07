@@ -19,6 +19,15 @@ export type WeatherDisruptionBand = 'ok' | 'might_be_disrupted' | 'definitely_di
 
 export type WeatherByDate = Record<string, WeatherDayForecast>;
 
+// Loose day-level rain disruption bands:
+// - "definitely" for heavy rain totals or very high rain probability
+// - "might" for moderate totals/probability where outdoor plans may be impacted
+// - otherwise "ok"
+const DEFINITELY_DISRUPTED_PRECIP_MM = 8;
+const DEFINITELY_DISRUPTED_PRECIP_PROBABILITY = 80;
+const MIGHT_BE_DISRUPTED_PRECIP_MM = 2;
+const MIGHT_BE_DISRUPTED_PRECIP_PROBABILITY = 40;
+
 function formatDate(d: Date): string {
   return d.toISOString().split('T')[0];
 }
@@ -35,10 +44,16 @@ export function groupWeatherByDate(days: WeatherDayForecast[]): WeatherByDate {
 }
 
 export function getWeatherDisruptionBand(day: WeatherDayForecast): WeatherDisruptionBand {
-  if (day.precipitationSumMm >= 8 || day.precipitationProbabilityMax >= 80) {
+  if (
+    day.precipitationSumMm >= DEFINITELY_DISRUPTED_PRECIP_MM ||
+    day.precipitationProbabilityMax >= DEFINITELY_DISRUPTED_PRECIP_PROBABILITY
+  ) {
     return 'definitely_disrupted';
   }
-  if (day.precipitationSumMm >= 2 || day.precipitationProbabilityMax >= 40) {
+  if (
+    day.precipitationSumMm >= MIGHT_BE_DISRUPTED_PRECIP_MM ||
+    day.precipitationProbabilityMax >= MIGHT_BE_DISRUPTED_PRECIP_PROBABILITY
+  ) {
     return 'might_be_disrupted';
   }
   return 'ok';
@@ -48,6 +63,8 @@ async function fetchWeatherForecast(fromDate: string, toDate: string): Promise<W
   const url = `/weather-forecast?from=${fromDate}&to=${toDate}`;
   const res = await fetch(url);
   if (!res.ok) {
+    // Match calendar behavior: when the Deno sidecar endpoint is unavailable
+    // (e.g. local frontend-only dev), fail open with empty weather data.
     if (res.status === 404) return [];
     throw new Error(`Weather forecast fetch failed: ${res.status}`);
   }

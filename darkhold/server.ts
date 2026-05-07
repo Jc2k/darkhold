@@ -27,6 +27,7 @@ interface WeatherConfig {
 }
 
 const MAX_ERROR_RESPONSE_LENGTH = 200;
+const DEFAULT_WEATHER_TIMEZONE = 'Europe/London';
 
 function loadICalFeeds(): ICalFeed[] {
   try {
@@ -68,7 +69,7 @@ function loadICalFeeds(): ICalFeed[] {
 function loadWeatherConfig(): WeatherConfig | null {
   const latitudeRaw = Deno.env.get('WEATHER_LATITUDE');
   const longitudeRaw = Deno.env.get('WEATHER_LONGITUDE');
-  const timezone = Deno.env.get('WEATHER_TIMEZONE') || 'Europe/London';
+  const timezone = Deno.env.get('WEATHER_TIMEZONE') || DEFAULT_WEATHER_TIMEZONE;
   if (!latitudeRaw || !longitudeRaw) return null;
   const latitude = Number(latitudeRaw);
   const longitude = Number(longitudeRaw);
@@ -401,7 +402,12 @@ async function fetchWeatherForecast(
 
   const res = await fetch(url);
   if (!res.ok) {
-    const body = (await res.text()).trim();
+    let body = '';
+    try {
+      body = (await res.text()).trim();
+    } catch {
+      body = '';
+    }
     const suffix = body ? `; ${body.slice(0, MAX_ERROR_RESPONSE_LENGTH)}` : '';
     throw new Error(`Weather API fetch failed: HTTP ${res.status}${suffix}`);
   }
@@ -499,8 +505,10 @@ async function handleWeatherForecast(req: Request): Promise<Response> {
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return new Response(JSON.stringify({ error: message }), {
+    console.error('Weather forecast fetch failed:', err);
+    return new Response(JSON.stringify({
+      error: 'Unable to fetch weather forecast from Open-Meteo right now. Check network and weather settings, then try again later.',
+    }), {
       status: 502,
       headers: { 'Content-Type': 'application/json' },
     });
