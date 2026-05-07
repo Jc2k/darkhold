@@ -66,6 +66,11 @@
     width: 100%;
   }
 
+  .meal-plan-page .meal-plan-mobile-row {
+    border-radius: var(--bs-border-radius);
+    overflow: hidden;
+  }
+
   .meal-plan-page .meal-plan-table colgroup {
     display: none;
   }
