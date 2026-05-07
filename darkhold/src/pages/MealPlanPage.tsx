@@ -979,7 +979,7 @@ export function MealPlanPage() {
         </div>
 
         {/* Spreadsheet table — shown on large screens and above */}
-        <div className="d-none d-lg-block" style={{ paddingLeft: '2rem', paddingRight: '2rem', marginTop: '1rem' }}>
+        <div className="d-none d-lg-block" style={{ paddingLeft: '2rem', paddingRight: '2rem', marginTop: '2rem' }}>
           <MealPlanTableView
             days={days}
             mealTypes={sortedMealTypes}
