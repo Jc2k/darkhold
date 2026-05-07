@@ -34,13 +34,14 @@ function loadICalFeeds(): ICalFeed[] {
       const password = record.password;
       if (password !== undefined && typeof password !== 'string') return [];
 
-      return [{
+      const feed: ICalFeed = {
         name: record.name,
         url: record.url,
-        type,
-        username,
-        password,
-      }];
+      };
+      if (type !== undefined) feed.type = type;
+      if (username !== undefined) feed.username = username;
+      if (password !== undefined) feed.password = password;
+      return [feed];
     });
   } catch {
     return [];
@@ -81,12 +82,13 @@ export function extractCalDavCalendarData(xml: string): string[] {
   );
   return Array.from(matches)
     .map((m) => m[1].trim())
-    .map((s) => s
-      .replaceAll('&lt;', '<')
-      .replaceAll('&gt;', '>')
-      .replaceAll('&amp;', '&')
-      .replaceAll('&quot;', '"')
-      .replaceAll('&apos;', "'"))
+    .map((s) => s.replaceAll(/&(lt|gt|amp|quot|apos);/g, (_m, name) => {
+      if (name === 'lt') return '<';
+      if (name === 'gt') return '>';
+      if (name === 'amp') return '&';
+      if (name === 'quot') return '"';
+      return "'";
+    }))
     .filter((v) => v.length > 0);
 }
 
@@ -124,7 +126,7 @@ export async function fetchFeedEvents(
       body: reportBody,
     });
     if (!res.ok) {
-      throw new Error(`HTTP ${res.status}`);
+      throw new Error(`CalDAV REPORT failed: HTTP ${res.status}`);
     }
 
     const xml = await res.text();
@@ -136,7 +138,7 @@ export async function fetchFeedEvents(
   if (auth) headers.Authorization = auth;
   const res = await fetch(feed.url, { headers });
   if (!res.ok) {
-    throw new Error(`HTTP ${res.status}`);
+    throw new Error(`ICS fetch failed: HTTP ${res.status}`);
   }
   const text = await res.text();
   return parseIcal(text, rangeStart, rangeEnd);
