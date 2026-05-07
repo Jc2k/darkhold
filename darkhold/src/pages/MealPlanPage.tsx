@@ -767,8 +767,8 @@ function MealPlanTableView({
             const dayEvents = calendarEventsByDate?.[dateKey] ?? [];
             const dayWeather = weatherByDate?.[dateKey];
             return (
-              <tr key={dateKey} className={`d-block d-lg-table-row border rounded mb-3 mb-lg-0 ${isToday ? 'table-primary border-primary' : ''}`}>
-                <td className={`d-block d-lg-table-cell py-2 px-2 align-top ${isToday ? 'bg-primary text-white' : 'bg-body-tertiary'}`}>
+              <tr key={dateKey} className={`meal-plan-mobile-row d-block d-lg-table-row border rounded mb-3 mb-lg-0 ${isToday ? 'table-primary border-primary' : ''}`}>
+                <td className={`meal-plan-mobile-cell d-block d-lg-table-cell py-2 px-2 align-top ${isToday ? 'bg-primary text-white' : 'bg-body-tertiary'}`}>
                   <div className="d-flex justify-content-between align-items-center">
                     <div className="d-flex flex-column align-items-start gap-1">
                       <small className="fw-semibold" style={{ whiteSpace: 'nowrap' }}>{shortDay(day)}</small>
@@ -789,7 +789,7 @@ function MealPlanTableView({
                   const containerId = `${dateKey}__${mt.id}`;
                   const entries = byDayAndMealType[dateKey]?.[mt.id] ?? [];
                   return (
-                    <td key={mt.id} className="d-block d-lg-table-cell p-1 align-top">
+                    <td key={mt.id} className="meal-plan-mobile-cell d-block d-lg-table-cell p-1 align-top">
                       <DroppableDay dateKey={containerId}>
                         <SortableContext id={containerId} items={entries.map((e) => e.id)}>
                           {entries.map((entry) => {
@@ -815,7 +815,7 @@ function MealPlanTableView({
                   );
                 })}
                 {(calendarEventsByDate || weatherByDate) && (
-                  <td className="d-block d-lg-table-cell p-1 align-top">
+                  <td className="meal-plan-mobile-cell d-block d-lg-table-cell p-1 align-top">
                     <DayCalendarWeatherInfo dayEvents={dayEvents} weather={dayWeather} />
                   </td>
                 )}
