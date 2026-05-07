@@ -1,4 +1,6 @@
 import ICAL from 'npm:ical.js@2';
+import { calendarQuery } from './node_modules/tsdav/dist/tsdav.js';
+import type { DAVResponse } from './node_modules/tsdav/dist/tsdav.d.ts';
 import pkg from './package.json' with { type: 'json' };
 
 const VERSION = pkg.version;
@@ -28,6 +30,7 @@ interface WeatherConfig {
 
 const MAX_ERROR_RESPONSE_LENGTH = 200;
 const DEFAULT_WEATHER_TIMEZONE = 'Europe/London';
+const CALDAV_NAMESPACE_PREFIX = 'c';
 export function parseICalFeeds(raw: string): ICalFeed[] {
   try {
     const parsed = JSON.parse(raw) as unknown;
@@ -113,42 +116,90 @@ function getBasicAuthHeader(feed: ICalFeed): string | undefined {
   return `Basic ${btoa(`${feed.username}:${feed.password}`)}`;
 }
 
-function buildCalDavReportBody(rangeStart: Date, rangeEnd: Date, withTimeRange: boolean): string {
-  const timeRangeFilter = withTimeRange
-    ? `
-        <C:time-range start="${formatCalDavTimestamp(rangeStart)}" end="${formatCalDavTimestamp(rangeEnd)}"/>`
-    : '';
-  return `<?xml version="1.0" encoding="utf-8"?>
-<C:calendar-query xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">
-  <D:prop>
-    <C:calendar-data/>
-  </D:prop>
-  <C:filter>
-    <C:comp-filter name="VCALENDAR">
-      <C:comp-filter name="VEVENT">${timeRangeFilter}
-      </C:comp-filter>
-    </C:comp-filter>
-  </C:filter>
-</C:calendar-query>`;
-}
-
 function formatFetchError(prefix: string, status: number, responseText: string): Error {
   const trimmed = responseText.trim();
   const responseSummary = trimmed ? `; ${trimmed.slice(0, MAX_ERROR_RESPONSE_LENGTH)}` : '';
   return new Error(`${prefix}: HTTP ${status}${responseSummary}`);
 }
 
-async function fetchCalDavCalendarData(url: string, headers: HeadersInit, body: string): Promise<string[]> {
-  const res = await fetch(url, {
-    method: 'REPORT',
-    headers,
-    body,
-  });
-  if (!res.ok) {
-    throw formatFetchError('CalDAV REPORT failed', res.status, await res.text());
+function buildCalDavFilters(
+  rangeStart: Date,
+  rangeEnd: Date,
+  withTimeRange: boolean,
+): Record<string, unknown>[] {
+  return [
+    {
+      'comp-filter': {
+        _attributes: { name: 'VCALENDAR' },
+        'comp-filter': {
+          _attributes: { name: 'VEVENT' },
+          ...(withTimeRange
+            ? {
+              'time-range': {
+                _attributes: {
+                  start: formatCalDavTimestamp(rangeStart),
+                  end: formatCalDavTimestamp(rangeEnd),
+                },
+              },
+            }
+            : {}),
+        },
+      },
+    },
+  ];
+}
+
+function getCalDavPayload(response: { props?: Record<string, unknown> }): string | null {
+  const payload = response.props?.calendarData;
+  if (typeof payload === 'string') return payload;
+  if (payload && typeof payload === 'object') {
+    const cdata = (payload as { _cdata?: unknown })._cdata;
+    if (typeof cdata === 'string') return cdata;
   }
-  const xml = await res.text();
-  return extractCalDavCalendarData(xml);
+  return null;
+}
+
+async function fetchCalDavCalendarData(
+  url: string,
+  headers: Record<string, string>,
+  rangeStart: Date,
+  rangeEnd: Date,
+  withTimeRange: boolean,
+): Promise<string[]> {
+  let responses: DAVResponse[];
+  try {
+    responses = await calendarQuery({
+      url,
+      props: {
+        [`${CALDAV_NAMESPACE_PREFIX}:calendar-data`]: {},
+      },
+      filters: buildCalDavFilters(rangeStart, rangeEnd, withTimeRange),
+      depth: '1',
+      headers,
+      fetch: globalThis.fetch,
+    });
+  } catch (err) {
+    if (err instanceof Error) {
+      const match = err.message.match(/Collection query failed:\s*(\d{3})(?:\s*\.\s*Raw response:\s*([\s\S]*))?/);
+      if (match) {
+        throw formatFetchError('CalDAV REPORT failed', Number.parseInt(match[1], 10), match[2] ?? '');
+      }
+    }
+    throw err;
+  }
+
+  const failed = responses.find((r: DAVResponse) => !r.ok);
+  if (failed) {
+    throw formatFetchError(
+      'CalDAV REPORT failed',
+      failed.status,
+      typeof failed.raw === 'string' ? failed.raw : '',
+    );
+  }
+
+  return responses
+    .map((r: DAVResponse) => getCalDavPayload(r))
+    .filter((v: string | null): v is string => Boolean(v && v.trim()));
 }
 
 export function extractCalDavCalendarData(xml: string): string[] {
@@ -156,7 +207,13 @@ export function extractCalDavCalendarData(xml: string): string[] {
     /<(?:[A-Za-z0-9_-]+:)?calendar-data(?:\s[^>]*)?>([\s\S]*?)<\/(?:[A-Za-z0-9_-]+:)?calendar-data>/g,
   );
   return Array.from(matches)
-    .map((m) => m[1].trim())
+    .map((m) => {
+      const raw = m[1].trim();
+      // Some CalDAV servers (e.g. iCloud) wrap calendar data in CDATA sections.
+      // Strip the CDATA markers so ical.js receives plain iCal text.
+      const cdataMatch = raw.match(/^<!\[CDATA\[([\s\S]*?)\]\]>$/);
+      return cdataMatch ? cdataMatch[1] : raw;
+    })
     .map((s) => s.replaceAll(/&(#x?[0-9A-Fa-f]+|lt|gt|amp|quot|apos);/g, (match, name) => {
       if (name === 'lt') return '<';
       if (name === 'gt') return '>';
@@ -190,8 +247,7 @@ export async function fetchFeedEvents(
   const auth = getBasicAuthHeader(feed);
 
   if (feed.type === 'caldav') {
-    const headers: HeadersInit = {
-      'Content-Type': 'application/xml; charset=utf-8',
+    const headers: Record<string, string> = {
       Depth: '1',
     };
     if (auth) headers.Authorization = auth;
@@ -199,7 +255,9 @@ export async function fetchFeedEvents(
     const rangeFilteredCalendars = await fetchCalDavCalendarData(
       feed.url,
       headers,
-      buildCalDavReportBody(rangeStart, rangeEnd, true),
+      rangeStart,
+      rangeEnd,
+      true,
     );
     let events = rangeFilteredCalendars.flatMap((cal) => parseIcal(cal, rangeStart, rangeEnd));
     if (events.length > 0) return events;
@@ -209,7 +267,9 @@ export async function fetchFeedEvents(
     const unfilteredCalendars = await fetchCalDavCalendarData(
       feed.url,
       headers,
-      buildCalDavReportBody(rangeStart, rangeEnd, false),
+      rangeStart,
+      rangeEnd,
+      false,
     );
     events = unfilteredCalendars.flatMap((cal) => parseIcal(cal, rangeStart, rangeEnd));
     return events;

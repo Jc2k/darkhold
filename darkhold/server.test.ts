@@ -6,7 +6,6 @@
  */
 
 import {
-  extractCalDavCalendarData,
   fetchFeedEvents,
   parseOpenMeteoDaily,
   parseIcal,
@@ -308,25 +307,6 @@ Deno.test('parseIcal handles line folding in SUMMARY', () => {
   if (events[0].name !== 'Long summary text') throw new Error(`name: "${events[0].name}"`);
 });
 
-Deno.test('extractCalDavCalendarData reads calendar-data elements from multistatus xml', () => {
-  const xml = [
-    '<?xml version="1.0" encoding="utf-8"?>',
-    '<D:multistatus xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">',
-    '  <D:response>',
-    '    <D:propstat>',
-    '      <D:prop>',
-    '        <C:calendar-data>BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:One\r\nDTSTART:20250507T100000Z\r\nDTEND:20250507T110000Z\r\nEND:VEVENT\r\nEND:VCALENDAR</C:calendar-data>',
-    '      </D:prop>',
-    '    </D:propstat>',
-    '  </D:response>',
-    '</D:multistatus>',
-  ].join('\n');
-
-  const calendars = extractCalDavCalendarData(xml);
-  if (calendars.length !== 1) throw new Error(`expected 1 calendar payload, got ${calendars.length}`);
-  if (!calendars[0].includes('SUMMARY:One')) throw new Error('missing event summary');
-});
-
 Deno.test('fetchFeedEvents uses caldav REPORT with basic auth when feed type is caldav', async () => {
   const originalFetch = globalThis.fetch;
   let request: Request | undefined;
@@ -373,7 +353,13 @@ Deno.test('fetchFeedEvents uses caldav REPORT with basic auth when feed type is 
       throw new Error('expected basic auth header');
     }
     const body = await request.text();
-    if (!body.includes('<C:calendar-query')) throw new Error('expected calendar-query body');
+    if (!body.includes('<c:calendar-query')) throw new Error('expected caldav calendar-query element');
+    if (!body.includes('<d:prop>') || !body.includes('<c:calendar-data')) {
+      throw new Error('expected DAV prop with calendar-data');
+    }
+    if (!body.includes('<c:filter>')) throw new Error('expected filter element');
+    if (!body.includes('<c:comp-filter name="VCALENDAR">')) throw new Error('expected VCALENDAR comp-filter');
+    if (!body.includes('<c:comp-filter name="VEVENT">')) throw new Error('expected VEVENT comp-filter');
     if (events.length !== 1) throw new Error(`expected 1 event, got ${events.length}`);
     if (events[0].name !== 'Private') throw new Error(`unexpected event: ${events[0].name}`);
   } finally {
@@ -436,12 +422,53 @@ Deno.test('fetchFeedEvents retries caldav REPORT without time-range when filtere
     if (requests.length !== 2) throw new Error(`expected 2 requests, got ${requests.length}`);
     const firstBody = await requests[0].text();
     const secondBody = await requests[1].text();
-    if (!firstBody.includes('<C:time-range')) throw new Error('first query should include time-range');
-    if (secondBody.includes('<C:time-range')) throw new Error('fallback query should omit time-range');
+    if (!firstBody.includes('time-range')) throw new Error('first query should include time-range');
+    if (secondBody.includes('time-range')) throw new Error('fallback query should omit time-range');
     if (events.length !== 2) throw new Error(`expected 2 events, got ${events.length}`);
     const starts = events.map((e) => e.start.split('T')[0]);
     if (!starts.includes('2025-05-05')) throw new Error('missing 2025-05-05 recurrence');
     if (!starts.includes('2025-05-12')) throw new Error('missing 2025-05-12 recurrence');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+Deno.test('fetchFeedEvents parses CalDAV calendar-data wrapped in CDATA', async () => {
+  const originalFetch = globalThis.fetch;
+  const reportResponseXml = [
+    '<?xml version="1.0" encoding="utf-8"?>',
+    '<D:multistatus xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">',
+    '  <D:response>',
+    '    <D:propstat>',
+    '      <D:prop>',
+    '        <C:calendar-data><![CDATA[BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:CDATA Event\r\nDTSTART:20250507T100000Z\r\nDTEND:20250507T110000Z\r\nEND:VEVENT\r\nEND:VCALENDAR]]></C:calendar-data>',
+    '      </D:prop>',
+    '    </D:propstat>',
+    '  </D:response>',
+    '</D:multistatus>',
+  ].join('\n');
+
+  globalThis.fetch = (() =>
+    Promise.resolve(
+      new Response(reportResponseXml, {
+        status: 207,
+        headers: { 'Content-Type': 'application/xml' },
+      }),
+    )) as typeof fetch;
+
+  try {
+    const events = await fetchFeedEvents(
+      {
+        name: 'CalDAV',
+        url: 'https://caldav.icloud.com/calendar/',
+        type: 'caldav',
+      },
+      new Date('2025-05-07T00:00:00Z'),
+      new Date('2025-05-07T23:59:59Z'),
+    );
+
+    if (events.length !== 1) throw new Error(`expected 1 event, got ${events.length}`);
+    if (events[0].name !== 'CDATA Event') throw new Error(`unexpected event: ${events[0].name}`);
   } finally {
     globalThis.fetch = originalFetch;
   }
