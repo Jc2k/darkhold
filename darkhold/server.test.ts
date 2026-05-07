@@ -327,6 +327,27 @@ Deno.test('extractCalDavCalendarData reads calendar-data elements from multistat
   if (!calendars[0].includes('SUMMARY:One')) throw new Error('missing event summary');
 });
 
+Deno.test('extractCalDavCalendarData strips CDATA wrappers from calendar-data content', () => {
+  const icalData = 'BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:CDATA Event\r\nDTSTART:20250507T100000Z\r\nDTEND:20250507T110000Z\r\nEND:VEVENT\r\nEND:VCALENDAR';
+  const xml = [
+    '<?xml version="1.0" encoding="utf-8"?>',
+    '<D:multistatus xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">',
+    '  <D:response>',
+    '    <D:propstat>',
+    '      <D:prop>',
+    `        <C:calendar-data><![CDATA[${icalData}]]></C:calendar-data>`,
+    '      </D:prop>',
+    '    </D:propstat>',
+    '  </D:response>',
+    '</D:multistatus>',
+  ].join('\n');
+
+  const calendars = extractCalDavCalendarData(xml);
+  if (calendars.length !== 1) throw new Error(`expected 1 calendar payload, got ${calendars.length}`);
+  if (calendars[0].includes('<![CDATA[')) throw new Error('CDATA markers should have been stripped');
+  if (!calendars[0].includes('SUMMARY:CDATA Event')) throw new Error('missing event summary after CDATA strip');
+});
+
 Deno.test('fetchFeedEvents uses caldav REPORT with basic auth when feed type is caldav', async () => {
   const originalFetch = globalThis.fetch;
   let request: Request | undefined;

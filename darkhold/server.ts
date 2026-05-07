@@ -156,7 +156,13 @@ export function extractCalDavCalendarData(xml: string): string[] {
     /<(?:[A-Za-z0-9_-]+:)?calendar-data(?:\s[^>]*)?>([\s\S]*?)<\/(?:[A-Za-z0-9_-]+:)?calendar-data>/g,
   );
   return Array.from(matches)
-    .map((m) => m[1].trim())
+    .map((m) => {
+      const raw = m[1].trim();
+      // Some CalDAV servers (e.g. Nextcloud) wrap calendar data in CDATA sections.
+      // Strip the CDATA markers so ical.js receives plain iCal text.
+      const cdataMatch = raw.match(/^<!\[CDATA\[([\s\S]*?)\]\]>$/);
+      return cdataMatch ? cdataMatch[1] : raw;
+    })
     .map((s) => s.replaceAll(/&(#x?[0-9A-Fa-f]+|lt|gt|amp|quot|apos);/g, (match, name) => {
       if (name === 'lt') return '<';
       if (name === 'gt') return '>';
