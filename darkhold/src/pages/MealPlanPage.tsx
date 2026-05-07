@@ -23,6 +23,8 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useMealPlan, useDeleteMealPlan, useCreateMealPlan, useUpdateMealPlan } from '../hooks/useMealPlan';
+import { useCalendarEvents, formatEventTimeRange, useRefetchCalendarEvents } from '../hooks/useCalendarEvents';
+import type { CalendarEventsByDate } from '../hooks/useCalendarEvents';
 import { useQuery } from '@tanstack/react-query';
 import { apiGet } from '../api/client';
 import type { MealPlan, Recipe, MealType, PaginatedResponse } from '../api/tandoor-types';
@@ -33,6 +35,7 @@ import { NoTokenAlert } from '../components/NoTokenAlert';
 import { CookLogModal } from '../components/CookLogModal';
 import { useCookLog, isCookedOnDate, type CookedByDate } from '../hooks/useCookLog';
 import { smallCircleButtonStyle } from '../utils/buttonStyles';
+import { usePullToRefresh } from '../hooks/usePullToRefresh';
 
 type WithSortable = { sortable?: { containerId: string } } | undefined;
 
@@ -602,6 +605,7 @@ interface MealPlanTableViewProps {
   onLogCook: (entry: MealPlan) => void;
   onEdit: (entry: MealPlan) => void;
   cookLogData: CookedByDate | undefined;
+  calendarEventsByDate?: CalendarEventsByDate;
 }
 
 function MealPlanTableView({
@@ -617,6 +621,7 @@ function MealPlanTableView({
   onLogCook,
   onEdit,
   cookLogData,
+  calendarEventsByDate,
 }: MealPlanTableViewProps) {
   return (
     <div style={{ overflowX: 'auto' }}>
@@ -624,6 +629,7 @@ function MealPlanTableView({
         <colgroup>
           <col style={{ width: '12%' }} />
           {mealTypes.map((mt) => <col key={mt.id} />)}
+          {calendarEventsByDate && <col style={{ width: '18%' }} />}
         </colgroup>
         <thead>
           <tr>
@@ -633,6 +639,9 @@ function MealPlanTableView({
                 {mt.name}
               </th>
             ))}
+            {calendarEventsByDate && (
+              <th className="py-2 ps-2 text-muted fw-semibold" style={{ fontSize: '0.75rem' }}>Events</th>
+            )}
           </tr>
         </thead>
         <tbody>
@@ -640,6 +649,7 @@ function MealPlanTableView({
             const dateKey = formatDate(day);
             const isToday = dateKey === todayStr;
             const isPastOrToday = dateKey <= todayStr;
+            const dayEvents = calendarEventsByDate?.[dateKey] ?? [];
             return (
               <tr key={dateKey} className={isToday ? 'table-primary' : undefined}>
                 <td className="py-2 ps-2 align-top">
@@ -686,6 +696,21 @@ function MealPlanTableView({
                     </td>
                   );
                 })}
+                {calendarEventsByDate && (
+                  <td className="p-1 align-top">
+                    {dayEvents.map((event, idx) => {
+                      const timeRange = formatEventTimeRange(event);
+                      return (
+                        <div key={idx} className="text-muted" style={{ fontSize: '0.7rem', lineHeight: 1.4 }}>
+                          {event.name}
+                          {timeRange && (
+                            <span style={{ whiteSpace: 'nowrap' }}> ({timeRange})</span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </td>
+                )}
               </tr>
             );
           })}
@@ -719,6 +744,18 @@ export function MealPlanPage() {
   // (whichever is earlier) as the fromDate.
   const cookLogFrom = formatDate(startDate) <= todayStr ? formatDate(startDate) : todayStr;
   const { data: cookLogData } = useCookLog(cookLogFrom, todayStr);
+
+  // Fetch calendar events for the displayed week.
+  const { byDate: calendarEventsByDate, refetch: refetchCalendar } = useCalendarEvents(startDate, endDate);
+  const invalidateCalendar = useRefetchCalendarEvents(startDate, endDate);
+
+  // Pull-to-refresh: background-refresh calendar events and update display on change.
+  usePullToRefresh({
+    onRefresh: () => {
+      invalidateCalendar();
+      void refetchCalendar();
+    },
+  });
 
   // Only show the full-screen spinner on the very first load.
   // Once data has been received at least once, week navigation and background
@@ -960,6 +997,23 @@ export function MealPlanPage() {
                           </p>
                         )}
                       </DroppableDay>
+                      {(() => {
+                        const dayEvents = calendarEventsByDate[dateKey] ?? [];
+                        if (dayEvents.length === 0) return null;
+                        return (
+                          <div className="text-muted text-center mt-1" style={{ fontSize: '0.7rem', lineHeight: 1.5 }}>
+                            {dayEvents.map((event, idx) => {
+                              const timeRange = formatEventTimeRange(event);
+                              return (
+                                <div key={idx}>
+                                  {event.name}
+                                  {timeRange && <span> ({timeRange})</span>}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
                     </Card.Body>
                   </Card>
                 </Col>
@@ -983,6 +1037,7 @@ export function MealPlanPage() {
             onLogCook={setCookLogEntry}
             onEdit={setEditEntry}
             cookLogData={cookLogData}
+            calendarEventsByDate={calendarEventsByDate}
           />
         </div>
 

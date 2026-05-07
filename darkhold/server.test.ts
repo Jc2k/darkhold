@@ -1,9 +1,13 @@
 /**
- * Unit tests for the WebSocket broadcast server (server.ts).
+ * Unit tests for the WebSocket broadcast server (server.ts) and iCal parser.
  *
- * These tests exercise the broadcast logic directly without spinning up a full
- * HTTP server, keeping them fast and dependency-free.
+ * These tests exercise the broadcast logic and iCal parsing directly without
+ * spinning up a full HTTP server, keeping them fast and dependency-free.
  */
+
+import {
+  parseIcal,
+} from './server.ts';
 
 // ---------------------------------------------------------------------------
 // Minimal WebSocket stub used by the broadcast tests
@@ -136,4 +140,99 @@ Deno.test('version message is valid JSON with type and version fields', () => {
 
   if (parsed.type !== 'version') throw new Error('type should be version');
   if (parsed.version !== version) throw new Error('version mismatch');
+});
+
+// ---------------------------------------------------------------------------
+// parseIcal integration tests (exercises ical.js-backed parsing end-to-end)
+// ---------------------------------------------------------------------------
+
+Deno.test('parseIcal parses a simple non-recurring event', () => {
+  const ical = [
+    'BEGIN:VCALENDAR',
+    'BEGIN:VEVENT',
+    'SUMMARY:Team meeting',
+    'DTSTART:20250507T100000Z',
+    'DTEND:20250507T110000Z',
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].join('\r\n');
+
+  const rangeStart = new Date('2025-05-07T00:00:00Z');
+  const rangeEnd = new Date('2025-05-07T23:59:59Z');
+  const events = parseIcal(ical, rangeStart, rangeEnd);
+
+  if (events.length !== 1) throw new Error(`expected 1 event, got ${events.length}`);
+  if (events[0].name !== 'Team meeting') throw new Error(`name: ${events[0].name}`);
+  if (events[0].allDay) throw new Error('should not be all-day');
+  if (events[0].start !== '2025-05-07T10:00:00.000Z') throw new Error(`start: ${events[0].start}`);
+  if (events[0].end !== '2025-05-07T11:00:00.000Z') throw new Error(`end: ${events[0].end}`);
+});
+
+Deno.test('parseIcal parses an all-day event', () => {
+  const ical = [
+    'BEGIN:VCALENDAR',
+    'BEGIN:VEVENT',
+    'SUMMARY:Birthday',
+    'DTSTART;VALUE=DATE:20250507',
+    'DTEND;VALUE=DATE:20250508',
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].join('\r\n');
+
+  const rangeStart = new Date('2025-05-07T00:00:00Z');
+  const rangeEnd = new Date('2025-05-07T23:59:59Z');
+  const events = parseIcal(ical, rangeStart, rangeEnd);
+
+  if (events.length !== 1) throw new Error(`expected 1 event, got ${events.length}`);
+  if (events[0].name !== 'Birthday') throw new Error(`name: ${events[0].name}`);
+  if (!events[0].allDay) throw new Error('should be all-day');
+  if (events[0].start !== '2025-05-07') throw new Error(`start: ${events[0].start}`);
+});
+
+Deno.test('parseIcal excludes events outside range', () => {
+  const ical = [
+    'BEGIN:VCALENDAR',
+    'BEGIN:VEVENT',
+    'SUMMARY:Other day',
+    'DTSTART:20250508T100000Z',
+    'DTEND:20250508T110000Z',
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].join('\r\n');
+
+  const rangeStart = new Date('2025-05-07T00:00:00Z');
+  const rangeEnd = new Date('2025-05-07T23:59:59Z');
+  const events = parseIcal(ical, rangeStart, rangeEnd);
+
+  if (events.length !== 0) throw new Error(`expected 0 events, got ${events.length}`);
+});
+
+Deno.test('parseIcal expands recurring weekly event', () => {
+  const ical = [
+    'BEGIN:VCALENDAR',
+    'BEGIN:VEVENT',
+    'SUMMARY:Weekly standup',
+    'DTSTART:20250505T090000Z',
+    'DTEND:20250505T093000Z',
+    'RRULE:FREQ=WEEKLY;BYDAY=MO',
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].join('\r\n');
+
+  // Query a range that includes two Mondays
+  const rangeStart = new Date('2025-05-05T00:00:00Z');
+  const rangeEnd = new Date('2025-05-18T23:59:59Z');
+  const events = parseIcal(ical, rangeStart, rangeEnd);
+
+  if (events.length !== 2) throw new Error(`expected 2 events, got ${events.length}`);
+  const dates = events.map((e) => e.start.split('T')[0]);
+  if (!dates.includes('2025-05-05')) throw new Error('missing 2025-05-05');
+  if (!dates.includes('2025-05-12')) throw new Error('missing 2025-05-12');
+});
+
+Deno.test('parseIcal handles line folding in SUMMARY', () => {
+  const ical = 'BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:Long summar\r\n y text\r\nDTSTART:20250507T100000Z\r\nEND:VEVENT\r\nEND:VCALENDAR';
+  const events = parseIcal(ical, new Date('2025-05-07T00:00:00Z'), new Date('2025-05-07T23:59:59Z'));
+  if (events.length !== 1) throw new Error(`expected 1, got ${events.length}`);
+  if (events[0].name !== 'Long summary text') throw new Error(`name: "${events[0].name}"`);
 });
