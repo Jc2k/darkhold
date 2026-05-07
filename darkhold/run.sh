@@ -47,6 +47,6 @@ jq -n \
     > /usr/share/nginx/html/app-config.json
 
 # Start WebSocket broadcast server in background
-deno run --cached-only --node-modules-dir=manual --allow-net --allow-read=/package.json --allow-env=ICAL_FEEDS,WEATHER_LATITUDE,WEATHER_LONGITUDE,WEATHER_TIMEZONE /server.ts &
+deno run --cached-only --node-modules-dir=manual --allow-net --allow-read=/package.json --allow-env /server.ts &
 
 exec nginx -g "daemon off;"
