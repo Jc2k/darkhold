@@ -68,7 +68,14 @@ async function fetchWeatherForecast(fromDate: string, toDate: string): Promise<W
     if (res.status === 404) return [];
     throw new Error(`Weather forecast fetch failed: ${res.status}`);
   }
-  const data = (await res.json()) as WeatherForecastPayload;
+  const text = await res.text();
+  let data: WeatherForecastPayload;
+  try {
+    data = JSON.parse(text) as WeatherForecastPayload;
+  } catch {
+    console.error('Weather forecast: non-JSON response received:', text.slice(0, 500));
+    throw new Error('Weather forecast response was not valid JSON');
+  }
   return parseWeatherForecastPayload(data);
 }
 
