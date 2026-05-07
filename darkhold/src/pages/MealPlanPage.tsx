@@ -431,7 +431,7 @@ interface DroppableTableRowProps {
   children: React.ReactNode;
 }
 
-function DroppableTableRow({ dateKey, className, children }: DroppableTableRowProps) {
+export function DroppableTableRow({ dateKey, className, children }: DroppableTableRowProps) {
   const { setNodeRef, isOver } = useDroppable({ id: dateKey });
   const rowClassName = [className, isOver ? 'meal-plan-row-drop-target' : ''].filter(Boolean).join(' ');
   return (
