@@ -9,6 +9,7 @@ import {
   extractCalDavCalendarData,
   fetchFeedEvents,
   parseIcal,
+  parseICalFeeds,
 } from './server.ts';
 
 // ---------------------------------------------------------------------------
@@ -491,6 +492,108 @@ Deno.test('fetchFeedEvents omits response summary when error body is empty', asy
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+// ---------------------------------------------------------------------------
+// parseICalFeeds tests — exercises feed validation and null/case handling
+// ---------------------------------------------------------------------------
+
+Deno.test('parseICalFeeds loads a valid ICS feed', () => {
+  const feeds = parseICalFeeds(JSON.stringify([{ name: 'Cal', url: 'https://example.com/cal.ics' }]));
+  if (feeds.length !== 1) throw new Error(`expected 1 feed, got ${feeds.length}`);
+  if (feeds[0].name !== 'Cal') throw new Error(`unexpected name: ${feeds[0].name}`);
+  if (feeds[0].type !== undefined) throw new Error(`expected no type, got ${feeds[0].type}`);
+});
+
+Deno.test('parseICalFeeds loads a valid CalDAV feed with credentials', () => {
+  const feeds = parseICalFeeds(JSON.stringify([
+    { name: 'iCloud', url: 'https://caldav.icloud.com/cal/', type: 'caldav', username: 'u', password: 'p' },
+  ]));
+  if (feeds.length !== 1) throw new Error(`expected 1 feed, got ${feeds.length}`);
+  if (feeds[0].type !== 'caldav') throw new Error(`expected type caldav, got ${feeds[0].type}`);
+  if (feeds[0].username !== 'u') throw new Error(`unexpected username: ${feeds[0].username}`);
+  if (feeds[0].password !== 'p') throw new Error(`unexpected password: ${feeds[0].password}`);
+});
+
+Deno.test('parseICalFeeds normalises type to lowercase (CalDAV → caldav)', () => {
+  const feeds = parseICalFeeds(JSON.stringify([
+    { name: 'iCloud', url: 'https://caldav.icloud.com/cal/', type: 'CalDAV', username: 'u', password: 'p' },
+  ]));
+  if (feeds.length !== 1) throw new Error(`expected 1 feed, got ${feeds.length}`);
+  if (feeds[0].type !== 'caldav') throw new Error(`expected type caldav after normalisation, got ${feeds[0].type}`);
+});
+
+Deno.test('parseICalFeeds normalises type to lowercase (ICS → ics)', () => {
+  const feeds = parseICalFeeds(JSON.stringify([
+    { name: 'Cal', url: 'https://example.com/cal.ics', type: 'ICS' },
+  ]));
+  if (feeds.length !== 1) throw new Error(`expected 1 feed, got ${feeds.length}`);
+  if (feeds[0].type !== 'ics') throw new Error(`expected type ics after normalisation, got ${feeds[0].type}`);
+});
+
+Deno.test('parseICalFeeds treats null type as absent (no type)', () => {
+  const feeds = parseICalFeeds(JSON.stringify([
+    { name: 'Cal', url: 'https://example.com/cal.ics', type: null },
+  ]));
+  if (feeds.length !== 1) throw new Error(`expected 1 feed, got ${feeds.length}`);
+  if (feeds[0].type !== undefined) throw new Error(`expected no type, got ${feeds[0].type}`);
+});
+
+Deno.test('parseICalFeeds treats null username as absent', () => {
+  const feeds = parseICalFeeds(JSON.stringify([
+    { name: 'Cal', url: 'https://example.com/cal.ics', username: null },
+  ]));
+  if (feeds.length !== 1) throw new Error(`expected 1 feed, got ${feeds.length}`);
+  if (feeds[0].username !== undefined) throw new Error(`expected no username, got ${feeds[0].username}`);
+});
+
+Deno.test('parseICalFeeds treats null password as absent', () => {
+  const feeds = parseICalFeeds(JSON.stringify([
+    { name: 'Cal', url: 'https://example.com/cal.ics', password: null },
+  ]));
+  if (feeds.length !== 1) throw new Error(`expected 1 feed, got ${feeds.length}`);
+  if (feeds[0].password !== undefined) throw new Error(`expected no password, got ${feeds[0].password}`);
+});
+
+Deno.test('parseICalFeeds keeps CalDAV feed when HA sends null for unset optional fields', () => {
+  // Simulates HA passing null for optional fields the user did not fill in
+  const feeds = parseICalFeeds(JSON.stringify([
+    {
+      name: 'iCloud',
+      url: 'https://caldav.icloud.com/cal/',
+      type: 'caldav',
+      username: 'user@icloud.com',
+      password: 'app-specific-password',
+    },
+    {
+      name: 'Sports',
+      url: 'https://example.com/sports.ics',
+      type: null,
+      username: null,
+      password: null,
+    },
+  ]));
+  if (feeds.length !== 2) throw new Error(`expected 2 feeds, got ${feeds.length}`);
+  const caldav = feeds.find((f) => f.name === 'iCloud');
+  if (!caldav) throw new Error('CalDAV feed missing');
+  if (caldav.type !== 'caldav') throw new Error(`expected caldav type, got ${caldav.type}`);
+  const ics = feeds.find((f) => f.name === 'Sports');
+  if (!ics) throw new Error('ICS feed missing');
+  if (ics.type !== undefined) throw new Error(`expected no type on ICS feed, got ${ics.type}`);
+});
+
+Deno.test('parseICalFeeds rejects feed with unknown type string', () => {
+  const feeds = parseICalFeeds(JSON.stringify([
+    { name: 'Bad', url: 'https://example.com/', type: 'webdav' },
+  ]));
+  if (feeds.length !== 0) throw new Error(`expected 0 feeds, got ${feeds.length}`);
+});
+
+Deno.test('parseICalFeeds rejects feed with only username and no password', () => {
+  const feeds = parseICalFeeds(JSON.stringify([
+    { name: 'Cal', url: 'https://example.com/cal.ics', username: 'user' },
+  ]));
+  if (feeds.length !== 0) throw new Error(`expected 0 feeds (incomplete credentials), got ${feeds.length}`);
 });
 
 Deno.test('fetchFeedEvents truncates long response text in diagnostics', async () => {
