@@ -5,11 +5,13 @@ OPTIONS_FILE=/data/options.json
 
 TANDOOR_EXTERNAL_URL=""
 TANDOOR_DEFAULT_TOKEN=""
+ICAL_FEEDS="[]"
 
 if [ -f "$OPTIONS_FILE" ]; then
     TANDOOR_URL=$(jq -r '.tandoor_url // empty' "$OPTIONS_FILE")
     TANDOOR_EXTERNAL_URL=$(jq -r '.tandoor_external_url // empty' "$OPTIONS_FILE")
     TANDOOR_DEFAULT_TOKEN=$(jq -r '.tandoor_default_token // empty' "$OPTIONS_FILE")
+    ICAL_FEEDS=$(jq -c '.ical_feeds // []' "$OPTIONS_FILE")
 fi
 
 if [ -z "$TANDOOR_URL" ]; then
@@ -18,6 +20,7 @@ fi
 
 export TANDOOR_URL
 export TANDOOR_DEFAULT_TOKEN
+export ICAL_FEEDS
 
 envsubst '${TANDOOR_URL} ${TANDOOR_DEFAULT_TOKEN}' \
     < /etc/nginx/conf.d/darkhold.conf.template \
@@ -35,6 +38,6 @@ jq -n \
     > /usr/share/nginx/html/app-config.json
 
 # Start WebSocket broadcast server in background
-deno run --allow-net --allow-read=/package.json /server.ts &
+deno run --allow-net --allow-read=/package.json --allow-env=ICAL_FEEDS /server.ts &
 
 exec nginx -g "daemon off;"

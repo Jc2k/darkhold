@@ -33,6 +33,32 @@ tandoor_default_token: "<your-read-only-api-token>"
 
 Personal tokens (set on the Settings page) always take precedence, so the per-user write path still uses the correct token for attribution.  The default token itself is never sent to the browser; it lives only in the server-side nginx configuration.
 
+## iCloud Calendar Feeds
+
+You can display upcoming appointments alongside the meal plan by connecting one or more iCal calendar feeds. This is useful for seeing how scheduled events might affect meal choices.
+
+```yaml
+ical_feeds:
+  - name: "Family calendar"
+    url: "https://p123-caldav.icloud.com/published/2/Mx..."
+  - name: "Work calendar"
+    url: "https://..."
+```
+
+To find your iCloud calendar URL:
+1. Open the Calendar app on macOS or at icloud.com.
+2. Click the share icon next to the calendar you want.
+3. Enable "Public Calendar" and copy the link.
+4. Change the `webcal://` prefix to `https://`.
+
+Events from all configured feeds appear in the meal plan view:
+- **Desktop (table view)**: a new "Events" column shows event names and time ranges for each day.
+- **Mobile (card view)**: events appear below the meal entries for each day in small muted text.
+
+Times are displayed in the browser's local timezone. Recurring events (weekly standups, anniversaries, etc.) are fully supported. Historical event data is cached indefinitely; present and future events are refreshed every 15 minutes or when you pull-to-refresh.
+
+> **Privacy note**: iCal feed URLs often contain authentication tokens. They are stored only in the Home Assistant add-on options and are never sent to the browser.
+
 ## Proxy / CORS Configuration
 
 Recipes handles CORS by **proxying all Tandoor API requests through its own nginx server**. There is no need to configure CORS headers on Tandoor or on the Nginx Proxy Manager.

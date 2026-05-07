@@ -28,8 +28,12 @@ options:
   tandoor_url: "http://tandoor:8080"
   tandoor_external_url: ""
   tandoor_default_token: ""
+  ical_feeds: []
 
 schema:
   tandoor_url: "str"
   tandoor_external_url: "str?"
   tandoor_default_token: "str?"
+  ical_feeds:
+    - name: "str"
+      url: "str"
