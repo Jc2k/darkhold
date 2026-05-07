@@ -14,9 +14,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    defaults:
-      run:
-        working-directory: darkhold
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -34,4 +31,5 @@ jobs:
           deno-version: v2.x
 
       - name: Install npm dependencies
+        working-directory: darkhold
         run: npm ci --legacy-peer-deps
