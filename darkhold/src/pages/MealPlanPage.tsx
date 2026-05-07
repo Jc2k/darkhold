@@ -319,7 +319,6 @@ function AddMealModal({ date, onHide, mealTypes, initialMealTypeId }: AddMealMod
   const [recipeOptions, setRecipeOptions] = useState<Recipe[]>([]);
   const [searchError, setSearchError] = useState(false);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
-  const [mealTypeId, setMealTypeId] = useState<number>(initialMealTypeId ?? mealTypes[0]?.id ?? 0);
   const [servings, setServings] = useState(1);
   const [note, setNote] = useState('');
   const createMeal = useCreateMealPlan();
@@ -342,17 +341,19 @@ function AddMealModal({ date, onHide, mealTypes, initialMealTypeId }: AddMealMod
     const r = selected[0] ?? null;
     setSelectedRecipe(r);
     if (r) {
-      const derived = deriveMealType(r, mealTypes);
-      if (derived !== undefined) setMealTypeId(derived);
       setServings(r.servings ?? 1);
     }
   };
 
   const handleSubmit = async () => {
     if (!selectedRecipe) return;
+    const resolvedMealTypeId = initialMealTypeId
+      ?? deriveMealType(selectedRecipe, mealTypes)
+      ?? mealTypes[0]?.id;
+    if (!resolvedMealTypeId) return;
     await createMeal.mutateAsync({
       recipe: selectedRecipe.id as unknown as Recipe,
-      meal_type: mealTypeId as unknown as MealType,
+      meal_type: resolvedMealTypeId as unknown as MealType,
       from_date: date,
       servings,
       ...(note ? { note } : {}),
@@ -386,20 +387,6 @@ function AddMealModal({ date, onHide, mealTypes, initialMealTypeId }: AddMealMod
             </Alert>
           )}
         </Form.Group>
-
-        {mealTypes.length > 0 && (
-          <Form.Group className="mb-3">
-            <Form.Label>Meal Type</Form.Label>
-            <Form.Select
-              value={mealTypeId}
-              onChange={(e) => setMealTypeId(Number(e.target.value))}
-            >
-              {mealTypes.map((mt) => (
-                <option key={mt.id} value={mt.id}>{mt.name}</option>
-              ))}
-            </Form.Select>
-          </Form.Group>
-        )}
 
         <Form.Group className="mb-3">
           <Form.Label>Servings</Form.Label>
@@ -445,7 +432,11 @@ function AddMealModal({ date, onHide, mealTypes, initialMealTypeId }: AddMealMod
         <Button variant="secondary" onClick={onHide}>Cancel</Button>
         <Button
           variant="success"
-          disabled={!selectedRecipe || createMeal.isPending}
+          disabled={
+            !selectedRecipe
+            || createMeal.isPending
+            || !(initialMealTypeId ?? (selectedRecipe ? deriveMealType(selectedRecipe, mealTypes) : undefined) ?? mealTypes[0]?.id)
+          }
           onClick={handleSubmit}
         >
           {createMeal.isPending ? <Spinner size="sm" /> : 'Add'}
@@ -1034,4 +1025,3 @@ export function MealPlanPage() {
     </div>
   );
 }
-
