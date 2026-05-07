@@ -336,3 +336,69 @@ Deno.test('fetchFeedEvents uses caldav REPORT with basic auth when feed type is 
     globalThis.fetch = originalFetch;
   }
 });
+
+Deno.test('fetchFeedEvents retries caldav REPORT without time-range when filtered query returns no events', async () => {
+  const originalFetch = globalThis.fetch;
+  const requests: Request[] = [];
+
+  const emptyResponseXml = [
+    '<?xml version="1.0" encoding="utf-8"?>',
+    '<D:multistatus xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">',
+    '</D:multistatus>',
+  ].join('\n');
+  const recurringResponseXml = [
+    '<?xml version="1.0" encoding="utf-8"?>',
+    '<D:multistatus xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">',
+    '  <D:response>',
+    '    <D:propstat>',
+    '      <D:prop>',
+    '        <C:calendar-data>BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:Weekly standup\r\nDTSTART:20240101T090000Z\r\nDTEND:20240101T093000Z\r\nRRULE:FREQ=WEEKLY;BYDAY=MO\r\nEND:VEVENT\r\nEND:VCALENDAR</C:calendar-data>',
+    '      </D:prop>',
+    '    </D:propstat>',
+    '  </D:response>',
+    '</D:multistatus>',
+  ].join('\n');
+
+  globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+    const request = new Request(input, init);
+    requests.push(request);
+    if (requests.length === 1) {
+      return Promise.resolve(
+        new Response(emptyResponseXml, {
+          status: 207,
+          headers: { 'Content-Type': 'application/xml' },
+        }),
+      );
+    }
+    return Promise.resolve(
+      new Response(recurringResponseXml, {
+        status: 207,
+        headers: { 'Content-Type': 'application/xml' },
+      }),
+    );
+  }) as typeof fetch;
+
+  try {
+    const events = await fetchFeedEvents(
+      {
+        name: 'CalDAV',
+        url: 'https://caldav.icloud.com/calendar/',
+        type: 'caldav',
+      },
+      new Date('2025-05-05T00:00:00Z'),
+      new Date('2025-05-18T23:59:59Z'),
+    );
+
+    if (requests.length !== 2) throw new Error(`expected 2 requests, got ${requests.length}`);
+    const firstBody = await requests[0].text();
+    const secondBody = await requests[1].text();
+    if (!firstBody.includes('<C:time-range')) throw new Error('first query should include time-range');
+    if (secondBody.includes('<C:time-range')) throw new Error('fallback query should omit time-range');
+    if (events.length !== 2) throw new Error(`expected 2 events, got ${events.length}`);
+    const starts = events.map((e) => e.start.split('T')[0]);
+    if (!starts.includes('2025-05-05')) throw new Error('missing 2025-05-05 recurrence');
+    if (!starts.includes('2025-05-12')) throw new Error('missing 2025-05-12 recurrence');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

@@ -80,6 +80,38 @@ function getBasicAuthHeader(feed: ICalFeed): string | undefined {
   return `Basic ${btoa(`${feed.username}:${feed.password}`)}`;
 }
 
+function buildCalDavReportBody(rangeStart: Date, rangeEnd: Date, withTimeRange: boolean): string {
+  const timeRangeFilter = withTimeRange
+    ? `
+        <C:time-range start="${formatCalDavTimestamp(rangeStart)}" end="${formatCalDavTimestamp(rangeEnd)}"/>`
+    : '';
+  return `<?xml version="1.0" encoding="utf-8"?>
+<C:calendar-query xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">
+  <D:prop>
+    <C:calendar-data/>
+  </D:prop>
+  <C:filter>
+    <C:comp-filter name="VCALENDAR">
+      <C:comp-filter name="VEVENT">${timeRangeFilter}
+      </C:comp-filter>
+    </C:comp-filter>
+  </C:filter>
+</C:calendar-query>`;
+}
+
+async function fetchCalDavCalendarData(url: string, headers: HeadersInit, body: string): Promise<string[]> {
+  const res = await fetch(url, {
+    method: 'REPORT',
+    headers,
+    body,
+  });
+  if (!res.ok) {
+    throw new Error(`CalDAV REPORT failed: HTTP ${res.status}`);
+  }
+  const xml = await res.text();
+  return extractCalDavCalendarData(xml);
+}
+
 export function extractCalDavCalendarData(xml: string): string[] {
   const matches = xml.matchAll(
     /<(?:[A-Za-z0-9_-]+:)?calendar-data(?:\s[^>]*)?>([\s\S]*?)<\/(?:[A-Za-z0-9_-]+:)?calendar-data>/g,
@@ -119,38 +151,29 @@ export async function fetchFeedEvents(
   const auth = getBasicAuthHeader(feed);
 
   if (feed.type === 'caldav') {
-    const reportBody = `<?xml version="1.0" encoding="utf-8"?>
-<C:calendar-query xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">
-  <D:prop>
-    <C:calendar-data/>
-  </D:prop>
-  <C:filter>
-    <C:comp-filter name="VCALENDAR">
-      <C:comp-filter name="VEVENT">
-        <C:time-range start="${formatCalDavTimestamp(rangeStart)}" end="${formatCalDavTimestamp(rangeEnd)}"/>
-      </C:comp-filter>
-    </C:comp-filter>
-  </C:filter>
-</C:calendar-query>`;
-
     const headers: HeadersInit = {
       'Content-Type': 'application/xml; charset=utf-8',
       Depth: '1',
     };
     if (auth) headers.Authorization = auth;
 
-    const res = await fetch(feed.url, {
-      method: 'REPORT',
+    const rangeFilteredCalendars = await fetchCalDavCalendarData(
+      feed.url,
       headers,
-      body: reportBody,
-    });
-    if (!res.ok) {
-      throw new Error(`CalDAV REPORT failed: HTTP ${res.status}`);
-    }
+      buildCalDavReportBody(rangeStart, rangeEnd, true),
+    );
+    let events = rangeFilteredCalendars.flatMap((cal) => parseIcal(cal, rangeStart, rangeEnd));
+    if (events.length > 0) return events;
 
-    const xml = await res.text();
-    const calendars = extractCalDavCalendarData(xml);
-    return calendars.flatMap((cal) => parseIcal(cal, rangeStart, rangeEnd));
+    // Some CalDAV servers omit recurring masters when filtering by time-range.
+    // Fall back to an unbounded query and rely on local date filtering.
+    const unfilteredCalendars = await fetchCalDavCalendarData(
+      feed.url,
+      headers,
+      buildCalDavReportBody(rangeStart, rangeEnd, false),
+    );
+    events = unfilteredCalendars.flatMap((cal) => parseIcal(cal, rangeStart, rangeEnd));
+    return events;
   }
 
   const headers: HeadersInit = {};
