@@ -743,7 +743,7 @@ function MealPlanTableView({
 }: MealPlanTableViewProps) {
   return (
     <div style={{ overflowX: 'auto' }}>
-      <Table bordered size="sm" className="meal-plan-table mb-0 w-100" style={{ tableLayout: 'fixed' }}>
+      <Table bordered size="sm" className="meal-plan-table mb-0 w-100">
         <colgroup>
           <col style={{ width: '12%' }} />
           {mealTypes.map((mt) => <col key={mt.id} />)}
@@ -762,7 +762,7 @@ function MealPlanTableView({
             )}
           </tr>
         </thead>
-        <tbody className="d-block d-lg-table-row-group">
+        <tbody>
           {days.map((day) => {
             const dateKey = formatDate(day);
             const isToday = dateKey === todayStr;
@@ -773,9 +773,9 @@ function MealPlanTableView({
               <DroppableTableRow
                 key={dateKey}
                 dateKey={dateKey}
-                className={`meal-plan-mobile-row d-block d-lg-table-row border rounded mb-3 mb-lg-0 ${isToday ? 'table-primary border-primary' : ''}`}
+                className={`meal-plan-mobile-row border rounded mb-3 mb-lg-0 ${isToday ? 'table-primary border-primary' : ''}`}
               >
-                <td className={`meal-plan-mobile-cell d-block d-lg-table-cell py-2 px-2 align-top ${isToday ? 'bg-primary text-white' : 'bg-body-tertiary'}`}>
+                <td className={`meal-plan-mobile-cell py-2 px-2 align-top ${isToday ? 'bg-primary text-white' : 'bg-body-tertiary'}`}>
                   <div className="d-flex justify-content-between align-items-center">
                     <small className="fw-semibold" style={{ whiteSpace: 'nowrap' }}>{shortDay(day)}</small>
                     <Button
@@ -796,7 +796,7 @@ function MealPlanTableView({
                   return (
                     <td
                       key={mt.id}
-                      className={`meal-plan-mobile-cell d-block d-lg-table-cell p-1 align-top ${entries.length === 0 ? 'meal-plan-mobile-empty' : ''}`}
+                      className={`meal-plan-mobile-cell p-1 align-top ${entries.length === 0 ? 'meal-plan-mobile-empty' : ''}`}
                     >
                       <DroppableDay dateKey={containerId}>
                         <SortableContext id={containerId} items={entries.map((e) => e.id)}>
@@ -823,7 +823,7 @@ function MealPlanTableView({
                   );
                 })}
                 {(calendarEventsByDate || weatherByDate) && (
-                  <td className="meal-plan-mobile-cell d-block d-lg-table-cell p-1 align-top">
+                  <td className="meal-plan-mobile-cell p-1 align-top">
                     <DayCalendarWeatherInfo dayEvents={dayEvents} weather={dayWeather} />
                   </td>
                 )}
