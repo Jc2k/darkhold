@@ -20,6 +20,8 @@ interface CalendarFeedError {
   message: string;
 }
 
+const MAX_ERROR_RESPONSE_LENGTH = 200;
+
 function loadICalFeeds(): ICalFeed[] {
   try {
     const raw = Deno.env.get('ICAL_FEEDS') ?? '[]';
@@ -106,7 +108,7 @@ function buildCalDavReportBody(rangeStart: Date, rangeEnd: Date, withTimeRange: 
 
 function formatFetchError(prefix: string, status: number, responseText: string): Error {
   const trimmed = responseText.trim();
-  const responseSummary = trimmed ? `; ${trimmed.slice(0, 200)}` : '';
+  const responseSummary = trimmed ? `; ${trimmed.slice(0, MAX_ERROR_RESPONSE_LENGTH)}` : '';
   return new Error(`${prefix}: HTTP ${status}${responseSummary}`);
 }
 

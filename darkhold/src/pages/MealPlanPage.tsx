@@ -915,7 +915,7 @@ export function MealPlanPage() {
       {!hasPersonalToken && <NoTokenAlert />}
       {isCalendarError && (
         <Alert variant="warning" className="py-2 mb-3">
-          Calendar sync issue: {calendarError instanceof Error ? calendarError.message : 'Unable to load calendar events.'}
+          Calendar sync issue: {calendarError instanceof Error ? calendarError.message : 'Unable to load calendar events. Please check your calendar feed configuration or try again later.'}
         </Alert>
       )}
       <div className="d-flex align-items-center mb-3">
