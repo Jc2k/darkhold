@@ -746,7 +746,12 @@ export function MealPlanPage() {
   const { data: cookLogData } = useCookLog(cookLogFrom, todayStr);
 
   // Fetch calendar events for the displayed week.
-  const { byDate: calendarEventsByDate, refetch: refetchCalendar } = useCalendarEvents(startDate, endDate);
+  const {
+    byDate: calendarEventsByDate,
+    refetch: refetchCalendar,
+    error: calendarError,
+    isError: isCalendarError,
+  } = useCalendarEvents(startDate, endDate);
   const invalidateCalendar = useRefetchCalendarEvents(startDate, endDate);
 
   // Pull-to-refresh: background-refresh calendar events and update display on change.
@@ -908,6 +913,11 @@ export function MealPlanPage() {
   return (
     <div className="pt-2 meal-plan-page">
       {!hasPersonalToken && <NoTokenAlert />}
+      {isCalendarError && (
+        <Alert variant="warning" className="py-2 mb-3">
+          Calendar sync issue: {calendarError instanceof Error ? calendarError.message : 'Unable to load calendar events.'}
+        </Alert>
+      )}
       <div className="d-flex align-items-center mb-3">
         <Button
           variant="outline-secondary"

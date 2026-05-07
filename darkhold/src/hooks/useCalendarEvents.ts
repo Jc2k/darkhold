@@ -9,6 +9,25 @@ export interface CalendarEvent {
   allDay: boolean;
 }
 
+export interface CalendarFeedError {
+  feed: string;
+  message: string;
+}
+
+interface CalendarEventsPayload {
+  events?: CalendarEvent[];
+  errors?: CalendarFeedError[];
+}
+
+export function parseCalendarEventsPayload(data: CalendarEventsPayload): CalendarEvent[] {
+  const errors = data.errors ?? [];
+  if (errors.length > 0) {
+    const details = errors.map((e) => `${e.feed}: ${e.message}`).join(' | ');
+    throw new Error(`Calendar feed errors: ${details}`);
+  }
+  return data.events ?? [];
+}
+
 /** Calendar events grouped by local date (YYYY-MM-DD in the browser's timezone). */
 export type CalendarEventsByDate = Record<string, CalendarEvent[]>;
 
@@ -75,8 +94,8 @@ async function fetchCalendarEvents(fromDate: string, toDate: string): Promise<Ca
     }
     throw new Error(`Calendar events fetch failed: ${res.status}`);
   }
-  const data = (await res.json()) as { events: CalendarEvent[] };
-  return data.events ?? [];
+  const data = (await res.json()) as CalendarEventsPayload;
+  return parseCalendarEventsPayload(data);
 }
 
 /** staleTime for future/current events: 15 minutes */

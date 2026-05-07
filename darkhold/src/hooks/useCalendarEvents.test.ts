@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { groupEventsByLocalDate, formatEventTimeRange } from './useCalendarEvents';
+import { groupEventsByLocalDate, formatEventTimeRange, parseCalendarEventsPayload } from './useCalendarEvents';
 import type { CalendarEvent } from './useCalendarEvents';
 
 afterEach(() => {
@@ -65,5 +65,21 @@ describe('formatEventTimeRange', () => {
     const result = formatEventTimeRange(event);
     expect(result).not.toBeNull();
     expect(result).not.toMatch(/–/);
+  });
+});
+
+describe('parseCalendarEventsPayload', () => {
+  it('returns events when no feed errors are present', () => {
+    const events: CalendarEvent[] = [{ name: 'Meeting', start: '2025-05-07T10:00:00.000Z', allDay: false }];
+    expect(parseCalendarEventsPayload({ events })).toEqual(events);
+  });
+
+  it('throws descriptive error when feed errors are present', () => {
+    expect(() =>
+      parseCalendarEventsPayload({
+        events: [],
+        errors: [{ feed: 'Family', message: 'CalDAV REPORT failed: HTTP 401' }],
+      }),
+    ).toThrow('Calendar feed errors: Family: CalDAV REPORT failed: HTTP 401');
   });
 });

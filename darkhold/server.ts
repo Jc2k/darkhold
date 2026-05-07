@@ -15,6 +15,11 @@ interface ICalFeed {
   password?: string;
 }
 
+interface CalendarFeedError {
+  feed: string;
+  message: string;
+}
+
 function loadICalFeeds(): ICalFeed[] {
   try {
     const raw = Deno.env.get('ICAL_FEEDS') ?? '[]';
@@ -106,7 +111,9 @@ async function fetchCalDavCalendarData(url: string, headers: HeadersInit, body: 
     body,
   });
   if (!res.ok) {
-    throw new Error(`CalDAV REPORT failed: HTTP ${res.status}`);
+    const responseText = (await res.text()).trim();
+    const responseSummary = responseText ? `; ${responseText.slice(0, 200)}` : '';
+    throw new Error(`CalDAV REPORT failed: HTTP ${res.status}${responseSummary}`);
   }
   const xml = await res.text();
   return extractCalDavCalendarData(xml);
@@ -180,7 +187,9 @@ export async function fetchFeedEvents(
   if (auth) headers.Authorization = auth;
   const res = await fetch(feed.url, { headers });
   if (!res.ok) {
-    throw new Error(`ICS fetch failed: HTTP ${res.status}`);
+    const responseText = (await res.text()).trim();
+    const responseSummary = responseText ? `; ${responseText.slice(0, 200)}` : '';
+    throw new Error(`ICS fetch failed: HTTP ${res.status}${responseSummary}`);
   }
   const text = await res.text();
   return parseIcal(text, rangeStart, rangeEnd);
@@ -302,6 +311,7 @@ async function handleCalendarEvents(req: Request): Promise<Response> {
 
   const feeds = loadICalFeeds();
   const allEvents: ParsedEvent[] = [];
+  const errors: CalendarFeedError[] = [];
 
   await Promise.allSettled(
     feeds.map(async (feed) => {
@@ -309,6 +319,8 @@ async function handleCalendarEvents(req: Request): Promise<Response> {
         const events = await fetchFeedEvents(feed, rangeStart, rangeEnd);
         allEvents.push(...events);
       } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        errors.push({ feed: feed.name, message });
         console.error(`Error fetching calendar feed "${feed.name}":`, err);
       }
     }),
@@ -317,7 +329,7 @@ async function handleCalendarEvents(req: Request): Promise<Response> {
   // Sort by start time
   allEvents.sort((a, b) => a.start.localeCompare(b.start));
 
-  return new Response(JSON.stringify({ events: allEvents }), {
+  return new Response(JSON.stringify({ events: allEvents, errors }), {
     status: 200,
     headers: { 'Content-Type': 'application/json' },
   });
