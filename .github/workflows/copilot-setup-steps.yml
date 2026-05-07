@@ -29,7 +29,9 @@ jobs:
           cache-dependency-path: darkhold/package-lock.json
 
       - name: Set up Deno
-        uses: denoland/setup-deno@v2
+        uses: denoland/setup-deno@v2.0.0
+        with:
+          deno-version: v2.x
 
       - name: Install npm dependencies
         run: npm ci --legacy-peer-deps
