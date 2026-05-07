@@ -82,9 +82,9 @@ describe('Search', () => {
     });
 
     vi.stubGlobal('IntersectionObserver', class {
-      observe() {}
-      unobserve() {}
-      disconnect() {}
+      observe = vi.fn();
+      unobserve = vi.fn();
+      disconnect = vi.fn();
     });
   });
 
@@ -94,6 +94,7 @@ describe('Search', () => {
     });
     container.remove();
     delete actGlobal.IS_REACT_ACT_ENVIRONMENT;
+    vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
 
@@ -126,5 +127,45 @@ describe('Search', () => {
 
     expect(container.textContent).toContain('Tags: Autumn');
     expect(apiGetMock).toHaveBeenCalledWith('/keyword/42/');
+  });
+
+  it('keeps rendering the remaining restored tags when one selected tag lookup fails', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    let resolveKeyword: ((value: { id: number; name: string }) => void) | undefined;
+
+    apiGetMock.mockImplementation((path: string) => {
+      if (path === '/keyword/42/') {
+        return new Promise((resolve) => {
+          resolveKeyword = resolve;
+        });
+      }
+      if (path === '/keyword/99/') {
+        return Promise.reject(new Error('Not found'));
+      }
+      throw new Error(`Unexpected path: ${path}`);
+    });
+
+    act(() => {
+      root.render(
+        <MemoryRouter initialEntries={['/search?keywords=42,99']}>
+          <Routes>
+            <Route path="/search" element={<Search />} />
+          </Routes>
+        </MemoryRouter>,
+      );
+    });
+
+    await act(async () => {
+      resolveKeyword?.({ id: 42, name: 'Autumn' });
+      await Promise.resolve();
+    });
+
+    expect(container.textContent).toContain('Tags: Autumn');
+    expect(container.textContent).not.toContain('99');
+    expect(warnSpy).toHaveBeenCalledWith('Failed to restore search filter option', expect.objectContaining({
+      path: '/keyword/',
+      id: 99,
+    }));
+
   });
 });
