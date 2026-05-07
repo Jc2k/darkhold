@@ -776,20 +776,18 @@ function MealPlanTableView({
                 className={`meal-plan-mobile-row d-block d-lg-table-row border rounded mb-3 mb-lg-0 ${isToday ? 'table-primary border-primary' : ''}`}
               >
                 <td className={`meal-plan-mobile-cell d-block d-lg-table-cell py-2 px-2 align-top ${isToday ? 'bg-primary text-white' : 'bg-body-tertiary'}`}>
-                  <div className="d-flex justify-content-between align-items-center">
-                    <div className="d-flex flex-column align-items-start gap-1">
-                      <small className="fw-semibold" style={{ whiteSpace: 'nowrap' }}>{shortDay(day)}</small>
-                      <Button
-                        variant={isToday ? 'light' : 'outline-success'}
-                        size="sm"
-                        style={circleButtonStyle}
-                        onClick={() => onAddMeal(dateKey)}
-                        disabled={!hasPersonalToken}
-                        aria-label={`Add meal on ${dateKey}`}
-                      >
-                        <Plus size={16} />
-                      </Button>
-                    </div>
+                  <div className="d-flex justify-content-between align-items-center gap-2 w-100">
+                    <small className="fw-semibold" style={{ whiteSpace: 'nowrap' }}>{shortDay(day)}</small>
+                    <Button
+                      variant={isToday ? 'light' : 'outline-success'}
+                      size="sm"
+                      style={circleButtonStyle}
+                      onClick={() => onAddMeal(dateKey)}
+                      disabled={!hasPersonalToken}
+                      aria-label={`Add meal on ${dateKey}`}
+                    >
+                      <Plus size={16} />
+                    </Button>
                   </div>
                 </td>
                 {mealTypes.map((mt) => {
