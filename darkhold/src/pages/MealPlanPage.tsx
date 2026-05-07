@@ -608,7 +608,7 @@ interface MealPlanTableViewProps {
   hasPersonalToken: boolean;
   onDelete: (id: number) => void;
   onEntryClick: (entry: MealPlan) => void;
-  onAddMeal: (date: string, mealTypeId: number) => void;
+  onAddMeal: (date: string, mealTypeId?: number) => void;
   onLogCook: (entry: MealPlan) => void;
   onEdit: (entry: MealPlan) => void;
   cookLogData: CookedByDate | undefined;
@@ -653,7 +653,19 @@ function MealPlanTableView({
             return (
               <tr key={dateKey} className={isToday ? 'table-primary' : undefined}>
                 <td className="py-2 ps-2 align-top">
-                  <small className="fw-semibold" style={{ whiteSpace: 'nowrap' }}>{shortDay(day)}</small>
+                  <div className="d-flex flex-column align-items-start gap-1">
+                    <small className="fw-semibold" style={{ whiteSpace: 'nowrap' }}>{shortDay(day)}</small>
+                    <Button
+                      variant="outline-success"
+                      size="sm"
+                      style={circleButtonStyle}
+                      onClick={() => onAddMeal(dateKey)}
+                      disabled={!hasPersonalToken}
+                      aria-label={`Add meal on ${dateKey}`}
+                    >
+                      <Plus size={16} />
+                    </Button>
+                  </div>
                 </td>
                 {mealTypes.map((mt) => {
                   const containerId = `${dateKey}__${mt.id}`;
@@ -680,18 +692,6 @@ function MealPlanTableView({
                             );
                           })}
                         </SortableContext>
-                        <div className="d-flex justify-content-end mt-1">
-                          <Button
-                            variant="outline-success"
-                            size="sm"
-                            style={circleButtonStyle}
-                            onClick={() => onAddMeal(dateKey, mt.id)}
-                            disabled={!hasPersonalToken}
-                            aria-label={`Add ${mt.name} on ${dateKey}`}
-                          >
-                            <Plus size={16} />
-                          </Button>
-                        </div>
                       </DroppableDay>
                     </td>
                   );
@@ -979,7 +979,7 @@ export function MealPlanPage() {
         </div>
 
         {/* Spreadsheet table — shown on large screens and above */}
-        <div className="d-none d-lg-block">
+        <div className="d-none d-lg-block" style={{ paddingLeft: '2rem', paddingRight: '2rem', marginTop: '1rem' }}>
           <MealPlanTableView
             days={days}
             mealTypes={sortedMealTypes}
