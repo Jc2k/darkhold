@@ -41,8 +41,15 @@ You can display upcoming appointments alongside the meal plan by connecting one 
 ical_feeds:
   - name: "Family"
     url: "https://p123-caldav.icloud.com/published/2/MTY..."
+    type: "ics"
   - name: "Work"
     url: "https://..."
+    type: "ics"
+  - name: "iCloud private"
+    url: "https://caldav.icloud.com"
+    type: "caldav"
+    username: "your-apple-id@example.com"
+    password: "your-app-specific-password"
 ```
 
 Events from all configured feeds appear in the meal plan view:
@@ -51,11 +58,15 @@ Events from all configured feeds appear in the meal plan view:
 
 Times are displayed in the browser's local timezone. Recurring events (weekly standups, anniversaries, etc.) are fully supported. Historical event data is cached indefinitely; present and future events are refreshed every 15 minutes or when you pull-to-refresh.
 
-> **Privacy note**: iCal feed URLs often contain embedded authentication tokens. They are stored only in the Home Assistant add-on options and are never exposed to the browser.
+`type` is optional and defaults to `"ics"`. `username` and `password` are optional and only used for authenticated ICS or CalDAV feeds.
+
+> **Privacy note**: Feed credentials and feed URLs (which may contain authentication tokens) are stored only in Home Assistant add-on options and are never exposed to the browser.
 
 ### Finding your iCloud calendar URL
 
-iCloud calendar feeds require the owner to **publicly share** the calendar first. There is no support for private CalDAV access with credentials — the URL itself acts as the authentication token.
+iCloud can be connected in two ways:
+- **Public ICS feed**: enable Public Calendar and use the published URL (`type: "ics"`).
+- **Private CalDAV with app-specific password**: use `type: "caldav"` with your Apple ID and an app-specific password.
 
 #### Personal calendar (calendars you own)
 
@@ -85,9 +96,23 @@ If someone has shared *their* iCloud calendar with you, the calendar appears in 
 - To get a feed URL you can configure here, the **owner** must have enabled "Public Calendar" on their calendar and sent you that link. You cannot generate a feed URL from the recipient's side — ask the owner for their `https://p…-caldav.icloud.com/published/…` link.
 - If the calendar was shared via the iCloud private sharing mechanism (invitation by email) rather than the public URL, there is no iCal feed URL available without the owner enabling the public option.
 
+#### iCloud private CalDAV setup (app-specific password)
+
+1. Sign in at [appleid.apple.com](https://appleid.apple.com).
+2. Under **Sign-In and Security** → **App-Specific Passwords**, create a new password for Darkhold.
+3. In your add-on options, configure:
+   - `type: "caldav"`
+   - `url: "https://caldav.icloud.com"`
+   - `username: "<your Apple ID email>"`
+   - `password: "<your app-specific password>"`
+
+Darkhold performs a CalDAV `REPORT` query over HTTPS and only fetches events for the requested date range.
+
 #### Other calendar providers
 
-Any CalDAV/WebDAV server that returns standard iCal (`.ics`) data works here — the feed just needs to be reachable by the add-on container over HTTP/HTTPS:
+Any provider is supported if either:
+- it exposes an iCal/ICS URL (`type: "ics"`), or
+- it provides CalDAV access with username/password (`type: "caldav"`).
 
 | Provider | Where to find the URL |
 |---|---|

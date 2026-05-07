@@ -10,6 +10,9 @@ const VERSION = pkg.version;
 interface ICalFeed {
   name: string;
   url: string;
+  type?: 'ics' | 'caldav';
+  username?: string;
+  password?: string;
 }
 
 function loadICalFeeds(): ICalFeed[] {
@@ -17,12 +20,28 @@ function loadICalFeeds(): ICalFeed[] {
     const raw = Deno.env.get('ICAL_FEEDS') ?? '[]';
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter(
-      (f): f is ICalFeed =>
-        typeof f === 'object' && f !== null &&
-        typeof (f as Record<string, unknown>).name === 'string' &&
-        typeof (f as Record<string, unknown>).url === 'string',
-    );
+    return parsed.flatMap((f): ICalFeed[] => {
+      if (typeof f !== 'object' || f === null) return [];
+      const record = f as Record<string, unknown>;
+      if (typeof record.name !== 'string' || typeof record.url !== 'string') return [];
+
+      const type = record.type;
+      if (type !== undefined && type !== 'ics' && type !== 'caldav') return [];
+
+      const username = record.username;
+      if (username !== undefined && typeof username !== 'string') return [];
+
+      const password = record.password;
+      if (password !== undefined && typeof password !== 'string') return [];
+
+      return [{
+        name: record.name,
+        url: record.url,
+        type,
+        username,
+        password,
+      }];
+    });
   } catch {
     return [];
   }
@@ -39,6 +58,81 @@ export interface ParsedEvent {
   /** ISO 8601 UTC timestamp, or YYYY-MM-DD for all-day events; undefined when same as start */
   end?: string;
   allDay: boolean;
+}
+
+function formatCalDavTimestamp(date: Date): string {
+  const y = String(date.getUTCFullYear());
+  const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(date.getUTCDate()).padStart(2, '0');
+  const hh = String(date.getUTCHours()).padStart(2, '0');
+  const mm = String(date.getUTCMinutes()).padStart(2, '0');
+  const ss = String(date.getUTCSeconds()).padStart(2, '0');
+  return `${y}${m}${d}T${hh}${mm}${ss}Z`;
+}
+
+function getBasicAuthHeader(feed: ICalFeed): string | undefined {
+  if (feed.username === undefined || feed.password === undefined) return undefined;
+  return `Basic ${btoa(`${feed.username}:${feed.password}`)}`;
+}
+
+export function extractCalDavCalendarData(xml: string): string[] {
+  const doc = new DOMParser().parseFromString(xml, 'application/xml');
+  if (!doc) return [];
+  return Array.from(doc.getElementsByTagNameNS('*', 'calendar-data'))
+    .map((el) => el.textContent?.trim() ?? '')
+    .filter((v) => v.length > 0);
+}
+
+export async function fetchFeedEvents(
+  feed: ICalFeed,
+  rangeStart: Date,
+  rangeEnd: Date,
+): Promise<ParsedEvent[]> {
+  const auth = getBasicAuthHeader(feed);
+
+  if (feed.type === 'caldav') {
+    const reportBody = `<?xml version="1.0" encoding="utf-8"?>
+<C:calendar-query xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">
+  <D:prop>
+    <C:calendar-data/>
+  </D:prop>
+  <C:filter>
+    <C:comp-filter name="VCALENDAR">
+      <C:comp-filter name="VEVENT">
+        <C:time-range start="${formatCalDavTimestamp(rangeStart)}" end="${formatCalDavTimestamp(rangeEnd)}"/>
+      </C:comp-filter>
+    </C:comp-filter>
+  </C:filter>
+</C:calendar-query>`;
+
+    const headers: HeadersInit = {
+      'Content-Type': 'application/xml; charset=utf-8',
+      Depth: '1',
+    };
+    if (auth) headers.Authorization = auth;
+
+    const res = await fetch(feed.url, {
+      method: 'REPORT',
+      headers,
+      body: reportBody,
+    });
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+
+    const xml = await res.text();
+    const calendars = extractCalDavCalendarData(xml);
+    return calendars.flatMap((cal) => parseIcal(cal, rangeStart, rangeEnd));
+  }
+
+  const headers: HeadersInit = {};
+  if (auth) headers.Authorization = auth;
+  const res = await fetch(feed.url, { headers });
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}`);
+  }
+  const text = await res.text();
+  return parseIcal(text, rangeStart, rangeEnd);
 }
 
 /** Maximum RRULE expansion iterations — prevents infinite loops on malformed data. */
@@ -151,16 +245,10 @@ async function handleCalendarEvents(req: Request): Promise<Response> {
   await Promise.allSettled(
     feeds.map(async (feed) => {
       try {
-        const res = await fetch(feed.url);
-        if (!res.ok) {
-          console.error(`Failed to fetch iCal feed "${feed.name}": HTTP ${res.status}`);
-          return;
-        }
-        const text = await res.text();
-        const events = parseIcal(text, rangeStart, rangeEnd);
+        const events = await fetchFeedEvents(feed, rangeStart, rangeEnd);
         allEvents.push(...events);
       } catch (err) {
-        console.error(`Error fetching iCal feed "${feed.name}":`, err);
+        console.error(`Error fetching calendar feed "${feed.name}":`, err);
       }
     }),
   );
