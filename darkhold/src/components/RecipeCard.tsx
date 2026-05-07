@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Card, Button } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { Plus } from 'react-bootstrap-icons';
@@ -12,13 +13,15 @@ interface Props {
   onAddToMealPlan?: (recipe: Recipe) => void;
   /** Override the navigation target when clicking the card. Defaults to /recipe/:id */
   linkTo?: string;
+  /** Optional extra action rendered in the image button overlay row. */
+  imageOverlayAction?: ReactNode;
 }
 
 const IMAGE_HEIGHT = 180;
 const PLACEHOLDER_BG = '#d0d0d0';
 const PLACEHOLDER_ICON_COLOR = '#a0a0a0';
 
-export function RecipeCard({ recipe, onAddToMealPlan, linkTo }: Props) {
+export function RecipeCard({ recipe, onAddToMealPlan, linkTo, imageOverlayAction }: Props) {
   const navigate = useNavigate();
   const destination = linkTo ?? `/recipe/${recipe.id}`;
   const keywords = (Array.isArray(recipe.keywords)
@@ -82,6 +85,7 @@ export function RecipeCard({ recipe, onAddToMealPlan, linkTo }: Props) {
             right: onAddToMealPlan ? 48 : 8,
           }}
         />
+        {imageOverlayAction}
       </div>
       <Card.Body onClick={() => navigate(destination)}>
         <Card.Title className="fs-6">{recipe.name}</Card.Title>

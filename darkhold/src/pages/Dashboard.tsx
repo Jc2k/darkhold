@@ -142,18 +142,20 @@ function UpcomingMealsShelf({ days, mealsByDay, loading, error, onAddToMealPlan,
                       recipe={recipe}
                       onAddToMealPlan={onAddToMealPlan}
                       linkTo={`/meal-plan-entry/${entry.id}`}
+                      imageOverlayAction={
+                        isEligible && !isCooked ? (
+                          <Button
+                            variant="outline-secondary"
+                            size="sm"
+                            style={cookLogButtonStyle}
+                            onClick={(e) => { e.stopPropagation(); onLogCook(entry); }}
+                            aria-label="Log as cooked"
+                          >
+                            <Check2Circle size={14} />
+                          </Button>
+                        ) : undefined
+                      }
                     />
-                    {isEligible && !isCooked && (
-                      <Button
-                        variant="outline-secondary"
-                        size="sm"
-                        style={cookLogButtonStyle}
-                        onClick={(e) => { e.stopPropagation(); onLogCook(entry); }}
-                        aria-label="Log as cooked"
-                      >
-                        <Check2Circle size={14} />
-                      </Button>
-                    )}
                   </>
                 ) : (
                   <div
