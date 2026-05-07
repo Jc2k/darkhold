@@ -92,13 +92,19 @@ export function extractCalDavCalendarData(xml: string): string[] {
       if (name === 'amp') return '&';
       if (name === 'quot') return '"';
       if (name === 'apos') return "'";
+      const decodeCodePoint = (value: number): string => {
+        if (Number.isInteger(value) && value >= 0 && value <= 0x10FFFF) {
+          return String.fromCodePoint(value);
+        }
+        return match;
+      };
       if (name.startsWith('#x')) {
         const value = Number.parseInt(name.slice(2), 16);
-        if (Number.isInteger(value)) return String.fromCodePoint(value);
+        return decodeCodePoint(value);
       }
       if (name.startsWith('#')) {
         const value = Number.parseInt(name.slice(1), 10);
-        if (Number.isInteger(value)) return String.fromCodePoint(value);
+        return decodeCodePoint(value);
       }
       return match;
     }))
