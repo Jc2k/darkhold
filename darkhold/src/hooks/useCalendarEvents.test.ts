@@ -86,4 +86,13 @@ describe('parseCalendarEventsPayload', () => {
       }),
     ).toThrow('Calendar feed errors: Family: CalDAV REPORT failed: HTTP 401');
   });
+
+  it('throws when both events and errors are present', () => {
+    expect(() =>
+      parseCalendarEventsPayload({
+        events: [{ name: 'Ignored event', start: '2025-05-07T10:00:00.000Z', allDay: false }],
+        errors: [{ feed: 'Work', message: 'timeout' }],
+      }),
+    ).toThrow('Calendar feed errors: Work: timeout');
+  });
 });
