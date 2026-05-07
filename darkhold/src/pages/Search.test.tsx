@@ -98,9 +98,13 @@ describe('Search', () => {
   });
 
   it('restores selected tag filters from the URL so the widget shows the applied filter', async () => {
+    let resolveKeyword: ((value: { id: number; name: string }) => void) | undefined;
+
     apiGetMock.mockImplementation(async (path: string) => {
       if (path === '/keyword/42/') {
-        return { id: 42, name: 'Autumn' };
+        return new Promise((resolve) => {
+          resolveKeyword = resolve;
+        });
       }
       throw new Error(`Unexpected path: ${path}`);
     });
@@ -116,7 +120,7 @@ describe('Search', () => {
     });
 
     await act(async () => {
-      await Promise.resolve();
+      resolveKeyword?.({ id: 42, name: 'Autumn' });
       await Promise.resolve();
     });
 

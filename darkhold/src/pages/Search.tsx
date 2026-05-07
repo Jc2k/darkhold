@@ -29,7 +29,8 @@ async function loadSelectedOptions(path: '/keyword/' | '/food/', ids: number[]):
     try {
       const option = await apiGet<FilterOption>(`${path}${id}/`);
       return { id: option.id, name: option.name };
-    } catch {
+    } catch (error) {
+      console.warn('Failed to restore search filter option', { path, id, error });
       return null;
     }
   }));
