@@ -20,6 +20,12 @@ interface CalendarFeedError {
   message: string;
 }
 
+interface WeatherConfig {
+  latitude: number;
+  longitude: number;
+  timezone: string;
+}
+
 const MAX_ERROR_RESPONSE_LENGTH = 200;
 
 function loadICalFeeds(): ICalFeed[] {
@@ -57,6 +63,17 @@ function loadICalFeeds(): ICalFeed[] {
   } catch {
     return [];
   }
+}
+
+function loadWeatherConfig(): WeatherConfig | null {
+  const latitudeRaw = Deno.env.get('WEATHER_LATITUDE');
+  const longitudeRaw = Deno.env.get('WEATHER_LONGITUDE');
+  const timezone = Deno.env.get('WEATHER_TIMEZONE') || 'Europe/London';
+  if (!latitudeRaw || !longitudeRaw) return null;
+  const latitude = Number(latitudeRaw);
+  const longitude = Number(longitudeRaw);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+  return { latitude, longitude, timezone };
 }
 
 // ---------------------------------------------------------------------------
@@ -287,6 +304,113 @@ export function parseIcal(
 }
 
 // ---------------------------------------------------------------------------
+// Open-Meteo weather forecast
+// ---------------------------------------------------------------------------
+
+export interface WeatherDayForecast {
+  date: string;
+  weatherCode: number;
+  tempMinC: number;
+  tempMaxC: number;
+  sunrise: string;
+  sunset: string;
+  precipitationSumMm: number;
+  precipitationProbabilityMax: number;
+}
+
+interface OpenMeteoDaily {
+  time?: string[];
+  weather_code?: number[];
+  temperature_2m_min?: number[];
+  temperature_2m_max?: number[];
+  sunrise?: string[];
+  sunset?: string[];
+  precipitation_sum?: number[];
+  precipitation_probability_max?: number[];
+}
+
+interface OpenMeteoForecastResponse {
+  daily?: OpenMeteoDaily;
+}
+
+export function parseOpenMeteoDaily(daily: OpenMeteoDaily): WeatherDayForecast[] {
+  const dates = daily.time ?? [];
+  const weatherCodes = daily.weather_code ?? [];
+  const minTemps = daily.temperature_2m_min ?? [];
+  const maxTemps = daily.temperature_2m_max ?? [];
+  const sunrises = daily.sunrise ?? [];
+  const sunsets = daily.sunset ?? [];
+  const precipitationSums = daily.precipitation_sum ?? [];
+  const precipitationProbabilities = daily.precipitation_probability_max ?? [];
+
+  return dates.flatMap((date, idx): WeatherDayForecast[] => {
+    const weatherCode = weatherCodes[idx];
+    const tempMinC = minTemps[idx];
+    const tempMaxC = maxTemps[idx];
+    const sunrise = sunrises[idx];
+    const sunset = sunsets[idx];
+    const precipitationSumMm = precipitationSums[idx];
+    const precipitationProbabilityMax = precipitationProbabilities[idx];
+
+    if (
+      typeof weatherCode !== 'number' ||
+      typeof tempMinC !== 'number' ||
+      typeof tempMaxC !== 'number' ||
+      typeof sunrise !== 'string' ||
+      typeof sunset !== 'string' ||
+      typeof precipitationSumMm !== 'number' ||
+      typeof precipitationProbabilityMax !== 'number'
+    ) return [];
+
+    return [{
+      date,
+      weatherCode,
+      tempMinC,
+      tempMaxC,
+      sunrise,
+      sunset,
+      precipitationSumMm,
+      precipitationProbabilityMax,
+    }];
+  });
+}
+
+async function fetchWeatherForecast(
+  config: WeatherConfig,
+  fromDate: string,
+  toDate: string,
+): Promise<WeatherDayForecast[]> {
+  const url = new URL('https://api.open-meteo.com/v1/forecast');
+  url.searchParams.set('latitude', String(config.latitude));
+  url.searchParams.set('longitude', String(config.longitude));
+  url.searchParams.set('timezone', config.timezone);
+  url.searchParams.set('start_date', fromDate);
+  url.searchParams.set('end_date', toDate);
+  url.searchParams.set(
+    'daily',
+    [
+      'weather_code',
+      'temperature_2m_min',
+      'temperature_2m_max',
+      'sunrise',
+      'sunset',
+      'precipitation_sum',
+      'precipitation_probability_max',
+    ].join(','),
+  );
+
+  const res = await fetch(url);
+  if (!res.ok) {
+    const body = (await res.text()).trim();
+    const suffix = body ? `; ${body.slice(0, MAX_ERROR_RESPONSE_LENGTH)}` : '';
+    throw new Error(`Weather API fetch failed: HTTP ${res.status}${suffix}`);
+  }
+
+  const payload = await res.json() as OpenMeteoForecastResponse;
+  return parseOpenMeteoDaily(payload.daily ?? {});
+}
+
+// ---------------------------------------------------------------------------
 // Calendar events HTTP handler
 // ---------------------------------------------------------------------------
 
@@ -339,6 +463,50 @@ async function handleCalendarEvents(req: Request): Promise<Response> {
   });
 }
 
+async function handleWeatherForecast(req: Request): Promise<Response> {
+  const url = new URL(req.url);
+  const fromParam = url.searchParams.get('from');
+  const toParam = url.searchParams.get('to');
+
+  if (!fromParam || !toParam) {
+    return new Response(JSON.stringify({ error: 'Missing from or to parameter' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  const rangeStart = new Date(`${fromParam}T00:00:00Z`);
+  const rangeEnd = new Date(`${toParam}T23:59:59Z`);
+  if (isNaN(rangeStart.getTime()) || isNaN(rangeEnd.getTime())) {
+    return new Response(JSON.stringify({ error: 'Invalid date format' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  const weather = loadWeatherConfig();
+  if (!weather) {
+    return new Response(JSON.stringify({ days: [] }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  try {
+    const days = await fetchWeatherForecast(weather, fromParam, toParam);
+    return new Response(JSON.stringify({ days }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return new Response(JSON.stringify({ error: message }), {
+      status: 502,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+}
+
 // ---------------------------------------------------------------------------
 // WebSocket broadcast server
 // ---------------------------------------------------------------------------
@@ -350,6 +518,9 @@ Deno.serve({ port: 8098, hostname: "127.0.0.1" }, async (req: Request): Promise<
 
   if (url.pathname === '/calendar-events' && req.method === 'GET') {
     return handleCalendarEvents(req);
+  }
+  if (url.pathname === '/weather-forecast' && req.method === 'GET') {
+    return handleWeatherForecast(req);
   }
 
   if (req.headers.get("upgrade") !== "websocket") {
