@@ -353,9 +353,13 @@ Deno.test('fetchFeedEvents uses caldav REPORT with basic auth when feed type is 
       throw new Error('expected basic auth header');
     }
     const body = await request.text();
-    if (!body.includes('calendar-query')) throw new Error('expected calendar-query body');
-    if (!body.includes('calendar-data')) throw new Error('expected calendar-data prop');
-    if (!body.includes('comp-filter')) throw new Error('expected comp-filter in query body');
+    if (!body.includes('<c:calendar-query')) throw new Error('expected caldav calendar-query element');
+    if (!body.includes('<d:prop>') || !body.includes('<c:calendar-data')) {
+      throw new Error('expected DAV prop with calendar-data');
+    }
+    if (!body.includes('<c:filter>')) throw new Error('expected filter element');
+    if (!body.includes('<c:comp-filter name="VCALENDAR">')) throw new Error('expected VCALENDAR comp-filter');
+    if (!body.includes('<c:comp-filter name="VEVENT">')) throw new Error('expected VEVENT comp-filter');
     if (events.length !== 1) throw new Error(`expected 1 event, got ${events.length}`);
     if (events[0].name !== 'Private') throw new Error(`unexpected event: ${events[0].name}`);
   } finally {

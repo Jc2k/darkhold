@@ -30,7 +30,7 @@ interface WeatherConfig {
 
 const MAX_ERROR_RESPONSE_LENGTH = 200;
 const DEFAULT_WEATHER_TIMEZONE = 'Europe/London';
-const CALDAV_SHORT_NAMESPACE = 'c';
+const CALDAV_NAMESPACE_PREFIX = 'c';
 export function parseICalFeeds(raw: string): ICalFeed[] {
   try {
     const parsed = JSON.parse(raw) as unknown;
@@ -171,7 +171,7 @@ async function fetchCalDavCalendarData(
     responses = await calendarQuery({
       url,
       props: {
-        [`${CALDAV_SHORT_NAMESPACE}:calendar-data`]: {},
+        [`${CALDAV_NAMESPACE_PREFIX}:calendar-data`]: {},
       },
       filters: buildCalDavFilters(rangeStart, rangeEnd, withTimeRange),
       depth: '1',
