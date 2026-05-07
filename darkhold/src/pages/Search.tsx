@@ -6,7 +6,7 @@ import { RecipeCard } from '../components/RecipeCard';
 import { MealPlanAddModal } from '../components/MealPlanAddModal';
 import { LoadingMascot } from '../components/LoadingMascot';
 import { AsyncTypeaheadFilter, type FilterOption } from '../components/AsyncTypeaheadFilter';
-import { searchKeywords, searchFoods } from '../api/client';
+import { apiGet, searchKeywords, searchFoods } from '../api/client';
 import type { Recipe } from '../api/tandoor-types';
 
 type ActiveFilter = 'tags' | 'ingredients';
@@ -23,6 +23,19 @@ const FILTER_CONFIGS: FilterConfig[] = [
   { key: 'tags', label: 'Tags', emoji: '🏷️', urlParam: 'keywords', searcher: searchKeywords },
   { key: 'ingredients', label: 'Ingredients', emoji: '🥕', urlParam: 'foods', searcher: searchFoods },
 ];
+
+async function loadSelectedOptions(path: '/keyword/' | '/food/', ids: number[]): Promise<FilterOption[]> {
+  const options = await Promise.all(ids.map(async (id) => {
+    try {
+      const option = await apiGet<FilterOption>(`${path}${id}/`);
+      return { id: option.id, name: option.name };
+    } catch (error) {
+      console.warn('Failed to restore search filter option', { path, id, error });
+      return null;
+    }
+  }));
+  return options.filter((option): option is FilterOption => option !== null);
+}
 
 export function Search() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -57,14 +70,37 @@ export function Search() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const keywordIds = (searchParams.get('keywords') || '').split(',').map(Number).filter(Boolean);
-  const foodIds = (searchParams.get('foods') || '').split(',').map(Number).filter(Boolean);
+  const keywordParam = searchParams.get('keywords') || '';
+  const foodParam = searchParams.get('foods') || '';
+  const keywordIds = keywordParam.split(',').map(Number).filter(Boolean);
+  const foodIds = foodParam.split(',').map(Number).filter(Boolean);
   const ratingParam = searchParams.get('rating');
   const rating = ratingParam !== null ? Number(ratingParam) : undefined;
   const cookingTimeLteParam = searchParams.get('cooking_time__lte');
   const cookingTimeLte = cookingTimeLteParam !== null ? Number(cookingTimeLteParam) : undefined;
   const newOnly = searchParams.get('new') === 'true';
   const sortOrder = searchParams.get('sort_order') || undefined;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const syncSelectedOptions = async () => {
+      const [tags, ingredients] = await Promise.all([
+        loadSelectedOptions('/keyword/', keywordIds),
+        loadSelectedOptions('/food/', foodIds),
+      ]);
+
+      if (!cancelled) {
+        setSelectedOptions({ tags, ingredients });
+      }
+    };
+
+    void syncSelectedOptions();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [foodParam, keywordParam]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
