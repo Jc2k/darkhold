@@ -177,12 +177,15 @@ function DayCalendarWeatherInfo({ dayEvents, weather, centered }: DayCalendarWea
     <div className={`text-muted ${centered ? 'text-center' : ''}`} style={{ fontSize: '0.7rem', lineHeight: 1.5 }}>
       {weather && (
         <div className="mb-1">
-          <div className="d-flex align-items-center gap-1" style={{ whiteSpace: 'nowrap', justifyContent: centered ? 'center' : undefined }}>
+          <div
+            className="meal-plan-weather-line d-flex align-items-center gap-1"
+            style={{ justifyContent: centered ? 'center' : undefined }}
+          >
             {weatherIconForCode(weather.weatherCode)}
             <span>{weatherSummaryForCode(weather.weatherCode)}</span>
             <span>{Math.round(weather.tempMinC)}-{Math.round(weather.tempMaxC)}°C</span>
           </div>
-          <div style={{ whiteSpace: 'nowrap' }}>
+          <div className="meal-plan-weather-sun">
             Sunrise {formatWeatherTime(weather.sunrise)} · Sunset {formatWeatherTime(weather.sunset)}
           </div>
           {disruptionBand && (

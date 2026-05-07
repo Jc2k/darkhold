@@ -52,6 +52,20 @@
   width: 100%;
 }
 
+.meal-plan-page .meal-plan-table {
+  table-layout: auto !important;
+}
+
+.meal-plan-page .meal-plan-table colgroup {
+  display: none;
+}
+
+.meal-plan-page .meal-plan-weather-line,
+.meal-plan-page .meal-plan-weather-sun {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 @media (min-width: 768px) {
   .meal-plan-page .meal-plan-day {
     min-height: 130px;
@@ -62,6 +76,20 @@
   .meal-plan-page .meal-plan-mobile-row,
   .meal-plan-page .meal-plan-mobile-cell {
     width: auto;
+  }
+
+  .meal-plan-page .meal-plan-table {
+    table-layout: fixed !important;
+  }
+
+  .meal-plan-page .meal-plan-table colgroup {
+    display: table-column-group;
+  }
+
+  .meal-plan-page .meal-plan-weather-line,
+  .meal-plan-page .meal-plan-weather-sun {
+    white-space: nowrap;
+    overflow-wrap: normal;
   }
 }
 
