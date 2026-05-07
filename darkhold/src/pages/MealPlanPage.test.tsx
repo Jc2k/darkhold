@@ -14,7 +14,7 @@ vi.mock('@dnd-kit/core', async () => {
   };
 });
 
-import { DroppableTableRow } from './MealPlanPage';
+import { DroppableTableRow } from './DroppableTableRow';
 
 describe('DroppableTableRow', () => {
   beforeEach(() => {

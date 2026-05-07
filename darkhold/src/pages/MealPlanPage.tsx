@@ -54,6 +54,7 @@ import { CookLogModal } from '../components/CookLogModal';
 import { useCookLog, isCookedOnDate, type CookedByDate } from '../hooks/useCookLog';
 import { smallCircleButtonStyle } from '../utils/buttonStyles';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
+import { DroppableTableRow } from './DroppableTableRow';
 
 type WithSortable = { sortable?: { containerId: string } } | undefined;
 
@@ -424,26 +425,6 @@ function DroppableDay({ dateKey, children }: DroppableDayProps) {
     </div>
   );
 }
-
-interface DroppableTableRowProps {
-  dateKey: string;
-  className?: string;
-  children: React.ReactNode;
-}
-
-export function DroppableTableRow({ dateKey, className, children }: DroppableTableRowProps) {
-  const { setNodeRef, isOver } = useDroppable({ id: dateKey });
-  const rowClassName = [className, isOver ? 'meal-plan-row-drop-target' : ''].filter(Boolean).join(' ');
-  return (
-    <tr
-      ref={setNodeRef}
-      className={rowClassName}
-    >
-      {children}
-    </tr>
-  );
-}
-
 
 interface AddMealModalProps {
   date: string;
