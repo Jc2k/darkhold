@@ -33,10 +33,6 @@ COPY --from=builder /app/package.json /package.json
 # Copy the server's npm dependencies so Deno can resolve them at runtime.
 COPY --from=builder /app/node_modules/ical.js /node_modules/ical.js
 COPY --from=builder /app/node_modules/tsdav /node_modules/tsdav
-COPY --from=builder /app/node_modules/base-64 /node_modules/base-64
-COPY --from=builder /app/node_modules/debug /node_modules/debug
-COPY --from=builder /app/node_modules/ms /node_modules/ms
-COPY --from=builder /app/node_modules/xml-js /node_modules/xml-js
 # Copy Deno binary (target-platform build) + its bundled glibc runtime, then
 # wire up the glibc dynamic linker symlink for the target architecture.
 # The deno:alpine image bundles glibc at /usr/local/lib/glibc/ and exposes the

@@ -1,5 +1,6 @@
 import ICAL from 'npm:ical.js@2';
-import { DAVNamespaceShort, calendarQuery } from 'npm:tsdav@2.2.1';
+import { calendarQuery } from './node_modules/tsdav/dist/tsdav.js';
+import type { DAVResponse } from 'npm:tsdav@2.2.1';
 import pkg from './package.json' with { type: 'json' };
 
 const VERSION = pkg.version;
@@ -29,6 +30,18 @@ interface WeatherConfig {
 
 const MAX_ERROR_RESPONSE_LENGTH = 200;
 const DEFAULT_WEATHER_TIMEZONE = 'Europe/London';
+const CALDAV_SHORT_NAMESPACE = 'c';
+
+type CalendarQueryParams = {
+  url: string;
+  props: Record<string, unknown>;
+  filters?: Record<string, unknown>[];
+  depth?: '0' | '1' | 'infinity';
+  headers?: Record<string, string>;
+  fetch?: typeof fetch;
+};
+
+const typedCalendarQuery = calendarQuery as (params: CalendarQueryParams) => Promise<DAVResponse[]>;
 export function parseICalFeeds(raw: string): ICalFeed[] {
   try {
     const parsed = JSON.parse(raw) as unknown;
@@ -166,10 +179,10 @@ async function fetchCalDavCalendarData(
 ): Promise<string[]> {
   let responses;
   try {
-    responses = await calendarQuery({
+    responses = await typedCalendarQuery({
       url,
       props: {
-        [`${DAVNamespaceShort.CALDAV}:calendar-data`]: {},
+        [`${CALDAV_SHORT_NAMESPACE}:calendar-data`]: {},
       },
       filters: buildCalDavFilters(rangeStart, rangeEnd, withTimeRange),
       depth: '1',
@@ -186,7 +199,7 @@ async function fetchCalDavCalendarData(
     throw err;
   }
 
-  const failed = responses.find((r) => !r.ok);
+  const failed = responses.find((r: DAVResponse) => !r.ok);
   if (failed) {
     throw formatFetchError(
       'CalDAV REPORT failed',
@@ -195,7 +208,9 @@ async function fetchCalDavCalendarData(
     );
   }
 
-  return responses.map((r) => getCalDavPayload(r)).filter((v): v is string => Boolean(v && v.trim()));
+  return responses
+    .map((r: DAVResponse) => getCalDavPayload(r))
+    .filter((v: string | null): v is string => Boolean(v && v.trim()));
 }
 
 export function extractCalDavCalendarData(xml: string): string[] {
