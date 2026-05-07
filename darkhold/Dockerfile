@@ -6,6 +6,9 @@ COPY package.json package-lock.json deno.json deno.lock* ./
 RUN deno install
 COPY . .
 RUN deno task build
+# Pre-cache server.ts npm dependencies (ical.js) into a dedicated directory so
+# the final image can run the server without network access at startup.
+RUN DENO_DIR=/deno-server-cache deno cache --no-config server.ts
 
 # Stage 2: Pull the Deno binary for the target platform
 FROM --platform=$TARGETPLATFORM denoland/deno:alpine AS deno-runtime
@@ -42,5 +45,8 @@ RUN set -e; \
       *) mkdir -p /lib && ln -sf "$ld" "/lib/$name" ;; \
     esac
 COPY server.ts /server.ts
+# Use the pre-cached Deno module cache so ical.js is available without network at runtime
+COPY --from=builder /deno-server-cache /deno-server-cache
+ENV DENO_DIR=/deno-server-cache
 EXPOSE 8099
 CMD ["/run.sh"]
