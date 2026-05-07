@@ -798,11 +798,6 @@ function MealPlanTableView({
                       key={mt.id}
                       className={`meal-plan-mobile-cell d-block d-lg-table-cell p-1 align-top ${entries.length === 0 ? 'meal-plan-mobile-empty' : ''}`}
                     >
-                      {entries.length > 0 && (
-                        <div className="meal-plan-mobile-meal-type-label d-lg-none px-2 pt-1 text-muted fw-semibold">
-                          {mt.name}
-                        </div>
-                      )}
                       <DroppableDay dateKey={containerId}>
                         <SortableContext id={containerId} items={entries.map((e) => e.id)}>
                           {entries.map((entry) => {
