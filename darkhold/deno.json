@@ -4,7 +4,7 @@
     "server": "deno run --cached-only --allow-net --allow-read=package.json server.ts",
     "build": "rsbuild build",
     "preview": "rsbuild preview",
-    "test": "deno test --cached-only --allow-net server.test.ts"
+    "test": "deno test --allow-net server.test.ts"
   },
   "nodeModulesDir": "auto"
 }
