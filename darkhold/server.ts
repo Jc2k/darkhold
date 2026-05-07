@@ -1,6 +1,6 @@
 import ICAL from 'npm:ical.js@2';
 import { calendarQuery } from './node_modules/tsdav/dist/tsdav.js';
-import type { DAVResponse } from 'npm:tsdav@2.2.1';
+import type { DAVResponse } from './node_modules/tsdav/dist/tsdav.d.ts';
 import pkg from './package.json' with { type: 'json' };
 
 const VERSION = pkg.version;
@@ -31,17 +31,6 @@ interface WeatherConfig {
 const MAX_ERROR_RESPONSE_LENGTH = 200;
 const DEFAULT_WEATHER_TIMEZONE = 'Europe/London';
 const CALDAV_SHORT_NAMESPACE = 'c';
-
-type CalendarQueryParams = {
-  url: string;
-  props: Record<string, unknown>;
-  filters?: Record<string, unknown>[];
-  depth?: '0' | '1' | 'infinity';
-  headers?: Record<string, string>;
-  fetch?: typeof fetch;
-};
-
-const typedCalendarQuery = calendarQuery as (params: CalendarQueryParams) => Promise<DAVResponse[]>;
 export function parseICalFeeds(raw: string): ICalFeed[] {
   try {
     const parsed = JSON.parse(raw) as unknown;
@@ -177,9 +166,9 @@ async function fetchCalDavCalendarData(
   rangeEnd: Date,
   withTimeRange: boolean,
 ): Promise<string[]> {
-  let responses;
+  let responses: DAVResponse[];
   try {
-    responses = await typedCalendarQuery({
+    responses = await calendarQuery({
       url,
       props: {
         [`${CALDAV_SHORT_NAMESPACE}:calendar-data`]: {},

@@ -354,6 +354,8 @@ Deno.test('fetchFeedEvents uses caldav REPORT with basic auth when feed type is 
     }
     const body = await request.text();
     if (!body.includes('calendar-query')) throw new Error('expected calendar-query body');
+    if (!body.includes('calendar-data')) throw new Error('expected calendar-data prop');
+    if (!body.includes('comp-filter')) throw new Error('expected comp-filter in query body');
     if (events.length !== 1) throw new Error(`expected 1 event, got ${events.length}`);
     if (events[0].name !== 'Private') throw new Error(`unexpected event: ${events[0].name}`);
   } finally {
