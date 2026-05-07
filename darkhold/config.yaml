@@ -37,3 +37,6 @@ schema:
   ical_feeds:
     - name: "str"
       url: "str"
+      type: "str?"
+      username: "str?"
+      password: "str?"
