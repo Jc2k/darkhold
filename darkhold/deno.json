@@ -1,7 +1,7 @@
 {
   "tasks": {
     "dev": "rsbuild dev --open",
-    "server": "deno run --allow-net --allow-read=package.json server.ts",
+    "server": "deno run --cached-only --allow-net --allow-read=package.json server.ts",
     "build": "rsbuild build",
     "preview": "rsbuild preview",
     "test": "deno test --allow-net server.test.ts"

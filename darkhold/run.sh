@@ -38,6 +38,6 @@ jq -n \
     > /usr/share/nginx/html/app-config.json
 
 # Start WebSocket broadcast server in background
-deno run --allow-net --allow-read=/package.json --allow-env=ICAL_FEEDS /server.ts &
+deno run --cached-only --allow-net --allow-read=/package.json --allow-env=ICAL_FEEDS /server.ts &
 
 exec nginx -g "daemon off;"
