@@ -28,7 +28,6 @@ interface WeatherConfig {
 
 const MAX_ERROR_RESPONSE_LENGTH = 200;
 const DEFAULT_WEATHER_TIMEZONE = 'Europe/London';
-
 export function parseICalFeeds(raw: string): ICalFeed[] {
   try {
     const parsed = JSON.parse(raw) as unknown;
@@ -86,7 +85,6 @@ function loadWeatherConfig(): WeatherConfig | null {
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
   return { latitude, longitude, timezone };
 }
-
 // ---------------------------------------------------------------------------
 // iCal parsing using ical.js (https://www.npmjs.com/package/ical.js)
 // ---------------------------------------------------------------------------
