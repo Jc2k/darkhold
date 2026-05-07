@@ -402,3 +402,125 @@ Deno.test('fetchFeedEvents retries caldav REPORT without time-range when filtere
     globalThis.fetch = originalFetch;
   }
 });
+
+Deno.test('fetchFeedEvents surfaces CalDAV error response text for diagnostics', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (() =>
+    Promise.resolve(
+      new Response('Unauthorized', {
+        status: 401,
+        headers: { 'Content-Type': 'text/plain' },
+      }),
+    )) as typeof fetch;
+
+  try {
+    await fetchFeedEvents(
+      {
+        name: 'CalDAV',
+        url: 'https://caldav.icloud.com/calendar/',
+        type: 'caldav',
+      },
+      new Date('2025-05-07T00:00:00Z'),
+      new Date('2025-05-07T23:59:59Z'),
+    );
+    throw new Error('expected fetchFeedEvents to throw');
+  } catch (err) {
+    if (!(err instanceof Error)) throw new Error(`expected Error, got ${String(err)}`);
+    if (!err.message.includes('HTTP 401')) throw new Error(`expected status in error, got ${err.message}`);
+    if (!err.message.includes('Unauthorized')) throw new Error(`expected response text in error, got ${err.message}`);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+Deno.test('fetchFeedEvents surfaces ICS error response text for diagnostics', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (() =>
+    Promise.resolve(
+      new Response('Forbidden', {
+        status: 403,
+        headers: { 'Content-Type': 'text/plain' },
+      }),
+    )) as typeof fetch;
+
+  try {
+    await fetchFeedEvents(
+      {
+        name: 'Public ICS',
+        url: 'https://example.com/events.ics',
+        type: 'ics',
+      },
+      new Date('2025-05-07T00:00:00Z'),
+      new Date('2025-05-07T23:59:59Z'),
+    );
+    throw new Error('expected fetchFeedEvents to throw');
+  } catch (err) {
+    if (!(err instanceof Error)) throw new Error(`expected Error, got ${String(err)}`);
+    if (!err.message.includes('HTTP 403')) throw new Error(`expected status in error, got ${err.message}`);
+    if (!err.message.includes('Forbidden')) throw new Error(`expected response text in error, got ${err.message}`);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+Deno.test('fetchFeedEvents omits response summary when error body is empty', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (() =>
+    Promise.resolve(
+      new Response('', {
+        status: 500,
+      }),
+    )) as typeof fetch;
+
+  try {
+    await fetchFeedEvents(
+      {
+        name: 'Public ICS',
+        url: 'https://example.com/events.ics',
+        type: 'ics',
+      },
+      new Date('2025-05-07T00:00:00Z'),
+      new Date('2025-05-07T23:59:59Z'),
+    );
+    throw new Error('expected fetchFeedEvents to throw');
+  } catch (err) {
+    if (!(err instanceof Error)) throw new Error(`expected Error, got ${String(err)}`);
+    if (err.message !== 'ICS fetch failed: HTTP 500') {
+      throw new Error(`unexpected error message: ${err.message}`);
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+Deno.test('fetchFeedEvents truncates long response text in diagnostics', async () => {
+  const originalFetch = globalThis.fetch;
+  const longBody = `${'x'.repeat(205)}TAIL`;
+  globalThis.fetch = (() =>
+    Promise.resolve(
+      new Response(longBody, {
+        status: 502,
+      }),
+    )) as typeof fetch;
+
+  try {
+    await fetchFeedEvents(
+      {
+        name: 'CalDAV',
+        url: 'https://caldav.icloud.com/calendar/',
+        type: 'caldav',
+      },
+      new Date('2025-05-07T00:00:00Z'),
+      new Date('2025-05-07T23:59:59Z'),
+    );
+    throw new Error('expected fetchFeedEvents to throw');
+  } catch (err) {
+    if (!(err instanceof Error)) throw new Error(`expected Error, got ${String(err)}`);
+    const expectedPrefix = `CalDAV REPORT failed: HTTP 502; ${'x'.repeat(200)}`;
+    if (err.message !== expectedPrefix) {
+      throw new Error(`unexpected truncated message: ${err.message}`);
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

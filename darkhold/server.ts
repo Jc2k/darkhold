@@ -15,6 +15,13 @@ interface ICalFeed {
   password?: string;
 }
 
+interface CalendarFeedError {
+  feed: string;
+  message: string;
+}
+
+const MAX_ERROR_RESPONSE_LENGTH = 200;
+
 function loadICalFeeds(): ICalFeed[] {
   try {
     const raw = Deno.env.get('ICAL_FEEDS') ?? '[]';
@@ -99,6 +106,12 @@ function buildCalDavReportBody(rangeStart: Date, rangeEnd: Date, withTimeRange: 
 </C:calendar-query>`;
 }
 
+function formatFetchError(prefix: string, status: number, responseText: string): Error {
+  const trimmed = responseText.trim();
+  const responseSummary = trimmed ? `; ${trimmed.slice(0, MAX_ERROR_RESPONSE_LENGTH)}` : '';
+  return new Error(`${prefix}: HTTP ${status}${responseSummary}`);
+}
+
 async function fetchCalDavCalendarData(url: string, headers: HeadersInit, body: string): Promise<string[]> {
   const res = await fetch(url, {
     method: 'REPORT',
@@ -106,7 +119,7 @@ async function fetchCalDavCalendarData(url: string, headers: HeadersInit, body: 
     body,
   });
   if (!res.ok) {
-    throw new Error(`CalDAV REPORT failed: HTTP ${res.status}`);
+    throw formatFetchError('CalDAV REPORT failed', res.status, await res.text());
   }
   const xml = await res.text();
   return extractCalDavCalendarData(xml);
@@ -180,7 +193,7 @@ export async function fetchFeedEvents(
   if (auth) headers.Authorization = auth;
   const res = await fetch(feed.url, { headers });
   if (!res.ok) {
-    throw new Error(`ICS fetch failed: HTTP ${res.status}`);
+    throw formatFetchError('ICS fetch failed', res.status, await res.text());
   }
   const text = await res.text();
   return parseIcal(text, rangeStart, rangeEnd);
@@ -302,6 +315,7 @@ async function handleCalendarEvents(req: Request): Promise<Response> {
 
   const feeds = loadICalFeeds();
   const allEvents: ParsedEvent[] = [];
+  const errors: CalendarFeedError[] = [];
 
   await Promise.allSettled(
     feeds.map(async (feed) => {
@@ -309,6 +323,8 @@ async function handleCalendarEvents(req: Request): Promise<Response> {
         const events = await fetchFeedEvents(feed, rangeStart, rangeEnd);
         allEvents.push(...events);
       } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        errors.push({ feed: feed.name, message });
         console.error(`Error fetching calendar feed "${feed.name}":`, err);
       }
     }),
@@ -317,7 +333,7 @@ async function handleCalendarEvents(req: Request): Promise<Response> {
   // Sort by start time
   allEvents.sort((a, b) => a.start.localeCompare(b.start));
 
-  return new Response(JSON.stringify({ events: allEvents }), {
+  return new Response(JSON.stringify({ events: allEvents, errors }), {
     status: 200,
     headers: { 'Content-Type': 'application/json' },
   });
