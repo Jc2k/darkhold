@@ -47,9 +47,21 @@
   min-height: 40px;
 }
 
+.meal-plan-page .meal-plan-mobile-row,
+.meal-plan-page .meal-plan-mobile-cell {
+  width: 100%;
+}
+
 @media (min-width: 768px) {
   .meal-plan-page .meal-plan-day {
     min-height: 130px;
+  }
+}
+
+@media (min-width: 992px) {
+  .meal-plan-page .meal-plan-mobile-row,
+  .meal-plan-page .meal-plan-mobile-cell {
+    width: auto;
   }
 }
 
