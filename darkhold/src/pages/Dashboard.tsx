@@ -208,6 +208,70 @@ function useTagShelf(tag: string) {
   };
 }
 
+interface SeasonConfig {
+  tag: string;
+  title: string;
+  emoji: string;
+}
+
+const SEASON_CONFIGS: SeasonConfig[] = [
+  { tag: 'spring',    title: 'Spring',    emoji: '🌸' },
+  { tag: 'summer',    title: 'Summer',    emoji: '☀️' },
+  { tag: 'autumn',    title: 'Autumn',    emoji: '🍂' },
+  { tag: 'winter',    title: 'Winter',    emoji: '❄️' },
+  { tag: 'christmas', title: 'Christmas', emoji: '🎄' },
+];
+
+function getActiveSeasons(date: Date): Set<string> {
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  const active = new Set<string>();
+
+  if ((month === 2 && day >= 15) || (month >= 3 && month <= 5) || (month === 6 && day <= 14)) {
+    active.add('spring');
+  }
+  if ((month === 5 && day >= 15) || (month >= 6 && month <= 8) || (month === 9 && day <= 14)) {
+    active.add('summer');
+  }
+  if ((month === 8 && day >= 15) || (month >= 9 && month <= 11) || (month === 12 && day <= 14)) {
+    active.add('autumn');
+  }
+  if ((month === 11 && day >= 15) || month === 12 || month === 1 || month === 2 || (month === 3 && day <= 14)) {
+    active.add('winter');
+  }
+  if (month === 12) {
+    active.add('christmas');
+  }
+
+  return active;
+}
+
+function useSeasonalShelf(tag: string, enabled: boolean) {
+  const keywordQuery = useQuery({
+    queryKey: ['keywords', 'by-name', tag],
+    queryFn: async () => {
+      const data = await apiGet<PaginatedResponse<Keyword>>('/keyword/', { query: tag, page_size: 100 });
+      return data.results.find((k) => k.name.toLowerCase() === tag.toLowerCase()) ?? null;
+    },
+    enabled,
+  });
+
+  const keywordId = keywordQuery.data?.id;
+
+  const recipeQuery = useQuery({
+    queryKey: ['recipes', 'seasonal', tag],
+    queryFn: () => apiGet<PaginatedResponse<Recipe>>('/recipe/', { keywords: keywordId as number, page_size: 10 }),
+    enabled: enabled && keywordId !== undefined,
+  });
+
+  return {
+    data: recipeQuery.data,
+    isLoading: keywordQuery.isLoading || recipeQuery.isLoading,
+    isError: keywordQuery.isError || recipeQuery.isError,
+    keywordId,
+  };
+}
+
 interface TagShelfConfig {
   tag: string;
   title: string;
@@ -234,6 +298,32 @@ function TagShelf({
   return (
     <RecipeShelf
       title={`${config.emoji} ${config.title}`}
+      searchLink={searchLink}
+      recipes={query.data?.results ?? []}
+      loading={query.isLoading}
+      error={query.isError}
+      onAddToMealPlan={onAddToMealPlan}
+    />
+  );
+}
+
+function SeasonalShelf({
+  config,
+  enabled,
+  onAddToMealPlan,
+}: {
+  config: SeasonConfig;
+  enabled: boolean;
+  onAddToMealPlan: (r: Recipe) => void;
+}) {
+  const query = useSeasonalShelf(config.tag, enabled);
+  if (!enabled) return null;
+  const searchLink = query.keywordId
+    ? `/search?keywords=${query.keywordId}`
+    : `/search?q=${config.tag}`;
+  return (
+    <RecipeShelf
+      title={`${config.emoji} ${config.title} Recipes`}
       searchLink={searchLink}
       recipes={query.data?.results ?? []}
       loading={query.isLoading}
@@ -352,6 +442,7 @@ export function Dashboard() {
   const [cookLogEntry, setCookLogEntry] = useState<MealPlan | null>(null);
 
   const today = new Date();
+  const activeSeasons = getActiveSeasons(today);
   const todayStr = formatDate(today);
 
   const weekAhead = new Date();
@@ -448,6 +539,15 @@ export function Dashboard() {
         error={recentlyAdded.isError}
         onAddToMealPlan={setModalRecipe}
       />
+
+      {SEASON_CONFIGS.map((config) => (
+        <SeasonalShelf
+          key={config.tag}
+          config={config}
+          enabled={activeSeasons.has(config.tag)}
+          onAddToMealPlan={setModalRecipe}
+        />
+      ))}
 
       {TAG_SHELF_CONFIGS.map((config) => (
         <TagShelf
