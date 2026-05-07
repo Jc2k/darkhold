@@ -8,6 +8,7 @@
 import {
   extractCalDavCalendarData,
   fetchFeedEvents,
+  parseOpenMeteoDaily,
   parseIcal,
   parseICalFeeds,
   sanitizeWebSocketUpgradeRequest,
@@ -668,4 +669,37 @@ Deno.test('fetchFeedEvents truncates long response text in diagnostics', async (
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+Deno.test('parseOpenMeteoDaily maps weather arrays into day forecasts', () => {
+  const days = parseOpenMeteoDaily({
+    time: ['2026-05-01', '2026-05-02'],
+    weather_code: [3, 63],
+    temperature_2m_min: [7.2, 6.1],
+    temperature_2m_max: [13.8, 11.3],
+    sunrise: ['2026-05-01T05:20', '2026-05-02T05:18'],
+    sunset: ['2026-05-01T20:35', '2026-05-02T20:37'],
+    precipitation_sum: [0.0, 4.7],
+    precipitation_probability_max: [5, 78],
+  });
+
+  if (days.length !== 2) throw new Error(`expected 2 days, got ${days.length}`);
+  if (days[0].date !== '2026-05-01') throw new Error('date mismatch');
+  if (days[1].weatherCode !== 63) throw new Error('weather code mismatch');
+  if (days[1].precipitationProbabilityMax !== 78) throw new Error('precipitation probability mismatch');
+});
+
+Deno.test('parseOpenMeteoDaily skips entries with incomplete data', () => {
+  const days = parseOpenMeteoDaily({
+    time: ['2026-05-01'],
+    weather_code: [1],
+    temperature_2m_min: [7],
+    temperature_2m_max: [14],
+    sunrise: ['2026-05-01T05:20'],
+    sunset: ['2026-05-01T20:35'],
+    precipitation_sum: [0.1],
+    precipitation_probability_max: [],
+  });
+
+  if (days.length !== 0) throw new Error(`expected 0 days, got ${days.length}`);
 });

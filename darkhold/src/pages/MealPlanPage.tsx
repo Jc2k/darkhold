@@ -3,7 +3,19 @@ import { useNavigate } from 'react-router-dom';
 import { Row, Col, Card, Table, Button, InputGroup, Modal, Form, Spinner, Alert } from 'react-bootstrap';
 import { AsyncTypeahead } from 'react-bootstrap-typeahead';
 import 'react-bootstrap-typeahead/css/Typeahead.css';
-import { Trash3, Plus, Check2Circle, PencilSquare } from 'react-bootstrap-icons';
+import {
+  Trash3,
+  Plus,
+  Check2Circle,
+  PencilSquare,
+  SunFill,
+  CloudSunFill,
+  CloudFill,
+  CloudRainFill,
+  CloudSnowFill,
+  CloudLightningRainFill,
+  CloudFog2Fill,
+} from 'react-bootstrap-icons';
 import { proxyMediaUrl } from '../utils/mediaUrl';
 import {
   DndContext,
@@ -24,7 +36,13 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useMealPlan, useDeleteMealPlan, useCreateMealPlan, useUpdateMealPlan } from '../hooks/useMealPlan';
 import { useCalendarEvents, formatEventTimeRange, useRefetchCalendarEvents } from '../hooks/useCalendarEvents';
-import type { CalendarEventsByDate } from '../hooks/useCalendarEvents';
+import type { CalendarEventsByDate, CalendarEvent } from '../hooks/useCalendarEvents';
+import {
+  getWeatherDisruptionBand,
+  useRefetchWeatherForecast,
+  useWeatherForecast,
+} from '../hooks/useWeatherForecast';
+import type { WeatherByDate, WeatherDayForecast, WeatherDisruptionBand } from '../hooks/useWeatherForecast';
 import { useQuery } from '@tanstack/react-query';
 import { apiGet } from '../api/client';
 import type { MealPlan, Recipe, MealType, PaginatedResponse } from '../api/tandoor-types';
@@ -97,6 +115,101 @@ function addDays(d: Date, n: number): Date {
 
 function shortDay(d: Date): string {
   return d.toLocaleDateString('en-GB', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+function weatherIconForCode(code: number) {
+  if (code === 95 || code === 96 || code === 99) return <CloudLightningRainFill size={14} aria-hidden="true" />;
+  if (
+    code === 51 || code === 53 || code === 55 || code === 56 || code === 57 ||
+    code === 61 || code === 63 || code === 65 || code === 66 || code === 67 ||
+    code === 80 || code === 81 || code === 82
+  ) return <CloudRainFill size={14} aria-hidden="true" />;
+  if (code === 71 || code === 73 || code === 75 || code === 77 || code === 85 || code === 86) {
+    return <CloudSnowFill size={14} aria-hidden="true" />;
+  }
+  if (code === 45 || code === 48) return <CloudFog2Fill size={14} aria-hidden="true" />;
+  if (code === 0) return <SunFill size={14} aria-hidden="true" />;
+  if (code === 1 || code === 2) return <CloudSunFill size={14} aria-hidden="true" />;
+  return <CloudFill size={14} aria-hidden="true" />;
+}
+
+function weatherSummaryForCode(code: number): string {
+  if (code === 0) return 'Clear';
+  if (code === 1 || code === 2) return 'Partly cloudy';
+  if (code === 3) return 'Overcast';
+  if (code === 45 || code === 48) return 'Fog';
+  if (code === 51 || code === 53 || code === 55 || code === 56 || code === 57) return 'Drizzle';
+  if (code === 61 || code === 63 || code === 65 || code === 66 || code === 67) return 'Rain';
+  if (code === 71 || code === 73 || code === 75 || code === 77 || code === 85 || code === 86) return 'Snow';
+  if (code === 80 || code === 81 || code === 82) return 'Rain showers';
+  if (code === 95 || code === 96 || code === 99) return 'Thunderstorm';
+  return 'Mixed weather';
+}
+
+function formatWeatherTime(isoDateTime: string): string {
+  const parsed = new Date(isoDateTime);
+  if (isNaN(parsed.getTime())) return '--:--';
+  return parsed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function weatherDisruptionLabel(band: WeatherDisruptionBand): string {
+  if (band === 'definitely_disrupted') return 'Definitely disrupted';
+  if (band === 'might_be_disrupted') return 'Might be disrupted';
+  return 'OK';
+}
+
+function weatherDisruptionClassName(band: WeatherDisruptionBand): string {
+  if (band === 'definitely_disrupted') return 'text-danger';
+  if (band === 'might_be_disrupted') return 'text-warning';
+  return 'text-success';
+}
+
+interface DayCalendarWeatherInfoProps {
+  dayEvents: CalendarEvent[];
+  weather?: WeatherDayForecast;
+  centered?: boolean;
+}
+
+function DayCalendarWeatherInfo({ dayEvents, weather, centered }: DayCalendarWeatherInfoProps) {
+  if (!weather && dayEvents.length === 0) return null;
+  const disruptionBand = weather ? getWeatherDisruptionBand(weather) : null;
+  return (
+    <div className={`text-muted ${centered ? 'text-center' : ''}`} style={{ fontSize: '0.7rem', lineHeight: 1.5 }}>
+      {weather && (
+        <div className="mb-1">
+          <div className="d-flex align-items-center gap-1" style={{ whiteSpace: 'nowrap', justifyContent: centered ? 'center' : undefined }}>
+            {weatherIconForCode(weather.weatherCode)}
+            <span>{weatherSummaryForCode(weather.weatherCode)}</span>
+            <span>{Math.round(weather.tempMinC)}-{Math.round(weather.tempMaxC)}°C</span>
+          </div>
+          <div style={{ whiteSpace: 'nowrap' }}>
+            Sunrise {formatWeatherTime(weather.sunrise)} · Sunset {formatWeatherTime(weather.sunset)}
+          </div>
+          {disruptionBand && (
+            <div
+              className={weatherDisruptionClassName(disruptionBand)}
+              aria-label={`${weatherDisruptionLabel(disruptionBand)}: precipitation probability ${Math.round(weather.precipitationProbabilityMax)} percent, expected rainfall ${weather.precipitationSumMm.toFixed(1)} millimeters`}
+            >
+              {weatherDisruptionLabel(disruptionBand)} (
+              <span title="precipitation probability / expected rainfall">
+                {Math.round(weather.precipitationProbabilityMax)}% / {weather.precipitationSumMm.toFixed(1)} mm
+              </span>
+              )
+            </div>
+          )}
+        </div>
+      )}
+      {dayEvents.map((event, idx) => {
+        const timeRange = formatEventTimeRange(event);
+        return (
+          <div key={idx}>
+            {event.name}
+            {timeRange && <span> ({timeRange})</span>}
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 /**
@@ -606,6 +719,7 @@ interface MealPlanTableViewProps {
   onEdit: (entry: MealPlan) => void;
   cookLogData: CookedByDate | undefined;
   calendarEventsByDate?: CalendarEventsByDate;
+  weatherByDate?: WeatherByDate;
 }
 
 function MealPlanTableView({
@@ -622,6 +736,7 @@ function MealPlanTableView({
   onEdit,
   cookLogData,
   calendarEventsByDate,
+  weatherByDate,
 }: MealPlanTableViewProps) {
   return (
     <div style={{ overflowX: 'auto' }}>
@@ -629,7 +744,7 @@ function MealPlanTableView({
         <colgroup>
           <col style={{ width: '12%' }} />
           {mealTypes.map((mt) => <col key={mt.id} />)}
-          {calendarEventsByDate && <col style={{ width: '18%' }} />}
+          {(calendarEventsByDate || weatherByDate) && <col style={{ width: '24%' }} />}
         </colgroup>
         <thead>
           <tr>
@@ -639,8 +754,8 @@ function MealPlanTableView({
                 {mt.name}
               </th>
             ))}
-            {calendarEventsByDate && (
-              <th className="py-2 ps-2 text-muted fw-semibold" style={{ fontSize: '0.75rem' }}>Events</th>
+            {(calendarEventsByDate || weatherByDate) && (
+              <th className="py-2 ps-2 text-muted fw-semibold" style={{ fontSize: '0.75rem' }}>Weather & events</th>
             )}
           </tr>
         </thead>
@@ -650,6 +765,7 @@ function MealPlanTableView({
             const isToday = dateKey === todayStr;
             const isPastOrToday = dateKey <= todayStr;
             const dayEvents = calendarEventsByDate?.[dateKey] ?? [];
+            const dayWeather = weatherByDate?.[dateKey];
             return (
               <tr key={dateKey} className={isToday ? 'table-primary' : undefined}>
                 <td className="py-2 ps-2 align-top">
@@ -696,19 +812,9 @@ function MealPlanTableView({
                     </td>
                   );
                 })}
-                {calendarEventsByDate && (
+                {(calendarEventsByDate || weatherByDate) && (
                   <td className="p-1 align-top">
-                    {dayEvents.map((event, idx) => {
-                      const timeRange = formatEventTimeRange(event);
-                      return (
-                        <div key={idx} className="text-muted" style={{ fontSize: '0.7rem', lineHeight: 1.4 }}>
-                          {event.name}
-                          {timeRange && (
-                            <span style={{ whiteSpace: 'nowrap' }}> ({timeRange})</span>
-                          )}
-                        </div>
-                      );
-                    })}
+                    <DayCalendarWeatherInfo dayEvents={dayEvents} weather={dayWeather} />
                   </td>
                 )}
               </tr>
@@ -753,12 +859,21 @@ export function MealPlanPage() {
     isError: isCalendarError,
   } = useCalendarEvents(startDate, endDate);
   const invalidateCalendar = useRefetchCalendarEvents(startDate, endDate);
+  const {
+    byDate: weatherByDate,
+    refetch: refetchWeather,
+    error: weatherError,
+    isError: isWeatherError,
+  } = useWeatherForecast(startDate, endDate);
+  const invalidateWeather = useRefetchWeatherForecast(startDate, endDate);
 
   // Pull-to-refresh: background-refresh calendar events and update display on change.
   usePullToRefresh({
     onRefresh: () => {
       invalidateCalendar();
+      invalidateWeather();
       void refetchCalendar();
+      void refetchWeather();
     },
   });
 
@@ -918,6 +1033,11 @@ export function MealPlanPage() {
           Calendar sync issue: {calendarError instanceof Error ? calendarError.message : 'Unable to load calendar events. Please try again later.'}
         </Alert>
       )}
+      {isWeatherError && (
+        <Alert variant="warning" className="py-2 mb-3">
+          Weather sync issue: {weatherError instanceof Error ? weatherError.message : 'Unable to load weather forecast. Please try again later.'}
+        </Alert>
+      )}
       <div className="d-flex align-items-center mb-3">
         <Button
           variant="outline-secondary"
@@ -1007,23 +1127,13 @@ export function MealPlanPage() {
                           </p>
                         )}
                       </DroppableDay>
-                      {(() => {
-                        const dayEvents = calendarEventsByDate[dateKey] ?? [];
-                        if (dayEvents.length === 0) return null;
-                        return (
-                          <div className="text-muted text-center mt-1" style={{ fontSize: '0.7rem', lineHeight: 1.5 }}>
-                            {dayEvents.map((event, idx) => {
-                              const timeRange = formatEventTimeRange(event);
-                              return (
-                                <div key={idx}>
-                                  {event.name}
-                                  {timeRange && <span> ({timeRange})</span>}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        );
-                      })()}
+                      <div className="mt-1">
+                        <DayCalendarWeatherInfo
+                          dayEvents={calendarEventsByDate[dateKey] ?? []}
+                          weather={weatherByDate[dateKey]}
+                          centered
+                        />
+                      </div>
                     </Card.Body>
                   </Card>
                 </Col>
@@ -1048,6 +1158,7 @@ export function MealPlanPage() {
             onEdit={setEditEntry}
             cookLogData={cookLogData}
             calendarEventsByDate={calendarEventsByDate}
+            weatherByDate={weatherByDate}
           />
         </div>
 
