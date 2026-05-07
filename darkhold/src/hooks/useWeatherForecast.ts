@@ -66,7 +66,11 @@ export async function parseWeatherForecastResponse(res: Pick<Response, 'headers'
   }
 
   try {
-    return (await res.json()) as WeatherForecastPayload;
+    const data: unknown = await res.json();
+    if (!data || typeof data !== 'object') {
+      return null;
+    }
+    return data as WeatherForecastPayload;
   } catch (error) {
     if (error instanceof SyntaxError) {
       return null;

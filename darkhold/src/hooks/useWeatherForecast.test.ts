@@ -51,6 +51,14 @@ describe('parseWeatherForecastResponse', () => {
 
     await expect(parseWeatherForecastResponse(res)).resolves.toBeNull();
   });
+
+  it('returns null for json values that are not objects', async () => {
+    const res = new Response('"oops"', {
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    await expect(parseWeatherForecastResponse(res)).resolves.toBeNull();
+  });
 });
 
 describe('groupWeatherByDate', () => {
