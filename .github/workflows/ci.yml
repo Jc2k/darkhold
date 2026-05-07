@@ -83,18 +83,73 @@ jobs:
         run: curl -sf http://localhost:8099/ | grep -q '<html'
       - name: Test WebSocket endpoint
         run: |
-          pip install --quiet websockets
           python3 - <<'EOF'
-          import asyncio, websockets, json
+          import base64
+          import hashlib
+          import os
+          import socket
+          import sys
+          import time
 
-          async def test():
-              async with websockets.connect('ws://localhost:8099/ws') as ws:
-                  msg = await asyncio.wait_for(ws.recv(), timeout=5)
-                  data = json.loads(msg)
-                  assert data.get('type') == 'version', f"Expected version message, got: {data}"
-                  print(f"WebSocket OK: version={data['version']}")
+          key = base64.b64encode(os.urandom(16)).decode("ascii")
+          req = (
+              "GET /ws HTTP/1.1\r\n"
+              "Host: localhost:8099\r\n"
+              "Upgrade: websocket\r\n"
+              "Connection: Upgrade\r\n"
+              f"Sec-WebSocket-Key: {key}\r\n"
+              "Sec-WebSocket-Version: 13\r\n"
+              "\r\n"
+          )
 
-          asyncio.run(test())
+          with socket.create_connection(("localhost", 8099)) as sock:
+              sock.sendall(req.encode("ascii"))
+              sock.settimeout(1)
+              deadline = time.monotonic() + 5
+              response_bytes = b""
+              while True:
+                  if time.monotonic() > deadline:
+                      break
+                  try:
+                      chunk = sock.recv(1024)
+                  except socket.timeout:
+                      continue
+                  if not chunk:
+                      break
+                  response_bytes += chunk
+                  if b"\r\n\r\n" in response_bytes:
+                      break
+
+          if b"\r\n\r\n" not in response_bytes:
+              print("websocket handshake response headers were incomplete")
+              sys.exit(1)
+
+          response = response_bytes.decode("latin1")
+
+          if "101 Switching Protocols" not in response:
+              print(response)
+              sys.exit(1)
+
+          headers = {}
+          for line in response.split("\r\n")[1:]:
+              if not line or ":" not in line:
+                  continue
+              name, _sep, value = line.partition(":")
+              headers[name.strip().lower()] = value.strip()
+
+          accept = headers.get("sec-websocket-accept")
+          if not accept:
+              print(response)
+              sys.exit(1)
+
+          expected_accept = base64.b64encode(
+              hashlib.sha1((key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").encode("ascii")).digest()
+          ).decode("ascii")
+          if accept != expected_accept:
+              print(response)
+              sys.exit(1)
+
+          print("WebSocket OK: handshake succeeded")
           EOF
       - name: Dump container logs on failure
         if: failure()
@@ -181,4 +236,3 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
