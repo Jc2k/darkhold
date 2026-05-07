@@ -33,15 +33,13 @@ export function parseICalFeeds(raw: string): ICalFeed[] {
 
       // Treat null as absent for all optional fields (HA passes null for unset optional fields)
       const rawType = record.type == null ? undefined : record.type;
+      let type: 'ics' | 'caldav' | undefined;
       if (rawType !== undefined) {
         if (typeof rawType !== 'string') return [];
         const normalizedType = rawType.toLowerCase().trim();
         if (normalizedType !== 'ics' && normalizedType !== 'caldav') return [];
+        type = normalizedType === 'caldav' ? 'caldav' : 'ics';
       }
-      const type = rawType == null ? undefined
-        : rawType.toLowerCase().trim() === 'caldav' ? 'caldav'
-        : rawType.toLowerCase().trim() === 'ics' ? 'ics'
-        : undefined;
 
       const username = record.username == null ? undefined : record.username;
       if (username !== undefined && typeof username !== 'string') return [];
