@@ -71,10 +71,10 @@ const navButtonStyle: React.CSSProperties = {
 const circleButtonStyle = smallCircleButtonStyle;
 
 const thumbnailStyle: React.CSSProperties = {
-  width: 36,
-  height: 36,
+  width: 72,
+  height: 72,
   objectFit: 'cover',
-  borderRadius: 4,
+  borderRadius: 0,
   flexShrink: 0,
   WebkitTouchCallout: 'none',
   userSelect: 'none',
@@ -243,9 +243,9 @@ function EntryCard({ entry, onDelete, onClick, onEdit, dragging, isCooked, onLog
   const recipe = typeof entry.recipe === 'object' ? entry.recipe : null;
   const thumbnailSrc = recipe?.image ? proxyMediaUrl(recipe.image) : undefined;
   return (
-    <Card className={`border-0 ${dragging ? 'shadow-lg' : 'shadow-sm'}`}>
-      <Card.Body className="py-2 ps-3 pe-2">
-        <div className="d-flex align-items-center gap-2">
+    <Card className={`meal-plan-entry-card border-0 ${dragging ? 'shadow-lg' : 'shadow-sm'}`}>
+      <Card.Body className="p-0 pe-2">
+        <div className="d-flex align-items-stretch gap-2">
           {thumbnailSrc ? (
             <img
               src={thumbnailSrc}
@@ -256,7 +256,7 @@ function EntryCard({ entry, onDelete, onClick, onEdit, dragging, isCooked, onLog
           ) : (
             <ThumbnailPlaceholder />
           )}
-          <div className="flex-grow-1" style={{ cursor: 'pointer' }} onClick={() => onClick(entry)}>
+          <div className="flex-grow-1 my-auto" style={{ cursor: 'pointer' }} onClick={() => onClick(entry)}>
             <div className="small fw-semibold">{recipe?.name ?? `Recipe #${entry.recipe}`}</div>
             {entry.note && (
               <div className="text-muted" style={{ fontSize: '0.7rem' }}>{entry.note}</div>
@@ -322,9 +322,9 @@ function SortableEntry({ entry, onDelete, onClick, onEdit, isPending, isCooked, 
   return (
     <div ref={setNodeRef} style={{ ...style, opacity: isDragging ? 0.3 : 1 }} {...attributes} className="mb-2">
       <div style={{ position: 'relative' }}>
-        <Card className="border-0 shadow-sm" style={isPending ? { opacity: 0.55 } : undefined}>
-          <Card.Body className="py-2 ps-3 pe-2">
-            <div className="d-flex align-items-center gap-2">
+        <Card className="meal-plan-entry-card border-0 shadow-sm" style={isPending ? { opacity: 0.55 } : undefined}>
+          <Card.Body className="p-0 pe-2">
+            <div className="d-flex align-items-stretch gap-2">
               {thumbnailSrc ? (
                 <img
                   ref={setActivatorNodeRef}
@@ -343,7 +343,7 @@ function SortableEntry({ entry, onDelete, onClick, onEdit, isPending, isCooked, 
                   }}
                 />
               )}
-              <div className="flex-grow-1" style={{ cursor: 'pointer' }} onClick={() => onClick(entry)}>
+              <div className="flex-grow-1 my-auto" style={{ cursor: 'pointer' }} onClick={() => onClick(entry)}>
                 <div className="small fw-semibold">{recipe?.name ?? `Recipe #${entry.recipe}`}</div>
                 {entry.note && (
                   <div className="text-muted" style={{ fontSize: '0.7rem' }}>{entry.note}</div>
@@ -750,7 +750,7 @@ function MealPlanTableView({
           {(calendarEventsByDate || weatherByDate) && <col style={{ width: '24%' }} />}
         </colgroup>
         <thead>
-          <tr className="d-none d-lg-table-row">
+          <tr className="d-none d-md-table-row">
             <th className="py-2 ps-2 text-muted fw-semibold" style={{ fontSize: '0.75rem' }}>Day</th>
             {mealTypes.map((mt) => (
               <th key={mt.id} className="py-2 ps-2 fw-semibold" style={{ fontSize: '0.75rem' }}>
@@ -773,7 +773,7 @@ function MealPlanTableView({
               <DroppableTableRow
                 key={dateKey}
                 dateKey={dateKey}
-                className={`meal-plan-mobile-row border rounded mb-3 mb-lg-0 ${isToday ? 'table-primary border-primary' : ''}`}
+                className={`meal-plan-mobile-row mb-3 mb-md-0 ${isToday ? 'table-primary' : ''}`}
               >
                 <td className={`meal-plan-mobile-cell py-2 px-2 align-top ${isToday ? 'bg-primary text-white' : 'bg-body-tertiary'}`}>
                   <div className="d-flex justify-content-between align-items-center">
