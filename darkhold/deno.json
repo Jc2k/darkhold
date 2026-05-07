@@ -1,10 +1,10 @@
 {
   "tasks": {
     "dev": "rsbuild dev --open",
-    "server": "deno run --cached-only --allow-net --allow-read=package.json server.ts",
+    "server": "deno run --cached-only --node-modules-dir=manual --allow-net --allow-read=package.json server.ts",
     "build": "rsbuild build",
     "preview": "rsbuild preview",
-    "test": "deno test --allow-net server.test.ts"
+    "test": "deno test --node-modules-dir=manual --allow-net server.test.ts"
   },
   "nodeModulesDir": "auto"
 }
