@@ -166,6 +166,5 @@ describe('Search', () => {
       path: '/keyword/',
       id: 99,
     }));
-
   });
 });
