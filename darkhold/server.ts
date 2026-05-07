@@ -33,6 +33,7 @@ function loadICalFeeds(): ICalFeed[] {
 
       const password = record.password;
       if (password !== undefined && typeof password !== 'string') return [];
+      if ((username === undefined) !== (password === undefined)) return [];
 
       const feed: ICalFeed = {
         name: record.name,
@@ -82,11 +83,19 @@ export function extractCalDavCalendarData(xml: string): string[] {
   );
   return Array.from(matches)
     .map((m) => m[1].trim())
-    .map((s) => s.replaceAll(/&(lt|gt|amp|quot|apos);/g, (_m, name) => {
+    .map((s) => s.replaceAll(/&(#x?[0-9A-Fa-f]+|lt|gt|amp|quot|apos);/g, (_m, name) => {
       if (name === 'lt') return '<';
       if (name === 'gt') return '>';
       if (name === 'amp') return '&';
       if (name === 'quot') return '"';
+      if (name.startsWith('#x')) {
+        const value = Number.parseInt(name.slice(2), 16);
+        if (Number.isInteger(value)) return String.fromCodePoint(value);
+      }
+      if (name.startsWith('#')) {
+        const value = Number.parseInt(name.slice(1), 10);
+        if (Number.isInteger(value)) return String.fromCodePoint(value);
+      }
       return "'";
     }))
     .filter((v) => v.length > 0);

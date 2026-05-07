@@ -46,7 +46,7 @@ ical_feeds:
     url: "https://..."
     type: "ics"
   - name: "iCloud private"
-    url: "https://caldav.icloud.com"
+    url: "https://caldav.icloud.com/<dav-id>/calendars/<calendar-id>/"
     type: "caldav"
     username: "your-apple-id@example.com"
     password: "your-app-specific-password"
@@ -102,7 +102,7 @@ If someone has shared *their* iCloud calendar with you, the calendar appears in 
 2. Under **Sign-In and Security** → **App-Specific Passwords**, create a new password for Darkhold.
 3. In your add-on options, configure:
    - `type: "caldav"`
-   - `url: "https://caldav.icloud.com"`
+   - `url: "https://caldav.icloud.com/<dav-id>/calendars/<calendar-id>/"`
    - `username: "<your Apple ID email>"`
    - `password: "<your app-specific password>"`
 
