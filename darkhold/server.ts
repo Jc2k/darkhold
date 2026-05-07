@@ -76,10 +76,17 @@ function getBasicAuthHeader(feed: ICalFeed): string | undefined {
 }
 
 export function extractCalDavCalendarData(xml: string): string[] {
-  const doc = new DOMParser().parseFromString(xml, 'application/xml');
-  if (!doc) return [];
-  return Array.from(doc.getElementsByTagNameNS('*', 'calendar-data'))
-    .map((el) => el.textContent?.trim() ?? '')
+  const matches = xml.matchAll(
+    /<(?:[A-Za-z0-9_-]+:)?calendar-data(?:\s[^>]*)?>([\s\S]*?)<\/(?:[A-Za-z0-9_-]+:)?calendar-data>/g,
+  );
+  return Array.from(matches)
+    .map((m) => m[1].trim())
+    .map((s) => s
+      .replaceAll('&lt;', '<')
+      .replaceAll('&gt;', '>')
+      .replaceAll('&amp;', '&')
+      .replaceAll('&quot;', '"')
+      .replaceAll('&apos;', "'"))
     .filter((v) => v.length > 0);
 }
 
