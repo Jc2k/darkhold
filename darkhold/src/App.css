@@ -47,30 +47,30 @@
   min-height: 40px;
 }
 
-.meal-plan-page .meal-plan-mobile-row,
-.meal-plan-page .meal-plan-mobile-cell {
-  width: 100%;
-}
-
-.meal-plan-page .meal-plan-table {
-  table-layout: auto !important;
-}
-
-.meal-plan-page .meal-plan-table colgroup {
-  display: none;
-}
-
-.meal-plan-page .meal-plan-weather-line,
-.meal-plan-page .meal-plan-weather-sun {
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-
-.meal-plan-page .meal-plan-mobile-empty {
-  display: none !important;
-}
-
 @media (max-width: 991.98px) {
+  .meal-plan-page .meal-plan-mobile-row,
+  .meal-plan-page .meal-plan-mobile-cell {
+    width: 100%;
+  }
+
+  .meal-plan-page .meal-plan-table {
+    table-layout: auto !important;
+  }
+
+  .meal-plan-page .meal-plan-table colgroup {
+    display: none;
+  }
+
+  .meal-plan-page .meal-plan-weather-line,
+  .meal-plan-page .meal-plan-weather-sun {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .meal-plan-page .meal-plan-mobile-empty {
+    display: none !important;
+  }
+
   .meal-plan-page .meal-plan-row-drop-target {
     outline: 2px solid rgba(var(--bs-primary-rgb), 0.35);
     outline-offset: -2px;
@@ -84,21 +84,8 @@
 }
 
 @media (min-width: 992px) {
-  .meal-plan-page .meal-plan-mobile-row,
-  .meal-plan-page .meal-plan-mobile-cell {
-    width: auto;
-  }
-
   .meal-plan-page .meal-plan-mobile-empty {
     display: table-cell !important;
-  }
-
-  .meal-plan-page .meal-plan-table {
-    table-layout: fixed !important;
-  }
-
-  .meal-plan-page .meal-plan-table colgroup {
-    display: table-column-group;
   }
 
   .meal-plan-page .meal-plan-weather-line,
