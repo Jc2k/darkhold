@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import {
   getWeatherDisruptionBand,
   groupWeatherByDate,
-  parseWeatherForecastResponse,
   parseWeatherForecastPayload,
 } from './useWeatherForecast';
 import type { WeatherDayForecast } from './useWeatherForecast';
@@ -24,54 +23,6 @@ describe('parseWeatherForecastPayload', () => {
       precipitationProbabilityMax: 10,
     }];
     expect(parseWeatherForecastPayload({ days })).toEqual(days);
-  });
-});
-
-describe('parseWeatherForecastResponse', () => {
-  it('returns parsed JSON payloads', async () => {
-    const res = new Response(JSON.stringify({ days: [] }), {
-      headers: { 'Content-Type': 'application/json' },
-    });
-
-    await expect(parseWeatherForecastResponse(res)).resolves.toEqual({ days: [] });
-  });
-
-  it('returns null for html fallback responses', async () => {
-    const res = new Response('<!doctype html><html></html>', {
-      headers: { 'Content-Type': 'text/html' },
-    });
-
-    await expect(parseWeatherForecastResponse(res)).resolves.toBeNull();
-  });
-
-  it('returns null when the response has no json content type', async () => {
-    const res = new Response(JSON.stringify({ days: [] }));
-
-    await expect(parseWeatherForecastResponse(res)).resolves.toBeNull();
-  });
-
-  it('returns null for invalid json responses', async () => {
-    const res = new Response('not json', {
-      headers: { 'Content-Type': 'application/json' },
-    });
-
-    await expect(parseWeatherForecastResponse(res)).resolves.toBeNull();
-  });
-
-  it('returns null for json values that are not objects', async () => {
-    const res = new Response('"oops"', {
-      headers: { 'Content-Type': 'application/json' },
-    });
-
-    await expect(parseWeatherForecastResponse(res)).resolves.toBeNull();
-  });
-
-  it('returns null for json arrays', async () => {
-    const res = new Response('[]', {
-      headers: { 'Content-Type': 'application/json' },
-    });
-
-    await expect(parseWeatherForecastResponse(res)).resolves.toBeNull();
   });
 });
 

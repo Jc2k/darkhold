@@ -59,26 +59,6 @@ export function getWeatherDisruptionBand(day: WeatherDayForecast): WeatherDisrup
   return 'ok';
 }
 
-export async function parseWeatherForecastResponse(res: Pick<Response, 'headers' | 'json'>): Promise<WeatherForecastPayload | null> {
-  const contentType = res.headers.get('content-type')?.toLowerCase() ?? '';
-  if (!contentType.includes('application/json')) {
-    return null;
-  }
-
-  try {
-    const data: unknown = await res.json();
-    if (!data || typeof data !== 'object' || Array.isArray(data)) {
-      return null;
-    }
-    return data as WeatherForecastPayload;
-  } catch (error) {
-    if (error instanceof SyntaxError) {
-      return null;
-    }
-    throw error;
-  }
-}
-
 async function fetchWeatherForecast(fromDate: string, toDate: string): Promise<WeatherDayForecast[]> {
   const url = `/weather-forecast?from=${fromDate}&to=${toDate}`;
   const res = await fetch(url);
@@ -88,8 +68,14 @@ async function fetchWeatherForecast(fromDate: string, toDate: string): Promise<W
     if (res.status === 404) return [];
     throw new Error(`Weather forecast fetch failed: ${res.status}`);
   }
-  const data = await parseWeatherForecastResponse(res);
-  if (!data) return [];
+  const text = await res.text();
+  let data: WeatherForecastPayload;
+  try {
+    data = JSON.parse(text) as WeatherForecastPayload;
+  } catch {
+    console.error('Weather forecast: non-JSON response received:', text.slice(0, 500));
+    throw new Error('Weather forecast response was not valid JSON');
+  }
   return parseWeatherForecastPayload(data);
 }
 
