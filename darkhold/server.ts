@@ -29,9 +29,8 @@ interface WeatherConfig {
 const MAX_ERROR_RESPONSE_LENGTH = 200;
 const DEFAULT_WEATHER_TIMEZONE = 'Europe/London';
 
-function loadICalFeeds(): ICalFeed[] {
+export function parseICalFeeds(raw: string): ICalFeed[] {
   try {
-    const raw = Deno.env.get('ICAL_FEEDS') ?? '[]';
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return [];
     return parsed.flatMap((f): ICalFeed[] => {
@@ -39,13 +38,20 @@ function loadICalFeeds(): ICalFeed[] {
       const record = f as Record<string, unknown>;
       if (typeof record.name !== 'string' || typeof record.url !== 'string') return [];
 
-      const type = record.type;
-      if (type !== undefined && type !== 'ics' && type !== 'caldav') return [];
+      // Treat null as absent for all optional fields (HA passes null for unset optional fields)
+      const rawType = record.type == null ? undefined : record.type;
+      let type: 'ics' | 'caldav' | undefined;
+      if (rawType !== undefined) {
+        if (typeof rawType !== 'string') return [];
+        const normalizedType = rawType.toLowerCase().trim();
+        if (normalizedType !== 'ics' && normalizedType !== 'caldav') return [];
+        type = normalizedType === 'caldav' ? 'caldav' : 'ics';
+      }
 
-      const username = record.username;
+      const username = record.username == null ? undefined : record.username;
       if (username !== undefined && typeof username !== 'string') return [];
 
-      const password = record.password;
+      const password = record.password == null ? undefined : record.password;
       if (password !== undefined && typeof password !== 'string') return [];
       if (
         (username !== undefined && password === undefined) ||
@@ -64,6 +70,10 @@ function loadICalFeeds(): ICalFeed[] {
   } catch {
     return [];
   }
+}
+
+function loadICalFeeds(): ICalFeed[] {
+  return parseICalFeeds(Deno.env.get('ICAL_FEEDS') ?? '[]');
 }
 
 function loadWeatherConfig(): WeatherConfig | null {
