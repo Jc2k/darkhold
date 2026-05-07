@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Table, Button, InputGroup, Modal, Form, Spinner, Alert } from 'react-bootstrap';
+import { Card, Table, Button, InputGroup, Modal, Form, Spinner, Alert } from 'react-bootstrap';
 import { AsyncTypeahead } from 'react-bootstrap-typeahead';
 import 'react-bootstrap-typeahead/css/Typeahead.css';
 import {
@@ -748,14 +748,14 @@ function MealPlanTableView({
         </colgroup>
         <thead>
           <tr className="d-none d-lg-table-row">
-            <th className="py-2 ps-2 text-muted fw-semibold d-lg-table-cell" style={{ fontSize: '0.75rem' }}>Day</th>
+            <th className="py-2 ps-2 text-muted fw-semibold" style={{ fontSize: '0.75rem' }}>Day</th>
             {mealTypes.map((mt) => (
-              <th key={mt.id} className="py-2 ps-2 fw-semibold d-lg-table-cell" style={{ fontSize: '0.75rem' }}>
+              <th key={mt.id} className="py-2 ps-2 fw-semibold" style={{ fontSize: '0.75rem' }}>
                 {mt.name}
               </th>
             ))}
             {(calendarEventsByDate || weatherByDate) && (
-              <th className="py-2 ps-2 text-muted fw-semibold d-lg-table-cell" style={{ fontSize: '0.75rem' }}>Weather & events</th>
+              <th className="py-2 ps-2 text-muted fw-semibold" style={{ fontSize: '0.75rem' }}>Weather & events</th>
             )}
           </tr>
         </thead>
@@ -767,20 +767,22 @@ function MealPlanTableView({
             const dayEvents = calendarEventsByDate?.[dateKey] ?? [];
             const dayWeather = weatherByDate?.[dateKey];
             return (
-              <tr key={dateKey} className={`d-block d-lg-table-row border rounded mb-3 mb-lg-0 ${isToday ? 'border-primary' : ''}`}>
-                <td className={`d-flex d-lg-table-cell justify-content-between align-items-center py-2 px-2 align-top ${isToday ? 'bg-primary text-white' : 'bg-body-tertiary'}`}>
-                  <div className="d-flex flex-column align-items-start gap-1">
-                    <small className="fw-semibold" style={{ whiteSpace: 'nowrap' }}>{shortDay(day)}</small>
-                    <Button
-                      variant={isToday ? 'light' : 'outline-success'}
-                      size="sm"
-                      style={circleButtonStyle}
-                      onClick={() => onAddMeal(dateKey)}
-                      disabled={!hasPersonalToken}
-                      aria-label={`Add meal on ${dateKey}`}
-                    >
-                      <Plus size={16} />
-                    </Button>
+              <tr key={dateKey} className={`d-block d-lg-table-row border rounded mb-3 mb-lg-0 ${isToday ? 'table-primary border-primary' : ''}`}>
+                <td className={`d-block d-lg-table-cell py-2 px-2 align-top ${isToday ? 'bg-primary text-white' : 'bg-body-tertiary'}`}>
+                  <div className="d-flex justify-content-between align-items-center">
+                    <div className="d-flex flex-column align-items-start gap-1">
+                      <small className="fw-semibold" style={{ whiteSpace: 'nowrap' }}>{shortDay(day)}</small>
+                      <Button
+                        variant={isToday ? 'light' : 'outline-success'}
+                        size="sm"
+                        style={circleButtonStyle}
+                        onClick={() => onAddMeal(dateKey)}
+                        disabled={!hasPersonalToken}
+                        aria-label={`Add meal on ${dateKey}`}
+                      >
+                        <Plus size={16} />
+                      </Button>
+                    </div>
                   </div>
                 </td>
                 {mealTypes.map((mt) => {
