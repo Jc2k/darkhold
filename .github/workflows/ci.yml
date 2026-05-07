@@ -67,10 +67,11 @@ jobs:
           tags: darkhold-test
       - name: Start container
         run: docker run -d --name darkhold-test -p 8099:8099 darkhold-test
-      - name: Wait for container to be ready
+      - name: Wait for container and Deno backend to be ready
         run: |
-          for i in $(seq 1 30); do
-            if curl -sf http://localhost:8099/ > /dev/null 2>&1; then
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:8099/ > /dev/null 2>&1 \
+              && curl -sf 'http://localhost:8099/calendar-events?from=2025-01-01&to=2025-01-01' > /dev/null 2>&1; then
               echo "Container ready after ${i}s"
               exit 0
             fi
