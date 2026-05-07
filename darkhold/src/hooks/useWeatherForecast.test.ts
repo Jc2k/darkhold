@@ -44,6 +44,12 @@ describe('parseWeatherForecastResponse', () => {
     await expect(parseWeatherForecastResponse(res)).resolves.toBeNull();
   });
 
+  it('returns null when the response has no json content type', async () => {
+    const res = new Response(JSON.stringify({ days: [] }));
+
+    await expect(parseWeatherForecastResponse(res)).resolves.toBeNull();
+  });
+
   it('returns null for invalid json responses', async () => {
     const res = new Response('not json', {
       headers: { 'Content-Type': 'application/json' },

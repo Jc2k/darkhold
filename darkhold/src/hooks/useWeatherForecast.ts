@@ -61,7 +61,7 @@ export function getWeatherDisruptionBand(day: WeatherDayForecast): WeatherDisrup
 
 export async function parseWeatherForecastResponse(res: Pick<Response, 'headers' | 'json'>): Promise<WeatherForecastPayload | null> {
   const contentType = res.headers.get('content-type')?.toLowerCase() ?? '';
-  if (contentType && !contentType.includes('application/json')) {
+  if (!contentType.includes('application/json')) {
     return null;
   }
 
