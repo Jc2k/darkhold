@@ -104,6 +104,12 @@ function buildCalDavReportBody(rangeStart: Date, rangeEnd: Date, withTimeRange: 
 </C:calendar-query>`;
 }
 
+function formatFetchError(prefix: string, status: number, responseText: string): Error {
+  const trimmed = responseText.trim();
+  const responseSummary = trimmed ? `; ${trimmed.slice(0, 200)}` : '';
+  return new Error(`${prefix}: HTTP ${status}${responseSummary}`);
+}
+
 async function fetchCalDavCalendarData(url: string, headers: HeadersInit, body: string): Promise<string[]> {
   const res = await fetch(url, {
     method: 'REPORT',
@@ -111,9 +117,7 @@ async function fetchCalDavCalendarData(url: string, headers: HeadersInit, body: 
     body,
   });
   if (!res.ok) {
-    const responseText = (await res.text()).trim();
-    const responseSummary = responseText ? `; ${responseText.slice(0, 200)}` : '';
-    throw new Error(`CalDAV REPORT failed: HTTP ${res.status}${responseSummary}`);
+    throw formatFetchError('CalDAV REPORT failed', res.status, await res.text());
   }
   const xml = await res.text();
   return extractCalDavCalendarData(xml);
@@ -187,9 +191,7 @@ export async function fetchFeedEvents(
   if (auth) headers.Authorization = auth;
   const res = await fetch(feed.url, { headers });
   if (!res.ok) {
-    const responseText = (await res.text()).trim();
-    const responseSummary = responseText ? `; ${responseText.slice(0, 200)}` : '';
-    throw new Error(`ICS fetch failed: HTTP ${res.status}${responseSummary}`);
+    throw formatFetchError('ICS fetch failed', res.status, await res.text());
   }
   const text = await res.text();
   return parseIcal(text, rangeStart, rangeEnd);

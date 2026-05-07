@@ -69,6 +69,10 @@ describe('formatEventTimeRange', () => {
 });
 
 describe('parseCalendarEventsPayload', () => {
+  it('returns empty array when payload is empty', () => {
+    expect(parseCalendarEventsPayload({})).toEqual([]);
+  });
+
   it('returns events when no feed errors are present', () => {
     const events: CalendarEvent[] = [{ name: 'Meeting', start: '2025-05-07T10:00:00.000Z', allDay: false }];
     expect(parseCalendarEventsPayload({ events })).toEqual(events);
