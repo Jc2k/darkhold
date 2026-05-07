@@ -67,7 +67,7 @@ export async function parseWeatherForecastResponse(res: Pick<Response, 'headers'
 
   try {
     const data: unknown = await res.json();
-    if (!data || typeof data !== 'object') {
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
       return null;
     }
     return data as WeatherForecastPayload;
