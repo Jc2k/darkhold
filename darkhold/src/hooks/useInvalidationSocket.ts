@@ -6,6 +6,7 @@ type VersionMessage = { type: 'version'; version: string };
 type SocketMessage = InvalidationMessage | VersionMessage;
 
 const RELOAD_VERSION_KEY = 'darkhold_last_reload_version';
+const RELOAD_VERSION_PARAM = 'darkhold_reload_version';
 
 let socket: WebSocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -16,12 +17,25 @@ function getWsUrl(): string {
   return `${protocol}//${window.location.host}/ws`;
 }
 
+export function shouldReloadForVersion(
+  serverVersion: string,
+  currentVersion: string,
+  lastReloadedVersion: string | null,
+): boolean {
+  return serverVersion !== currentVersion && lastReloadedVersion !== serverVersion;
+}
+
+export function getVersionReloadUrl(currentUrl: string, serverVersion: string): string {
+  const url = new URL(currentUrl);
+  url.searchParams.set(RELOAD_VERSION_PARAM, serverVersion);
+  return url.toString();
+}
+
 function handleVersionMessage(serverVersion: string): void {
-  if (serverVersion === __APP_VERSION__) return;
   // Avoid an infinite reload loop: only reload once per server version
-  if (sessionStorage.getItem(RELOAD_VERSION_KEY) === serverVersion) return;
+  if (!shouldReloadForVersion(serverVersion, __APP_VERSION__, sessionStorage.getItem(RELOAD_VERSION_KEY))) return;
   sessionStorage.setItem(RELOAD_VERSION_KEY, serverVersion);
-  window.location.reload();
+  window.location.replace(getVersionReloadUrl(window.location.href, serverVersion));
 }
 
 function connect(): void {
