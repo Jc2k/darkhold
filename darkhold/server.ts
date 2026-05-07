@@ -369,7 +369,7 @@ Deno.serve({ port: 8098, hostname: "127.0.0.1" }, async (req: Request): Promise<
   // Avoid websocket extension negotiation for compatibility with emulated ARM
   // runtimes used in CI, where extension handling can crash the Deno process.
   const wsHeaders = new Headers(req.headers);
-  wsHeaders.delete('sec-websocket-extensions');
+  wsHeaders.delete("sec-websocket-extensions");
   const wsReq = new Request(req, { headers: wsHeaders });
 
   const { socket, response } = Deno.upgradeWebSocket(wsReq);
