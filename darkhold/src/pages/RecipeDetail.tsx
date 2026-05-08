@@ -44,7 +44,7 @@ import { broadcastInvalidation } from "../hooks/useInvalidationSocket";
 import { useCookLog, isCookedOnDate } from "../hooks/useCookLog";
 
 const MAX_RECENTLY_VIEWED_ITEMS = 10;
-const CALORIE_PROPERTY_PATTERN = /(^|\b)(calories?|kcal)(\b|$)/i;
+const CALORIE_PROPERTY_NAME_PATTERN = /(^|\b)(calories?|kcal)(\b|$)/i;
 
 type IngredientSection = { header: string | null; items: RecipeIngredient[] };
 
@@ -340,6 +340,12 @@ const MIN_SERVINGS = 1;
 function minutesToDuration(minutes?: number | null): string | undefined {
   if (minutes == null || minutes <= 0) return undefined;
   return `PT${Math.round(minutes)}M`;
+}
+
+function getIngredientFoodName(ingredient: RecipeIngredient): string {
+  return ingredient.food && typeof ingredient.food === "object"
+    ? ingredient.food.name
+    : "";
 }
 
 function getRecipeTotalMinutes(recipe: Recipe): number {
@@ -825,9 +831,7 @@ function useRecipeJsonLd(recipe: Recipe | undefined) {
           ? `${formatFraction(ingredient.amount)} `
           : "";
         const unit = ingredient.unit?.name ? `${ingredient.unit.name} ` : "";
-        const foodName = ingredient.food && typeof ingredient.food === "object"
-          ? ingredient.food.name
-          : "";
+        const foodName = getIngredientFoodName(ingredient);
         const note = ingredient.note ? ` (${ingredient.note})` : "";
         return `${amount}${unit}${foodName}${note}`.trim();
       })
@@ -851,7 +855,7 @@ function useRecipeJsonLd(recipe: Recipe | undefined) {
     const servings = Math.max(recipe.servings ?? 1, 1);
     const caloriesProperty = recipe.food_properties
       ? Object.values(recipe.food_properties).find((property) =>
-          CALORIE_PROPERTY_PATTERN.test(property.name)
+          CALORIE_PROPERTY_NAME_PATTERN.test(property.name)
         )
       : undefined;
     const calories = caloriesProperty
