@@ -87,7 +87,7 @@ const thumbnailStyle: React.CSSProperties = {
 const PLACEHOLDER_BG = '#d0d0d0';
 const PLACEHOLDER_ICON_COLOR = '#a0a0a0';
 
-function useOverflowState<T extends HTMLElement>() {
+export function useOverflowState<T extends HTMLElement>() {
   const [node, setNode] = useState<T | null>(null);
   const [isOverflowed, setIsOverflowed] = useState(false);
 
@@ -123,7 +123,7 @@ function useOverflowState<T extends HTMLElement>() {
   return [ref, isOverflowed] as const;
 }
 
-function useCompactMode<T extends HTMLElement>(breakpoint: number) {
+export function useCompactMode<T extends HTMLElement>(breakpoint: number) {
   const [node, setNode] = useState<T | null>(null);
   const [isCompact, setIsCompact] = useState(false);
 
