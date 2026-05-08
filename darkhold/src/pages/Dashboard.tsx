@@ -13,11 +13,9 @@ import { LoadingMascot } from '../components/LoadingMascot';
 
 import { useUpSoonData } from '../hooks/useUpSoon';
 import { useCookLog } from '../hooks/useCookLog';
+import { useMealPlan } from '../hooks/useMealPlan';
 import { smallCircleButtonStyle } from '../utils/buttonStyles';
-
-function formatDate(d: Date): string {
-  return d.toISOString().split('T')[0];
-}
+import { formatDate, getMealPlanWeekStartSaturday } from '../utils/dateUtils';
 
 function addDays(date: Date, numDays: number): Date {
   const result = new Date(date);
@@ -443,12 +441,19 @@ export function Dashboard() {
   const [modalRecipe, setModalRecipe] = useState<Recipe | null>(null);
   const [cookLogEntry, setCookLogEntry] = useState<MealPlan | null>(null);
 
-  const today = new Date();
+  const today = useMemo(() => {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    return date;
+  }, []);
   const activeSeasons = getActiveSeasons(today);
   const todayStr = formatDate(today);
 
-  const weekAhead = new Date();
-  weekAhead.setDate(weekAhead.getDate() + 7);
+  const weekAhead = useMemo(() => addDays(today, 7), [today]);
+  const currentWeekStart = useMemo(() => getMealPlanWeekStartSaturday(today), [today]);
+  const nextWeekStart = useMemo(() => addDays(currentWeekStart, 7), [currentWeekStart]);
+  const currentWeekMealPlan = useMealPlan(currentWeekStart, addDays(currentWeekStart, 6));
+  const nextWeekMealPlan = useMealPlan(nextWeekStart, addDays(nextWeekStart, 6));
 
   // Derived cook log modal props — computed outside JSX to avoid inline IIFEs.
   const cookLogMealType =
@@ -463,14 +468,11 @@ export function Dashboard() {
       : 0;
   const cookLogDate = cookLogEntry?.from_date.split('T')[0] ?? '';
 
-  const mealPlanQuery = useQuery({
-    queryKey: ['meal-plan', formatDate(today), formatDate(weekAhead)],
-    queryFn: () =>
-      apiGet<PaginatedResponse<MealPlan>>('/meal-plan/', {
-        from_date: formatDate(today),
-        to_date: formatDate(weekAhead),
-      }),
-  });
+  const upcomingMealPlanEntries = useMemo(() => {
+    const currentWeekEntries = currentWeekMealPlan.data?.results ?? [];
+    const nextWeekEntries = nextWeekMealPlan.data?.results ?? [];
+    return [...currentWeekEntries, ...nextWeekEntries];
+  }, [currentWeekMealPlan.data?.results, nextWeekMealPlan.data?.results]);
 
   // Fetch cook log for today only — upcoming shelf only shows ticks on today's meals.
   const { data: cookLogData } = useCookLog(todayStr, todayStr);
@@ -482,7 +484,7 @@ export function Dashboard() {
   for (const day of days) {
     mealsByDay[formatDate(day)] = [];
   }
-  const sortedEntries = (mealPlanQuery.data?.results ?? [])
+  const sortedEntries = upcomingMealPlanEntries
     .slice()
     .sort((a, b) => a.from_date.localeCompare(b.from_date));
   for (const mp of sortedEntries) {
@@ -502,7 +504,7 @@ export function Dashboard() {
   // On cold start (no cached data), show a full-page spinner until at least one
   // shelf query has settled so shelves don't flash in an empty state then vanish.
   const isInitialDashboardLoad =
-    mealPlanQuery.isLoading && regulars.isLoading && recentlyAdded.isLoading;
+    currentWeekMealPlan.isLoading && nextWeekMealPlan.isLoading && regulars.isLoading && recentlyAdded.isLoading;
 
   if (isInitialDashboardLoad) {
     return <LoadingMascot />;
@@ -513,8 +515,8 @@ export function Dashboard() {
       <UpcomingMealsShelf
         days={days}
         mealsByDay={mealsByDay}
-        loading={mealPlanQuery.isLoading}
-        error={mealPlanQuery.isError}
+        loading={currentWeekMealPlan.isLoading || nextWeekMealPlan.isLoading}
+        error={currentWeekMealPlan.isError && nextWeekMealPlan.isError}
         onAddToMealPlan={setModalRecipe}
         cookedToday={cookedToday}
         onLogCook={setCookLogEntry}

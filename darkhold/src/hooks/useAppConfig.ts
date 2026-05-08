@@ -28,8 +28,6 @@ export function useAppConfig(): AppConfig & { isConfigLoading: boolean } {
   const { data, isLoading } = useQuery({
     queryKey: ['app-config'],
     queryFn: fetchAppConfig,
-    staleTime: Infinity,
-    gcTime: Infinity,
   });
   return { ...(data ?? {}), isConfigLoading: isLoading };
 }
