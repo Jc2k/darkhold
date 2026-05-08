@@ -591,14 +591,16 @@ function SortableEntry({
             >
               <div className="small fw-semibold meal-plan-entry-title bg-body-tertiary" title={titleText}>
                 <span className="meal-plan-entry-title-label">{titleText}</span>
-                <CompactEntryActions
-                  entry={entry}
-                  onDelete={onDelete}
-                  onEdit={onEdit}
-                  showPrimaryLogAction={showPrimaryLogAction}
-                  showCompactMenu={showCompactMenu}
-                  onLogCook={onLogCook}
-                />
+                {!isDragging && (
+                  <CompactEntryActions
+                    entry={entry}
+                    onDelete={onDelete}
+                    onEdit={onEdit}
+                    showPrimaryLogAction={showPrimaryLogAction}
+                    showCompactMenu={showCompactMenu}
+                    onLogCook={onLogCook}
+                  />
+                )}
               </div>
               <div className="meal-plan-entry-details">
                 {entry.note && (
