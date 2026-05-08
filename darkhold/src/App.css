@@ -141,12 +141,20 @@
 }
 
 .meal-plan-page .meal-plan-entry-title {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid var(--bs-border-color);
+}
+
+.meal-plan-page .meal-plan-entry-title-label {
+  flex: 1;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  padding: 0.35rem 0.5rem;
-  border-bottom: 1px solid var(--bs-border-color);
 }
 
 .meal-plan-page .meal-plan-entry-details {
@@ -162,6 +170,12 @@
   gap: 0.25rem;
   padding: 0.25rem;
   flex-shrink: 0;
+}
+
+.meal-plan-page .meal-plan-entry-title .meal-plan-entry-actions {
+  margin-left: auto;
+  padding: 0;
+  gap: 0.2rem;
 }
 
 .meal-plan-page .meal-plan-entry-actions--compact {
@@ -196,7 +210,7 @@
   }
 }
 
-@media (max-width: 1199.98px) {
+@media (max-width: 1399.98px) {
   .meal-plan-page .meal-plan-entry-title {
     font-size: 0.78rem;
   }
@@ -210,37 +224,10 @@
   }
 }
 
-@media (min-width: 1112px) and (max-width: 1199.98px) {
+@media (min-width: 1112px) and (max-width: 1399.98px) {
   .meal-plan-page .meal-plan-entry-thumb-slot {
     width: 50px;
     height: 108px;
-  }
-
-  .meal-plan-page .meal-plan-entry-content {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-rows: auto minmax(0, 1fr);
-  }
-
-  .meal-plan-page .meal-plan-entry-title {
-    grid-column: 1;
-    grid-row: 1;
-    padding-right: 0.25rem;
-  }
-
-  .meal-plan-page .meal-plan-entry-actions--compact {
-    grid-column: 2;
-    grid-row: 1;
-    justify-content: flex-end;
-    align-self: start;
-    padding-top: 0.2rem;
-    padding-bottom: 0.2rem;
-    border-bottom: 1px solid var(--bs-border-color);
-  }
-
-  .meal-plan-page .meal-plan-entry-details {
-    grid-column: 1 / -1;
-    grid-row: 2;
   }
 }
 
