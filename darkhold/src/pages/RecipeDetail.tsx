@@ -44,6 +44,7 @@ import { broadcastInvalidation } from "../hooks/useInvalidationSocket";
 import { useCookLog, isCookedOnDate } from "../hooks/useCookLog";
 
 const MAX_RECENTLY_VIEWED_ITEMS = 10;
+const CALORIE_PROPERTY_NAME_PATTERN = /(^|\b)(calories?|kcal)(\b|$)/i;
 
 type IngredientSection = { header: string | null; items: RecipeIngredient[] };
 
@@ -70,10 +71,12 @@ function IngredientList({
   ingredients,
   linkFoods = false,
   scaleFactor,
+  itemProp,
 }: {
   ingredients: RecipeIngredient[];
   linkFoods?: boolean;
   scaleFactor?: number;
+  itemProp?: string;
 }) {
   const sections = splitIngredientSections(ingredients);
   return (
@@ -95,7 +98,11 @@ function IngredientList({
                   ? ing.amount * scaleFactor
                   : ing.amount;
               return (
-                <li key={ing.id} className="mb-1">
+                <li
+                  key={ing.id}
+                  className="mb-1"
+                  itemProp={itemProp && !ing.is_header ? itemProp : undefined}
+                >
                   {!ing.no_amount && displayAmount != null && (
                     <span className="text-muted">
                       {formatFraction(displayAmount)}{" "}
@@ -330,6 +337,21 @@ function NutritionOverlay({
 
 const MIN_SERVINGS = 1;
 
+function minutesToDuration(minutes?: number | null): string | undefined {
+  if (minutes == null || minutes <= 0) return undefined;
+  return `PT${Math.round(minutes)}M`;
+}
+
+function getIngredientFoodName(ingredient: RecipeIngredient): string {
+  return ingredient.food && typeof ingredient.food === "object"
+    ? ingredient.food.name
+    : "";
+}
+
+function getRecipeTotalMinutes(recipe: Recipe): number {
+  return (recipe.cooking_time ?? 0) + (recipe.waiting_time ?? 0);
+}
+
 const circleButtonStyle = {
   width: 32,
   height: 32,
@@ -409,14 +431,18 @@ export function RecipeDetailContent({
     recipe.servings != null && recipe.servings > 0
       ? userServings / recipe.servings
       : undefined;
+  const cookTimeDuration = minutesToDuration(recipe.cooking_time);
+  const prepTimeDuration = minutesToDuration(recipe.waiting_time);
+  const totalTimeDuration = minutesToDuration(getRecipeTotalMinutes(recipe));
 
   return (
-    <div>
+    <article itemScope itemType="https://schema.org/Recipe">
       <div className="position-relative mb-3">
         {recipe.image && (
           <img
             src={proxyMediaUrl(recipe.image)}
             alt={recipe.name}
+            itemProp="image"
             className="w-100 rounded"
             style={{ maxHeight: 320, objectFit: "cover", display: "block" }}
           />
@@ -549,20 +575,32 @@ export function RecipeDetailContent({
 
       <Row className="align-items-start mb-2">
         <Col>
-          <h2 className="mb-1">{recipe.name}</h2>
+          <h2 className="mb-1" itemProp="name">
+            {recipe.name}
+          </h2>
           <div className="d-flex flex-wrap gap-3 mb-1 small text-muted">
             {recipe.cooking_time != null && (
               <span className="d-inline-flex align-items-center gap-1">
+                {cookTimeDuration && (
+                  <meta itemProp="cookTime" content={cookTimeDuration} />
+                )}
                 <Clock /> Cook: {recipe.cooking_time} min
               </span>
             )}
             {recipe.waiting_time != null && (
               <span className="d-inline-flex align-items-center gap-1">
+                {prepTimeDuration && (
+                  <meta itemProp="prepTime" content={prepTimeDuration} />
+                )}
                 <HourglassSplit /> Wait: {recipe.waiting_time} min
               </span>
             )}
+            {totalTimeDuration && (
+              <meta itemProp="totalTime" content={totalTimeDuration} />
+            )}
             {recipe.servings != null && (
               <span className="d-inline-flex align-items-center gap-1">
+                <meta itemProp="recipeYield" content={`${recipe.servings} servings`} />
                 <People /> Serves:
                 <Button
                   variant="link"
@@ -612,6 +650,7 @@ export function RecipeDetailContent({
                 href={recipe.source_url}
                 target="_blank"
                 rel="noopener noreferrer"
+                itemProp="sameAs"
                 className="d-inline-flex align-items-center gap-1"
               >
                 <BoxArrowUpRight /> Source
@@ -626,7 +665,9 @@ export function RecipeDetailContent({
           )}
           <div className="mb-2">
             {keywords.map((k) => (
-              <TagBadge key={k.id} keyword={k} />
+              <span key={k.id} itemProp="keywords">
+                <TagBadge keyword={k} />
+              </span>
             ))}
           </div>
         </Col>
@@ -638,7 +679,11 @@ export function RecipeDetailContent({
         </Alert>
       )}
 
-      {recipe.description && <p className="text-muted">{recipe.description}</p>}
+      {recipe.description && (
+        <p className="text-muted" itemProp="description">
+          {recipe.description}
+        </p>
+      )}
 
       {allIngredients.length > 0 && (
         <section className="mb-4">
@@ -647,6 +692,7 @@ export function RecipeDetailContent({
             ingredients={allIngredients}
             linkFoods
             scaleFactor={scaleFactor}
+            itemProp="recipeIngredient"
           />
         </section>
       )}
@@ -654,7 +700,9 @@ export function RecipeDetailContent({
       {steps.length === 1 && (
         <section className="mb-4">
           <h5>Instructions</h5>
-          <ReactMarkdown>{steps[0].instruction}</ReactMarkdown>
+          <div itemProp="recipeInstructions">
+            <ReactMarkdown>{steps[0].instruction}</ReactMarkdown>
+          </div>
         </section>
       )}
 
@@ -667,7 +715,7 @@ export function RecipeDetailContent({
                 {step.name && (
                   <strong className="d-block mb-1">{step.name}</strong>
                 )}
-                <div className="mb-1">
+                <div className="mb-1" itemProp="recipeInstructions">
                   <ReactMarkdown>{step.instruction}</ReactMarkdown>
                 </div>
                 {step.time != null && step.time !== 0 && (
@@ -702,7 +750,7 @@ export function RecipeDetailContent({
           mealType={mealType}
         />
       )}
-    </div>
+    </article>
   );
 }
 
@@ -772,6 +820,54 @@ export function RecipeDetail() {
 function useRecipeJsonLd(recipe: Recipe | undefined) {
   useEffect(() => {
     if (!recipe) return;
+    const steps = recipe.steps
+      ? [...recipe.steps].sort((a, b) => a.order - b.order)
+      : [];
+    const recipeIngredients = steps
+      .flatMap((step) => step.ingredients ?? [])
+      .filter((ingredient) => !ingredient.is_header)
+      .map((ingredient) => {
+        const amount = !ingredient.no_amount && ingredient.amount != null
+          ? `${formatFraction(ingredient.amount)} `
+          : "";
+        const unit = ingredient.unit?.name ? `${ingredient.unit.name} ` : "";
+        const foodName = getIngredientFoodName(ingredient);
+        const note = ingredient.note ? ` (${ingredient.note})` : "";
+        return `${amount}${unit}${foodName}${note}`.trim();
+      })
+      .filter(Boolean);
+    const recipeInstructions = steps
+      .map((step) => {
+        const text = step.instruction?.replace(/\s+/g, " ").trim();
+        if (!text) return null;
+        return {
+          "@type": "HowToStep",
+          name: step.name,
+          text,
+        };
+      })
+      .filter((step): step is NonNullable<typeof step> => step !== null);
+    const keywords = Array.isArray(recipe.keywords)
+      ? recipe.keywords
+          .filter((keyword): keyword is Keyword => typeof keyword === "object")
+          .map((keyword) => keyword.name)
+      : [];
+    const servings = Math.max(recipe.servings ?? 1, 1);
+    const caloriesProperty = recipe.food_properties
+      ? Object.values(recipe.food_properties).find((property) =>
+          CALORIE_PROPERTY_NAME_PATTERN.test(property.name)
+        )
+      : undefined;
+    const calories = caloriesProperty
+      ? `${Math.round(caloriesProperty.total_value / servings)} ${caloriesProperty.unit ?? "kcal"}`
+      : undefined;
+    const proxiedImage = recipe.image ? proxyMediaUrl(recipe.image) : undefined;
+    const image = proxiedImage
+      ? new URL(proxiedImage, window.location.origin).toString()
+      : undefined;
+    const prepTime = minutesToDuration(recipe.waiting_time);
+    const cookTime = minutesToDuration(recipe.cooking_time);
+    const totalTime = minutesToDuration(getRecipeTotalMinutes(recipe));
     const script = document.createElement("script");
     script.type = "application/ld+json";
     script.id = "recipe-jsonld";
@@ -780,9 +876,18 @@ function useRecipeJsonLd(recipe: Recipe | undefined) {
       "@type": "Recipe",
       name: recipe.name,
       description: recipe.description,
-      image: recipe.image,
+      image,
+      url: window.location.href,
+      prepTime,
+      cookTime,
+      totalTime,
       recipeYield: recipe.servings,
-      totalTime: recipe.cooking_time ? `PT${recipe.cooking_time}M` : undefined,
+      keywords: keywords.length > 0 ? keywords.join(", ") : undefined,
+      recipeIngredient:
+        recipeIngredients.length > 0 ? recipeIngredients : undefined,
+      recipeInstructions:
+        recipeInstructions.length > 0 ? recipeInstructions : undefined,
+      nutrition: calories ? { "@type": "NutritionInformation", calories } : undefined,
     });
     document.head.appendChild(script);
     return () => {
