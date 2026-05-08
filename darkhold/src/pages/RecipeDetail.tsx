@@ -44,6 +44,7 @@ import { broadcastInvalidation } from "../hooks/useInvalidationSocket";
 import { useCookLog, isCookedOnDate } from "../hooks/useCookLog";
 
 const MAX_RECENTLY_VIEWED_ITEMS = 10;
+const CALORIE_PROPERTY_PATTERN = /(^|\b)(calories?|kcal)(\b|$)/i;
 
 type IngredientSection = { header: string | null; items: RecipeIngredient[] };
 
@@ -97,7 +98,11 @@ function IngredientList({
                   ? ing.amount * scaleFactor
                   : ing.amount;
               return (
-                <li key={ing.id} className="mb-1" itemProp={itemProp}>
+                <li
+                  key={ing.id}
+                  className="mb-1"
+                  itemProp={itemProp && !ing.is_header ? itemProp : undefined}
+                >
                   {!ing.no_amount && displayAmount != null && (
                     <span className="text-muted">
                       {formatFraction(displayAmount)}{" "}
@@ -589,7 +594,7 @@ export function RecipeDetailContent({
             )}
             {recipe.servings != null && (
               <span className="d-inline-flex align-items-center gap-1">
-                <meta itemProp="recipeYield" content={`${userServings} servings`} />
+                <meta itemProp="recipeYield" content={`${recipe.servings} servings`} />
                 <People /> Serves:
                 <Button
                   variant="link"
@@ -700,11 +705,11 @@ export function RecipeDetailContent({
           <h5>Instructions</h5>
           <ol className="ps-3">
             {steps.map((step) => (
-              <li key={step.id} className="mb-3" itemProp="recipeInstructions">
+              <li key={step.id} className="mb-3">
                 {step.name && (
                   <strong className="d-block mb-1">{step.name}</strong>
                 )}
-                <div className="mb-1">
+                <div className="mb-1" itemProp="recipeInstructions">
                   <ReactMarkdown>{step.instruction}</ReactMarkdown>
                 </div>
                 {step.time != null && step.time !== 0 && (
@@ -846,7 +851,7 @@ function useRecipeJsonLd(recipe: Recipe | undefined) {
     const servings = Math.max(recipe.servings ?? 1, 1);
     const caloriesProperty = recipe.food_properties
       ? Object.values(recipe.food_properties).find((property) =>
-          /(^|\b)(calories?|kcal)(\b|$)/i.test(property.name)
+          CALORIE_PROPERTY_PATTERN.test(property.name)
         )
       : undefined;
     const calories = caloriesProperty
