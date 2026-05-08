@@ -322,7 +322,7 @@ function EntryCard({ entry, onDelete, onClick, onEdit, dragging, isCooked, onLog
   return (
     <Card
       ref={setCardRef}
-      className={`meal-plan-entry-card border-0 ${dragging ? 'shadow-lg' : 'shadow-sm'} ${showCompact ? 'meal-plan-entry-card--compact' : ''}`}
+      className={`meal-plan-entry-card border-1 ${dragging ? 'shadow-lg' : 'shadow-sm'} ${showCompact ? 'meal-plan-entry-card--compact' : ''}`}
     >
       <div className="d-flex meal-plan-entry-body">
         <div className="meal-plan-entry-thumb-slot">
@@ -338,43 +338,45 @@ function EntryCard({ entry, onDelete, onClick, onEdit, dragging, isCooked, onLog
             <ThumbnailPlaceholder />
           )}
         </div>
-        <div
-          className="meal-plan-entry-content"
-          onClick={() => onClick(entry)}
-        >
           <div
+            className="meal-plan-entry-content"
+            onClick={() => onClick(entry)}
+          >
+            <div
             ref={setTitleRef}
             className="small fw-semibold meal-plan-entry-title"
             title={isTitleOverflowed ? titleText : undefined}
-          >
-            {titleText}
+            >
+              {titleText}
+            </div>
+            <div className="meal-plan-entry-details">
+              {entry.note && (
+                isNoteOverflowed ? (
+                  <OverlayTrigger
+                    trigger="click"
+                    rootClose
+                    placement="auto"
+                    overlay={(
+                      <Popover>
+                        <Popover.Body className="small">{entry.note}</Popover.Body>
+                      </Popover>
+                    )}
+                  >
+                    <button
+                      type="button"
+                      className="meal-plan-note-button text-muted"
+                      aria-label="Show full meal note"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <span ref={setNoteRef} className="meal-plan-note-preview">{entry.note}</span>
+                    </button>
+                  </OverlayTrigger>
+                ) : (
+                  <span ref={setNoteRef} className="text-muted meal-plan-note-preview">{entry.note}</span>
+                )
+              )}
+            </div>
           </div>
-          {entry.note && (
-            isNoteOverflowed ? (
-              <OverlayTrigger
-                trigger="click"
-                rootClose
-                placement="auto"
-                overlay={(
-                  <Popover>
-                    <Popover.Body className="small">{entry.note}</Popover.Body>
-                  </Popover>
-                )}
-              >
-                <button
-                  type="button"
-                  className="meal-plan-note-button text-muted"
-                  aria-label="Show full meal note"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <span ref={setNoteRef} className="meal-plan-note-preview">{entry.note}</span>
-                </button>
-              </OverlayTrigger>
-            ) : (
-              <span ref={setNoteRef} className="text-muted meal-plan-note-preview">{entry.note}</span>
-            )
-          )}
-        </div>
         {!dragging && (
           <div className="meal-plan-entry-actions">
             {!showCompact && !isCooked && onLogCook && (
@@ -481,7 +483,7 @@ function SortableEntry({ entry, onDelete, onClick, onEdit, isPending, isCooked, 
       <div style={{ position: 'relative' }}>
         <Card
           ref={setCardRef}
-          className={`meal-plan-entry-card border-0 shadow-sm ${isCompact ? 'meal-plan-entry-card--compact' : ''}`}
+          className={`meal-plan-entry-card border-1 shadow-sm ${isCompact ? 'meal-plan-entry-card--compact' : ''}`}
           style={isPending ? { opacity: 0.55 } : undefined}
         >
           <div className="d-flex meal-plan-entry-body">
@@ -517,31 +519,33 @@ function SortableEntry({ entry, onDelete, onClick, onEdit, isPending, isCooked, 
               >
                 {titleText}
               </div>
-              {entry.note && (
-                isNoteOverflowed ? (
-                  <OverlayTrigger
-                    trigger="click"
-                    rootClose
-                    placement="auto"
-                    overlay={(
-                      <Popover>
-                        <Popover.Body className="small">{entry.note}</Popover.Body>
-                      </Popover>
-                    )}
-                  >
-                    <button
-                      type="button"
-                      className="meal-plan-note-button text-muted"
-                      aria-label="Show full meal note"
-                      onClick={(e) => e.stopPropagation()}
+              <div className="meal-plan-entry-details">
+                {entry.note && (
+                  isNoteOverflowed ? (
+                    <OverlayTrigger
+                      trigger="click"
+                      rootClose
+                      placement="auto"
+                      overlay={(
+                        <Popover>
+                          <Popover.Body className="small">{entry.note}</Popover.Body>
+                        </Popover>
+                      )}
                     >
-                      <span ref={setNoteRef} className="meal-plan-note-preview">{entry.note}</span>
-                    </button>
-                  </OverlayTrigger>
-                ) : (
-                  <span ref={setNoteRef} className="text-muted meal-plan-note-preview">{entry.note}</span>
-                )
-              )}
+                      <button
+                        type="button"
+                        className="meal-plan-note-button text-muted"
+                        aria-label="Show full meal note"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <span ref={setNoteRef} className="meal-plan-note-preview">{entry.note}</span>
+                      </button>
+                    </OverlayTrigger>
+                  ) : (
+                    <span ref={setNoteRef} className="text-muted meal-plan-note-preview">{entry.note}</span>
+                  )
+                )}
+              </div>
             </div>
             <div className="meal-plan-entry-actions">
               {!isCompact && !isCooked && onLogCook && (
