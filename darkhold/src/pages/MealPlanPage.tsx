@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState, useRef } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Card, Table, Button, InputGroup, Modal, Form, Spinner, Alert } from 'react-bootstrap';
 import { AsyncTypeahead } from 'react-bootstrap-typeahead';
 import 'react-bootstrap-typeahead/css/Typeahead.css';
@@ -47,7 +47,7 @@ import { useQuery } from '@tanstack/react-query';
 import { apiGet } from '../api/client';
 import type { MealPlan, Recipe, MealType, PaginatedResponse } from '../api/tandoor-types';
 import { deriveMealType } from '../utils/mealUtils';
-import { formatMonthYear, getWeekStartingSaturday } from '../utils/dateUtils';
+import { formatMonthYear, getMealPlanWeekStartSaturday, getWeekStartingSaturday, parseLocalDate } from '../utils/dateUtils';
 import { LoadingMascot } from '../components/LoadingMascot';
 import { NoTokenAlert } from '../components/NoTokenAlert';
 import { CookLogModal } from '../components/CookLogModal';
@@ -840,7 +840,7 @@ function MealPlanTableView({
 
 export function MealPlanPage() {
   const navigate = useNavigate();
-  const [weekOffset, setWeekOffset] = useState(0);
+  const { weekStart } = useParams<{ weekStart: string }>();
   const [addModal, setAddModal] = useState<{ date: string; mealTypeId?: number } | null>(null);
   const [activeId, setActiveId] = useState<number | null>(null);
   const [cookLogEntry, setCookLogEntry] = useState<MealPlan | null>(null);
@@ -850,17 +850,24 @@ export function MealPlanPage() {
   const hasPersonalToken = Boolean(localStorage.getItem('tandoor_token'));
 
   const today = new Date();
+  const currentWeekStart = getMealPlanWeekStartSaturday(today);
+  const requestedDate = weekStart ? parseLocalDate(weekStart) : null;
+  const weekStartDate = requestedDate ? getMealPlanWeekStartSaturday(requestedDate) : currentWeekStart;
+  const canonicalWeekStart = formatDate(weekStartDate);
+  useEffect(() => {
+    if (weekStart !== canonicalWeekStart) {
+      navigate(`/meal-plan/${canonicalWeekStart}`, { replace: true });
+    }
+  }, [canonicalWeekStart, navigate, weekStart]);
   const todayStr = formatDate(today);
-  const daysBackToSaturday = (today.getDay() + 1) % 7;
-  const startDate = addDays(today, -daysBackToSaturday + weekOffset * 7);
-  const endDate = addDays(startDate, 6);
+  const endDate = addDays(weekStartDate, 6);
 
-  const { data, isLoading, isError } = useMealPlan(startDate, endDate);
+  const { data, isLoading, isError } = useMealPlan(weekStartDate, endDate);
 
   // Fetch cook logs for the past/today portion of the displayed week.
   // Only dates <= today can have cook logs; use the week start or today
   // (whichever is earlier) as the fromDate.
-  const cookLogFrom = formatDate(startDate) <= todayStr ? formatDate(startDate) : todayStr;
+  const cookLogFrom = formatDate(weekStartDate) <= todayStr ? formatDate(weekStartDate) : todayStr;
   const { data: cookLogData } = useCookLog(cookLogFrom, todayStr);
 
   // Fetch calendar events for the displayed week.
@@ -869,15 +876,15 @@ export function MealPlanPage() {
     refetch: refetchCalendar,
     error: calendarError,
     isError: isCalendarError,
-  } = useCalendarEvents(startDate, endDate);
-  const invalidateCalendar = useRefetchCalendarEvents(startDate, endDate);
+  } = useCalendarEvents(weekStartDate, endDate);
+  const invalidateCalendar = useRefetchCalendarEvents(weekStartDate, endDate);
   const {
     byDate: weatherByDate,
     refetch: refetchWeather,
     error: weatherError,
     isError: isWeatherError,
-  } = useWeatherForecast(startDate, endDate);
-  const invalidateWeather = useRefetchWeatherForecast(startDate, endDate);
+  } = useWeatherForecast(weekStartDate, endDate);
+  const invalidateWeather = useRefetchWeatherForecast(weekStartDate, endDate);
 
   // Pull-to-refresh: background-refresh calendar events and update display on change.
   usePullToRefresh({
@@ -915,7 +922,7 @@ export function MealPlanPage() {
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
   );
 
-  const days = Array.from({ length: 7 }, (_, i) => addDays(startDate, i));
+  const days = Array.from({ length: 7 }, (_, i) => addDays(weekStartDate, i));
 
   const allEntries = data?.results ?? [];
   const byDayAndMealType = days.reduce<Record<string, Record<number, MealPlan[]>>>((acc, day) => {
@@ -1041,7 +1048,7 @@ export function MealPlanPage() {
       <div className="d-flex align-items-center mb-3">
         <Button
           variant="outline-secondary"
-          onClick={() => setWeekOffset((w) => w - 1)}
+          onClick={() => navigate(`/meal-plan/${formatDate(addDays(weekStartDate, -7))}`)}
           aria-label="Previous week"
           style={navButtonStyle}
         >‹</Button>
@@ -1049,7 +1056,7 @@ export function MealPlanPage() {
           <Button
             variant="outline-secondary"
             style={{ minHeight: 44, padding: '0 1rem' }}
-            onClick={() => setWeekOffset(0)}
+            onClick={() => navigate(`/meal-plan/${formatDate(currentWeekStart)}`)}
             aria-label="Go to current week"
           >
             Today
@@ -1057,7 +1064,7 @@ export function MealPlanPage() {
         </div>
         <Button
           variant="outline-secondary"
-          onClick={() => setWeekOffset((w) => w + 1)}
+          onClick={() => navigate(`/meal-plan/${formatDate(addDays(weekStartDate, 7))}`)}
           aria-label="Next week"
           style={navButtonStyle}
         >›</Button>

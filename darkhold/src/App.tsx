@@ -19,12 +19,21 @@ import { UnitConverter } from './pages/UnitConverter';
 import { RiceCooking } from './pages/RiceCooking';
 import { LoadingMascot } from './components/LoadingMascot';
 import { useAppConfig } from './hooks/useAppConfig';
+import { formatDate, getMealPlanWeekStartSaturday } from './utils/dateUtils';
+
+function getCurrentMealPlanWeekPath(now: Date = new Date()): string {
+  return `/meal-plan/${formatDate(getMealPlanWeekStartSaturday(now))}`;
+}
 
 function getHomepage(): string {
   const pref = localStorage.getItem('homepage_pref') || 'dashboard';
   if (pref === 'all-recipes') return '/all-recipes';
-  if (pref === 'meal-plan') return '/meal-plan';
+  if (pref === 'meal-plan') return getCurrentMealPlanWeekPath();
   return '/dashboard';
+}
+
+function MealPlanCurrentWeekRedirect() {
+  return <Navigate to={getCurrentMealPlanWeekPath()} replace />;
 }
 
 /** Guards a route behind authentication.
@@ -71,6 +80,10 @@ const router = createBrowserRouter([
       },
       {
         path: 'meal-plan',
+        element: <AuthGuard><MealPlanCurrentWeekRedirect /></AuthGuard>,
+      },
+      {
+        path: 'meal-plan/:weekStart',
         element: <AuthGuard><MealPlanPage /></AuthGuard>,
       },
       {
