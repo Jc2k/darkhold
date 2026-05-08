@@ -87,8 +87,10 @@ jobs:
           python3 - <<'EOF'
           import base64
           import hashlib
+          import json
           import os
           import socket
+          import struct
           import sys
           import time
 
@@ -105,52 +107,102 @@ jobs:
 
           with socket.create_connection(("localhost", 8099)) as sock:
               sock.sendall(req.encode("ascii"))
-              sock.settimeout(1)
-              deadline = time.monotonic() + 5
-              response_bytes = b""
-              while True:
+              sock.settimeout(5)
+
+              # Read the HTTP upgrade response headers
+              deadline = time.monotonic() + 10
+              buf = b""
+              while b"\r\n\r\n" not in buf:
                   if time.monotonic() > deadline:
-                      break
+                      print("timed out waiting for upgrade response headers")
+                      sys.exit(1)
                   try:
-                      chunk = sock.recv(1024)
+                      buf += sock.recv(4096)
                   except socket.timeout:
+                      pass
+
+              header_part, _, ws_data = buf.partition(b"\r\n\r\n")
+              response = header_part.decode("latin1")
+
+              if "101 Switching Protocols" not in response:
+                  print(response)
+                  sys.exit(1)
+
+              headers = {}
+              for line in response.split("\r\n")[1:]:
+                  if not line or ":" not in line:
                       continue
-                  if not chunk:
-                      break
-                  response_bytes += chunk
-                  if b"\r\n\r\n" in response_bytes:
-                      break
+                  name, _sep, value = line.partition(":")
+                  headers[name.strip().lower()] = value.strip()
 
-          if b"\r\n\r\n" not in response_bytes:
-              print("websocket handshake response headers were incomplete")
-              sys.exit(1)
+              accept = headers.get("sec-websocket-accept")
+              if not accept:
+                  print(response)
+                  sys.exit(1)
 
-          response = response_bytes.decode("latin1")
+              expected_accept = base64.b64encode(
+                  hashlib.sha1((key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").encode("ascii")).digest()
+              ).decode("ascii")
+              if accept != expected_accept:
+                  print(response)
+                  sys.exit(1)
 
-          if "101 Switching Protocols" not in response:
-              print(response)
-              sys.exit(1)
+              # Read the first WebSocket frame (version message sent by server on open)
+              # Read until we have at least the 2-byte WS frame header
+              deadline = time.monotonic() + 10
+              while len(ws_data) < 2:
+                  if time.monotonic() > deadline:
+                      print("timed out waiting for WebSocket frame")
+                      sys.exit(1)
+                  try:
+                      ws_data += sock.recv(4096)
+                  except socket.timeout:
+                      pass
 
-          headers = {}
-          for line in response.split("\r\n")[1:]:
-              if not line or ":" not in line:
-                  continue
-              name, _sep, value = line.partition(":")
-              headers[name.strip().lower()] = value.strip()
+              b0, b1 = ws_data[0], ws_data[1]
+              opcode = b0 & 0x0F
+              payload_len = b1 & 0x7F
+              offset = 2
+              if payload_len == 126:
+                  while len(ws_data) < offset + 2:
+                      ws_data += sock.recv(4096)
+                  payload_len = struct.unpack(">H", ws_data[offset:offset+2])[0]
+                  offset += 2
+              elif payload_len == 127:
+                  while len(ws_data) < offset + 8:
+                      ws_data += sock.recv(4096)
+                  payload_len = struct.unpack(">Q", ws_data[offset:offset+8])[0]
+                  offset += 8
 
-          accept = headers.get("sec-websocket-accept")
-          if not accept:
-              print(response)
-              sys.exit(1)
+              # Read until we have the full payload
+              deadline = time.monotonic() + 10
+              while len(ws_data) < offset + payload_len:
+                  if time.monotonic() > deadline:
+                      print("timed out reading WebSocket payload")
+                      sys.exit(1)
+                  try:
+                      ws_data += sock.recv(4096)
+                  except socket.timeout:
+                      pass
 
-          expected_accept = base64.b64encode(
-              hashlib.sha1((key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").encode("ascii")).digest()
-          ).decode("ascii")
-          if accept != expected_accept:
-              print(response)
-              sys.exit(1)
+              if opcode != 1:
+                  print(f"expected text frame (opcode 1), got opcode {opcode}")
+                  sys.exit(1)
 
-          print("WebSocket OK: handshake succeeded")
+              payload = ws_data[offset:offset+payload_len].decode("utf-8")
+              try:
+                  msg = json.loads(payload)
+              except Exception as e:
+                  print(f"version message is not valid JSON: {e!r} — payload: {payload!r}")
+                  sys.exit(1)
+              if msg.get("type") != "version":
+                  print(f"expected type=version, got: {msg!r}")
+                  sys.exit(1)
+              if not isinstance(msg.get("version"), str) or not msg["version"]:
+                  print(f"version field missing or empty: {msg!r}")
+                  sys.exit(1)
+
+          print(f"WebSocket OK: handshake and version message received ({msg['version']})")
           EOF
       - name: Dump container logs on failure
         if: failure()
