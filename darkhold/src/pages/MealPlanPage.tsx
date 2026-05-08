@@ -850,7 +850,7 @@ export function MealPlanPage() {
   const hasPersonalToken = Boolean(localStorage.getItem('tandoor_token'));
 
   const today = useMemo(() => new Date(), []);
-  const currentWeekStart = getMealPlanWeekStartSaturday(today);
+  const currentWeekStart = useMemo(() => getMealPlanWeekStartSaturday(today), [today]);
   const requestedDate = weekStart ? parseLocalDate(weekStart) : null;
   const startDate = requestedDate ? getMealPlanWeekStartSaturday(requestedDate) : currentWeekStart;
   const canonicalWeekStart = formatDate(startDate);

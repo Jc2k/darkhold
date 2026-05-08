@@ -22,19 +22,20 @@ import { LoadingMascot } from './components/LoadingMascot';
 import { useAppConfig } from './hooks/useAppConfig';
 import { formatDate, getMealPlanWeekStartSaturday } from './utils/dateUtils';
 
+function getCurrentMealPlanWeekPath(now: Date = new Date()): string {
+  return `/meal-plan/${formatDate(getMealPlanWeekStartSaturday(now))}`;
+}
+
 function getHomepage(): string {
   const pref = localStorage.getItem('homepage_pref') || 'dashboard';
   if (pref === 'all-recipes') return '/all-recipes';
-  if (pref === 'meal-plan') return `/meal-plan/${formatDate(getMealPlanWeekStartSaturday(new Date()))}`;
+  if (pref === 'meal-plan') return getCurrentMealPlanWeekPath();
   return '/dashboard';
 }
 
 function MealPlanCurrentWeekRedirect() {
-  const currentWeekStart = useMemo(
-    () => formatDate(getMealPlanWeekStartSaturday(new Date())),
-    [],
-  );
-  return <Navigate to={`/meal-plan/${currentWeekStart}`} replace />;
+  const currentWeekPath = useMemo(() => getCurrentMealPlanWeekPath(), []);
+  return <Navigate to={currentWeekPath} replace />;
 }
 
 /** Guards a route behind authentication.
