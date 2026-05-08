@@ -606,6 +606,12 @@ interface AddMealModalProps {
   initialMealTypeId?: number;
 }
 
+function hasUnresolvedKeywordIds(recipe: Recipe): boolean {
+  return Array.isArray(recipe.keywords)
+    ? recipe.keywords.some((k) => typeof k === "number")
+    : false;
+}
+
 function AddMealModal({
   date,
   onHide,
@@ -618,13 +624,14 @@ function AddMealModal({
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [selectedMealTypeId, setSelectedMealTypeId] = useState<
     number | undefined
-  >(() => initialMealTypeId ?? mealTypes[0]?.id);
+  >(undefined);
   const [servings, setServings] = useState(1);
   const [note, setNote] = useState("");
   const createMeal = useCreateMealPlan();
+  const defaultMealTypeId = initialMealTypeId ?? mealTypes[0]?.id;
   useEffect(() => {
-    setSelectedMealTypeId(initialMealTypeId ?? mealTypes[0]?.id);
-  }, [initialMealTypeId, mealTypes]);
+    setSelectedMealTypeId((prev) => prev ?? defaultMealTypeId);
+  }, [defaultMealTypeId]);
 
   const handleRecipeSearch = async (query: string) => {
     setIsSearching(true);
@@ -658,14 +665,14 @@ function AddMealModal({
     }
 
     let recipeForMealType = r;
-    const needsRecipeHydration = Array.isArray(r.keywords)
-      ? r.keywords.some((k) => typeof k === "number")
-      : false;
+    const needsRecipeHydration = hasUnresolvedKeywordIds(r);
     if (needsRecipeHydration) {
       try {
         recipeForMealType = await apiGet<Recipe>(`/recipe/${r.id}/`);
       } catch {
-        // Non-fatal: fall back to the available recipe payload
+        console.warn("Failed to hydrate recipe details for meal type matching", {
+          recipeId: r.id,
+        });
       }
     }
     setSelectedMealTypeId(
@@ -704,7 +711,9 @@ function AddMealModal({
             selected={selectedRecipe ? [selectedRecipe] : []}
             onSearch={handleRecipeSearch}
             onChange={(opts) => {
-              void handleSelectRecipe(opts as Recipe[]);
+              void handleSelectRecipe(opts as Recipe[]).catch(() => {
+                // Keep the modal usable even if async matching fails unexpectedly
+              });
             }}
             placeholder="Type to search…"
           />
