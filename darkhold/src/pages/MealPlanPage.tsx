@@ -761,24 +761,6 @@ function AddMealModal({
           </InputGroup>
         </Form.Group>
 
-        <Form.Group className="mb-3">
-          <Form.Label>Meal Type</Form.Label>
-          <Form.Select
-            value={selectedMealTypeId ?? ""}
-            onChange={(e) => {
-              const value = e.target.value;
-              setSelectedMealTypeId(value ? Number(value) : undefined);
-            }}
-            disabled={mealTypes.length === 0}
-          >
-            {mealTypes.map((mt) => (
-              <option key={mt.id} value={mt.id}>
-                {mt.name}
-              </option>
-            ))}
-          </Form.Select>
-        </Form.Group>
-
         <Form.Group>
           <Form.Label>Notes</Form.Label>
           <Form.Control

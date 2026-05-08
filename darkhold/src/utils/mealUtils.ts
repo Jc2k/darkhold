@@ -4,6 +4,17 @@ function isValidKeyword(k: Keyword | number): k is Keyword {
   return typeof k === 'object' && k !== null && typeof (k as Keyword).name === 'string';
 }
 
+/**
+ * Derives the appropriate meal type from a recipe's keywords.
+ *
+ * Rules: lunch keyword → lunch, breakfast keyword → breakfast,
+ * snack/dessert keyword → snack/dessert, otherwise → dinner.
+ *
+ * ⚠️ DO NOT expose meal type selection in any add-to-plan modal UI.
+ * Meal type must always be set automatically via this function — never shown
+ * as a form field or dropdown for the user to pick. Showing it adds friction
+ * and is FORBIDDEN in all pop-up modals.
+ */
 export function deriveMealType(recipe: Pick<Recipe, 'keywords'>, mealTypes: MealType[]): number | undefined {
   const keywords = Array.isArray(recipe.keywords)
     ? recipe.keywords.filter(isValidKeyword).map((k) => k.name.toLowerCase())
