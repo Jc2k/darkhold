@@ -852,22 +852,22 @@ export function MealPlanPage() {
   const today = new Date();
   const currentWeekStart = getMealPlanWeekStartSaturday(today);
   const requestedDate = weekStart ? parseLocalDate(weekStart) : null;
-  const startDate = requestedDate ? getMealPlanWeekStartSaturday(requestedDate) : currentWeekStart;
-  const canonicalWeekStart = formatDate(startDate);
+  const weekStartDate = requestedDate ? getMealPlanWeekStartSaturday(requestedDate) : currentWeekStart;
+  const canonicalWeekStart = formatDate(weekStartDate);
   useEffect(() => {
     if (weekStart !== canonicalWeekStart) {
       navigate(`/meal-plan/${canonicalWeekStart}`, { replace: true });
     }
   }, [canonicalWeekStart, navigate, weekStart]);
   const todayStr = formatDate(today);
-  const endDate = addDays(startDate, 6);
+  const endDate = addDays(weekStartDate, 6);
 
-  const { data, isLoading, isError } = useMealPlan(startDate, endDate);
+  const { data, isLoading, isError } = useMealPlan(weekStartDate, endDate);
 
   // Fetch cook logs for the past/today portion of the displayed week.
   // Only dates <= today can have cook logs; use the week start or today
   // (whichever is earlier) as the fromDate.
-  const cookLogFrom = formatDate(startDate) <= todayStr ? formatDate(startDate) : todayStr;
+  const cookLogFrom = formatDate(weekStartDate) <= todayStr ? formatDate(weekStartDate) : todayStr;
   const { data: cookLogData } = useCookLog(cookLogFrom, todayStr);
 
   // Fetch calendar events for the displayed week.
@@ -876,15 +876,15 @@ export function MealPlanPage() {
     refetch: refetchCalendar,
     error: calendarError,
     isError: isCalendarError,
-  } = useCalendarEvents(startDate, endDate);
-  const invalidateCalendar = useRefetchCalendarEvents(startDate, endDate);
+  } = useCalendarEvents(weekStartDate, endDate);
+  const invalidateCalendar = useRefetchCalendarEvents(weekStartDate, endDate);
   const {
     byDate: weatherByDate,
     refetch: refetchWeather,
     error: weatherError,
     isError: isWeatherError,
-  } = useWeatherForecast(startDate, endDate);
-  const invalidateWeather = useRefetchWeatherForecast(startDate, endDate);
+  } = useWeatherForecast(weekStartDate, endDate);
+  const invalidateWeather = useRefetchWeatherForecast(weekStartDate, endDate);
 
   // Pull-to-refresh: background-refresh calendar events and update display on change.
   usePullToRefresh({
@@ -922,7 +922,7 @@ export function MealPlanPage() {
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
   );
 
-  const days = Array.from({ length: 7 }, (_, i) => addDays(startDate, i));
+  const days = Array.from({ length: 7 }, (_, i) => addDays(weekStartDate, i));
 
   const allEntries = data?.results ?? [];
   const byDayAndMealType = days.reduce<Record<string, Record<number, MealPlan[]>>>((acc, day) => {
@@ -1048,7 +1048,7 @@ export function MealPlanPage() {
       <div className="d-flex align-items-center mb-3">
         <Button
           variant="outline-secondary"
-          onClick={() => navigate(`/meal-plan/${formatDate(addDays(startDate, -7))}`)}
+          onClick={() => navigate(`/meal-plan/${formatDate(addDays(weekStartDate, -7))}`)}
           aria-label="Previous week"
           style={navButtonStyle}
         >‹</Button>
@@ -1064,7 +1064,7 @@ export function MealPlanPage() {
         </div>
         <Button
           variant="outline-secondary"
-          onClick={() => navigate(`/meal-plan/${formatDate(addDays(startDate, 7))}`)}
+          onClick={() => navigate(`/meal-plan/${formatDate(addDays(weekStartDate, 7))}`)}
           aria-label="Next week"
           style={navButtonStyle}
         >›</Button>
