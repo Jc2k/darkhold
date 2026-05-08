@@ -650,9 +650,7 @@ function AddMealModal({
       setSelectedMealTypeId(initialMealTypeId ?? mealTypes[0]?.id);
       return;
     }
-    if (r) {
-      setServings(r.servings ?? 1);
-    }
+    setServings(r.servings ?? 1);
 
     if (initialMealTypeId) {
       setSelectedMealTypeId(initialMealTypeId);
@@ -660,10 +658,10 @@ function AddMealModal({
     }
 
     let recipeForMealType = r;
-    const hasNumericKeywords = Array.isArray(r.keywords)
+    const needsRecipeHydration = Array.isArray(r.keywords)
       ? r.keywords.some((k) => typeof k === "number")
       : false;
-    if (hasNumericKeywords) {
+    if (needsRecipeHydration) {
       try {
         recipeForMealType = await apiGet<Recipe>(`/recipe/${r.id}/`);
       } catch {
@@ -754,7 +752,10 @@ function AddMealModal({
           <Form.Label>Meal Type</Form.Label>
           <Form.Select
             value={selectedMealTypeId ?? ""}
-            onChange={(e) => setSelectedMealTypeId(Number(e.target.value))}
+            onChange={(e) => {
+              const value = e.target.value;
+              setSelectedMealTypeId(value ? Number(value) : undefined);
+            }}
             disabled={mealTypes.length === 0}
           >
             {mealTypes.map((mt) => (
