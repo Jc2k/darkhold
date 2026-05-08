@@ -179,7 +179,7 @@
 }
 
 .meal-plan-page .meal-plan-entry-actions--compact {
-  display: none;
+  display: flex;
 }
 
 .meal-plan-page .meal-plan-note-preview {
@@ -192,9 +192,6 @@
   font-size: 0.7rem;
 }
 
-.meal-plan-page .meal-plan-entry-menu-toggle::after {
-  display: none;
-}
 
 @media (min-width: 1112px) {
   .meal-plan-page .meal-plan-table-header-row {
@@ -213,14 +210,6 @@
 @media (max-width: 1399.98px) {
   .meal-plan-page .meal-plan-entry-title {
     font-size: 0.78rem;
-  }
-
-  .meal-plan-page .meal-plan-entry-actions--regular {
-    display: none;
-  }
-
-  .meal-plan-page .meal-plan-entry-actions--compact {
-    display: flex;
   }
 }
 
