@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { formatDate, formatMonthYear, getWeekStartingSaturday } from './dateUtils';
+import {
+  formatDate,
+  formatMonthYear,
+  getMealPlanWeekStartSaturday,
+  getWeekStartingSaturday,
+  parseLocalDate,
+} from './dateUtils';
 
 describe('formatDate', () => {
   it('formats a date using local date components, not UTC', () => {
@@ -84,5 +90,36 @@ describe('getWeekStartingSaturday', () => {
       expect(d.getSeconds()).toBe(0);
       expect(d.getMilliseconds()).toBe(0);
     }
+  });
+});
+
+describe('parseLocalDate', () => {
+  it('parses a valid YYYY-MM-DD date', () => {
+    const parsed = parseLocalDate('2026-05-09');
+    expect(parsed).not.toBeNull();
+    expect(parsed?.getFullYear()).toBe(2026);
+    expect(parsed?.getMonth()).toBe(4);
+    expect(parsed?.getDate()).toBe(9);
+  });
+
+  it('rejects malformed values', () => {
+    expect(parseLocalDate('2026/05/09')).toBeNull();
+    expect(parseLocalDate('2026-5-9')).toBeNull();
+  });
+
+  it('rejects impossible dates', () => {
+    expect(parseLocalDate('2026-02-30')).toBeNull();
+  });
+});
+
+describe('getMealPlanWeekStartSaturday', () => {
+  it('returns the same date when already Saturday', () => {
+    const saturday = new Date(2026, 4, 9);
+    expect(formatDate(getMealPlanWeekStartSaturday(saturday))).toBe('2026-05-09');
+  });
+
+  it('returns previous Saturday for a mid-week date', () => {
+    const wednesday = new Date(2026, 4, 13);
+    expect(formatDate(getMealPlanWeekStartSaturday(wednesday))).toBe('2026-05-09');
   });
 });

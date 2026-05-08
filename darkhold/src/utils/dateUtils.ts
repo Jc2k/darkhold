@@ -5,6 +5,22 @@ export function formatDate(d: Date): string {
   return `${year}-${month}-${day}`;
 }
 
+export function parseLocalDate(value: string): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  date.setHours(0, 0, 0, 0);
+  return formatDate(date) === value ? date : null;
+}
+
+export function getMealPlanWeekStartSaturday(referenceDate: Date): Date {
+  const base = new Date(referenceDate);
+  base.setHours(0, 0, 0, 0);
+  const daysBackToSaturday = (base.getDay() + 1) % 7;
+  base.setDate(base.getDate() - daysBackToSaturday);
+  return base;
+}
+
 export function formatMonthYear(d: Date): string {
   return d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
 }
