@@ -1074,7 +1074,7 @@ function MealPlanTableView({
             )}
           </colgroup>
           <thead>
-            <tr className="d-none d-md-table-row">
+            <tr className="meal-plan-table-header-row">
               <th
                 className="py-2 ps-2 text-muted fw-semibold"
                 style={{ fontSize: "0.75rem" }}
@@ -1111,7 +1111,7 @@ function MealPlanTableView({
                 <DroppableTableRow
                   key={dateKey}
                   dateKey={dateKey}
-                  className={`meal-plan-mobile-row mb-3 mb-md-0 ${isToday ? "table-primary" : ""}`}
+                  className={`meal-plan-mobile-row meal-plan-table-data-row ${isToday ? "table-primary" : ""}`}
                 >
                   <td
                     className={`meal-plan-mobile-cell py-2 px-2 align-top ${isToday ? "bg-primary text-white" : "bg-body-tertiary"}`}

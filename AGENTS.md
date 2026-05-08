@@ -59,3 +59,8 @@ Do not commit if any of these fail.
 
 - Rsbuild: https://rsbuild.rs/llms.txt
 - Rspack: https://rspack.rs/llms.txt
+
+## Responsive Design
+
+- Prefer CSS media queries as the default approach for responsive behavior.
+- Avoid JavaScript viewport logic for layout switching unless media queries cannot solve the requirement.
