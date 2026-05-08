@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   Card,
@@ -10,8 +10,6 @@ import {
   Spinner,
   Alert,
   Dropdown,
-  OverlayTrigger,
-  Popover,
 } from "react-bootstrap";
 import { AsyncTypeahead } from "react-bootstrap-typeahead";
 import "react-bootstrap-typeahead/css/Typeahead.css";
@@ -110,85 +108,8 @@ const navButtonStyle: React.CSSProperties = {
 };
 
 const circleButtonStyle = smallCircleButtonStyle;
-const COMPACT_ACTIONS_BREAKPOINT = 360;
-
 const PLACEHOLDER_BG = "#d0d0d0";
 const PLACEHOLDER_ICON_COLOR = "#a0a0a0";
-
-export function useOverflowState<T extends HTMLElement>() {
-  const [node, setNode] = useState<T | null>(null);
-  const [isOverflowed, setIsOverflowed] = useState(false);
-
-  const ref = useCallback((el: T | null) => {
-    setNode(el);
-  }, []);
-
-  useEffect(() => {
-    if (!node) {
-      setIsOverflowed(false);
-      return;
-    }
-
-    const checkOverflow = () => {
-      setIsOverflowed(
-        node.scrollWidth > node.clientWidth ||
-          node.scrollHeight > node.clientHeight,
-      );
-    };
-
-    checkOverflow();
-
-    let observer: ResizeObserver | null = null;
-    if (typeof ResizeObserver !== "undefined") {
-      observer = new ResizeObserver(checkOverflow);
-      observer.observe(node);
-    }
-
-    window.addEventListener("resize", checkOverflow);
-    return () => {
-      observer?.disconnect();
-      window.removeEventListener("resize", checkOverflow);
-    };
-  }, [node]);
-
-  return [ref, isOverflowed] as const;
-}
-
-export function useCompactMode<T extends HTMLElement>(breakpoint: number) {
-  const [node, setNode] = useState<T | null>(null);
-  const [isCompact, setIsCompact] = useState(false);
-
-  const ref = useCallback((el: T | null) => {
-    setNode(el);
-  }, []);
-
-  useEffect(() => {
-    if (!node) {
-      setIsCompact(false);
-      return;
-    }
-
-    const checkCompact = () => {
-      setIsCompact(node.clientWidth <= breakpoint);
-    };
-
-    checkCompact();
-
-    let observer: ResizeObserver | null = null;
-    if (typeof ResizeObserver !== "undefined") {
-      observer = new ResizeObserver(checkCompact);
-      observer.observe(node);
-    }
-
-    window.addEventListener("resize", checkCompact);
-    return () => {
-      observer?.disconnect();
-      window.removeEventListener("resize", checkCompact);
-    };
-  }, [breakpoint, node]);
-
-  return [ref, isCompact] as const;
-}
 
 function ThumbnailPlaceholder({
   dragProps,
@@ -419,22 +340,13 @@ function EntryCard({
 }: EntryCardProps) {
   const recipe = typeof entry.recipe === "object" ? entry.recipe : null;
   const thumbnailSrc = recipe?.image ? proxyMediaUrl(recipe.image) : undefined;
-  const [setCardRef, isCompact] = useCompactMode<HTMLDivElement>(
-    COMPACT_ACTIONS_BREAKPOINT,
-  );
-  const [setTitleRef, isTitleOverflowed] = useOverflowState<HTMLDivElement>();
-  const [setNoteRef, isNoteOverflowed] = useOverflowState<HTMLSpanElement>();
   const titleText = recipe?.name ?? `Recipe #${entry.recipe}`;
-  const showCompact = Boolean(!dragging && isCompact);
-  const showPrimaryLogAction = Boolean(showCompact && !isCooked && onLogCook);
-  const showCompactMenu = Boolean(
-    showCompact && (onDelete || onEdit || (onLogCook && !showPrimaryLogAction)),
-  );
+  const showPrimaryLogAction = Boolean(!isCooked && onLogCook);
+  const showCompactMenu = Boolean(onDelete || onEdit);
 
   return (
     <Card
-      ref={setCardRef}
-      className={`meal-plan-entry-card border-1 ${dragging ? "shadow-lg" : "shadow-sm"} ${showCompact ? "meal-plan-entry-card--compact" : ""}`}
+      className={`meal-plan-entry-card border-1 ${dragging ? "shadow-lg" : "shadow-sm"}`}
     >
       <div className="d-flex meal-plan-entry-body">
         <div className="meal-plan-entry-thumb-slot">
@@ -454,80 +366,48 @@ function EntryCard({
           )}
         </div>
         <div className="meal-plan-entry-content" onClick={() => onClick(entry)}>
-          <div
-            ref={setTitleRef}
-            className="small fw-semibold meal-plan-entry-title"
-            title={isTitleOverflowed ? titleText : undefined}
-          >
+          <div className="small fw-semibold meal-plan-entry-title bg-body-tertiary" title={titleText}>
             {titleText}
           </div>
           <div className="meal-plan-entry-details">
-            {entry.note &&
-              (isNoteOverflowed ? (
-                <OverlayTrigger
-                  trigger="click"
-                  rootClose
-                  placement="auto"
-                  overlay={
-                    <Popover>
-                      <Popover.Body className="small">
-                        {entry.note}
-                      </Popover.Body>
-                    </Popover>
-                  }
-                >
-                  <button
-                    type="button"
-                    className="meal-plan-note-button text-muted"
-                    aria-label="Show full meal note"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <span ref={setNoteRef} className="meal-plan-note-preview">
-                      {entry.note}
-                    </span>
-                  </button>
-                </OverlayTrigger>
-              ) : (
-                <span
-                  ref={setNoteRef}
-                  className="text-muted meal-plan-note-preview"
-                >
-                  {entry.note}
-                </span>
-              ))}
+            {entry.note && (
+              <span className="text-muted meal-plan-note-preview" title={entry.note}>
+                {entry.note}
+              </span>
+            )}
           </div>
         </div>
         {!dragging && (
-          <div className="meal-plan-entry-actions">
-            {!showCompact && !isCooked && onLogCook && (
-              <Button
-                variant="outline-secondary"
-                size="sm"
-                style={circleButtonStyle}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onLogCook(entry);
-                }}
-                aria-label="Log as cooked"
-              >
-                <Check2Circle size={16} />
-              </Button>
-            )}
-            {!showCompact && onEdit && (
-              <Button
-                variant="outline-secondary"
-                size="sm"
-                style={circleButtonStyle}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEdit(entry);
-                }}
-                aria-label="Edit meal"
-              >
-                <PencilSquare size={16} />
-              </Button>
-            )}
-            {!showCompact && (
+          <>
+            <div className="meal-plan-entry-actions meal-plan-entry-actions--regular">
+              {!isCooked && onLogCook && (
+                <Button
+                  variant="outline-secondary"
+                  size="sm"
+                  style={circleButtonStyle}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onLogCook(entry);
+                  }}
+                  aria-label="Log as cooked"
+                >
+                  <Check2Circle size={16} />
+                </Button>
+              )}
+              {onEdit && (
+                <Button
+                  variant="outline-secondary"
+                  size="sm"
+                  style={circleButtonStyle}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEdit(entry);
+                  }}
+                  aria-label="Edit meal"
+                >
+                  <PencilSquare size={16} />
+                </Button>
+              )}
               <Button
                 variant="danger"
                 size="sm"
@@ -537,57 +417,54 @@ function EntryCard({
               >
                 <Trash3 size={16} />
               </Button>
-            )}
-            {showPrimaryLogAction && (
-              <Button
-                variant="outline-secondary"
-                size="sm"
-                style={circleButtonStyle}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onLogCook?.(entry);
-                }}
-                aria-label="Log as cooked"
-              >
-                <Check2Circle size={16} />
-              </Button>
-            )}
-            {showCompactMenu && (
-              <Dropdown align="end" onClick={(e) => e.stopPropagation()}>
-                <Dropdown.Toggle
+            </div>
+            <div className="meal-plan-entry-actions meal-plan-entry-actions--compact">
+              {showPrimaryLogAction && (
+                <Button
                   variant="outline-secondary"
                   size="sm"
-                  className="meal-plan-entry-menu-toggle"
                   style={circleButtonStyle}
-                  aria-label="More meal actions"
-                >
-                  <ThreeDotsVertical size={16} />
-                </Dropdown.Toggle>
-                <Dropdown.Menu
-                  popperConfig={{
-                    strategy: "fixed" /* escape card overflow:hidden */,
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onLogCook?.(entry);
                   }}
+                  aria-label="Log as cooked"
                 >
-                  {onLogCook && !showPrimaryLogAction && !isCooked && (
-                    <Dropdown.Item onClick={() => onLogCook(entry)}>
-                      Log as cooked
-                    </Dropdown.Item>
-                  )}
-                  {onEdit && (
-                    <Dropdown.Item onClick={() => onEdit(entry)}>
-                      Edit meal
-                    </Dropdown.Item>
-                  )}
-                  <Dropdown.Item
-                    className="text-danger"
-                    onClick={() => onDelete(entry.id)}
+                  <Check2Circle size={16} />
+                </Button>
+              )}
+              {showCompactMenu && (
+                <Dropdown align="end" onClick={(e) => e.stopPropagation()}>
+                  <Dropdown.Toggle
+                    variant="outline-secondary"
+                    size="sm"
+                    className="meal-plan-entry-menu-toggle"
+                    style={circleButtonStyle}
+                    aria-label="More meal actions"
                   >
-                    Remove meal
-                  </Dropdown.Item>
-                </Dropdown.Menu>
-              </Dropdown>
-            )}
-          </div>
+                    <ThreeDotsVertical size={16} />
+                  </Dropdown.Toggle>
+                  <Dropdown.Menu
+                    popperConfig={{
+                      strategy: "fixed" /* escape card overflow:hidden */,
+                    }}
+                  >
+                    {onEdit && (
+                      <Dropdown.Item onClick={() => onEdit(entry)}>
+                        Edit meal
+                      </Dropdown.Item>
+                    )}
+                    <Dropdown.Item
+                      className="text-danger"
+                      onClick={() => onDelete(entry.id)}
+                    >
+                      Remove meal
+                    </Dropdown.Item>
+                  </Dropdown.Menu>
+                </Dropdown>
+              )}
+            </div>
+          </>
         )}
       </div>
     </Card>
@@ -627,16 +504,9 @@ function SortableEntry({
   const style = { transform: CSS.Transform.toString(transform), transition };
   const recipe = typeof entry.recipe === "object" ? entry.recipe : null;
   const thumbnailSrc = recipe?.image ? proxyMediaUrl(recipe.image) : undefined;
-  const [setCardRef, isCompact] = useCompactMode<HTMLDivElement>(
-    COMPACT_ACTIONS_BREAKPOINT,
-  );
-  const [setTitleRef, isTitleOverflowed] = useOverflowState<HTMLDivElement>();
-  const [setNoteRef, isNoteOverflowed] = useOverflowState<HTMLSpanElement>();
   const titleText = recipe?.name ?? `Recipe #${entry.recipe}`;
-  const showPrimaryLogAction = Boolean(isCompact && !isCooked && onLogCook);
-  const showCompactMenu = Boolean(
-    isCompact && (onDelete || onEdit || (onLogCook && !showPrimaryLogAction)),
-  );
+  const showPrimaryLogAction = Boolean(!isCooked && onLogCook);
+  const showCompactMenu = Boolean(onDelete || onEdit);
 
   return (
     <div
@@ -647,8 +517,7 @@ function SortableEntry({
     >
       <div style={{ position: "relative" }}>
         <Card
-          ref={setCardRef}
-          className={`meal-plan-entry-card border-1 shadow-sm ${isCompact ? "meal-plan-entry-card--compact" : ""}`}
+          className="meal-plan-entry-card border-1 shadow-sm"
           style={isPending ? { opacity: 0.55 } : undefined}
         >
           <div className="d-flex meal-plan-entry-body">
@@ -677,53 +546,18 @@ function SortableEntry({
               className="meal-plan-entry-content"
               onClick={() => onClick(entry)}
             >
-              <div
-                ref={setTitleRef}
-                className="small fw-semibold meal-plan-entry-title"
-                title={isTitleOverflowed ? titleText : undefined}
-              >
+              <div className="small fw-semibold meal-plan-entry-title bg-body-tertiary" title={titleText}>
                 {titleText}
               </div>
               <div className="meal-plan-entry-details">
-                {entry.note &&
-                  (isNoteOverflowed ? (
-                    <OverlayTrigger
-                      trigger="click"
-                      rootClose
-                      placement="auto"
-                      overlay={
-                        <Popover>
-                          <Popover.Body className="small">
-                            {entry.note}
-                          </Popover.Body>
-                        </Popover>
-                      }
-                    >
-                      <button
-                        type="button"
-                        className="meal-plan-note-button text-muted"
-                        aria-label="Show full meal note"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <span
-                          ref={setNoteRef}
-                          className="meal-plan-note-preview"
-                        >
-                          {entry.note}
-                        </span>
-                      </button>
-                    </OverlayTrigger>
-                  ) : (
-                    <span
-                      ref={setNoteRef}
-                      className="text-muted meal-plan-note-preview"
-                    >
-                      {entry.note}
-                    </span>
-                  ))}
-              </div>{" "}
-              <div className="meal-plan-entry-actions">
-                {!isCompact && !isCooked && onLogCook && (
+                {entry.note && (
+                  <span className="text-muted meal-plan-note-preview" title={entry.note}>
+                    {entry.note}
+                  </span>
+                )}
+              </div>
+              <div className="meal-plan-entry-actions meal-plan-entry-actions--regular">
+                {!isCooked && onLogCook && (
                   <Button
                     variant="outline-secondary"
                     size="sm"
@@ -737,7 +571,7 @@ function SortableEntry({
                     <Check2Circle size={16} />
                   </Button>
                 )}
-                {!isCompact && onEdit && (
+                {onEdit && (
                   <Button
                     variant="outline-secondary"
                     size="sm"
@@ -751,17 +585,17 @@ function SortableEntry({
                     <PencilSquare size={16} />
                   </Button>
                 )}
-                {!isCompact && (
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    style={circleButtonStyle}
-                    onClick={() => onDelete(entry.id)}
-                    aria-label="Remove meal"
-                  >
-                    <Trash3 size={16} />
-                  </Button>
-                )}
+                <Button
+                  variant="danger"
+                  size="sm"
+                  style={circleButtonStyle}
+                  onClick={() => onDelete(entry.id)}
+                  aria-label="Remove meal"
+                >
+                  <Trash3 size={16} />
+                </Button>
+              </div>
+              <div className="meal-plan-entry-actions meal-plan-entry-actions--compact">
                 {showPrimaryLogAction && (
                   <Button
                     variant="outline-secondary"
@@ -792,11 +626,6 @@ function SortableEntry({
                         strategy: "fixed" /* escape card overflow:hidden */,
                       }}
                     >
-                      {onLogCook && !showPrimaryLogAction && !isCooked && (
-                        <Dropdown.Item onClick={() => onLogCook(entry)}>
-                          Log as cooked
-                        </Dropdown.Item>
-                      )}
                       {onEdit && (
                         <Dropdown.Item onClick={() => onEdit(entry)}>
                           Edit meal

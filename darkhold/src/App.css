@@ -156,22 +156,18 @@
   flex-shrink: 0;
 }
 
+.meal-plan-page .meal-plan-entry-actions--compact {
+  display: none;
+}
+
 .meal-plan-page .meal-plan-note-preview {
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
   white-space: normal;
+  overflow-wrap: anywhere;
   font-size: 0.7rem;
-}
-
-.meal-plan-page .meal-plan-note-button {
-  width: 100%;
-  border: 0;
-  background: transparent;
-  padding: 0;
-  margin: 0;
-  text-align: left;
 }
 
 .meal-plan-page .meal-plan-entry-menu-toggle::after {
@@ -185,8 +181,16 @@
 }
 
 @media (max-width: 1199.98px) {
-  .meal-plan-page .meal-plan-entry-card--compact .meal-plan-entry-title {
+  .meal-plan-page .meal-plan-entry-title {
     font-size: 0.78rem;
+  }
+
+  .meal-plan-page .meal-plan-entry-actions--regular {
+    display: none;
+  }
+
+  .meal-plan-page .meal-plan-entry-actions--compact {
+    display: flex;
   }
 }
 
