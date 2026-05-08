@@ -58,6 +58,7 @@
 
 @media (max-width: 1111.98px) {
   .meal-plan-page .meal-plan-table {
+    display: block;
     table-layout: auto;
   }
 
@@ -145,6 +146,7 @@
   align-items: center;
   gap: 0.35rem;
   min-width: 0;
+  overflow: hidden;
   padding: 0.35rem 0.5rem;
   border-bottom: 1px solid var(--bs-border-color);
 }
@@ -190,12 +192,6 @@
   white-space: normal;
   overflow-wrap: anywhere;
   font-size: 0.7rem;
-}
-
-@media (max-width: 767.98px) {
-  .meal-plan-page .meal-plan-entry-title {
-    overflow: hidden;
-  }
 }
 
 
