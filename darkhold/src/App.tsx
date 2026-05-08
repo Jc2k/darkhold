@@ -1,6 +1,5 @@
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
-import { useMemo } from 'react';
 import { createBrowserRouter, RouterProvider, Navigate, useLocation } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -34,8 +33,7 @@ function getHomepage(): string {
 }
 
 function MealPlanCurrentWeekRedirect() {
-  const currentWeekPath = useMemo(() => getCurrentMealPlanWeekPath(), []);
-  return <Navigate to={currentWeekPath} replace />;
+  return <Navigate to={getCurrentMealPlanWeekPath()} replace />;
 }
 
 /** Guards a route behind authentication.
