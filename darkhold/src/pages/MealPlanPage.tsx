@@ -48,7 +48,7 @@ import { useQuery } from '@tanstack/react-query';
 import { apiGet } from '../api/client';
 import type { MealPlan, Recipe, MealType, PaginatedResponse } from '../api/tandoor-types';
 import { deriveMealType } from '../utils/mealUtils';
-import { formatMonthYear, getMealPlanWeekStartSaturday, getWeekStartingSaturday, parseLocalDate } from '../utils/dateUtils';
+import { formatDate, formatMonthYear, getMealPlanWeekStartSaturday, getWeekStartingSaturday, parseLocalDate } from '../utils/dateUtils';
 import { LoadingMascot } from '../components/LoadingMascot';
 import { NoTokenAlert } from '../components/NoTokenAlert';
 import { CookLogModal } from '../components/CookLogModal';
@@ -188,10 +188,6 @@ function ThumbnailPlaceholder({
       </svg>
     </div>
   );
-}
-
-function formatDate(d: Date): string {
-  return d.toISOString().split('T')[0];
 }
 
 function addDays(d: Date, n: number): Date {
