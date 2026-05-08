@@ -192,6 +192,16 @@
   font-size: 0.7rem;
 }
 
+@media (max-width: 767.98px) {
+  .meal-plan-page .meal-plan-entry-content {
+    max-width: calc(100% - 108px);
+  }
+
+  .meal-plan-page .meal-plan-entry-title {
+    overflow: hidden;
+  }
+}
+
 
 @media (min-width: 1112px) {
   .meal-plan-page .meal-plan-table-header-row {
