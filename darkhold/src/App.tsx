@@ -1,5 +1,6 @@
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
+import { useMemo } from 'react';
 import { createBrowserRouter, RouterProvider, Navigate, useLocation } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -29,7 +30,11 @@ function getHomepage(): string {
 }
 
 function MealPlanCurrentWeekRedirect() {
-  return <Navigate to={`/meal-plan/${formatDate(getMealPlanWeekStartSaturday(new Date()))}`} replace />;
+  const currentWeekStart = useMemo(
+    () => formatDate(getMealPlanWeekStartSaturday(new Date())),
+    [],
+  );
+  return <Navigate to={`/meal-plan/${currentWeekStart}`} replace />;
 }
 
 /** Guards a route behind authentication.

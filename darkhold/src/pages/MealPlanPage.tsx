@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Card, Table, Button, InputGroup, Modal, Form, Spinner, Alert } from 'react-bootstrap';
 import { AsyncTypeahead } from 'react-bootstrap-typeahead';
@@ -849,7 +849,7 @@ export function MealPlanPage() {
   const [pendingMoves, setPendingMoves] = useState<Map<number, string>>(new Map());
   const hasPersonalToken = Boolean(localStorage.getItem('tandoor_token'));
 
-  const today = new Date();
+  const today = useMemo(() => new Date(), []);
   const currentWeekStart = getMealPlanWeekStartSaturday(today);
   const requestedDate = weekStart ? parseLocalDate(weekStart) : null;
   const startDate = requestedDate ? getMealPlanWeekStartSaturday(requestedDate) : currentWeekStart;
