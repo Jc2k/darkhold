@@ -664,19 +664,20 @@ function AddMealModal({
       return;
     }
 
-    let recipeForMealType = r;
+    let hydratedRecipe = r;
     const needsRecipeHydration = hasUnresolvedKeywordIds(r);
     if (needsRecipeHydration) {
       try {
-        recipeForMealType = await apiGet<Recipe>(`/recipe/${r.id}/`);
-      } catch {
-        console.warn("Failed to hydrate recipe details for meal type matching", {
-          recipeId: r.id,
-        });
+        hydratedRecipe = await apiGet<Recipe>(`/recipe/${r.id}/`);
+      } catch (error) {
+        console.warn(
+          "Failed to hydrate recipe details for meal type matching; using selected recipe payload",
+          { recipeId: r.id, error },
+        );
       }
     }
     setSelectedMealTypeId(
-      deriveMealType(recipeForMealType, mealTypes) ?? mealTypes[0]?.id,
+      deriveMealType(hydratedRecipe, mealTypes) ?? mealTypes[0]?.id,
     );
   };
 
@@ -711,8 +712,11 @@ function AddMealModal({
             selected={selectedRecipe ? [selectedRecipe] : []}
             onSearch={handleRecipeSearch}
             onChange={(opts) => {
-              void handleSelectRecipe(opts as Recipe[]).catch(() => {
-                // Keep the modal usable even if async matching fails unexpectedly
+              void handleSelectRecipe(opts as Recipe[]).catch((error) => {
+                console.warn(
+                  "Failed to resolve meal type for selected recipe",
+                  error,
+                );
               });
             }}
             placeholder="Type to search…"
