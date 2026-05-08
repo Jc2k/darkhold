@@ -25,9 +25,11 @@ const GROUP_TAGS = [
   "Chips",
   "Potatoes",
   "Pizza",
-  "Sunday",
+  "Pastry",
+  "Bread",
   "Baking",
   "Snack",
+  "Drink",
 ];
 
 function groupRecipes(
