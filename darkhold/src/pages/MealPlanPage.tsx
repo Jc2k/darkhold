@@ -84,6 +84,7 @@ const PLACEHOLDER_BG = '#d0d0d0';
 const PLACEHOLDER_ICON_COLOR = '#a0a0a0';
 
 function ThumbnailPlaceholder({ dragProps }: { dragProps?: React.HTMLAttributes<HTMLDivElement> & { ref?: React.Ref<HTMLDivElement> } }) {
+  const { style: dragStyle, ...restDragProps } = dragProps ?? {};
   return (
     <div
       role="img"
@@ -94,8 +95,9 @@ function ThumbnailPlaceholder({ dragProps }: { dragProps?: React.HTMLAttributes<
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
+        ...dragStyle,
       }}
-      {...dragProps}
+      {...restDragProps}
     >
       <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill={PLACEHOLDER_ICON_COLOR} aria-hidden="true">
         <path d="M12 2C6.48 2 2 6.48 2 12h10V2zm0 0c5.52 0 10 4.48 10 10h-10V2zM2 12c0 5.52 4.48 10 10 10L12 12H2z"/>
@@ -245,7 +247,7 @@ function EntryCard({ entry, onDelete, onClick, onEdit, dragging, isCooked, onLog
   return (
     <Card className={`meal-plan-entry-card border-0 ${dragging ? 'shadow-lg' : 'shadow-sm'}`}>
       <Card.Body className="p-0 pe-2">
-        <div className="d-flex align-items-stretch gap-2">
+        <div className="d-flex align-items-center gap-2">
           {thumbnailSrc ? (
             <img
               src={thumbnailSrc}
@@ -324,7 +326,7 @@ function SortableEntry({ entry, onDelete, onClick, onEdit, isPending, isCooked, 
       <div style={{ position: 'relative' }}>
         <Card className="meal-plan-entry-card border-0 shadow-sm" style={isPending ? { opacity: 0.55 } : undefined}>
           <Card.Body className="p-0 pe-2">
-            <div className="d-flex align-items-stretch gap-2">
+            <div className="d-flex align-items-center gap-2">
               {thumbnailSrc ? (
                 <img
                   ref={setActivatorNodeRef}
