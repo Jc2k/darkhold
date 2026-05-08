@@ -1,24 +1,47 @@
-import { useRef, useState } from 'react';
-import { ListGroup, Alert, Nav } from 'react-bootstrap';
-import { useQuery } from '@tanstack/react-query';
-import { apiGet } from '../api/client';
-import type { Recipe, Keyword, PaginatedResponse } from '../api/tandoor-types';
-import { RecipeListItem } from '../components/RecipeListItem';
-import { LoadingMascot } from '../components/LoadingMascot';
-import { MealPlanAddModal } from '../components/MealPlanAddModal';
-import { ALL_RECIPES_STALE_TIME, ALL_RECIPES_GC_TIME } from '../utils/cacheConfig';
+import { useRef, useState } from "react";
+import { ListGroup, Alert, Nav } from "react-bootstrap";
+import { useQuery } from "@tanstack/react-query";
+import { apiGet } from "../api/client";
+import type { Recipe, Keyword, PaginatedResponse } from "../api/tandoor-types";
+import { RecipeListItem } from "../components/RecipeListItem";
+import { LoadingMascot } from "../components/LoadingMascot";
+import { MealPlanAddModal } from "../components/MealPlanAddModal";
+import {
+  ALL_RECIPES_STALE_TIME,
+  ALL_RECIPES_GC_TIME,
+} from "../utils/cacheConfig";
 
-const GROUP_TAGS = ['Placeholders', 'Breakfast', 'Lunch', 'Quickies', 'Specials', 'Burger', 'Bowls', 'Noodles', 'Pasta', 'Rice', 'Chips', 'Potatoes', 'Pizza', 'Sunday', 'Baking', 'Snack'];
+const GROUP_TAGS = [
+  "Placeholders",
+  "Breakfast",
+  "Lunch",
+  "Quickies",
+  "Specials",
+  "Burger",
+  "Bowl",
+  "Noodles",
+  "Pasta",
+  "Rice",
+  "Chips",
+  "Potatoes",
+  "Pizza",
+  "Sunday",
+  "Baking",
+  "Snack",
+];
 
-function groupRecipes(recipes: Recipe[], kwMap: Record<number, string>): Record<string, Recipe[]> {
+function groupRecipes(
+  recipes: Recipe[],
+  kwMap: Record<number, string>,
+): Record<string, Recipe[]> {
   const groups: Record<string, Recipe[]> = {};
   GROUP_TAGS.forEach((tag) => (groups[tag] = []));
-  groups['Other'] = [];
+  groups["Other"] = [];
 
   for (const recipe of recipes) {
     const kwNames: string[] = Array.isArray(recipe.keywords)
       ? recipe.keywords.flatMap((k) => {
-          if (typeof k === 'object' && k !== null && !Array.isArray(k)) {
+          if (typeof k === "object" && k !== null && !Array.isArray(k)) {
             const kw = k as Keyword;
             const name = kw.name ?? kwMap[kw.id];
             return name ? [name] : [];
@@ -36,7 +59,7 @@ function groupRecipes(recipes: Recipe[], kwMap: Record<number, string>): Record<
         break;
       }
     }
-    if (!matched) groups['Other'].push(recipe);
+    if (!matched) groups["Other"].push(recipe);
   }
 
   return groups;
@@ -46,7 +69,10 @@ async function fetchAllKeywords(): Promise<Record<number, string>> {
   const map: Record<number, string> = {};
   let page = 1;
   while (true) {
-    const data = await apiGet<PaginatedResponse<Keyword>>('/keyword/', { page_size: 100, page });
+    const data = await apiGet<PaginatedResponse<Keyword>>("/keyword/", {
+      page_size: 100,
+      page,
+    });
     for (const kw of data.results) {
       map[kw.id] = kw.name;
     }
@@ -56,14 +82,20 @@ async function fetchAllKeywords(): Promise<Record<number, string>> {
   return map;
 }
 
-async function fetchAllRecipes(): Promise<{ recipes: Recipe[]; kwMap: Record<number, string> }> {
+async function fetchAllRecipes(): Promise<{
+  recipes: Recipe[];
+  kwMap: Record<number, string>;
+}> {
   const [kwMap, recipes] = await Promise.all([
     fetchAllKeywords(),
     (async () => {
       const all: Recipe[] = [];
       let page = 1;
       while (true) {
-        const data = await apiGet<PaginatedResponse<Recipe>>('/recipe/', { page_size: 100, page });
+        const data = await apiGet<PaginatedResponse<Recipe>>("/recipe/", {
+          page_size: 100,
+          page,
+        });
         all.push(...data.results);
         if (!data.next) break;
         page++;
@@ -76,7 +108,7 @@ async function fetchAllRecipes(): Promise<{ recipes: Recipe[]; kwMap: Record<num
 
 export function AllRecipes() {
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['all-recipes'],
+    queryKey: ["all-recipes"],
     queryFn: fetchAllRecipes,
     staleTime: ALL_RECIPES_STALE_TIME,
     gcTime: ALL_RECIPES_GC_TIME,
@@ -85,10 +117,13 @@ export function AllRecipes() {
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
   const [modalRecipe, setModalRecipe] = useState<Recipe | null>(null);
   const groups = data ? groupRecipes(data.recipes, data.kwMap) : {};
-  const allGroups = [...GROUP_TAGS, 'Other'];
+  const allGroups = [...GROUP_TAGS, "Other"];
 
   const scrollTo = (tag: string) => {
-    sectionRefs.current[tag]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    sectionRefs.current[tag]?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
   };
 
   if (isLoading && !data) {
@@ -96,25 +131,30 @@ export function AllRecipes() {
   }
 
   if (isError) {
-    return <Alert variant="danger">Failed to load recipes. Check your API token in Settings.</Alert>;
+    return (
+      <Alert variant="danger">
+        Failed to load recipes. Check your API token in Settings.
+      </Alert>
+    );
   }
 
   return (
     <div className="pt-2">
       {/* Jump-to section sidebar / quick nav */}
       <Nav className="flex-wrap gap-1 mb-4 justify-content-center">
-        {allGroups.map((tag) => (
-          groups[tag]?.length > 0 && (
-            <Nav.Link
-              key={tag}
-              className="py-1 px-2 border rounded small"
-              onClick={() => scrollTo(tag)}
-              style={{ cursor: 'pointer' }}
-            >
-              {tag} ({groups[tag].length})
-            </Nav.Link>
-          )
-        ))}
+        {allGroups.map(
+          (tag) =>
+            groups[tag]?.length > 0 && (
+              <Nav.Link
+                key={tag}
+                className="py-1 px-2 border rounded small"
+                onClick={() => scrollTo(tag)}
+                style={{ cursor: "pointer" }}
+              >
+                {tag} ({groups[tag].length})
+              </Nav.Link>
+            ),
+        )}
       </Nav>
 
       {allGroups.map((tag) => {
@@ -123,7 +163,9 @@ export function AllRecipes() {
         return (
           <section
             key={tag}
-            ref={(el) => { sectionRefs.current[tag] = el; }}
+            ref={(el) => {
+              sectionRefs.current[tag] = el;
+            }}
             className="mb-4"
           >
             <h5
@@ -131,18 +173,27 @@ export function AllRecipes() {
               style={{ top: 0, zIndex: 10 }}
             >
               {tag}
-              <span className="text-muted fw-normal ms-2 small">({recipes.length})</span>
+              <span className="text-muted fw-normal ms-2 small">
+                ({recipes.length})
+              </span>
             </h5>
             <ListGroup variant="flush">
               {recipes.map((r) => (
-                <RecipeListItem key={r.id} recipe={r} onAddToMealPlan={setModalRecipe} />
+                <RecipeListItem
+                  key={r.id}
+                  recipe={r}
+                  onAddToMealPlan={setModalRecipe}
+                />
               ))}
             </ListGroup>
           </section>
         );
       })}
 
-      <MealPlanAddModal recipe={modalRecipe} onHide={() => setModalRecipe(null)} />
+      <MealPlanAddModal
+        recipe={modalRecipe}
+        onHide={() => setModalRecipe(null)}
+      />
     </div>
   );
 }
