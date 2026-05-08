@@ -835,9 +835,7 @@ function useRecipeJsonLd(recipe: Recipe | undefined) {
           text,
         };
       })
-      .filter((step): step is { "@type": "HowToStep"; name?: string; text: string } =>
-        step !== null
-      );
+      .filter((step): step is NonNullable<typeof step> => step !== null);
     const keywords = Array.isArray(recipe.keywords)
       ? recipe.keywords
           .filter((keyword): keyword is Keyword => typeof keyword === "object")
@@ -852,8 +850,9 @@ function useRecipeJsonLd(recipe: Recipe | undefined) {
     const calories = caloriesProperty
       ? `${Math.round(caloriesProperty.total_value / servings)} ${caloriesProperty.unit ?? "kcal"}`
       : undefined;
-    const image = recipe.image
-      ? new URL(proxyMediaUrl(recipe.image), window.location.origin).toString()
+    const proxiedImage = recipe.image ? proxyMediaUrl(recipe.image) : undefined;
+    const image = proxiedImage
+      ? new URL(proxiedImage, window.location.origin).toString()
       : undefined;
     const prepTime = minutesToDuration(recipe.waiting_time);
     const cookTime = minutesToDuration(recipe.cooking_time);
