@@ -1,6 +1,6 @@
-import { useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Card, Table, Button, InputGroup, Modal, Form, Spinner, Alert } from 'react-bootstrap';
+import { Card, Table, Button, InputGroup, Modal, Form, Spinner, Alert, Dropdown, OverlayTrigger, Popover } from 'react-bootstrap';
 import { AsyncTypeahead } from 'react-bootstrap-typeahead';
 import 'react-bootstrap-typeahead/css/Typeahead.css';
 import {
@@ -15,6 +15,7 @@ import {
   CloudSnowFill,
   CloudLightningRainFill,
   CloudFog2Fill,
+  ThreeDotsVertical,
 } from 'react-bootstrap-icons';
 import { proxyMediaUrl } from '../utils/mediaUrl';
 import {
@@ -69,10 +70,13 @@ const navButtonStyle: React.CSSProperties = {
 };
 
 const circleButtonStyle = smallCircleButtonStyle;
+const COMPACT_ACTIONS_BREAKPOINT = 360;
+const DEFAULT_THUMBNAIL_SIZE = 72;
+const COMPACT_THUMBNAIL_SIZE = 56;
 
 const thumbnailStyle: React.CSSProperties = {
-  width: 72,
-  height: 72,
+  width: DEFAULT_THUMBNAIL_SIZE,
+  height: DEFAULT_THUMBNAIL_SIZE,
   objectFit: 'cover',
   borderRadius: 0,
   flexShrink: 0,
@@ -83,7 +87,85 @@ const thumbnailStyle: React.CSSProperties = {
 const PLACEHOLDER_BG = '#d0d0d0';
 const PLACEHOLDER_ICON_COLOR = '#a0a0a0';
 
-function ThumbnailPlaceholder({ dragProps }: { dragProps?: React.HTMLAttributes<HTMLDivElement> & { ref?: React.Ref<HTMLDivElement> } }) {
+function useOverflowState<T extends HTMLElement>() {
+  const [node, setNode] = useState<T | null>(null);
+  const [isOverflowed, setIsOverflowed] = useState(false);
+
+  const ref = useCallback((el: T | null) => {
+    setNode(el);
+  }, []);
+
+  useEffect(() => {
+    if (!node) {
+      setIsOverflowed(false);
+      return;
+    }
+
+    const checkOverflow = () => {
+      setIsOverflowed(node.scrollWidth > node.clientWidth || node.scrollHeight > node.clientHeight);
+    };
+
+    checkOverflow();
+
+    let observer: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(checkOverflow);
+      observer.observe(node);
+    }
+
+    window.addEventListener('resize', checkOverflow);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', checkOverflow);
+    };
+  }, [node]);
+
+  return [ref, isOverflowed] as const;
+}
+
+function useCompactMode<T extends HTMLElement>(breakpoint: number) {
+  const [node, setNode] = useState<T | null>(null);
+  const [isCompact, setIsCompact] = useState(false);
+
+  const ref = useCallback((el: T | null) => {
+    setNode(el);
+  }, []);
+
+  useEffect(() => {
+    if (!node) {
+      setIsCompact(false);
+      return;
+    }
+
+    const checkCompact = () => {
+      setIsCompact(node.clientWidth <= breakpoint);
+    };
+
+    checkCompact();
+
+    let observer: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(checkCompact);
+      observer.observe(node);
+    }
+
+    window.addEventListener('resize', checkCompact);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', checkCompact);
+    };
+  }, [breakpoint, node]);
+
+  return [ref, isCompact] as const;
+}
+
+function ThumbnailPlaceholder({
+  size = DEFAULT_THUMBNAIL_SIZE,
+  dragProps,
+}: {
+  size?: number;
+  dragProps?: React.HTMLAttributes<HTMLDivElement> & { ref?: React.Ref<HTMLDivElement> };
+}) {
   const { style: dragStyle, ...restDragProps } = dragProps ?? {};
   return (
     <div
@@ -91,6 +173,8 @@ function ThumbnailPlaceholder({ dragProps }: { dragProps?: React.HTMLAttributes<
       aria-label="No image available"
       style={{
         ...thumbnailStyle,
+        width: size,
+        height: size,
         background: PLACEHOLDER_BG,
         display: 'flex',
         alignItems: 'center',
@@ -244,27 +328,71 @@ interface EntryCardProps {
 function EntryCard({ entry, onDelete, onClick, onEdit, dragging, isCooked, onLogCook }: EntryCardProps) {
   const recipe = typeof entry.recipe === 'object' ? entry.recipe : null;
   const thumbnailSrc = recipe?.image ? proxyMediaUrl(recipe.image) : undefined;
+  const [setCardRef, isCompact] = useCompactMode<HTMLDivElement>(COMPACT_ACTIONS_BREAKPOINT);
+  const [setTitleRef, isTitleOverflowed] = useOverflowState<HTMLDivElement>();
+  const [setNoteRef, isNoteOverflowed] = useOverflowState<HTMLSpanElement>();
+  const titleText = recipe?.name ?? `Recipe #${entry.recipe}`;
+  const showCompact = Boolean(!dragging && isCompact);
+  const thumbnailSize = showCompact ? COMPACT_THUMBNAIL_SIZE : DEFAULT_THUMBNAIL_SIZE;
+  const showPrimaryLogAction = Boolean(showCompact && !isCooked && onLogCook);
+  const showPrimaryEditAction = Boolean(showCompact && !showPrimaryLogAction && onEdit);
+  const showCompactMenu = Boolean(showCompact && (onDelete || (onEdit && !showPrimaryEditAction) || (onLogCook && !showPrimaryLogAction)));
+
   return (
-    <Card className={`meal-plan-entry-card border-0 ${dragging ? 'shadow-lg' : 'shadow-sm'}`}>
-      <Card.Body className="p-0 pe-2">
-        <div className="d-flex align-items-center gap-2">
+    <Card
+      ref={setCardRef}
+      className={`meal-plan-entry-card border-0 ${dragging ? 'shadow-lg' : 'shadow-sm'} ${showCompact ? 'meal-plan-entry-card--compact' : ''}`}
+    >
+      <div className="meal-plan-entry-header px-2 py-1">
+        <div
+          ref={setTitleRef}
+          className="small fw-semibold meal-plan-entry-title"
+          title={isTitleOverflowed ? titleText : undefined}
+        >
+          {titleText}
+        </div>
+      </div>
+      <Card.Body className="p-2">
+        <div className="d-flex align-items-center gap-2 meal-plan-entry-body">
           {thumbnailSrc ? (
             <img
               src={thumbnailSrc}
               alt={recipe?.name ?? ''}
               draggable={false}
-              style={{ ...thumbnailStyle, cursor: dragging ? 'grabbing' : 'grab', touchAction: 'none' }}
+              className="meal-plan-entry-thumb"
+              style={{ ...thumbnailStyle, width: thumbnailSize, height: thumbnailSize, cursor: dragging ? 'grabbing' : 'grab', touchAction: 'none' }}
             />
           ) : (
-            <ThumbnailPlaceholder />
+            <ThumbnailPlaceholder size={thumbnailSize} />
           )}
-          <div className="flex-grow-1 my-auto" style={{ cursor: 'pointer' }} onClick={() => onClick(entry)}>
-            <div className="small fw-semibold">{recipe?.name ?? `Recipe #${entry.recipe}`}</div>
+          <div className="flex-grow-1 my-auto overflow-hidden" style={{ cursor: 'pointer' }} onClick={() => onClick(entry)}>
             {entry.note && (
-              <div className="text-muted" style={{ fontSize: '0.7rem' }}>{entry.note}</div>
+              isNoteOverflowed ? (
+                <OverlayTrigger
+                  trigger="click"
+                  rootClose
+                  placement="auto"
+                  overlay={(
+                    <Popover>
+                      <Popover.Body className="small">{entry.note}</Popover.Body>
+                    </Popover>
+                  )}
+                >
+                  <button
+                    type="button"
+                    className="meal-plan-note-button text-muted"
+                    aria-label="Show full meal note"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <span ref={setNoteRef} className="meal-plan-note-preview">{entry.note}</span>
+                  </button>
+                </OverlayTrigger>
+              ) : (
+                <span ref={setNoteRef} className="text-muted meal-plan-note-preview">{entry.note}</span>
+              )
             )}
           </div>
-          {!dragging && !isCooked && onLogCook && (
+          {!dragging && !showCompact && !isCooked && onLogCook && (
             <Button
               variant="outline-secondary"
               size="sm"
@@ -275,7 +403,7 @@ function EntryCard({ entry, onDelete, onClick, onEdit, dragging, isCooked, onLog
               <Check2Circle size={16} />
             </Button>
           )}
-          {!dragging && onEdit && (
+          {!dragging && !showCompact && onEdit && (
             <Button
               variant="outline-secondary"
               size="sm"
@@ -286,7 +414,7 @@ function EntryCard({ entry, onDelete, onClick, onEdit, dragging, isCooked, onLog
               <PencilSquare size={16} />
             </Button>
           )}
-          {!dragging && (
+          {!dragging && !showCompact && (
             <Button
               variant="danger"
               size="sm"
@@ -296,6 +424,56 @@ function EntryCard({ entry, onDelete, onClick, onEdit, dragging, isCooked, onLog
             >
               <Trash3 size={16} />
             </Button>
+          )}
+          {!dragging && showCompact && (
+            <div className="meal-plan-entry-actions">
+              {showPrimaryLogAction && (
+                <Button
+                  variant="outline-secondary"
+                  size="sm"
+                  style={circleButtonStyle}
+                  onClick={(e) => { e.stopPropagation(); onLogCook?.(entry); }}
+                  aria-label="Log as cooked"
+                >
+                  <Check2Circle size={16} />
+                </Button>
+              )}
+              {showPrimaryEditAction && (
+                <Button
+                  variant="outline-secondary"
+                  size="sm"
+                  style={circleButtonStyle}
+                  onClick={(e) => { e.stopPropagation(); onEdit?.(entry); }}
+                  aria-label="Edit meal"
+                >
+                  <PencilSquare size={16} />
+                </Button>
+              )}
+              {showCompactMenu && (
+                <Dropdown align="end" onClick={(e) => e.stopPropagation()}>
+                  <Dropdown.Toggle
+                    variant="outline-secondary"
+                    size="sm"
+                    className="meal-plan-entry-menu-toggle"
+                    style={circleButtonStyle}
+                    aria-label="More meal actions"
+                  >
+                    <ThreeDotsVertical size={16} />
+                  </Dropdown.Toggle>
+                  <Dropdown.Menu>
+                    {onLogCook && !showPrimaryLogAction && !isCooked && (
+                      <Dropdown.Item onClick={() => onLogCook(entry)}>Log as cooked</Dropdown.Item>
+                    )}
+                    {onEdit && !showPrimaryEditAction && (
+                      <Dropdown.Item onClick={() => onEdit(entry)}>Edit meal</Dropdown.Item>
+                    )}
+                    <Dropdown.Item className="text-danger" onClick={() => onDelete(entry.id)}>
+                      Remove meal
+                    </Dropdown.Item>
+                  </Dropdown.Menu>
+                </Dropdown>
+              )}
+            </div>
           )}
         </div>
       </Card.Body>
@@ -320,13 +498,34 @@ function SortableEntry({ entry, onDelete, onClick, onEdit, isPending, isCooked, 
   const style = { transform: CSS.Transform.toString(transform), transition };
   const recipe = typeof entry.recipe === 'object' ? entry.recipe : null;
   const thumbnailSrc = recipe?.image ? proxyMediaUrl(recipe.image) : undefined;
+  const [setCardRef, isCompact] = useCompactMode<HTMLDivElement>(COMPACT_ACTIONS_BREAKPOINT);
+  const [setTitleRef, isTitleOverflowed] = useOverflowState<HTMLDivElement>();
+  const [setNoteRef, isNoteOverflowed] = useOverflowState<HTMLSpanElement>();
+  const titleText = recipe?.name ?? `Recipe #${entry.recipe}`;
+  const showPrimaryLogAction = Boolean(isCompact && !isCooked && onLogCook);
+  const showPrimaryEditAction = Boolean(isCompact && !showPrimaryLogAction && onEdit);
+  const showCompactMenu = Boolean(isCompact && (onDelete || (onEdit && !showPrimaryEditAction) || (onLogCook && !showPrimaryLogAction)));
+  const thumbnailSize = isCompact ? COMPACT_THUMBNAIL_SIZE : DEFAULT_THUMBNAIL_SIZE;
 
   return (
     <div ref={setNodeRef} style={{ ...style, opacity: isDragging ? 0.3 : 1 }} {...attributes} className="mb-2">
       <div style={{ position: 'relative' }}>
-        <Card className="meal-plan-entry-card border-0 shadow-sm" style={isPending ? { opacity: 0.55 } : undefined}>
-          <Card.Body className="p-0 pe-2">
-            <div className="d-flex align-items-center gap-2">
+        <Card
+          ref={setCardRef}
+          className={`meal-plan-entry-card border-0 shadow-sm ${isCompact ? 'meal-plan-entry-card--compact' : ''}`}
+          style={isPending ? { opacity: 0.55 } : undefined}
+        >
+          <div className="meal-plan-entry-header px-2 py-1">
+            <div
+              ref={setTitleRef}
+              className="small fw-semibold meal-plan-entry-title"
+              title={isTitleOverflowed ? titleText : undefined}
+            >
+              {titleText}
+            </div>
+          </div>
+          <Card.Body className="p-2">
+            <div className="d-flex align-items-center gap-2 meal-plan-entry-body">
               {thumbnailSrc ? (
                 <img
                   ref={setActivatorNodeRef}
@@ -334,10 +533,12 @@ function SortableEntry({ entry, onDelete, onClick, onEdit, isPending, isCooked, 
                   src={thumbnailSrc}
                   alt={recipe?.name ?? ''}
                   draggable={false}
-                  style={{ ...thumbnailStyle, cursor: 'grab', touchAction: 'none' }}
+                  className="meal-plan-entry-thumb"
+                  style={{ ...thumbnailStyle, width: thumbnailSize, height: thumbnailSize, cursor: 'grab', touchAction: 'none' }}
                 />
               ) : (
                 <ThumbnailPlaceholder
+                  size={thumbnailSize}
                   dragProps={{
                     ref: setActivatorNodeRef as React.Ref<HTMLDivElement>,
                     ...listeners,
@@ -345,13 +546,34 @@ function SortableEntry({ entry, onDelete, onClick, onEdit, isPending, isCooked, 
                   }}
                 />
               )}
-              <div className="flex-grow-1 my-auto" style={{ cursor: 'pointer' }} onClick={() => onClick(entry)}>
-                <div className="small fw-semibold">{recipe?.name ?? `Recipe #${entry.recipe}`}</div>
+              <div className="flex-grow-1 my-auto overflow-hidden" style={{ cursor: 'pointer' }} onClick={() => onClick(entry)}>
                 {entry.note && (
-                  <div className="text-muted" style={{ fontSize: '0.7rem' }}>{entry.note}</div>
+                  isNoteOverflowed ? (
+                    <OverlayTrigger
+                      trigger="click"
+                      rootClose
+                      placement="auto"
+                      overlay={(
+                        <Popover>
+                          <Popover.Body className="small">{entry.note}</Popover.Body>
+                        </Popover>
+                      )}
+                    >
+                      <button
+                        type="button"
+                        className="meal-plan-note-button text-muted"
+                        aria-label="Show full meal note"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <span ref={setNoteRef} className="meal-plan-note-preview">{entry.note}</span>
+                      </button>
+                    </OverlayTrigger>
+                  ) : (
+                    <span ref={setNoteRef} className="text-muted meal-plan-note-preview">{entry.note}</span>
+                  )
                 )}
               </div>
-              {!isCooked && onLogCook && (
+              {!isCompact && !isCooked && onLogCook && (
                 <Button
                   variant="outline-secondary"
                   size="sm"
@@ -362,7 +584,7 @@ function SortableEntry({ entry, onDelete, onClick, onEdit, isPending, isCooked, 
                   <Check2Circle size={16} />
                 </Button>
               )}
-              {onEdit && (
+              {!isCompact && onEdit && (
                 <Button
                   variant="outline-secondary"
                   size="sm"
@@ -373,15 +595,67 @@ function SortableEntry({ entry, onDelete, onClick, onEdit, isPending, isCooked, 
                   <PencilSquare size={16} />
                 </Button>
               )}
-              <Button
-                variant="danger"
-                size="sm"
-                style={circleButtonStyle}
-                onClick={() => onDelete(entry.id)}
-                aria-label="Remove meal"
-              >
-                <Trash3 size={16} />
-              </Button>
+              {!isCompact && (
+                <Button
+                  variant="danger"
+                  size="sm"
+                  style={circleButtonStyle}
+                  onClick={() => onDelete(entry.id)}
+                  aria-label="Remove meal"
+                >
+                  <Trash3 size={16} />
+                </Button>
+              )}
+              {isCompact && (
+                <div className="meal-plan-entry-actions">
+                  {showPrimaryLogAction && (
+                    <Button
+                      variant="outline-secondary"
+                      size="sm"
+                      style={circleButtonStyle}
+                      onClick={(e) => { e.stopPropagation(); onLogCook?.(entry); }}
+                      aria-label="Log as cooked"
+                    >
+                      <Check2Circle size={16} />
+                    </Button>
+                  )}
+                  {showPrimaryEditAction && (
+                    <Button
+                      variant="outline-secondary"
+                      size="sm"
+                      style={circleButtonStyle}
+                      onClick={(e) => { e.stopPropagation(); onEdit?.(entry); }}
+                      aria-label="Edit meal"
+                    >
+                      <PencilSquare size={16} />
+                    </Button>
+                  )}
+                  {showCompactMenu && (
+                    <Dropdown align="end" onClick={(e) => e.stopPropagation()}>
+                      <Dropdown.Toggle
+                        variant="outline-secondary"
+                        size="sm"
+                        className="meal-plan-entry-menu-toggle"
+                        style={circleButtonStyle}
+                        aria-label="More meal actions"
+                      >
+                        <ThreeDotsVertical size={16} />
+                      </Dropdown.Toggle>
+                      <Dropdown.Menu>
+                        {onLogCook && !showPrimaryLogAction && !isCooked && (
+                          <Dropdown.Item onClick={() => onLogCook(entry)}>Log as cooked</Dropdown.Item>
+                        )}
+                        {onEdit && !showPrimaryEditAction && (
+                          <Dropdown.Item onClick={() => onEdit(entry)}>Edit meal</Dropdown.Item>
+                        )}
+                        <Dropdown.Item className="text-danger" onClick={() => onDelete(entry.id)}>
+                          Remove meal
+                        </Dropdown.Item>
+                      </Dropdown.Menu>
+                    </Dropdown>
+                  )}
+                </div>
+              )}
             </div>
           </Card.Body>
         </Card>
@@ -744,8 +1018,9 @@ function MealPlanTableView({
   weatherByDate,
 }: MealPlanTableViewProps) {
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <Table bordered size="sm" className="meal-plan-table mb-0 w-100">
+    <div className="meal-plan-table-shell">
+      <div style={{ overflowX: 'auto' }}>
+        <Table bordered size="sm" className="meal-plan-table mb-0 w-100">
         <colgroup>
           <col style={{ width: '12%' }} />
           {mealTypes.map((mt) => <col key={mt.id} />)}
@@ -833,7 +1108,8 @@ function MealPlanTableView({
             );
           })}
         </tbody>
-      </Table>
+        </Table>
+      </div>
     </div>
   );
 }

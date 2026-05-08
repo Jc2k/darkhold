@@ -51,6 +51,11 @@
   table-layout: fixed;
 }
 
+.meal-plan-page .meal-plan-table-shell {
+  max-width: 1900px;
+  margin: 0 auto;
+}
+
 @media (max-width: 767.98px) {
   .meal-plan-page .meal-plan-table {
     table-layout: auto;
@@ -95,9 +100,61 @@
   overflow: hidden;
 }
 
+.meal-plan-page .meal-plan-entry-header {
+  background: var(--bs-tertiary-bg);
+  border-bottom: 1px solid var(--bs-border-color-translucent);
+}
+
+.meal-plan-page .meal-plan-entry-title {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.meal-plan-page .meal-plan-entry-body {
+  min-height: 56px;
+}
+
+.meal-plan-page .meal-plan-entry-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.meal-plan-page .meal-plan-note-preview {
+  display: block;
+  max-width: 100%;
+  font-size: 0.7rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.meal-plan-page .meal-plan-note-button {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+}
+
+.meal-plan-page .meal-plan-entry-menu-toggle::after {
+  display: none;
+}
+
 @media (min-width: 768px) {
   .meal-plan-page .meal-plan-day {
     min-height: 130px;
+  }
+}
+
+@media (max-width: 1199.98px) {
+  .meal-plan-page .meal-plan-entry-card--compact .meal-plan-entry-title {
+    font-size: 0.78rem;
   }
 }
 
