@@ -4,6 +4,7 @@ import type { MealPlan, PaginatedResponse } from '../api/tandoor-types';
 import { broadcastInvalidation } from './useInvalidationSocket';
 import type { UpSoonData } from './useUpSoon';
 import { formatDate } from '../utils/dateUtils';
+import { MEAL_PLAN_GC_TIME, MEAL_PLAN_STALE_TIME } from '../utils/cacheConfig';
 
 export function useMealPlan(fromDate: Date, toDate: Date) {
   return useQuery({
@@ -13,6 +14,9 @@ export function useMealPlan(fromDate: Date, toDate: Date) {
         from_date: formatDate(fromDate),
         to_date: formatDate(toDate),
       }),
+    staleTime: MEAL_PLAN_STALE_TIME,
+    gcTime: MEAL_PLAN_GC_TIME,
+    refetchOnMount: 'always',
   });
 }
 
