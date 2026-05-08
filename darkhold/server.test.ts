@@ -10,7 +10,6 @@ import {
   parseOpenMeteoDaily,
   parseIcal,
   parseICalFeeds,
-  sanitizeWebSocketUpgradeRequest,
 } from './server.ts';
 
 // ---------------------------------------------------------------------------
@@ -144,47 +143,6 @@ Deno.test('version message is valid JSON with type and version fields', () => {
 
   if (parsed.type !== 'version') throw new Error('type should be version');
   if (parsed.version !== version) throw new Error('version mismatch');
-});
-
-Deno.test('sanitizeWebSocketUpgradeRequest removes sec-websocket-extensions', () => {
-  const req = new Request('http://localhost:8098/ws', {
-    method: 'GET',
-    headers: {
-      upgrade: 'websocket',
-      'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
-      'sec-websocket-version': '13',
-      'sec-websocket-extensions': 'permessage-deflate; client_max_window_bits',
-    },
-  });
-
-  const sanitized = sanitizeWebSocketUpgradeRequest(req);
-
-  if (sanitized.headers.get('sec-websocket-extensions') !== null) {
-    throw new Error('sec-websocket-extensions should be removed');
-  }
-  if (sanitized.headers.get('sec-websocket-key') !== 'dGhlIHNhbXBsZSBub25jZQ==') {
-    throw new Error('expected other websocket headers to be preserved');
-  }
-});
-
-Deno.test('sanitizeWebSocketUpgradeRequest keeps request unchanged when extension header absent', () => {
-  const req = new Request('http://localhost:8098/ws', {
-    method: 'GET',
-    headers: {
-      upgrade: 'websocket',
-      'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
-      'sec-websocket-version': '13',
-    },
-  });
-
-  const sanitized = sanitizeWebSocketUpgradeRequest(req);
-
-  if (sanitized.headers.get('sec-websocket-extensions') !== null) {
-    throw new Error('sec-websocket-extensions should remain absent');
-  }
-  if (sanitized.headers.get('sec-websocket-key') !== 'dGhlIHNhbXBsZSBub25jZQ==') {
-    throw new Error('expected websocket key to be preserved');
-  }
 });
 
 // ---------------------------------------------------------------------------

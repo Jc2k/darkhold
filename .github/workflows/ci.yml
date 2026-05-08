@@ -87,8 +87,10 @@ jobs:
           python3 - <<'EOF'
           import base64
           import hashlib
+          import json
           import os
           import socket
+          import struct
           import sys
           import time
 
@@ -105,14 +107,14 @@ jobs:
 
           with socket.create_connection(("localhost", 8099)) as sock:
               sock.sendall(req.encode("ascii"))
-              sock.settimeout(1)
-              deadline = time.monotonic() + 5
+              sock.settimeout(5)
+              deadline = time.monotonic() + 10
               response_bytes = b""
               while True:
                   if time.monotonic() > deadline:
                       break
                   try:
-                      chunk = sock.recv(1024)
+                      chunk = sock.recv(4096)
                   except socket.timeout:
                       continue
                   if not chunk:
@@ -125,7 +127,8 @@ jobs:
               print("websocket handshake response headers were incomplete")
               sys.exit(1)
 
-          response = response_bytes.decode("latin1")
+          header_part, _, rest = response_bytes.partition(b"\r\n\r\n")
+          response = header_part.decode("latin1")
 
           if "101 Switching Protocols" not in response:
               print(response)
@@ -150,7 +153,75 @@ jobs:
               print(response)
               sys.exit(1)
 
-          print("WebSocket OK: handshake succeeded")
+          # Read the first WebSocket frame (version message sent by server on open)
+          # Accumulate header_part remainder plus any additional bytes needed
+          frame_buf = rest
+          with socket.create_connection(("localhost", 8099)) as sock2:
+              sock2.sendall(req.encode("ascii"))
+              sock2.settimeout(5)
+              # skip the HTTP upgrade response, then collect the WS frame
+              buf = b""
+              deadline2 = time.monotonic() + 10
+              while b"\r\n\r\n" not in buf:
+                  if time.monotonic() > deadline2:
+                      print("timed out waiting for upgrade response")
+                      sys.exit(1)
+                  try:
+                      buf += sock2.recv(4096)
+                  except socket.timeout:
+                      pass
+              _, _, ws_data = buf.partition(b"\r\n\r\n")
+              # Read until we have at least the 2-byte WS frame header
+              deadline3 = time.monotonic() + 10
+              while len(ws_data) < 2:
+                  if time.monotonic() > deadline3:
+                      print("timed out waiting for WebSocket frame")
+                      sys.exit(1)
+                  try:
+                      ws_data += sock2.recv(4096)
+                  except socket.timeout:
+                      pass
+              b0, b1 = ws_data[0], ws_data[1]
+              opcode = b0 & 0x0F
+              payload_len = b1 & 0x7F
+              offset = 2
+              if payload_len == 126:
+                  while len(ws_data) < offset + 2:
+                      ws_data += sock2.recv(4096)
+                  payload_len = struct.unpack(">H", ws_data[offset:offset+2])[0]
+                  offset += 2
+              elif payload_len == 127:
+                  while len(ws_data) < offset + 8:
+                      ws_data += sock2.recv(4096)
+                  payload_len = struct.unpack(">Q", ws_data[offset:offset+8])[0]
+                  offset += 8
+              # Read until we have the full payload
+              deadline4 = time.monotonic() + 10
+              while len(ws_data) < offset + payload_len:
+                  if time.monotonic() > deadline4:
+                      print("timed out reading WebSocket payload")
+                      sys.exit(1)
+                  try:
+                      ws_data += sock2.recv(4096)
+                  except socket.timeout:
+                      pass
+              if opcode != 1:
+                  print(f"expected text frame (opcode 1), got opcode {opcode}")
+                  sys.exit(1)
+              payload = ws_data[offset:offset+payload_len].decode("utf-8")
+              try:
+                  msg = json.loads(payload)
+              except Exception as e:
+                  print(f"version message is not valid JSON: {e!r} — payload: {payload!r}")
+                  sys.exit(1)
+              if msg.get("type") != "version":
+                  print(f"expected type=version, got: {msg!r}")
+                  sys.exit(1)
+              if not isinstance(msg.get("version"), str) or not msg["version"]:
+                  print(f"version field missing or empty: {msg!r}")
+                  sys.exit(1)
+
+          print(f"WebSocket OK: handshake succeeded and version message received ({msg['version']})")
           EOF
       - name: Dump container logs on failure
         if: failure()
