@@ -449,7 +449,6 @@ export function Dashboard() {
   const activeSeasons = getActiveSeasons(today);
   const todayStr = formatDate(today);
 
-  const weekAhead = useMemo(() => addDays(today, 7), [today]);
   const currentWeekStart = useMemo(() => getMealPlanWeekStartSaturday(today), [today]);
   const nextWeekStart = useMemo(() => addDays(currentWeekStart, 7), [currentWeekStart]);
   const currentWeekMealPlan = useMealPlan(currentWeekStart, addDays(currentWeekStart, 6));
