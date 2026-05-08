@@ -9,7 +9,6 @@ import {
   Form,
   Spinner,
   Alert,
-  Dropdown,
 } from "react-bootstrap";
 import { AsyncTypeahead } from "react-bootstrap-typeahead";
 import "react-bootstrap-typeahead/css/Typeahead.css";
@@ -25,7 +24,6 @@ import {
   CloudSnowFill,
   CloudLightningRainFill,
   CloudFog2Fill,
-  ThreeDotsVertical,
 } from "react-bootstrap-icons";
 import { proxyMediaUrl } from "../utils/mediaUrl";
 import {
@@ -342,7 +340,6 @@ interface CompactEntryActionsProps {
   onDelete: (id: number) => void;
   onEdit?: (entry: MealPlan) => void;
   showPrimaryLogAction: boolean;
-  showCompactMenu: boolean;
   onLogCook?: (entry: MealPlan) => void;
 }
 
@@ -351,7 +348,6 @@ function CompactEntryActions({
   onDelete,
   onEdit,
   showPrimaryLogAction,
-  showCompactMenu,
   onLogCook,
 }: CompactEntryActionsProps) {
   return (
@@ -373,36 +369,32 @@ function CompactEntryActions({
           <Check2Circle size={14} />
         </Button>
       )}
-      {showCompactMenu && (
-        <Dropdown align="end" onClick={(e) => e.stopPropagation()}>
-          <Dropdown.Toggle
-            variant="outline-secondary"
-            size="sm"
-            className="meal-plan-entry-menu-toggle"
-            style={compactTitleButtonStyle}
-            aria-label="More meal actions"
-          >
-            <ThreeDotsVertical size={14} />
-          </Dropdown.Toggle>
-          <Dropdown.Menu
-            popperConfig={{
-              strategy: "fixed" /* escape card overflow:hidden */,
-            }}
-          >
-            {onEdit && (
-              <Dropdown.Item onClick={() => onEdit(entry)}>
-                Edit meal
-              </Dropdown.Item>
-            )}
-            <Dropdown.Item
-              className="text-danger"
-              onClick={() => onDelete(entry.id)}
-            >
-              Remove meal
-            </Dropdown.Item>
-          </Dropdown.Menu>
-        </Dropdown>
+      {onEdit && (
+        <Button
+          variant="outline-secondary"
+          size="sm"
+          style={compactTitleButtonStyle}
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit(entry);
+          }}
+          aria-label="Edit meal"
+        >
+          <PencilSquare size={14} />
+        </Button>
       )}
+      <Button
+        variant="danger"
+        size="sm"
+        style={compactTitleButtonStyle}
+        onClick={(e) => {
+          e.stopPropagation();
+          onDelete(entry.id);
+        }}
+        aria-label="Remove meal"
+      >
+        <Trash3 size={14} />
+      </Button>
     </div>
   );
 }
@@ -420,7 +412,6 @@ function EntryCard({
   const thumbnailSrc = recipe?.image ? proxyMediaUrl(recipe.image) : undefined;
   const titleText = recipe?.name ?? `Recipe #${entry.recipe}`;
   const showPrimaryLogAction = Boolean(!isCooked && onLogCook);
-  const showCompactMenu = Boolean(onDelete || onEdit);
 
   return (
     <Card
@@ -452,7 +443,6 @@ function EntryCard({
                 onDelete={onDelete}
                 onEdit={onEdit}
                 showPrimaryLogAction={showPrimaryLogAction}
-                showCompactMenu={showCompactMenu}
                 onLogCook={onLogCook}
               />
             )}
@@ -465,52 +455,6 @@ function EntryCard({
             )}
           </div>
         </div>
-        {!dragging && (
-          <>
-            <div
-              className="meal-plan-entry-actions meal-plan-entry-actions--regular"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {!isCooked && onLogCook && (
-                <Button
-                  variant="outline-secondary"
-                  size="sm"
-                  style={circleButtonStyle}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onLogCook(entry);
-                  }}
-                  aria-label="Log as cooked"
-                >
-                  <Check2Circle size={16} />
-                </Button>
-              )}
-              {onEdit && (
-                <Button
-                  variant="outline-secondary"
-                  size="sm"
-                  style={circleButtonStyle}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onEdit(entry);
-                  }}
-                  aria-label="Edit meal"
-                >
-                  <PencilSquare size={16} />
-                </Button>
-              )}
-              <Button
-                variant="danger"
-                size="sm"
-                style={circleButtonStyle}
-                onClick={() => onDelete(entry.id)}
-                aria-label="Remove meal"
-              >
-                <Trash3 size={16} />
-              </Button>
-            </div>
-          </>
-        )}
       </div>
     </Card>
   );
@@ -551,7 +495,6 @@ function SortableEntry({
   const thumbnailSrc = recipe?.image ? proxyMediaUrl(recipe.image) : undefined;
   const titleText = recipe?.name ?? `Recipe #${entry.recipe}`;
   const showPrimaryLogAction = Boolean(!isCooked && onLogCook);
-  const showCompactMenu = Boolean(onDelete || onEdit);
 
   return (
     <div
@@ -599,7 +542,6 @@ function SortableEntry({
                     onDelete={onDelete}
                     onEdit={onEdit}
                     showPrimaryLogAction={showPrimaryLogAction}
-                    showCompactMenu={showCompactMenu}
                     onLogCook={onLogCook}
                   />
                 )}
@@ -610,48 +552,6 @@ function SortableEntry({
                     {entry.note}
                   </span>
                 )}
-              </div>
-              <div
-                className="meal-plan-entry-actions meal-plan-entry-actions--regular"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {!isCooked && onLogCook && (
-                  <Button
-                    variant="outline-secondary"
-                    size="sm"
-                    style={circleButtonStyle}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onLogCook(entry);
-                    }}
-                    aria-label="Log as cooked"
-                  >
-                    <Check2Circle size={16} />
-                  </Button>
-                )}
-                {onEdit && (
-                  <Button
-                    variant="outline-secondary"
-                    size="sm"
-                    style={circleButtonStyle}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onEdit(entry);
-                    }}
-                    aria-label="Edit meal"
-                  >
-                    <PencilSquare size={16} />
-                  </Button>
-                )}
-                <Button
-                  variant="danger"
-                  size="sm"
-                  style={circleButtonStyle}
-                  onClick={() => onDelete(entry.id)}
-                  aria-label="Remove meal"
-                >
-                  <Trash3 size={16} />
-                </Button>
               </div>
             </div>
           </div>
