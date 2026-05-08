@@ -71,18 +71,6 @@ const navButtonStyle: React.CSSProperties = {
 
 const circleButtonStyle = smallCircleButtonStyle;
 const COMPACT_ACTIONS_BREAKPOINT = 360;
-const DEFAULT_THUMBNAIL_SIZE = 72;
-const COMPACT_THUMBNAIL_SIZE = 56;
-
-const thumbnailStyle: React.CSSProperties = {
-  width: DEFAULT_THUMBNAIL_SIZE,
-  height: DEFAULT_THUMBNAIL_SIZE,
-  objectFit: 'cover',
-  borderRadius: 0,
-  flexShrink: 0,
-  WebkitTouchCallout: 'none',
-  userSelect: 'none',
-};
 
 const PLACEHOLDER_BG = '#d0d0d0';
 const PLACEHOLDER_ICON_COLOR = '#a0a0a0';
@@ -160,10 +148,8 @@ export function useCompactMode<T extends HTMLElement>(breakpoint: number) {
 }
 
 function ThumbnailPlaceholder({
-  size = DEFAULT_THUMBNAIL_SIZE,
   dragProps,
 }: {
-  size?: number;
   dragProps?: React.HTMLAttributes<HTMLDivElement> & { ref?: React.Ref<HTMLDivElement> };
 }) {
   const { style: dragStyle, ...restDragProps } = dragProps ?? {};
@@ -172,13 +158,14 @@ function ThumbnailPlaceholder({
       role="img"
       aria-label="No image available"
       style={{
-        ...thumbnailStyle,
-        width: size,
-        height: size,
+        width: '100%',
+        height: '100%',
         background: PLACEHOLDER_BG,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
+        WebkitTouchCallout: 'none',
+        userSelect: 'none',
         ...dragStyle,
       }}
       {...restDragProps}
@@ -329,150 +316,138 @@ function EntryCard({ entry, onDelete, onClick, onEdit, dragging, isCooked, onLog
   const [setNoteRef, isNoteOverflowed] = useOverflowState<HTMLSpanElement>();
   const titleText = recipe?.name ?? `Recipe #${entry.recipe}`;
   const showCompact = Boolean(!dragging && isCompact);
-  const thumbnailSize = showCompact ? COMPACT_THUMBNAIL_SIZE : DEFAULT_THUMBNAIL_SIZE;
   const showPrimaryLogAction = Boolean(showCompact && !isCooked && onLogCook);
-  const showPrimaryEditAction = Boolean(showCompact && !showPrimaryLogAction && onEdit);
-  const showCompactMenu = Boolean(showCompact && (onDelete || (onEdit && !showPrimaryEditAction) || (onLogCook && !showPrimaryLogAction)));
+  const showCompactMenu = Boolean(showCompact && (onDelete || onEdit || (onLogCook && !showPrimaryLogAction)));
 
   return (
     <Card
       ref={setCardRef}
       className={`meal-plan-entry-card border-0 ${dragging ? 'shadow-lg' : 'shadow-sm'} ${showCompact ? 'meal-plan-entry-card--compact' : ''}`}
     >
-      <div className="meal-plan-entry-header px-2 py-1">
-        <div
-          ref={setTitleRef}
-          className="small fw-semibold meal-plan-entry-title"
-          title={isTitleOverflowed ? titleText : undefined}
-        >
-          {titleText}
-        </div>
-      </div>
-      <Card.Body className="p-2">
-        <div className="d-flex align-items-center gap-2 meal-plan-entry-body">
+      <div className="d-flex meal-plan-entry-body">
+        <div className="meal-plan-entry-thumb-slot">
           {thumbnailSrc ? (
             <img
               src={thumbnailSrc}
               alt={recipe?.name ?? ''}
               draggable={false}
               className="meal-plan-entry-thumb"
-              style={{ ...thumbnailStyle, width: thumbnailSize, height: thumbnailSize, cursor: dragging ? 'grabbing' : 'grab', touchAction: 'none' }}
+              style={{ cursor: dragging ? 'grabbing' : 'grab', touchAction: 'none' }}
             />
           ) : (
-            <ThumbnailPlaceholder size={thumbnailSize} />
-          )}
-          <div className="flex-grow-1 my-auto overflow-hidden" style={{ cursor: 'pointer' }} onClick={() => onClick(entry)}>
-            {entry.note && (
-              isNoteOverflowed ? (
-                <OverlayTrigger
-                  trigger="click"
-                  rootClose
-                  placement="auto"
-                  overlay={(
-                    <Popover>
-                      <Popover.Body className="small">{entry.note}</Popover.Body>
-                    </Popover>
-                  )}
-                >
-                  <button
-                    type="button"
-                    className="meal-plan-note-button text-muted"
-                    aria-label="Show full meal note"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <span ref={setNoteRef} className="meal-plan-note-preview">{entry.note}</span>
-                  </button>
-                </OverlayTrigger>
-              ) : (
-                <span ref={setNoteRef} className="text-muted meal-plan-note-preview">{entry.note}</span>
-              )
-            )}
-          </div>
-          {!dragging && !showCompact && !isCooked && onLogCook && (
-            <Button
-              variant="outline-secondary"
-              size="sm"
-              style={circleButtonStyle}
-              onClick={(e) => { e.stopPropagation(); onLogCook(entry); }}
-              aria-label="Log as cooked"
-            >
-              <Check2Circle size={16} />
-            </Button>
-          )}
-          {!dragging && !showCompact && onEdit && (
-            <Button
-              variant="outline-secondary"
-              size="sm"
-              style={circleButtonStyle}
-              onClick={(e) => { e.stopPropagation(); onEdit(entry); }}
-              aria-label="Edit meal"
-            >
-              <PencilSquare size={16} />
-            </Button>
-          )}
-          {!dragging && !showCompact && (
-            <Button
-              variant="danger"
-              size="sm"
-              style={circleButtonStyle}
-              onClick={() => onDelete(entry.id)}
-              aria-label="Remove meal"
-            >
-              <Trash3 size={16} />
-            </Button>
-          )}
-          {!dragging && showCompact && (
-            <div className="meal-plan-entry-actions">
-              {showPrimaryLogAction && (
-                <Button
-                  variant="outline-secondary"
-                  size="sm"
-                  style={circleButtonStyle}
-                  onClick={(e) => { e.stopPropagation(); onLogCook?.(entry); }}
-                  aria-label="Log as cooked"
-                >
-                  <Check2Circle size={16} />
-                </Button>
-              )}
-              {showPrimaryEditAction && (
-                <Button
-                  variant="outline-secondary"
-                  size="sm"
-                  style={circleButtonStyle}
-                  onClick={(e) => { e.stopPropagation(); onEdit?.(entry); }}
-                  aria-label="Edit meal"
-                >
-                  <PencilSquare size={16} />
-                </Button>
-              )}
-              {showCompactMenu && (
-                <Dropdown align="end" onClick={(e) => e.stopPropagation()}>
-                  <Dropdown.Toggle
-                    variant="outline-secondary"
-                    size="sm"
-                    className="meal-plan-entry-menu-toggle"
-                    style={circleButtonStyle}
-                    aria-label="More meal actions"
-                  >
-                    <ThreeDotsVertical size={16} />
-                  </Dropdown.Toggle>
-                  <Dropdown.Menu>
-                    {onLogCook && !showPrimaryLogAction && !isCooked && (
-                      <Dropdown.Item onClick={() => onLogCook(entry)}>Log as cooked</Dropdown.Item>
-                    )}
-                    {onEdit && !showPrimaryEditAction && (
-                      <Dropdown.Item onClick={() => onEdit(entry)}>Edit meal</Dropdown.Item>
-                    )}
-                    <Dropdown.Item className="text-danger" onClick={() => onDelete(entry.id)}>
-                      Remove meal
-                    </Dropdown.Item>
-                  </Dropdown.Menu>
-                </Dropdown>
-              )}
-            </div>
+            <ThumbnailPlaceholder />
           )}
         </div>
-      </Card.Body>
+        <div
+          className="meal-plan-entry-content"
+          onClick={() => onClick(entry)}
+        >
+          <div
+            ref={setTitleRef}
+            className="small fw-semibold meal-plan-entry-title"
+            title={isTitleOverflowed ? titleText : undefined}
+          >
+            {titleText}
+          </div>
+          {entry.note && (
+            isNoteOverflowed ? (
+              <OverlayTrigger
+                trigger="click"
+                rootClose
+                placement="auto"
+                overlay={(
+                  <Popover>
+                    <Popover.Body className="small">{entry.note}</Popover.Body>
+                  </Popover>
+                )}
+              >
+                <button
+                  type="button"
+                  className="meal-plan-note-button text-muted"
+                  aria-label="Show full meal note"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <span ref={setNoteRef} className="meal-plan-note-preview">{entry.note}</span>
+                </button>
+              </OverlayTrigger>
+            ) : (
+              <span ref={setNoteRef} className="text-muted meal-plan-note-preview">{entry.note}</span>
+            )
+          )}
+        </div>
+        {!dragging && (
+          <div className="meal-plan-entry-actions">
+            {!showCompact && !isCooked && onLogCook && (
+              <Button
+                variant="outline-secondary"
+                size="sm"
+                style={circleButtonStyle}
+                onClick={(e) => { e.stopPropagation(); onLogCook(entry); }}
+                aria-label="Log as cooked"
+              >
+                <Check2Circle size={16} />
+              </Button>
+            )}
+            {!showCompact && onEdit && (
+              <Button
+                variant="outline-secondary"
+                size="sm"
+                style={circleButtonStyle}
+                onClick={(e) => { e.stopPropagation(); onEdit(entry); }}
+                aria-label="Edit meal"
+              >
+                <PencilSquare size={16} />
+              </Button>
+            )}
+            {!showCompact && (
+              <Button
+                variant="danger"
+                size="sm"
+                style={circleButtonStyle}
+                onClick={() => onDelete(entry.id)}
+                aria-label="Remove meal"
+              >
+                <Trash3 size={16} />
+              </Button>
+            )}
+            {showPrimaryLogAction && (
+              <Button
+                variant="outline-secondary"
+                size="sm"
+                style={circleButtonStyle}
+                onClick={(e) => { e.stopPropagation(); onLogCook?.(entry); }}
+                aria-label="Log as cooked"
+              >
+                <Check2Circle size={16} />
+              </Button>
+            )}
+            {showCompactMenu && (
+              <Dropdown align="end" onClick={(e) => e.stopPropagation()}>
+                <Dropdown.Toggle
+                  variant="outline-secondary"
+                  size="sm"
+                  className="meal-plan-entry-menu-toggle"
+                  style={circleButtonStyle}
+                  aria-label="More meal actions"
+                >
+                  <ThreeDotsVertical size={16} />
+                </Dropdown.Toggle>
+                <Dropdown.Menu popperConfig={{ strategy: 'fixed' /* escape card overflow:hidden */ }}>
+                  {onLogCook && !showPrimaryLogAction && !isCooked && (
+                    <Dropdown.Item onClick={() => onLogCook(entry)}>Log as cooked</Dropdown.Item>
+                  )}
+                  {onEdit && (
+                    <Dropdown.Item onClick={() => onEdit(entry)}>Edit meal</Dropdown.Item>
+                  )}
+                  <Dropdown.Item className="text-danger" onClick={() => onDelete(entry.id)}>
+                    Remove meal
+                  </Dropdown.Item>
+                </Dropdown.Menu>
+              </Dropdown>
+            )}
+          </div>
+        )}
+      </div>
     </Card>
   );
 }
@@ -499,9 +474,7 @@ function SortableEntry({ entry, onDelete, onClick, onEdit, isPending, isCooked, 
   const [setNoteRef, isNoteOverflowed] = useOverflowState<HTMLSpanElement>();
   const titleText = recipe?.name ?? `Recipe #${entry.recipe}`;
   const showPrimaryLogAction = Boolean(isCompact && !isCooked && onLogCook);
-  const showPrimaryEditAction = Boolean(isCompact && !showPrimaryLogAction && onEdit);
-  const showCompactMenu = Boolean(isCompact && (onDelete || (onEdit && !showPrimaryEditAction) || (onLogCook && !showPrimaryLogAction)));
-  const thumbnailSize = isCompact ? COMPACT_THUMBNAIL_SIZE : DEFAULT_THUMBNAIL_SIZE;
+  const showCompactMenu = Boolean(isCompact && (onDelete || onEdit || (onLogCook && !showPrimaryLogAction)));
 
   return (
     <div ref={setNodeRef} style={{ ...style, opacity: isDragging ? 0.3 : 1 }} {...attributes} className="mb-2">
@@ -511,17 +484,8 @@ function SortableEntry({ entry, onDelete, onClick, onEdit, isPending, isCooked, 
           className={`meal-plan-entry-card border-0 shadow-sm ${isCompact ? 'meal-plan-entry-card--compact' : ''}`}
           style={isPending ? { opacity: 0.55 } : undefined}
         >
-          <div className="meal-plan-entry-header px-2 py-1">
-            <div
-              ref={setTitleRef}
-              className="small fw-semibold meal-plan-entry-title"
-              title={isTitleOverflowed ? titleText : undefined}
-            >
-              {titleText}
-            </div>
-          </div>
-          <Card.Body className="p-2">
-            <div className="d-flex align-items-center gap-2 meal-plan-entry-body">
+          <div className="d-flex meal-plan-entry-body">
+            <div className="meal-plan-entry-thumb-slot">
               {thumbnailSrc ? (
                 <img
                   ref={setActivatorNodeRef}
@@ -530,11 +494,10 @@ function SortableEntry({ entry, onDelete, onClick, onEdit, isPending, isCooked, 
                   alt={recipe?.name ?? ''}
                   draggable={false}
                   className="meal-plan-entry-thumb"
-                  style={{ ...thumbnailStyle, width: thumbnailSize, height: thumbnailSize, cursor: 'grab', touchAction: 'none' }}
+                  style={{ cursor: 'grab', touchAction: 'none' }}
                 />
               ) : (
                 <ThumbnailPlaceholder
-                  size={thumbnailSize}
                   dragProps={{
                     ref: setActivatorNodeRef as React.Ref<HTMLDivElement>,
                     ...listeners,
@@ -542,33 +505,45 @@ function SortableEntry({ entry, onDelete, onClick, onEdit, isPending, isCooked, 
                   }}
                 />
               )}
-              <div className="flex-grow-1 my-auto overflow-hidden" style={{ cursor: 'pointer' }} onClick={() => onClick(entry)}>
-                {entry.note && (
-                  isNoteOverflowed ? (
-                    <OverlayTrigger
-                      trigger="click"
-                      rootClose
-                      placement="auto"
-                      overlay={(
-                        <Popover>
-                          <Popover.Body className="small">{entry.note}</Popover.Body>
-                        </Popover>
-                      )}
-                    >
-                      <button
-                        type="button"
-                        className="meal-plan-note-button text-muted"
-                        aria-label="Show full meal note"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <span ref={setNoteRef} className="meal-plan-note-preview">{entry.note}</span>
-                      </button>
-                    </OverlayTrigger>
-                  ) : (
-                    <span ref={setNoteRef} className="text-muted meal-plan-note-preview">{entry.note}</span>
-                  )
-                )}
+            </div>
+            <div
+              className="meal-plan-entry-content"
+              onClick={() => onClick(entry)}
+            >
+              <div
+                ref={setTitleRef}
+                className="small fw-semibold meal-plan-entry-title"
+                title={isTitleOverflowed ? titleText : undefined}
+              >
+                {titleText}
               </div>
+              {entry.note && (
+                isNoteOverflowed ? (
+                  <OverlayTrigger
+                    trigger="click"
+                    rootClose
+                    placement="auto"
+                    overlay={(
+                      <Popover>
+                        <Popover.Body className="small">{entry.note}</Popover.Body>
+                      </Popover>
+                    )}
+                  >
+                    <button
+                      type="button"
+                      className="meal-plan-note-button text-muted"
+                      aria-label="Show full meal note"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <span ref={setNoteRef} className="meal-plan-note-preview">{entry.note}</span>
+                    </button>
+                  </OverlayTrigger>
+                ) : (
+                  <span ref={setNoteRef} className="text-muted meal-plan-note-preview">{entry.note}</span>
+                )
+              )}
+            </div>
+            <div className="meal-plan-entry-actions">
               {!isCompact && !isCooked && onLogCook && (
                 <Button
                   variant="outline-secondary"
@@ -602,58 +577,43 @@ function SortableEntry({ entry, onDelete, onClick, onEdit, isPending, isCooked, 
                   <Trash3 size={16} />
                 </Button>
               )}
-              {isCompact && (
-                <div className="meal-plan-entry-actions">
-                  {showPrimaryLogAction && (
-                    <Button
-                      variant="outline-secondary"
-                      size="sm"
-                      style={circleButtonStyle}
-                      onClick={(e) => { e.stopPropagation(); onLogCook?.(entry); }}
-                      aria-label="Log as cooked"
-                    >
-                      <Check2Circle size={16} />
-                    </Button>
-                  )}
-                  {showPrimaryEditAction && (
-                    <Button
-                      variant="outline-secondary"
-                      size="sm"
-                      style={circleButtonStyle}
-                      onClick={(e) => { e.stopPropagation(); onEdit?.(entry); }}
-                      aria-label="Edit meal"
-                    >
-                      <PencilSquare size={16} />
-                    </Button>
-                  )}
-                  {showCompactMenu && (
-                    <Dropdown align="end" onClick={(e) => e.stopPropagation()}>
-                      <Dropdown.Toggle
-                        variant="outline-secondary"
-                        size="sm"
-                        className="meal-plan-entry-menu-toggle"
-                        style={circleButtonStyle}
-                        aria-label="More meal actions"
-                      >
-                        <ThreeDotsVertical size={16} />
-                      </Dropdown.Toggle>
-                      <Dropdown.Menu>
-                        {onLogCook && !showPrimaryLogAction && !isCooked && (
-                          <Dropdown.Item onClick={() => onLogCook(entry)}>Log as cooked</Dropdown.Item>
-                        )}
-                        {onEdit && !showPrimaryEditAction && (
-                          <Dropdown.Item onClick={() => onEdit(entry)}>Edit meal</Dropdown.Item>
-                        )}
-                        <Dropdown.Item className="text-danger" onClick={() => onDelete(entry.id)}>
-                          Remove meal
-                        </Dropdown.Item>
-                      </Dropdown.Menu>
-                    </Dropdown>
-                  )}
-                </div>
+              {showPrimaryLogAction && (
+                <Button
+                  variant="outline-secondary"
+                  size="sm"
+                  style={circleButtonStyle}
+                  onClick={(e) => { e.stopPropagation(); onLogCook?.(entry); }}
+                  aria-label="Log as cooked"
+                >
+                  <Check2Circle size={16} />
+                </Button>
+              )}
+              {showCompactMenu && (
+                <Dropdown align="end" onClick={(e) => e.stopPropagation()}>
+                  <Dropdown.Toggle
+                    variant="outline-secondary"
+                    size="sm"
+                    className="meal-plan-entry-menu-toggle"
+                    style={circleButtonStyle}
+                    aria-label="More meal actions"
+                  >
+                    <ThreeDotsVertical size={16} />
+                  </Dropdown.Toggle>
+                  <Dropdown.Menu popperConfig={{ strategy: 'fixed' /* escape card overflow:hidden */ }}>
+                    {onLogCook && !showPrimaryLogAction && !isCooked && (
+                      <Dropdown.Item onClick={() => onLogCook(entry)}>Log as cooked</Dropdown.Item>
+                    )}
+                    {onEdit && (
+                      <Dropdown.Item onClick={() => onEdit(entry)}>Edit meal</Dropdown.Item>
+                    )}
+                    <Dropdown.Item className="text-danger" onClick={() => onDelete(entry.id)}>
+                      Remove meal
+                    </Dropdown.Item>
+                  </Dropdown.Menu>
+                </Dropdown>
               )}
             </div>
-          </Card.Body>
+          </div>
         </Card>
         {isPending && (
           <div
