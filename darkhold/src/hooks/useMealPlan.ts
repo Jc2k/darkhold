@@ -3,10 +3,7 @@ import { apiGet, apiPost, apiPatch, apiDelete } from '../api/client';
 import type { MealPlan, PaginatedResponse } from '../api/tandoor-types';
 import { broadcastInvalidation } from './useInvalidationSocket';
 import type { UpSoonData } from './useUpSoon';
-
-function formatDate(d: Date): string {
-  return d.toISOString().split('T')[0];
-}
+import { formatDate } from '../utils/dateUtils';
 
 export function useMealPlan(fromDate: Date, toDate: Date) {
   return useQuery({
