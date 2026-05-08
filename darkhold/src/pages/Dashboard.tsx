@@ -145,7 +145,7 @@ function UpcomingMealsShelf({ days, mealsByDay, loading, error, onAddToMealPlan,
                       imageOverlayAction={
                         isEligible && !isCooked ? (
                           <Button
-                            variant="outline-secondary"
+                            variant="secondary"
                             size="sm"
                             style={cookLogButtonStyle}
                             onClick={(e) => { e.stopPropagation(); onLogCook(entry); }}
