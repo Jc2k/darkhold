@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { formatDate } from '../utils/dateUtils';
 
 export interface WeatherDayForecast {
   date: string;
@@ -27,10 +28,6 @@ const DEFINITELY_DISRUPTED_PRECIP_MM = 8;
 const DEFINITELY_DISRUPTED_PRECIP_PROBABILITY = 80;
 const MIGHT_BE_DISRUPTED_PRECIP_MM = 2;
 const MIGHT_BE_DISRUPTED_PRECIP_PROBABILITY = 40;
-
-function formatDate(d: Date): string {
-  return d.toISOString().split('T')[0];
-}
 
 export function parseWeatherForecastPayload(data: WeatherForecastPayload): WeatherDayForecast[] {
   return data.days ?? [];

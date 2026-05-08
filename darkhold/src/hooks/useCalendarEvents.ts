@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { formatDate } from '../utils/dateUtils';
 
 export interface CalendarEvent {
   name: string;
@@ -30,10 +31,6 @@ export function parseCalendarEventsPayload(data: CalendarEventsPayload): Calenda
 
 /** Calendar events grouped by local date (YYYY-MM-DD in the browser's timezone). */
 export type CalendarEventsByDate = Record<string, CalendarEvent[]>;
-
-function formatDate(d: Date): string {
-  return d.toISOString().split('T')[0];
-}
 
 /**
  * Format a timed event's start/end as a human-readable time range in the
