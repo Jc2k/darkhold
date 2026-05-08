@@ -606,6 +606,12 @@ interface AddMealModalProps {
   initialMealTypeId?: number;
 }
 
+function hasUnresolvedKeywordIds(recipe: Recipe): boolean {
+  return Array.isArray(recipe.keywords)
+    ? recipe.keywords.some((k) => typeof k === "number")
+    : false;
+}
+
 function AddMealModal({
   date,
   onHide,
@@ -616,14 +622,16 @@ function AddMealModal({
   const [recipeOptions, setRecipeOptions] = useState<Recipe[]>([]);
   const [searchError, setSearchError] = useState(false);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+  const [selectedMealTypeId, setSelectedMealTypeId] = useState<
+    number | undefined
+  >(undefined);
   const [servings, setServings] = useState(1);
   const [note, setNote] = useState("");
   const createMeal = useCreateMealPlan();
-  const resolveMealTypeId = (recipe: Recipe | null): number | undefined => {
-    if (initialMealTypeId) return initialMealTypeId;
-    if (!recipe) return mealTypes[0]?.id;
-    return deriveMealType(recipe, mealTypes) ?? mealTypes[0]?.id;
-  };
+  const defaultMealTypeId = initialMealTypeId ?? mealTypes[0]?.id;
+  useEffect(() => {
+    setSelectedMealTypeId((prev) => prev ?? defaultMealTypeId);
+  }, [defaultMealTypeId]);
 
   const handleRecipeSearch = async (query: string) => {
     setIsSearching(true);
@@ -642,21 +650,43 @@ function AddMealModal({
     }
   };
 
-  const handleSelectRecipe = (selected: Recipe[]) => {
+  const handleSelectRecipe = async (selected: Recipe[]) => {
     const r = selected[0] ?? null;
     setSelectedRecipe(r);
-    if (r) {
-      setServings(r.servings ?? 1);
+    if (!r) {
+      setSelectedMealTypeId(initialMealTypeId ?? mealTypes[0]?.id);
+      return;
     }
+    setServings(r.servings ?? 1);
+
+    if (initialMealTypeId) {
+      setSelectedMealTypeId(initialMealTypeId);
+      return;
+    }
+
+    let hydratedRecipe = r;
+    const needsRecipeHydration = hasUnresolvedKeywordIds(r);
+    if (needsRecipeHydration) {
+      try {
+        hydratedRecipe = await apiGet<Recipe>(`/recipe/${r.id}/`);
+      } catch (error) {
+        console.warn(
+          "Failed to hydrate recipe details for meal type matching; using selected recipe payload",
+          { recipeId: r.id, error },
+        );
+      }
+    }
+    setSelectedMealTypeId(
+      deriveMealType(hydratedRecipe, mealTypes) ?? mealTypes[0]?.id,
+    );
   };
 
   const handleSubmit = async () => {
     if (!selectedRecipe) return;
-    const resolvedMealTypeId = resolveMealTypeId(selectedRecipe);
-    if (!resolvedMealTypeId) return;
+    if (!selectedMealTypeId) return;
     await createMeal.mutateAsync({
       recipe: selectedRecipe.id as unknown as Recipe,
-      meal_type: resolvedMealTypeId as unknown as MealType,
+      meal_type: selectedMealTypeId as unknown as MealType,
       from_date: date,
       servings,
       ...(note ? { note } : {}),
@@ -681,7 +711,14 @@ function AddMealModal({
             options={recipeOptions}
             selected={selectedRecipe ? [selectedRecipe] : []}
             onSearch={handleRecipeSearch}
-            onChange={(opts) => handleSelectRecipe(opts as Recipe[])}
+            onChange={(opts) => {
+              void handleSelectRecipe(opts as Recipe[]).catch((error) => {
+                console.warn(
+                  "Failed to resolve meal type for selected recipe",
+                  error,
+                );
+              });
+            }}
             placeholder="Type to search…"
           />
           {searchError && (
@@ -724,6 +761,24 @@ function AddMealModal({
           </InputGroup>
         </Form.Group>
 
+        <Form.Group className="mb-3">
+          <Form.Label>Meal Type</Form.Label>
+          <Form.Select
+            value={selectedMealTypeId ?? ""}
+            onChange={(e) => {
+              const value = e.target.value;
+              setSelectedMealTypeId(value ? Number(value) : undefined);
+            }}
+            disabled={mealTypes.length === 0}
+          >
+            {mealTypes.map((mt) => (
+              <option key={mt.id} value={mt.id}>
+                {mt.name}
+              </option>
+            ))}
+          </Form.Select>
+        </Form.Group>
+
         <Form.Group>
           <Form.Label>Notes</Form.Label>
           <Form.Control
@@ -744,7 +799,7 @@ function AddMealModal({
           disabled={
             !selectedRecipe ||
             createMeal.isPending ||
-            !resolveMealTypeId(selectedRecipe)
+            !selectedMealTypeId
           }
           onClick={handleSubmit}
         >
