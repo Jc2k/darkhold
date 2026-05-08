@@ -107,12 +107,14 @@ const navButtonStyle: React.CSSProperties = {
   padding: "0 0.5rem",
 };
 
+const compactTitleButtonSize = 24;
+const compactTitleButtonFontSize = "0.875rem";
 const circleButtonStyle = smallCircleButtonStyle;
 const compactTitleButtonStyle: React.CSSProperties = {
   ...smallCircleButtonStyle,
-  width: 24,
-  height: 24,
-  fontSize: "0.875rem",
+  width: compactTitleButtonSize,
+  height: compactTitleButtonSize,
+  fontSize: compactTitleButtonFontSize,
 };
 const PLACEHOLDER_BG = "#d0d0d0";
 const PLACEHOLDER_ICON_COLOR = "#a0a0a0";

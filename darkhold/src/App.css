@@ -225,6 +225,7 @@
 }
 
 @media (min-width: 1112px) and (max-width: 1399.98px) {
+  /* Keep the compact iPad Air/tablet card treatment active through the xl range. */
   .meal-plan-page .meal-plan-entry-thumb-slot {
     width: 50px;
     height: 108px;
