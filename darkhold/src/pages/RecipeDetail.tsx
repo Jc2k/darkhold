@@ -337,6 +337,10 @@ function minutesToDuration(minutes?: number | null): string | undefined {
   return `PT${Math.round(minutes)}M`;
 }
 
+function getRecipeTotalMinutes(recipe: Recipe): number {
+  return (recipe.cooking_time ?? 0) + (recipe.waiting_time ?? 0);
+}
+
 const circleButtonStyle = {
   width: 32,
   height: 32,
@@ -418,9 +422,7 @@ export function RecipeDetailContent({
       : undefined;
   const cookTimeDuration = minutesToDuration(recipe.cooking_time);
   const prepTimeDuration = minutesToDuration(recipe.waiting_time);
-  const totalTimeDuration = minutesToDuration(
-    (recipe.cooking_time ?? 0) + (recipe.waiting_time ?? 0),
-  );
+  const totalTimeDuration = minutesToDuration(getRecipeTotalMinutes(recipe));
 
   return (
     <article itemScope itemType="https://schema.org/Recipe">
@@ -841,10 +843,10 @@ function useRecipeJsonLd(recipe: Recipe | undefined) {
           .filter((keyword): keyword is Keyword => typeof keyword === "object")
           .map((keyword) => keyword.name)
       : [];
-    const servings = recipe.servings && recipe.servings > 0 ? recipe.servings : 1;
+    const servings = Math.max(recipe.servings ?? 1, 1);
     const caloriesProperty = recipe.food_properties
       ? Object.values(recipe.food_properties).find((property) =>
-          /calorie|kcal/i.test(property.name)
+          /(^|\b)(calories?|kcal)(\b|$)/i.test(property.name)
         )
       : undefined;
     const calories = caloriesProperty
@@ -856,9 +858,7 @@ function useRecipeJsonLd(recipe: Recipe | undefined) {
       : undefined;
     const prepTime = minutesToDuration(recipe.waiting_time);
     const cookTime = minutesToDuration(recipe.cooking_time);
-    const totalTime = minutesToDuration(
-      (recipe.waiting_time ?? 0) + (recipe.cooking_time ?? 0),
-    );
+    const totalTime = minutesToDuration(getRecipeTotalMinutes(recipe));
     const script = document.createElement("script");
     script.type = "application/ld+json";
     script.id = "recipe-jsonld";
