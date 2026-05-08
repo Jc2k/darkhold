@@ -192,6 +192,24 @@
   font-size: 0.7rem;
 }
 
+@media (max-width: 767.98px) {
+  .meal-plan-page .meal-plan-entry-title {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .meal-plan-page .meal-plan-entry-title-label {
+    flex-basis: 100%;
+    width: 100%;
+  }
+
+  .meal-plan-page .meal-plan-entry-title .meal-plan-entry-actions {
+    width: 100%;
+    justify-content: flex-end;
+    margin-left: 0;
+  }
+}
+
 
 @media (min-width: 1112px) {
   .meal-plan-page .meal-plan-table-header-row {
