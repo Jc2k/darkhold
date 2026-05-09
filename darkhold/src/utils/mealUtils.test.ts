@@ -56,6 +56,11 @@ describe('deriveMealType', () => {
     expect(deriveMealType(recipe, mealTypes, { 11: 'Lunch' })).toBe(2);
   });
 
+  it('ignores id-only keywords missing from the lookup map', () => {
+    const recipe = { id: 1, name: 'Pasta', keywords: [999] };
+    expect(deriveMealType(recipe, mealTypes, {})).toBe(3);
+  });
+
   it('handles recipes with no keywords', () => {
     const recipe = { id: 1, name: 'Pasta', keywords: [] };
     expect(deriveMealType(recipe, mealTypes)).toBe(3);

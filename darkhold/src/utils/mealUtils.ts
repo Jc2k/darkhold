@@ -23,6 +23,7 @@ export function deriveMealType(
   const keywords = Array.isArray(recipe.keywords)
     ? recipe.keywords.flatMap((k) => {
       if (isValidKeyword(k)) return [k.name.toLowerCase()];
+      if (typeof k !== 'number') return [];
       const keywordName = keywordNameById[k];
       return typeof keywordName === 'string' ? [keywordName.toLowerCase()] : [];
     })
