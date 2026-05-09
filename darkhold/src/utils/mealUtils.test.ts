@@ -46,6 +46,16 @@ describe('deriveMealType', () => {
     expect(deriveMealType(recipe, mealTypes)).toBe(3);
   });
 
+  it('maps id-only breakfast keywords when provided a keyword lookup', () => {
+    const recipe = { id: 1, name: 'Eggs', keywords: [10] };
+    expect(deriveMealType(recipe, mealTypes, { 10: 'Breakfast' })).toBe(1);
+  });
+
+  it('maps id-only lunch keywords when provided a keyword lookup', () => {
+    const recipe = { id: 1, name: 'Sandwich', keywords: [11] };
+    expect(deriveMealType(recipe, mealTypes, { 11: 'Lunch' })).toBe(2);
+  });
+
   it('handles recipes with no keywords', () => {
     const recipe = { id: 1, name: 'Pasta', keywords: [] };
     expect(deriveMealType(recipe, mealTypes)).toBe(3);

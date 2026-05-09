@@ -15,9 +15,17 @@ function isValidKeyword(k: Keyword | number): k is Keyword {
  * as a form field or dropdown for the user to pick. Showing it adds friction
  * and is FORBIDDEN in all pop-up modals.
  */
-export function deriveMealType(recipe: Pick<Recipe, 'keywords'>, mealTypes: MealType[]): number | undefined {
+export function deriveMealType(
+  recipe: Pick<Recipe, 'keywords'>,
+  mealTypes: MealType[],
+  keywordNameById: Record<number, string> = {},
+): number | undefined {
   const keywords = Array.isArray(recipe.keywords)
-    ? recipe.keywords.filter(isValidKeyword).map((k) => k.name.toLowerCase())
+    ? recipe.keywords.flatMap((k) => {
+      if (isValidKeyword(k)) return [k.name.toLowerCase()];
+      const keywordName = keywordNameById[k];
+      return typeof keywordName === 'string' ? [keywordName.toLowerCase()] : [];
+    })
     : [];
 
   const find = (name: string) => mealTypes.find((mt) => mt.name.toLowerCase().includes(name));

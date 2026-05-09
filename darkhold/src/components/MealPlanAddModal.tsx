@@ -10,10 +10,11 @@ import { formatDate, formatMonthYear, getWeekStartingSaturday } from '../utils/d
 
 interface Props {
   recipe: Recipe | null;
+  keywordNameById?: Record<number, string>;
   onHide: () => void;
 }
 
-export function MealPlanAddModal({ recipe, onHide }: Props) {
+export function MealPlanAddModal({ recipe, keywordNameById, onHide }: Props) {
   const [weekOffset, setWeekOffset] = useState(0);
   const days = getWeekStartingSaturday(weekOffset);
   const [selectedDate, setSelectedDate] = useState<Date>(() => getWeekStartingSaturday(0)[0]);
@@ -37,7 +38,7 @@ export function MealPlanAddModal({ recipe, onHide }: Props) {
 
   if (!recipe) return null;
 
-  const effectiveMealTypeId = deriveMealType(recipe, mealTypes);
+  const effectiveMealTypeId = deriveMealType(recipe, mealTypes, keywordNameById);
 
   const handleSubmit = async () => {
     if (!hasPersonalToken) return;

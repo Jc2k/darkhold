@@ -194,6 +194,7 @@ export function AllRecipes() {
 
       <MealPlanAddModal
         recipe={modalRecipe}
+        keywordNameById={data?.kwMap}
         onHide={() => setModalRecipe(null)}
       />
     </div>
