@@ -42,6 +42,7 @@ import { useRecipeWeightG } from '../hooks/useRecipeWeightG';
 import { useAppConfig } from '../hooks/useAppConfig';
 import { broadcastInvalidation } from '../hooks/useInvalidationSocket';
 import { useCookLog, isCookedOnDate } from '../hooks/useCookLog';
+import { useKeepScreenAwake } from '../hooks/useKeepScreenAwake';
 
 const MAX_RECENTLY_VIEWED_ITEMS = 10;
 const CALORIE_PROPERTY_NAME_PATTERN = /(^|\b)(calories?|kcal)(\b|$)/i;
@@ -130,6 +131,7 @@ function CookingMode({
   const [index, setIndex] = useState(0);
   const sorted = [...steps].sort((a, b) => a.order - b.order);
   const current = sorted[index];
+  useKeepScreenAwake(true);
 
   return (
     <Modal show fullscreen onHide={onClose}>
