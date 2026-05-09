@@ -53,6 +53,10 @@ function groupByCategory(entries: ShoppingEntry[]): Record<string, ShoppingEntry
   return groups;
 }
 
+function getRecipeName(entry: ShoppingEntry): string | null {
+  return entry.list_recipe_data?.recipe_data.name ?? entry.recipe_mealplan?.recipe_name ?? null;
+}
+
 function aggregateByIngredient(entries: ShoppingEntry[]): AggregatedIngredient[] {
   const map = new Map<string, AggregatedIngredient>();
   for (const entry of entries) {
@@ -63,8 +67,7 @@ function aggregateByIngredient(entries: ShoppingEntry[]): AggregatedIngredient[]
     const agg = map.get(key)!;
     agg.entries.push(entry);
     if (!entry.checked) agg.allChecked = false;
-    const recipeName =
-      entry.list_recipe_data?.recipe_data.name ?? entry.recipe_mealplan?.recipe_name;
+    const recipeName = getRecipeName(entry);
     if (recipeName && !agg.recipes.includes(recipeName)) {
       agg.recipes.push(recipeName);
     }
@@ -75,8 +78,7 @@ function aggregateByIngredient(entries: ShoppingEntry[]): AggregatedIngredient[]
 function groupByRecipe(entries: ShoppingEntry[]): Record<string, ShoppingEntry[]> {
   const groups: Record<string, ShoppingEntry[]> = {};
   for (const entry of entries) {
-    const key =
-      entry.list_recipe_data?.recipe_data.name ?? entry.recipe_mealplan?.recipe_name ?? 'No recipe';
+    const key = getRecipeName(entry) ?? 'No recipe';
     if (!groups[key]) groups[key] = [];
     groups[key].push(entry);
   }
