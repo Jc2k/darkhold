@@ -35,9 +35,7 @@ export function BookCard({ book, coverImage }: Props) {
       <Card.Body>
         <Card.Title className="fs-6">{book.name}</Card.Title>
         {book.description && (
-          <Card.Text className="text-muted small text-clamp-3">
-            {book.description}
-          </Card.Text>
+          <Card.Text className="text-muted small text-clamp-3">{book.description}</Card.Text>
         )}
       </Card.Body>
     </Card>

@@ -117,7 +117,9 @@ function CategoryConverter({ category }: { category: ConversionCategory }) {
               <div key={u.label} className="col-6 col-md-4">
                 <div className="p-2 rounded bg-dark border border-secondary h-100">
                   <div className="small text-muted mb-1">{u.label}</div>
-                  <div className="fw-semibold fs-5">{result || <span className="text-secondary">—</span>}</div>
+                  <div className="fw-semibold fs-5">
+                    {result || <span className="text-secondary">—</span>}
+                  </div>
                 </div>
               </div>
             );

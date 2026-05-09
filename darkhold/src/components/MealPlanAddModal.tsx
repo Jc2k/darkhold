@@ -57,7 +57,15 @@ export function MealPlanAddModal({ recipe, keywordNameById, onHide }: Props) {
   return (
     <Modal show={!!recipe} onHide={onHide} centered>
       <Modal.Header closeButton>
-        <Modal.Title className="fs-6" style={{ overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+        <Modal.Title
+          className="fs-6"
+          style={{
+            overflow: 'hidden',
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+          }}
+        >
           Add "{recipe.name}" to Meal Plan
         </Modal.Title>
       </Modal.Header>
@@ -73,12 +81,16 @@ export function MealPlanAddModal({ recipe, keywordNameById, onHide }: Props) {
               variant="outline-secondary"
               onClick={() => setWeekOffset((w) => w - 1)}
               aria-label="Previous week"
-            >‹</Button>
+            >
+              ‹
+            </Button>
             {days.map((d) => (
               <Button
                 key={d.toISOString()}
                 size="sm"
-                variant={formatDate(d) === formatDate(selectedDate) ? 'primary' : 'outline-secondary'}
+                variant={
+                  formatDate(d) === formatDate(selectedDate) ? 'primary' : 'outline-secondary'
+                }
                 onClick={() => setSelectedDate(d)}
                 className="d-flex flex-column align-items-center px-2 py-1 flex-fill"
                 style={{ minWidth: 0 }}
@@ -96,7 +108,9 @@ export function MealPlanAddModal({ recipe, keywordNameById, onHide }: Props) {
               variant="outline-secondary"
               onClick={() => setWeekOffset((w) => w + 1)}
               aria-label="Next week"
-            >›</Button>
+            >
+              ›
+            </Button>
           </div>
         </Form.Group>
 
@@ -108,7 +122,9 @@ export function MealPlanAddModal({ recipe, keywordNameById, onHide }: Props) {
               onClick={() => setServings((s) => Math.max(1, s - 1))}
               aria-label="Decrease servings"
               style={{ width: '2.5rem' }}
-            >-</Button>
+            >
+              -
+            </Button>
             <Form.Control
               type="text"
               inputMode="numeric"
@@ -125,7 +141,9 @@ export function MealPlanAddModal({ recipe, keywordNameById, onHide }: Props) {
               onClick={() => setServings((s) => s + 1)}
               aria-label="Increase servings"
               style={{ width: '2.5rem' }}
-            >+</Button>
+            >
+              +
+            </Button>
           </InputGroup>
         </Form.Group>
 
@@ -141,11 +159,15 @@ export function MealPlanAddModal({ recipe, keywordNameById, onHide }: Props) {
         </Form.Group>
       </Modal.Body>
       <Modal.Footer>
-        <Button variant="secondary" onClick={onHide}>Cancel</Button>
+        <Button variant="secondary" onClick={onHide}>
+          Cancel
+        </Button>
         {!hasPersonalToken ? (
           <Alert variant="warning" className="mb-0 py-2 px-3 d-flex align-items-center gap-2">
             <span>A personal API token is required.</span>
-            <Alert.Link as={Link} to="/settings" onClick={onHide}>Go to Settings →</Alert.Link>
+            <Alert.Link as={Link} to="/settings" onClick={onHide}>
+              Go to Settings →
+            </Alert.Link>
           </Alert>
         ) : (
           <Button variant="success" onClick={handleSubmit} disabled={createMealPlan.isPending}>

@@ -48,7 +48,11 @@ export function BookDetail() {
   const { id } = useParams<{ id: string }>();
   const [modalRecipe, setModalRecipe] = useState<Recipe | null>(null);
 
-  const { data: book, isLoading: bookLoading, isError: bookError } = useQuery({
+  const {
+    data: book,
+    isLoading: bookLoading,
+    isError: bookError,
+  } = useQuery({
     queryKey: ['book', id],
     queryFn: () => apiGet<RecipeBook>(`/recipe-book/${id}/`),
     enabled: !!id,
@@ -56,13 +60,21 @@ export function BookDetail() {
 
   const filterId = useMemo(() => getFilterId(book?.filter), [book]);
 
-  const { data: entries, isLoading: entriesLoading, isError: entriesError } = useQuery({
+  const {
+    data: entries,
+    isLoading: entriesLoading,
+    isError: entriesError,
+  } = useQuery({
     queryKey: ['book-entries', id],
     queryFn: () => fetchBookEntries(id!),
     enabled: !!id && !!book && filterId === null,
   });
 
-  const { data: filterRecipes, isLoading: filterRecipesLoading, isError: filterRecipesError } = useQuery({
+  const {
+    data: filterRecipes,
+    isLoading: filterRecipesLoading,
+    isError: filterRecipesError,
+  } = useQuery({
     queryKey: ['book-filter-recipes', id, filterId],
     queryFn: () => fetchRecipesByKeyword(filterId!),
     enabled: !!id && !!book && filterId !== null,
@@ -81,9 +93,12 @@ export function BookDetail() {
     return <Alert variant="danger">Failed to load book. Check your API token in Settings.</Alert>;
   }
 
-  const recipes = filterId !== null
-    ? (filterRecipes ?? [])
-    : (entries?.map((entry) => entry.recipe).filter((r): r is Recipe => typeof r === 'object' && r !== null) ?? []);
+  const recipes =
+    filterId !== null
+      ? (filterRecipes ?? [])
+      : (entries
+          ?.map((entry) => entry.recipe)
+          .filter((r): r is Recipe => typeof r === 'object' && r !== null) ?? []);
 
   return (
     <div>

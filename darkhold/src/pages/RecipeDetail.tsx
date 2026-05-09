@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
-import ReactMarkdown from "react-markdown";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Row, Col, Badge, Alert, Button, Modal } from "react-bootstrap";
+import { useState, useEffect } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import ReactMarkdown from 'react-markdown';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Row, Col, Badge, Alert, Button, Modal } from 'react-bootstrap';
 import {
   Plus,
   Play,
@@ -16,9 +16,9 @@ import {
   BoxArrowUpRight,
   Share,
   Check2Circle,
-} from "react-bootstrap-icons";
-import { OverlayTrigger, Popover } from "react-bootstrap";
-import { apiGet, apiPost } from "../api/client";
+} from 'react-bootstrap-icons';
+import { OverlayTrigger, Popover } from 'react-bootstrap';
+import { apiGet, apiPost } from '../api/client';
 import type {
   Recipe,
   RecipeIngredient,
@@ -30,27 +30,25 @@ import type {
   MealPlan,
   MealType,
   PaginatedResponse,
-} from "../api/tandoor-types";
-import { TagBadge } from "../components/TagBadge";
-import { MealPlanAddModal } from "../components/MealPlanAddModal";
-import { CookLogModal } from "../components/CookLogModal";
-import { LoadingMascot } from "../components/LoadingMascot";
-import { UpSoonButton } from "../components/UpSoonButton";
-import { proxyMediaUrl } from "../utils/mediaUrl";
-import { formatFraction } from "../utils/fractions";
-import { useRecipeWeightG } from "../hooks/useRecipeWeightG";
-import { useAppConfig } from "../hooks/useAppConfig";
-import { broadcastInvalidation } from "../hooks/useInvalidationSocket";
-import { useCookLog, isCookedOnDate } from "../hooks/useCookLog";
+} from '../api/tandoor-types';
+import { TagBadge } from '../components/TagBadge';
+import { MealPlanAddModal } from '../components/MealPlanAddModal';
+import { CookLogModal } from '../components/CookLogModal';
+import { LoadingMascot } from '../components/LoadingMascot';
+import { UpSoonButton } from '../components/UpSoonButton';
+import { proxyMediaUrl } from '../utils/mediaUrl';
+import { formatFraction } from '../utils/fractions';
+import { useRecipeWeightG } from '../hooks/useRecipeWeightG';
+import { useAppConfig } from '../hooks/useAppConfig';
+import { broadcastInvalidation } from '../hooks/useInvalidationSocket';
+import { useCookLog, isCookedOnDate } from '../hooks/useCookLog';
 
 const MAX_RECENTLY_VIEWED_ITEMS = 10;
 const CALORIE_PROPERTY_NAME_PATTERN = /(^|\b)(calories?|kcal)(\b|$)/i;
 
 type IngredientSection = { header: string | null; items: RecipeIngredient[] };
 
-function splitIngredientSections(
-  ingredients: RecipeIngredient[],
-): IngredientSection[] {
+function splitIngredientSections(ingredients: RecipeIngredient[]): IngredientSection[] {
   const sections: IngredientSection[] = [];
   let current: IngredientSection = { header: null, items: [] };
   for (const ing of ingredients) {
@@ -82,21 +80,14 @@ function IngredientList({
   return (
     <>
       {sections.map((section, i) => (
-        <div key={`${section.header ?? ""}-${i}`}>
-          {section.header && (
-            <strong className="d-block mt-2 mb-1">{section.header}</strong>
-          )}
+        <div key={`${section.header ?? ''}-${i}`}>
+          {section.header && <strong className="d-block mt-2 mb-1">{section.header}</strong>}
           <ul className="list-unstyled mb-0">
             {section.items.map((ing: RecipeIngredient) => {
-              const food =
-                ing.food && typeof ing.food === "object"
-                  ? (ing.food as Food)
-                  : null;
+              const food = ing.food && typeof ing.food === 'object' ? (ing.food as Food) : null;
               const unit = ing.unit as RecipeUnit | null;
               const displayAmount =
-                ing.amount != null && scaleFactor != null
-                  ? ing.amount * scaleFactor
-                  : ing.amount;
+                ing.amount != null && scaleFactor != null ? ing.amount * scaleFactor : ing.amount;
               return (
                 <li
                   key={ing.id}
@@ -104,13 +95,9 @@ function IngredientList({
                   itemProp={itemProp && !ing.is_header ? itemProp : undefined}
                 >
                   {!ing.no_amount && displayAmount != null && (
-                    <span className="text-muted">
-                      {formatFraction(displayAmount)}{" "}
-                    </span>
+                    <span className="text-muted">{formatFraction(displayAmount)} </span>
                   )}
-                  {unit?.name && (
-                    <span className="text-muted">{unit.name} </span>
-                  )}
+                  {unit?.name && <span className="text-muted">{unit.name} </span>}
                   {food ? (
                     linkFoods ? (
                       <Link to={`/ingredient/${food.id}`}>{food.name}</Link>
@@ -118,13 +105,9 @@ function IngredientList({
                       <span>{food.name}</span>
                     )
                   ) : ing.food ? (
-                    <span>
-                      Ingredient #{typeof ing.food === "number" ? ing.food : ""}
-                    </span>
+                    <span>Ingredient #{typeof ing.food === 'number' ? ing.food : ''}</span>
                   ) : null}
-                  {ing.note && (
-                    <span className="text-muted"> ({ing.note})</span>
-                  )}
+                  {ing.note && <span className="text-muted"> ({ing.note})</span>}
                 </li>
               );
             })}
@@ -160,22 +143,15 @@ function CookingMode({
           {current?.name && <h5 className="mb-3">{current.name}</h5>}
           {current?.ingredients && current.ingredients.length > 0 && (
             <div className="mb-3">
-              <IngredientList
-                ingredients={current.ingredients}
-                scaleFactor={scaleFactor}
-              />
+              <IngredientList ingredients={current.ingredients} scaleFactor={scaleFactor} />
             </div>
           )}
-          <ReactMarkdown>{current?.instruction ?? ""}</ReactMarkdown>
+          <ReactMarkdown>{current?.instruction ?? ''}</ReactMarkdown>
           {!!current?.time && <Badge bg="info">{current.time} min</Badge>}
         </div>
       </Modal.Body>
       <Modal.Footer className="justify-content-between">
-        <Button
-          variant="secondary"
-          disabled={index === 0}
-          onClick={() => setIndex((i) => i - 1)}
-        >
+        <Button variant="secondary" disabled={index === 0} onClick={() => setIndex((i) => i - 1)}>
           ← Previous
         </Button>
         <span className="text-muted small">
@@ -196,7 +172,7 @@ function CookingMode({
 }
 
 function formatNutrientValue(value: number, unit?: string | null): string {
-  return `${Math.round(value)}${unit ? `\u00a0${unit}` : ""}`;
+  return `${Math.round(value)}${unit ? `\u00a0${unit}` : ''}`;
 }
 
 function NutritionOverlay({
@@ -220,11 +196,9 @@ function NutritionOverlay({
 
   // Try to find a property representing serving weight in grams (e.g. "Weight" with unit "g").
   const weightProp = nutrients.find(
-    (n) => n.unit?.trim().toLowerCase() === "g" && /weight/i.test(n.name),
+    (n) => n.unit?.trim().toLowerCase() === 'g' && /weight/i.test(n.name),
   );
-  const explicitServingWeightG = weightProp
-    ? weightProp.total_value / per
-    : null;
+  const explicitServingWeightG = weightProp ? weightProp.total_value / per : null;
 
   // Progressive weight estimate from ingredient units (background queries refine this).
   const {
@@ -232,8 +206,7 @@ function NutritionOverlay({
     isApproximate,
     isLoading: weightLoading,
   } = useRecipeWeightG(ingredients);
-  const estimatedServingWeightG =
-    estimatedTotalG != null ? estimatedTotalG / per : null;
+  const estimatedServingWeightG = estimatedTotalG != null ? estimatedTotalG / per : null;
 
   // Prefer the explicit property weight; fall back to the progressive estimate.
   const servingWeightG = explicitServingWeightG ?? estimatedServingWeightG;
@@ -244,71 +217,56 @@ function NutritionOverlay({
   return (
     <div
       className="position-absolute top-0 start-0 w-100 h-100 overflow-auto"
-      style={{ background: "rgba(0,0,0,0.82)", zIndex: 5 }}
+      style={{ background: 'rgba(0,0,0,0.82)', zIndex: 5 }}
       role="region"
       aria-label="Nutrition information"
       onKeyDown={(e) => {
-        if (e.key === "Escape") onClose();
+        if (e.key === 'Escape') onClose();
       }}
       // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
       tabIndex={0}
     >
       <div
         className="ps-3 py-2 text-white"
-        style={{ fontSize: "0.875rem", paddingRight: "3.5rem" }}
+        style={{ fontSize: '0.875rem', paddingRight: '3.5rem' }}
       >
-        <p className="mb-1 fw-bold text-center" style={{ fontSize: "0.95rem" }}>
+        <p className="mb-1 fw-bold text-center" style={{ fontSize: '0.95rem' }}>
           Nutrition Information
         </p>
         {servings != null && servings > 1 && (
-          <p
-            className="mb-1 text-center text-white-50"
-            style={{ fontSize: "0.8rem" }}
-          >
+          <p className="mb-1 text-center text-white-50" style={{ fontSize: '0.8rem' }}>
             Serving size: 1 of {servings}
           </p>
         )}
-        <table className="w-100 mb-1" style={{ borderCollapse: "collapse" }}>
+        <table className="w-100 mb-1" style={{ borderCollapse: 'collapse' }}>
           <thead>
-            <tr style={{ borderBottom: "2px solid rgba(255,255,255,0.5)" }}>
+            <tr style={{ borderBottom: '2px solid rgba(255,255,255,0.5)' }}>
               <th className="text-start pb-1">Nutrient</th>
               <th className="text-end pb-1">Per serving</th>
               <th className="text-end pb-1">
                 Per 100g
-                {weightIsApproximate ? (
-                  <span aria-label="approximate"> ~</span>
-                ) : (
-                  ""
-                )}
+                {weightIsApproximate ? <span aria-label="approximate"> ~</span> : ''}
               </th>
             </tr>
           </thead>
           <tbody>
             {nutrients.map((n) => {
               const perServing = n.total_value / per;
-              const per100g =
-                servingWeightG != null
-                  ? (perServing / servingWeightG) * 100
-                  : null;
+              const per100g = servingWeightG != null ? (perServing / servingWeightG) * 100 : null;
               return (
-                <tr
-                  key={n.id}
-                  style={{ borderBottom: "1px solid rgba(255,255,255,0.15)" }}
-                >
+                <tr key={n.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.15)' }}>
                   <td className="py-1">
                     {n.name}
-                    {n.unit ? ` (${n.unit})` : ""}
-                    {n.missing_value ? "\u00a0*" : ""}
+                    {n.unit ? ` (${n.unit})` : ''}
+                    {n.missing_value ? '\u00a0*' : ''}
                   </td>
-                  <td className="text-end py-1">
-                    {formatNutrientValue(perServing, n.unit)}
-                  </td>
+                  <td className="text-end py-1">{formatNutrientValue(perServing, n.unit)}</td>
                   <td className="text-end py-1">
                     {per100g != null
                       ? formatNutrientValue(per100g, n.unit)
                       : weightLoading
-                        ? "…"
-                        : "–"}
+                        ? '…'
+                        : '–'}
                   </td>
                 </tr>
               );
@@ -316,17 +274,17 @@ function NutritionOverlay({
           </tbody>
         </table>
         {hasAnyMissing && (
-          <p className="mb-0 text-warning" style={{ fontSize: "0.8rem" }}>
+          <p className="mb-0 text-warning" style={{ fontSize: '0.8rem' }}>
             * Nutritional data missing for one or more ingredients
           </p>
         )}
         {weightIsApproximate && (
-          <p className="mb-0 text-white-50" style={{ fontSize: "0.8rem" }}>
+          <p className="mb-0 text-white-50" style={{ fontSize: '0.8rem' }}>
             ~ Per 100g values are estimated from ingredient units
           </p>
         )}
         {servingWeightG == null && !weightLoading && (
-          <p className="mb-0 text-white-50" style={{ fontSize: "0.8rem" }}>
+          <p className="mb-0 text-white-50" style={{ fontSize: '0.8rem' }}>
             Per 100g values unavailable (no serving weight defined)
           </p>
         )}
@@ -343,9 +301,7 @@ function minutesToDuration(minutes?: number | null): string | undefined {
 }
 
 function getIngredientFoodName(ingredient: RecipeIngredient): string {
-  return ingredient.food && typeof ingredient.food === "object"
-    ? ingredient.food.name
-    : "";
+  return ingredient.food && typeof ingredient.food === 'object' ? ingredient.food.name : '';
 }
 
 function getRecipeTotalMinutes(recipe: Recipe): number {
@@ -356,11 +312,11 @@ const circleButtonStyle = {
   width: 32,
   height: 32,
   padding: 0,
-  borderRadius: "50%",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  fontSize: "1.1rem",
+  borderRadius: '50%',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: '1.1rem',
 };
 
 interface RecipeDetailContentProps {
@@ -399,10 +355,7 @@ export function RecipeDetailContent({
   const today = new Date().toISOString().split('T')[0];
   const isEligibleForCookLog = entryDate !== null && entryDate <= today;
 
-  const { data: cookLogData } = useCookLog(
-    entryDate ?? today,
-    entryDate ?? today,
-  );
+  const { data: cookLogData } = useCookLog(entryDate ?? today, entryDate ?? today);
   const isCooked = isEligibleForCookLog
     ? isCookedOnDate(cookLogData, recipe.id, entryDate!)
     : false;
@@ -415,22 +368,16 @@ export function RecipeDetailContent({
   const hasPersonalToken = Boolean(localStorage.getItem('tandoor_token'));
 
   const keywords = Array.isArray(recipe.keywords)
-    ? recipe.keywords.filter((k): k is Keyword => typeof k === "object")
+    ? recipe.keywords.filter((k): k is Keyword => typeof k === 'object')
     : [];
 
-  const steps = recipe.steps
-    ? [...recipe.steps].sort((a, b) => a.order - b.order)
-    : [];
+  const steps = recipe.steps ? [...recipe.steps].sort((a, b) => a.order - b.order) : [];
 
   // Collect all ingredients from all steps
-  const allIngredients: RecipeIngredient[] = steps.flatMap(
-    (s) => s.ingredients ?? [],
-  );
+  const allIngredients: RecipeIngredient[] = steps.flatMap((s) => s.ingredients ?? []);
 
   const scaleFactor =
-    recipe.servings != null && recipe.servings > 0
-      ? userServings / recipe.servings
-      : undefined;
+    recipe.servings != null && recipe.servings > 0 ? userServings / recipe.servings : undefined;
   const cookTimeDuration = minutesToDuration(recipe.cooking_time);
   const prepTimeDuration = minutesToDuration(recipe.waiting_time);
   const totalTimeDuration = minutesToDuration(getRecipeTotalMinutes(recipe));
@@ -444,7 +391,7 @@ export function RecipeDetailContent({
             alt={recipe.name}
             itemProp="image"
             className="w-100 rounded"
-            style={{ maxHeight: 320, objectFit: "cover", display: "block" }}
+            style={{ maxHeight: 320, objectFit: 'cover', display: 'block' }}
           />
         )}
         {showNutrition && recipe.food_properties && (
@@ -458,7 +405,7 @@ export function RecipeDetailContent({
         <div
           className="position-absolute top-0 end-0 d-flex flex-column gap-2 p-2"
           style={{
-            background: "rgba(0,0,0,0.25)",
+            background: 'rgba(0,0,0,0.25)',
             borderBottomLeftRadius: 8,
             zIndex: 10,
           }}
@@ -480,8 +427,7 @@ export function RecipeDetailContent({
               overlay={
                 <Popover>
                   <Popover.Body className="p-2">
-                    A personal API token is required.{' '}
-                    <Link to="/settings">Go to Settings →</Link>
+                    A personal API token is required. <Link to="/settings">Go to Settings →</Link>
                   </Popover.Body>
                 </Popover>
               }
@@ -519,23 +465,20 @@ export function RecipeDetailContent({
               <Play />
             </Button>
           )}
-          {recipe.food_properties &&
-            Object.keys(recipe.food_properties).length > 0 && (
-              <Button
-                variant={showNutrition ? "info" : "light"}
-                size="sm"
-                style={circleButtonStyle}
-                onClick={() => setShowNutrition((v) => !v)}
-                aria-label={
-                  showNutrition
-                    ? "Hide nutrition information"
-                    : "Show nutrition information"
-                }
-                aria-pressed={showNutrition}
-              >
-                <Info />
-              </Button>
-            )}
+          {recipe.food_properties && Object.keys(recipe.food_properties).length > 0 && (
+            <Button
+              variant={showNutrition ? 'info' : 'light'}
+              size="sm"
+              style={circleButtonStyle}
+              onClick={() => setShowNutrition((v) => !v)}
+              aria-label={
+                showNutrition ? 'Hide nutrition information' : 'Show nutrition information'
+              }
+              aria-pressed={showNutrition}
+            >
+              <Info />
+            </Button>
+          )}
           {externalUrl && (
             <Button
               as="a"
@@ -550,7 +493,7 @@ export function RecipeDetailContent({
               <Pencil />
             </Button>
           )}
-          {typeof navigator.share === "function" && (
+          {typeof navigator.share === 'function' && (
             <Button
               variant="light"
               size="sm"
@@ -581,23 +524,17 @@ export function RecipeDetailContent({
           <div className="d-flex flex-wrap gap-3 mb-1 small text-muted">
             {recipe.cooking_time != null && (
               <span className="d-inline-flex align-items-center gap-1">
-                {cookTimeDuration && (
-                  <meta itemProp="cookTime" content={cookTimeDuration} />
-                )}
+                {cookTimeDuration && <meta itemProp="cookTime" content={cookTimeDuration} />}
                 <Clock /> Cook: {recipe.cooking_time} min
               </span>
             )}
             {recipe.waiting_time != null && (
               <span className="d-inline-flex align-items-center gap-1">
-                {prepTimeDuration && (
-                  <meta itemProp="prepTime" content={prepTimeDuration} />
-                )}
+                {prepTimeDuration && <meta itemProp="prepTime" content={prepTimeDuration} />}
                 <HourglassSplit /> Wait: {recipe.waiting_time} min
               </span>
             )}
-            {totalTimeDuration && (
-              <meta itemProp="totalTime" content={totalTimeDuration} />
-            )}
+            {totalTimeDuration && <meta itemProp="totalTime" content={totalTimeDuration} />}
             {recipe.servings != null && (
               <span className="d-inline-flex align-items-center gap-1">
                 <meta itemProp="recipeYield" content={`${recipe.servings} servings`} />
@@ -606,9 +543,7 @@ export function RecipeDetailContent({
                   variant="link"
                   className="p-0 text-muted"
                   style={{ lineHeight: 1 }}
-                  onClick={() =>
-                    setUserServings((s) => Math.max(MIN_SERVINGS, s - 1))
-                  }
+                  onClick={() => setUserServings((s) => Math.max(MIN_SERVINGS, s - 1))}
                   aria-label="Decrease servings"
                   disabled={userServings <= MIN_SERVINGS}
                 >
@@ -626,20 +561,20 @@ export function RecipeDetailContent({
                 </Button>
                 {servingsOverride != null ? (
                   servingsOverride === userServings ? (
-                    <Badge bg="info" style={{ fontSize: "0.7em" }}>
+                    <Badge bg="info" style={{ fontSize: '0.7em' }}>
                       meal plan
                     </Badge>
                   ) : (
-                    <span className="text-muted" style={{ fontSize: "0.8em" }}>
+                    <span className="text-muted" style={{ fontSize: '0.8em' }}>
                       (meal plan: {servingsOverride})
                     </span>
                   )
                 ) : recipe.servings === userServings ? (
-                  <Badge bg="secondary" style={{ fontSize: "0.7em" }}>
+                  <Badge bg="secondary" style={{ fontSize: '0.7em' }}>
                     default
                   </Badge>
                 ) : (
-                  <span className="text-muted" style={{ fontSize: "0.8em" }}>
+                  <span className="text-muted" style={{ fontSize: '0.8em' }}>
                     (default: {recipe.servings})
                   </span>
                 )}
@@ -659,8 +594,8 @@ export function RecipeDetailContent({
           </div>
           {recipe.rating != null && (
             <div className="text-warning mb-1 fs-5">
-              {"★".repeat(Math.round(recipe.rating))}
-              {"☆".repeat(5 - Math.round(recipe.rating))}
+              {'★'.repeat(Math.round(recipe.rating))}
+              {'☆'.repeat(5 - Math.round(recipe.rating))}
             </div>
           )}
           <div className="mb-2">
@@ -712,9 +647,7 @@ export function RecipeDetailContent({
           <ol className="ps-3">
             {steps.map((step) => (
               <li key={step.id} className="mb-3">
-                {step.name && (
-                  <strong className="d-block mb-1">{step.name}</strong>
-                )}
+                {step.name && <strong className="d-block mb-1">{step.name}</strong>}
                 <div className="mb-1" itemProp="recipeInstructions">
                   <ReactMarkdown>{step.instruction}</ReactMarkdown>
                 </div>
@@ -737,10 +670,7 @@ export function RecipeDetailContent({
         />
       )}
 
-      <MealPlanAddModal
-        recipe={planRecipe}
-        onHide={() => setPlanRecipe(null)}
-      />
+      <MealPlanAddModal recipe={planRecipe} onHide={() => setPlanRecipe(null)} />
       {isEligibleForCookLog && entryDate && (
         <CookLogModal
           show={showCookLog}
@@ -763,7 +693,7 @@ export function RecipeDetail() {
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ["recipe", id],
+    queryKey: ['recipe', id],
     queryFn: () => apiGet<Recipe>(`/recipe/${id}/`),
     enabled: !!id,
   });
@@ -794,14 +724,16 @@ export function RecipeDetail() {
     }
 
     // Fire-and-forget — never block the viewing experience.
-    apiPost('/view-log/', { recipe: Number(id) }).then(() => {
-      // Invalidate so the shelf re-syncs with the server in the background.
-      queryClient.invalidateQueries({ queryKey: ['recently-viewed'] });
-      broadcastInvalidation('recently-viewed');
-    }).catch(() => {
-      // Roll back the optimistic update by re-fetching from the server.
-      queryClient.invalidateQueries({ queryKey: ['recently-viewed'] });
-    });
+    apiPost('/view-log/', { recipe: Number(id) })
+      .then(() => {
+        // Invalidate so the shelf re-syncs with the server in the background.
+        queryClient.invalidateQueries({ queryKey: ['recently-viewed'] });
+        broadcastInvalidation('recently-viewed');
+      })
+      .catch(() => {
+        // Roll back the optimistic update by re-fetching from the server.
+        queryClient.invalidateQueries({ queryKey: ['recently-viewed'] });
+      });
     // Only record a view when navigating to a different recipe.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
@@ -820,28 +752,27 @@ export function RecipeDetail() {
 function useRecipeJsonLd(recipe: Recipe | undefined) {
   useEffect(() => {
     if (!recipe) return;
-    const steps = recipe.steps
-      ? [...recipe.steps].sort((a, b) => a.order - b.order)
-      : [];
+    const steps = recipe.steps ? [...recipe.steps].sort((a, b) => a.order - b.order) : [];
     const recipeIngredients = steps
       .flatMap((step) => step.ingredients ?? [])
       .filter((ingredient) => !ingredient.is_header)
       .map((ingredient) => {
-        const amount = !ingredient.no_amount && ingredient.amount != null
-          ? `${formatFraction(ingredient.amount)} `
-          : "";
-        const unit = ingredient.unit?.name ? `${ingredient.unit.name} ` : "";
+        const amount =
+          !ingredient.no_amount && ingredient.amount != null
+            ? `${formatFraction(ingredient.amount)} `
+            : '';
+        const unit = ingredient.unit?.name ? `${ingredient.unit.name} ` : '';
         const foodName = getIngredientFoodName(ingredient);
-        const note = ingredient.note ? ` (${ingredient.note})` : "";
+        const note = ingredient.note ? ` (${ingredient.note})` : '';
         return `${amount}${unit}${foodName}${note}`.trim();
       })
       .filter(Boolean);
     const recipeInstructions = steps
       .map((step) => {
-        const text = step.instruction?.replace(/\s+/g, " ").trim();
+        const text = step.instruction?.replace(/\s+/g, ' ').trim();
         if (!text) return null;
         return {
-          "@type": "HowToStep",
+          '@type': 'HowToStep',
           name: step.name,
           text,
         };
@@ -849,17 +780,17 @@ function useRecipeJsonLd(recipe: Recipe | undefined) {
       .filter((step): step is NonNullable<typeof step> => step !== null);
     const keywords = Array.isArray(recipe.keywords)
       ? recipe.keywords
-          .filter((keyword): keyword is Keyword => typeof keyword === "object")
+          .filter((keyword): keyword is Keyword => typeof keyword === 'object')
           .map((keyword) => keyword.name)
       : [];
     const servings = Math.max(recipe.servings ?? 1, 1);
     const caloriesProperty = recipe.food_properties
       ? Object.values(recipe.food_properties).find((property) =>
-          CALORIE_PROPERTY_NAME_PATTERN.test(property.name)
+          CALORIE_PROPERTY_NAME_PATTERN.test(property.name),
         )
       : undefined;
     const calories = caloriesProperty
-      ? `${Math.round(caloriesProperty.total_value / servings)} ${caloriesProperty.unit ?? "kcal"}`
+      ? `${Math.round(caloriesProperty.total_value / servings)} ${caloriesProperty.unit ?? 'kcal'}`
       : undefined;
     const proxiedImage = recipe.image ? proxyMediaUrl(recipe.image) : undefined;
     const image = proxiedImage
@@ -868,12 +799,12 @@ function useRecipeJsonLd(recipe: Recipe | undefined) {
     const prepTime = minutesToDuration(recipe.waiting_time);
     const cookTime = minutesToDuration(recipe.cooking_time);
     const totalTime = minutesToDuration(getRecipeTotalMinutes(recipe));
-    const script = document.createElement("script");
-    script.type = "application/ld+json";
-    script.id = "recipe-jsonld";
+    const script = document.createElement('script');
+    script.type = 'application/ld+json';
+    script.id = 'recipe-jsonld';
     script.text = JSON.stringify({
-      "@context": "https://schema.org",
-      "@type": "Recipe",
+      '@context': 'https://schema.org',
+      '@type': 'Recipe',
       name: recipe.name,
       description: recipe.description,
       image,
@@ -882,16 +813,14 @@ function useRecipeJsonLd(recipe: Recipe | undefined) {
       cookTime,
       totalTime,
       recipeYield: recipe.servings,
-      keywords: keywords.length > 0 ? keywords.join(", ") : undefined,
-      recipeIngredient:
-        recipeIngredients.length > 0 ? recipeIngredients : undefined,
-      recipeInstructions:
-        recipeInstructions.length > 0 ? recipeInstructions : undefined,
-      nutrition: calories ? { "@type": "NutritionInformation", calories } : undefined,
+      keywords: keywords.length > 0 ? keywords.join(', ') : undefined,
+      recipeIngredient: recipeIngredients.length > 0 ? recipeIngredients : undefined,
+      recipeInstructions: recipeInstructions.length > 0 ? recipeInstructions : undefined,
+      nutrition: calories ? { '@type': 'NutritionInformation', calories } : undefined,
     });
     document.head.appendChild(script);
     return () => {
-      document.getElementById("recipe-jsonld")?.remove();
+      document.getElementById('recipe-jsonld')?.remove();
     };
   }, [recipe]);
 }

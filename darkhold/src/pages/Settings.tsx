@@ -67,11 +67,22 @@ export function Settings() {
             </InputGroup>
             <Form.Text className="text-muted">
               {externalUrl ? (
-                <>Find your token at <a href={`${externalUrl}/settings/api/`} target="_blank" rel="noopener noreferrer">Tandoor → Settings → API Tokens</a>.</>
+                <>
+                  Find your token at{' '}
+                  <a
+                    href={`${externalUrl}/settings/api/`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Tandoor → Settings → API Tokens
+                  </a>
+                  .
+                </>
               ) : (
                 <>Find your token at Tandoor → Settings → API Tokens.</>
-              )}
-              {' '}Create a <strong>read write</strong> token with a long expiry (e.g. set the year to 2070).
+              )}{' '}
+              Create a <strong>read write</strong> token with a long expiry (e.g. set the year to
+              2070).
             </Form.Text>
           </Form.Group>
 
@@ -80,11 +91,22 @@ export function Settings() {
               Save Token
             </Button>
             <Button variant="outline-secondary" onClick={handleTest} disabled={testing || !draft}>
-              {testing ? <><Spinner size="sm" className="me-1" />Testing…</> : 'Test Connection'}
+              {testing ? (
+                <>
+                  <Spinner size="sm" className="me-1" />
+                  Testing…
+                </>
+              ) : (
+                'Test Connection'
+              )}
             </Button>
           </div>
 
-          {saved && <Alert variant="success" className="mt-3 mb-0 py-2">Token saved!</Alert>}
+          {saved && (
+            <Alert variant="success" className="mt-3 mb-0 py-2">
+              Token saved!
+            </Alert>
+          )}
           {testResult && (
             <Alert variant={testResult.ok ? 'success' : 'danger'} className="mt-3 mb-0 py-2">
               {testResult.message}

@@ -206,10 +206,7 @@ describe('estimateIngredientWeightG', () => {
 
 describe('estimateTotalWeightG', () => {
   it('sums weights of all convertible ingredients', () => {
-    const ings: RecipeIngredient[] = [
-      makeIngredient(200, 1, 'g'),
-      makeIngredient(100, 1, 'g'),
-    ];
+    const ings: RecipeIngredient[] = [makeIngredient(200, 1, 'g'), makeIngredient(100, 1, 'g')];
     const result = estimateTotalWeightG(ings, []);
     expect(result?.weightG).toBe(300);
     expect(result?.isApproximate).toBe(false);
@@ -226,8 +223,8 @@ describe('estimateTotalWeightG', () => {
 
   it('sets isApproximate when any ingredient used the hardcoded table', () => {
     const ings: RecipeIngredient[] = [
-      makeIngredient(200, 1, 'g'),   // exact
-      makeIngredient(1, 10, 'cup'),  // approximate fallback
+      makeIngredient(200, 1, 'g'), // exact
+      makeIngredient(1, 10, 'cup'), // approximate fallback
     ];
     const result = estimateTotalWeightG(ings, []);
     expect(result?.isApproximate).toBe(true);
@@ -245,10 +242,7 @@ describe('estimateTotalWeightG', () => {
 
   it('does not count header ingredients as unconverted', () => {
     const header: RecipeIngredient = { id: 99, amount: 0, unit: null, food: null, is_header: true };
-    const ings: RecipeIngredient[] = [
-      header,
-      makeIngredient(50, 1, 'g'),
-    ];
+    const ings: RecipeIngredient[] = [header, makeIngredient(50, 1, 'g')];
     const result = estimateTotalWeightG(ings, []);
     expect(result?.unconvertedCount).toBe(0);
     expect(result?.weightG).toBe(50);

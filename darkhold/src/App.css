@@ -1,278 +1,278 @@
 .hide-scrollbar {
-    scrollbar-width: none;
-    -ms-overflow-style: none;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 .text-clamp-3 {
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .refresh-throbber {
-    position: fixed;
-    right: 1rem;
-    bottom: calc(56px + env(safe-area-inset-bottom) + 8px);
-    z-index: 1031;
-    pointer-events: none;
+  position: fixed;
+  right: 1rem;
+  bottom: calc(56px + env(safe-area-inset-bottom) + 8px);
+  z-index: 1031;
+  pointer-events: none;
 }
 
 @media (min-width: 768px) {
-    .refresh-throbber {
-        bottom: 1rem;
-    }
+  .refresh-throbber {
+    bottom: 1rem;
+  }
 }
 
 .page-content {
-    padding-bottom: calc(3rem + env(safe-area-inset-bottom)) !important;
+  padding-bottom: calc(3rem + env(safe-area-inset-bottom)) !important;
 }
 
 @media (min-width: 768px) {
-    .page-content {
-        padding-bottom: 1rem !important;
-    }
+  .page-content {
+    padding-bottom: 1rem !important;
+  }
 }
 
 @media (hover: none) {
-    .list-group-item-action:hover,
-    .list-group-item-action:focus,
-    .list-group-item-action:active {
-        background-color: var(--bs-list-group-bg);
-        color: var(--bs-list-group-color);
-    }
+  .list-group-item-action:hover,
+  .list-group-item-action:focus,
+  .list-group-item-action:active {
+    background-color: var(--bs-list-group-bg);
+    color: var(--bs-list-group-color);
+  }
 }
 
 .meal-plan-page .meal-plan-day {
-    min-height: 40px;
+  min-height: 40px;
 }
 
 .meal-plan-page .meal-plan-table {
-    table-layout: fixed;
+  table-layout: fixed;
 }
 
 .meal-plan-page .meal-plan-table-shell {
-    max-width: 1900px;
-    margin: 0 auto;
+  max-width: 1900px;
+  margin: 0 auto;
 }
 
 @media (max-width: 1111.98px) {
-    .meal-plan-page .meal-plan-table {
-        display: block;
-        table-layout: auto;
-    }
+  .meal-plan-page .meal-plan-table {
+    display: block;
+    table-layout: auto;
+  }
 
-    .meal-plan-page .meal-plan-table-header-row {
-        display: none;
-    }
+  .meal-plan-page .meal-plan-table-header-row {
+    display: none;
+  }
 
-    .meal-plan-page .meal-plan-table > tbody {
-        display: block;
-    }
+  .meal-plan-page .meal-plan-table > tbody {
+    display: block;
+  }
 
-    .meal-plan-page .meal-plan-mobile-row,
-    .meal-plan-page .meal-plan-mobile-cell {
-        display: block;
-        width: 100%;
-    }
+  .meal-plan-page .meal-plan-mobile-row,
+  .meal-plan-page .meal-plan-mobile-cell {
+    display: block;
+    width: 100%;
+  }
 
-    .meal-plan-page .meal-plan-mobile-row {
-        border-radius: var(--bs-border-radius);
-        overflow: hidden;
-    }
+  .meal-plan-page .meal-plan-mobile-row {
+    border-radius: var(--bs-border-radius);
+    overflow: hidden;
+  }
 
-    .meal-plan-page .meal-plan-table-data-row {
-        margin-bottom: 1rem;
-    }
+  .meal-plan-page .meal-plan-table-data-row {
+    margin-bottom: 1rem;
+  }
 
-    .meal-plan-page .meal-plan-table colgroup {
-        display: none;
-    }
+  .meal-plan-page .meal-plan-table colgroup {
+    display: none;
+  }
 
-    .meal-plan-page .meal-plan-weather-line,
-    .meal-plan-page .meal-plan-weather-sun {
-        white-space: normal;
-        overflow-wrap: anywhere;
-    }
+  .meal-plan-page .meal-plan-weather-line,
+  .meal-plan-page .meal-plan-weather-sun {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
 
-    .meal-plan-page .meal-plan-mobile-empty {
-        display: none;
-    }
+  .meal-plan-page .meal-plan-mobile-empty {
+    display: none;
+  }
 
-    .meal-plan-page .meal-plan-row-drop-target {
-        outline: 2px solid rgba(var(--bs-primary-rgb), 0.35);
-        outline-offset: -2px;
-    }
+  .meal-plan-page .meal-plan-row-drop-target {
+    outline: 2px solid rgba(var(--bs-primary-rgb), 0.35);
+    outline-offset: -2px;
+  }
 }
 
 .meal-plan-page .meal-plan-entry-card {
-    overflow: hidden;
+  overflow: hidden;
 }
 
 .meal-plan-page .meal-plan-entry-body {
-    height: 108px;
-    min-height: 108px;
-    align-items: stretch;
+  height: 108px;
+  min-height: 108px;
+  align-items: stretch;
 }
 
 .meal-plan-page .meal-plan-entry-thumb-slot {
-    width: 108px;
-    height: 108px;
-    flex-shrink: 0;
-    overflow: hidden;
+  width: 108px;
+  height: 108px;
+  flex-shrink: 0;
+  overflow: hidden;
 }
 
 .meal-plan-page .meal-plan-entry-thumb {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-    border-radius: 0;
-    -webkit-touch-callout: none;
-    user-select: none;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: 0;
+  -webkit-touch-callout: none;
+  user-select: none;
 }
 
 .meal-plan-page .meal-plan-entry-content {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    cursor: pointer;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  cursor: pointer;
 }
 
 .meal-plan-page .meal-plan-entry-title {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-    min-width: 0;
-    overflow: hidden;
-    padding: 0.35rem 0.5rem;
-    border-bottom: 1px solid var(--bs-border-color);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid var(--bs-border-color);
 }
 
 .meal-plan-page .meal-plan-entry-title-label {
-    flex: 1;
-    min-width: 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .meal-plan-page .meal-plan-entry-details {
-    flex: 1;
-    min-height: 0;
-    padding: 0.35rem 0.5rem;
-    overflow: hidden;
+  flex: 1;
+  min-height: 0;
+  padding: 0.35rem 0.5rem;
+  overflow: hidden;
 }
 
 .meal-plan-page .meal-plan-entry-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    padding: 0.25rem;
-    flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  flex-shrink: 0;
 }
 
 .meal-plan-page .meal-plan-entry-title .meal-plan-entry-actions {
-    margin-left: auto;
-    padding: 0;
-    gap: 0.25rem;
+  margin-left: auto;
+  padding: 0;
+  gap: 0.25rem;
 }
 
 .meal-plan-page .meal-plan-entry-actions--compact {
-    display: flex;
+  display: flex;
 }
 
 .meal-plan-page .meal-plan-note-preview {
-    display: -webkit-box;
-    -webkit-line-clamp: 4;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    white-space: normal;
-    overflow-wrap: anywhere;
-    font-size: 0.7rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-size: 0.7rem;
 }
 
 /* Meal entry cells: 0.3rem padding all around on desktop (table mode); horizontal only on mobile so
    stacked empty <td>s don't introduce extra vertical gaps between visible cards. */
 .meal-plan-page .meal-plan-entry-cell {
-    padding: 0.3rem;
+  padding: 0.3rem;
 }
 
 @media (max-width: 1111.98px) {
-    .meal-plan-page .meal-plan-entry-cell {
-        padding: 0 0.3rem;
-    }
+  .meal-plan-page .meal-plan-entry-cell {
+    padding: 0 0.3rem;
+  }
 }
 
 /* Weather / events cell: 0.5rem on all sides to avoid content being squished against borders. */
 .meal-plan-page .meal-plan-weather-cell {
-    padding: 0.5rem;
+  padding: 0.5rem;
 }
 
 /* Space between stacked entry cards: 0.3rem on all breakpoints. */
 .meal-plan-page .meal-plan-sortable-entry {
-    margin-bottom: 0.3rem;
+  margin-bottom: 0.3rem;
 }
 
 @media (min-width: 1112px) {
-    .meal-plan-page .meal-plan-table-header-row {
-        display: table-row;
-    }
+  .meal-plan-page .meal-plan-table-header-row {
+    display: table-row;
+  }
 
-    .meal-plan-page .meal-plan-table-data-row {
-        margin-bottom: 0;
-    }
+  .meal-plan-page .meal-plan-table-data-row {
+    margin-bottom: 0;
+  }
 
-    .meal-plan-page .meal-plan-day {
-        min-height: 130px;
-    }
+  .meal-plan-page .meal-plan-day {
+    min-height: 130px;
+  }
 }
 
 @media (max-width: 1399.98px) {
-    .meal-plan-page .meal-plan-entry-title {
-        font-size: 0.78rem;
-    }
+  .meal-plan-page .meal-plan-entry-title {
+    font-size: 0.78rem;
+  }
 }
 
 @media (min-width: 1112px) and (max-width: 1399.98px) {
-    /* Keep the narrower tablet/xl thumbnail width active through the xl range. */
-    .meal-plan-page .meal-plan-entry-thumb-slot {
-        width: 50px;
-        height: 108px;
-    }
+  /* Keep the narrower tablet/xl thumbnail width active through the xl range. */
+  .meal-plan-page .meal-plan-entry-thumb-slot {
+    width: 50px;
+    height: 108px;
+  }
 }
 
 @media (min-width: 1112px) {
-    .meal-plan-page .meal-plan-weather-line,
-    .meal-plan-page .meal-plan-weather-sun {
-        white-space: nowrap;
-        overflow-wrap: normal;
-    }
+  .meal-plan-page .meal-plan-weather-line,
+  .meal-plan-page .meal-plan-weather-sun {
+    white-space: nowrap;
+    overflow-wrap: normal;
+  }
 }
 
 body {
-    margin: 0;
-    font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
+  margin: 0;
+  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
 }
 
 .content {
-    display: flex;
-    min-height: 100vh;
-    line-height: 1.1;
-    text-align: center;
-    flex-direction: column;
-    justify-content: center;
+  display: flex;
+  min-height: 100vh;
+  line-height: 1.1;
+  text-align: center;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .content h1 {
-    font-size: 3.6rem;
-    font-weight: 700;
+  font-size: 3.6rem;
+  font-weight: 700;
 }
 
 .content p {
-    font-size: 1.2rem;
-    font-weight: 400;
-    opacity: 0.5;
+  font-size: 1.2rem;
+  font-weight: 400;
+  opacity: 0.5;
 }

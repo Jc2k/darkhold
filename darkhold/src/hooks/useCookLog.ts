@@ -64,8 +64,7 @@ export function useCookLog(fromDate: string, toDate: string) {
       const byDate: CookedByDate = {};
       for (const log of all) {
         const date = log.created_at.split('T')[0];
-        const recipeId =
-          typeof log.recipe === 'object' ? log.recipe.id : (log.recipe as number);
+        const recipeId = typeof log.recipe === 'object' ? log.recipe.id : (log.recipe as number);
         if (!byDate[date]) byDate[date] = [];
         if (!byDate[date].includes(recipeId)) byDate[date].push(recipeId);
       }

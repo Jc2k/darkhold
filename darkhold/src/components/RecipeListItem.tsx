@@ -19,7 +19,11 @@ export const RecipeListItem = memo(function RecipeListItem({ recipe, onAddToMeal
       className="d-flex justify-content-between align-items-center"
     >
       <span>{recipe.name}</span>
-      <div className="d-flex align-items-center gap-2" onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
+      <div
+        className="d-flex align-items-center gap-2"
+        onClick={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+      >
         {recipe.cooking_time != null && (
           <small className="text-muted">{recipe.cooking_time} min</small>
         )}

@@ -22,17 +22,18 @@ export function deriveMealType(
 ): number | undefined {
   const keywords = Array.isArray(recipe.keywords)
     ? recipe.keywords.flatMap((k) => {
-      if (isValidKeyword(k)) return [k.name.toLowerCase()];
-      if (typeof k !== 'number') return [];
-      const keywordName = keywordNameById[k];
-      return typeof keywordName === 'string' ? [keywordName.toLowerCase()] : [];
-    })
+        if (isValidKeyword(k)) return [k.name.toLowerCase()];
+        if (typeof k !== 'number') return [];
+        const keywordName = keywordNameById[k];
+        return typeof keywordName === 'string' ? [keywordName.toLowerCase()] : [];
+      })
     : [];
 
   const find = (name: string) => mealTypes.find((mt) => mt.name.toLowerCase().includes(name));
 
   if (keywords.some((k) => k.includes('breakfast'))) return find('breakfast')?.id;
   if (keywords.some((k) => k.includes('lunch'))) return find('lunch')?.id;
-  if (keywords.some((k) => k.includes('dessert') || k.includes('snack'))) return find('snack')?.id ?? find('dessert')?.id;
+  if (keywords.some((k) => k.includes('dessert') || k.includes('snack')))
+    return find('snack')?.id ?? find('dessert')?.id;
   return find('dinner')?.id ?? mealTypes[0]?.id;
 }

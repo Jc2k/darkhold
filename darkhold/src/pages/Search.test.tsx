@@ -4,12 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Search } from './Search';
 
-const {
-  apiGetMock,
-  searchKeywordsMock,
-  searchFoodsMock,
-  useRecipeSearchMock,
-} = vi.hoisted(() => ({
+const { apiGetMock, searchKeywordsMock, searchFoodsMock, useRecipeSearchMock } = vi.hoisted(() => ({
   apiGetMock: vi.fn(),
   searchKeywordsMock: vi.fn(),
   searchFoodsMock: vi.fn(),
@@ -81,11 +76,14 @@ describe('Search', () => {
       isError: false,
     });
 
-    vi.stubGlobal('IntersectionObserver', class {
-      observe = vi.fn();
-      unobserve = vi.fn();
-      disconnect = vi.fn();
-    });
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        observe = vi.fn();
+        unobserve = vi.fn();
+        disconnect = vi.fn();
+      },
+    );
   });
 
   afterEach(() => {
@@ -162,9 +160,12 @@ describe('Search', () => {
 
     expect(container.textContent).toContain('Tags: Autumn');
     expect(container.textContent).not.toContain('99');
-    expect(warnSpy).toHaveBeenCalledWith('Failed to restore search filter option', expect.objectContaining({
-      path: '/keyword/',
-      id: 99,
-    }));
+    expect(warnSpy).toHaveBeenCalledWith(
+      'Failed to restore search filter option',
+      expect.objectContaining({
+        path: '/keyword/',
+        id: 99,
+      }),
+    );
   });
 });

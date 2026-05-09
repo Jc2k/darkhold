@@ -109,14 +109,12 @@ describe('fetchUpSoonData', () => {
       // GET /recipe-book-entry/?book=55 page 1 — no entries (Promise.all, entries first)
       .mockResolvedValueOnce({
         ok: true,
-        json: () =>
-          Promise.resolve({ count: 0, results: [], next: null }),
+        json: () => Promise.resolve({ count: 0, results: [], next: null }),
       })
       // GET /recipe/?books_and=55 page 1 — no recipes (Promise.all, recipes second)
       .mockResolvedValueOnce({
         ok: true,
-        json: () =>
-          Promise.resolve({ count: 0, results: [], next: null }),
+        json: () => Promise.resolve({ count: 0, results: [], next: null }),
       });
 
     vi.stubGlobal('fetch', fetchMock);
@@ -142,14 +140,21 @@ describe('fetchUpSoonData', () => {
         json: () =>
           Promise.resolve({
             count: 1,
-            results: [{ id: 7, book: 42, book_content: makeBook(42, UP_SOON_BOOK_NAME), recipe: 100 }],
+            results: [
+              { id: 7, book: 42, book_content: makeBook(42, UP_SOON_BOOK_NAME), recipe: 100 },
+            ],
             next: null,
           }),
       })
       // GET /recipe/?books_and=42 (page 1) — full recipe fetched via books_and
       .mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({ count: 1, results: [{ id: 100, name: 'Pasta', created_by: 1 }], next: null }),
+        json: () =>
+          Promise.resolve({
+            count: 1,
+            results: [{ id: 100, name: 'Pasta', created_by: 1 }],
+            next: null,
+          }),
       });
 
     vi.stubGlobal('fetch', fetchMock);
@@ -209,7 +214,11 @@ describe('createUpSoonBook', () => {
       // First call: GET /user/
       .mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve([{ id: 1, username: 'alice' }, { id: 2, username: 'bob' }]),
+        json: () =>
+          Promise.resolve([
+            { id: 1, username: 'alice' },
+            { id: 2, username: 'bob' },
+          ]),
       })
       // Second call: POST /recipe-book/
       .mockResolvedValueOnce({

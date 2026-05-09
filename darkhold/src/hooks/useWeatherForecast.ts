@@ -56,7 +56,10 @@ export function getWeatherDisruptionBand(day: WeatherDayForecast): WeatherDisrup
   return 'ok';
 }
 
-async function fetchWeatherForecast(fromDate: string, toDate: string): Promise<WeatherDayForecast[]> {
+async function fetchWeatherForecast(
+  fromDate: string,
+  toDate: string,
+): Promise<WeatherDayForecast[]> {
   const url = `/weather-forecast?from=${fromDate}&to=${toDate}`;
   const res = await fetch(url);
   if (!res.ok) {

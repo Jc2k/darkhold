@@ -1,10 +1,10 @@
-import { useParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { Alert } from "react-bootstrap";
-import { apiGet } from "../api/client";
-import type { MealPlan, Recipe } from "../api/tandoor-types";
-import { LoadingMascot } from "../components/LoadingMascot";
-import { RecipeDetailContent, useRecipeJsonLd } from "./RecipeDetail";
+import { useParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { Alert } from 'react-bootstrap';
+import { apiGet } from '../api/client';
+import type { MealPlan, Recipe } from '../api/tandoor-types';
+import { LoadingMascot } from '../components/LoadingMascot';
+import { RecipeDetailContent, useRecipeJsonLd } from './RecipeDetail';
 
 export function MealPlanEntryDetail() {
   const { entryId } = useParams<{ entryId: string }>();
@@ -14,13 +14,13 @@ export function MealPlanEntryDetail() {
     isLoading: entryLoading,
     isError: entryError,
   } = useQuery({
-    queryKey: ["meal-plan-entry", entryId],
+    queryKey: ['meal-plan-entry', entryId],
     queryFn: () => apiGet<MealPlan>(`/meal-plan/${entryId}/`),
     enabled: !!entryId,
   });
 
   const recipeId = entry
-    ? typeof entry.recipe === "object"
+    ? typeof entry.recipe === 'object'
       ? entry.recipe.id
       : entry.recipe
     : undefined;
@@ -30,7 +30,7 @@ export function MealPlanEntryDetail() {
     isLoading: recipeLoading,
     isError: recipeError,
   } = useQuery({
-    queryKey: ["recipe", String(recipeId)],
+    queryKey: ['recipe', String(recipeId)],
     queryFn: () => apiGet<Recipe>(`/recipe/${recipeId}/`),
     enabled: recipeId != null,
   });

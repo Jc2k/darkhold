@@ -12,7 +12,10 @@ async function fetchAllBooks(): Promise<RecipeBook[]> {
   let page = 1;
   let hasNext = true;
   while (hasNext) {
-    const data = await apiGet<PaginatedResponse<RecipeBook>>('/recipe-book/', { page_size: 100, page });
+    const data = await apiGet<PaginatedResponse<RecipeBook>>('/recipe-book/', {
+      page_size: 100,
+      page,
+    });
     all.push(...data.results);
     hasNext = !!data.next;
     page++;
@@ -25,7 +28,10 @@ async function fetchAllBookEntries(): Promise<RecipeBookEntry[]> {
   let page = 1;
   let hasNext = true;
   while (hasNext) {
-    const data = await apiGet<PaginatedResponse<RecipeBookEntry>>('/recipe-book-entry/', { page_size: 100, page });
+    const data = await apiGet<PaginatedResponse<RecipeBookEntry>>('/recipe-book-entry/', {
+      page_size: 100,
+      page,
+    });
     all.push(...data.results);
     hasNext = !!data.next;
     page++;
@@ -34,7 +40,11 @@ async function fetchAllBookEntries(): Promise<RecipeBookEntry[]> {
 }
 
 export function Books() {
-  const { data: books, isLoading: booksLoading, isError: booksError } = useQuery({
+  const {
+    data: books,
+    isLoading: booksLoading,
+    isError: booksError,
+  } = useQuery({
     queryKey: ['books'],
     queryFn: fetchAllBooks,
   });
@@ -57,10 +67,7 @@ export function Books() {
     return map;
   }, [entries]);
 
-  const booksWithFilter = useMemo(() =>
-    books?.filter((b) => b.filter != null) ?? [],
-    [books]
-  );
+  const booksWithFilter = useMemo(() => books?.filter((b) => b.filter != null) ?? [], [books]);
 
   const { data: filterCovers } = useQuery({
     queryKey: ['book-filter-covers', booksWithFilter.map((b) => b.id)],
@@ -76,7 +83,7 @@ export function Books() {
           });
           const image = data.results[0]?.image;
           if (image) map.set(book.id, image);
-        })
+        }),
       );
       return map;
     },

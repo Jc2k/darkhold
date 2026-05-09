@@ -58,7 +58,8 @@ export function parseICalFeeds(raw: string): ICalFeed[] {
       if (
         (username !== undefined && password === undefined) ||
         (username === undefined && password !== undefined)
-      ) return [];
+      )
+        return [];
 
       const feed: ICalFeed = {
         name: record.name,
@@ -135,13 +136,13 @@ function buildCalDavFilters(
           _attributes: { name: 'VEVENT' },
           ...(withTimeRange
             ? {
-              'time-range': {
-                _attributes: {
-                  start: formatCalDavTimestamp(rangeStart),
-                  end: formatCalDavTimestamp(rangeEnd),
+                'time-range': {
+                  _attributes: {
+                    start: formatCalDavTimestamp(rangeStart),
+                    end: formatCalDavTimestamp(rangeEnd),
+                  },
                 },
-              },
-            }
+              }
             : {}),
         },
       },
@@ -180,9 +181,15 @@ async function fetchCalDavCalendarData(
     });
   } catch (err) {
     if (err instanceof Error) {
-      const match = err.message.match(/Collection query failed:\s*(\d{3})(?:\s*\.\s*Raw response:\s*([\s\S]*))?/);
+      const match = err.message.match(
+        /Collection query failed:\s*(\d{3})(?:\s*\.\s*Raw response:\s*([\s\S]*))?/,
+      );
       if (match) {
-        throw formatFetchError('CalDAV REPORT failed', Number.parseInt(match[1], 10), match[2] ?? '');
+        throw formatFetchError(
+          'CalDAV REPORT failed',
+          Number.parseInt(match[1], 10),
+          match[2] ?? '',
+        );
       }
     }
     throw err;
@@ -214,28 +221,30 @@ export function extractCalDavCalendarData(xml: string): string[] {
       const cdataMatch = raw.match(/^<!\[CDATA\[([\s\S]*?)\]\]>$/);
       return cdataMatch ? cdataMatch[1] : raw;
     })
-    .map((s) => s.replaceAll(/&(#x?[0-9A-Fa-f]+|lt|gt|amp|quot|apos);/g, (match, name) => {
-      if (name === 'lt') return '<';
-      if (name === 'gt') return '>';
-      if (name === 'amp') return '&';
-      if (name === 'quot') return '"';
-      if (name === 'apos') return "'";
-      const decodeCodePoint = (value: number): string => {
-        if (Number.isInteger(value) && value >= 0 && value <= 0x10FFFF) {
-          return String.fromCodePoint(value);
+    .map((s) =>
+      s.replaceAll(/&(#x?[0-9A-Fa-f]+|lt|gt|amp|quot|apos);/g, (match, name) => {
+        if (name === 'lt') return '<';
+        if (name === 'gt') return '>';
+        if (name === 'amp') return '&';
+        if (name === 'quot') return '"';
+        if (name === 'apos') return "'";
+        const decodeCodePoint = (value: number): string => {
+          if (Number.isInteger(value) && value >= 0 && value <= 0x10ffff) {
+            return String.fromCodePoint(value);
+          }
+          return match;
+        };
+        if (name.startsWith('#x')) {
+          const value = Number.parseInt(name.slice(2), 16);
+          return decodeCodePoint(value);
+        }
+        if (name.startsWith('#')) {
+          const value = Number.parseInt(name.slice(1), 10);
+          return decodeCodePoint(value);
         }
         return match;
-      };
-      if (name.startsWith('#x')) {
-        const value = Number.parseInt(name.slice(2), 16);
-        return decodeCodePoint(value);
-      }
-      if (name.startsWith('#')) {
-        const value = Number.parseInt(name.slice(1), 10);
-        return decodeCodePoint(value);
-      }
-      return match;
-    }))
+      }),
+    )
     .filter((v) => v.length > 0);
 }
 
@@ -289,9 +298,13 @@ export async function fetchFeedEvents(
 const MAX_RRULE_ITER = 5000;
 
 /** Format an ICAL.Time as ISO 8601: YYYY-MM-DD for all-day events, UTC ISO string for timed. */
-function formatIcalTime(
-  t: { isDate: boolean; toJSDate(): Date; year?: number; month?: number; day?: number },
-): string {
+function formatIcalTime(t: {
+  isDate: boolean;
+  toJSDate(): Date;
+  year?: number;
+  month?: number;
+  day?: number;
+}): string {
   if (t.isDate) {
     // For DATE values, use ICAL calendar fields directly to avoid timezone
     // conversion shifting the event by a day in non-UTC environments.
@@ -314,11 +327,7 @@ function formatIcalTime(
  * Parse raw iCal text and return events overlapping with the given UTC date range.
  * Uses ical.js for robust RFC 5545 support including RRULE, EXDATE, and VTIMEZONE.
  */
-export function parseIcal(
-  text: string,
-  rangeStart: Date,
-  rangeEnd: Date,
-): ParsedEvent[] {
+export function parseIcal(text: string, rangeStart: Date, rangeEnd: Date): ParsedEvent[] {
   const results: ParsedEvent[] = [];
   let jcalData;
   try {
@@ -429,18 +438,21 @@ export function parseOpenMeteoDaily(daily: OpenMeteoDaily): WeatherDayForecast[]
       typeof sunset !== 'string' ||
       typeof precipitationSumMm !== 'number' ||
       typeof precipitationProbabilityMax !== 'number'
-    ) return [];
+    )
+      return [];
 
-    return [{
-      date,
-      weatherCode,
-      tempMinC,
-      tempMaxC,
-      sunrise,
-      sunset,
-      precipitationSumMm,
-      precipitationProbabilityMax,
-    }];
+    return [
+      {
+        date,
+        weatherCode,
+        tempMinC,
+        tempMaxC,
+        sunrise,
+        sunset,
+        precipitationSumMm,
+        precipitationProbabilityMax,
+      },
+    ];
   });
 }
 
@@ -480,7 +492,7 @@ async function fetchWeatherForecast(
     throw new Error(`Weather API fetch failed: HTTP ${res.status}${suffix}`);
   }
 
-  const payload = await res.json() as OpenMeteoForecastResponse;
+  const payload = (await res.json()) as OpenMeteoForecastResponse;
   return parseOpenMeteoDaily(payload.daily ?? {});
 }
 
@@ -574,12 +586,16 @@ async function handleWeatherForecast(req: Request): Promise<Response> {
     });
   } catch (err) {
     console.error('Weather forecast fetch failed:', err);
-    return new Response(JSON.stringify({
-      error: 'Unable to fetch weather forecast from Open-Meteo right now. Check network and weather settings, then try again later.',
-    }), {
-      status: 502,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({
+        error:
+          'Unable to fetch weather forecast from Open-Meteo right now. Check network and weather settings, then try again later.',
+      }),
+      {
+        status: 502,
+        headers: { 'Content-Type': 'application/json' },
+      },
+    );
   }
 }
 
@@ -589,7 +605,7 @@ async function handleWeatherForecast(req: Request): Promise<Response> {
 
 const clients = new Set<WebSocket>();
 
-Deno.serve({ port: 8098, hostname: "127.0.0.1" }, async (req: Request): Promise<Response> => {
+Deno.serve({ port: 8098, hostname: '127.0.0.1' }, async (req: Request): Promise<Response> => {
   const url = new URL(req.url);
 
   if (url.pathname === '/calendar-events' && req.method === 'GET') {
@@ -599,8 +615,8 @@ Deno.serve({ port: 8098, hostname: "127.0.0.1" }, async (req: Request): Promise<
     return handleWeatherForecast(req);
   }
 
-  if (req.headers.get("upgrade")?.toLowerCase() !== "websocket") {
-    return new Response("Not found", { status: 404 });
+  if (req.headers.get('upgrade')?.toLowerCase() !== 'websocket') {
+    return new Response('Not found', { status: 404 });
   }
 
   const { socket, response } = Deno.upgradeWebSocket(req);

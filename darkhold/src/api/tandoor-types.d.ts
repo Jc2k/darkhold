@@ -40,7 +40,10 @@ export interface FoodProperty {
   order?: number;
   total_value: number;
   missing_value: boolean;
-  food_values: Record<string, { id: number; food: { id: number; name: string }; value: number | null }>;
+  food_values: Record<
+    string,
+    { id: number; food: { id: number; name: string }; value: number | null }
+  >;
 }
 
 /** Food item in the database */

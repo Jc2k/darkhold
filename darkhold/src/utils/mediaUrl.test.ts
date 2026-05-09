@@ -19,11 +19,15 @@ describe('proxyMediaUrl', () => {
   });
 
   it('rewrites an absolute URL from a different origin to a root-relative path', () => {
-    expect(proxyMediaUrl('http://tandoor:8080/media/recipes/foo.jpg')).toBe('/media/recipes/foo.jpg');
+    expect(proxyMediaUrl('http://tandoor:8080/media/recipes/foo.jpg')).toBe(
+      '/media/recipes/foo.jpg',
+    );
   });
 
   it('preserves query string and hash when rewriting', () => {
-    expect(proxyMediaUrl('http://tandoor:8080/media/img.png?v=1#anchor')).toBe('/media/img.png?v=1#anchor');
+    expect(proxyMediaUrl('http://tandoor:8080/media/img.png?v=1#anchor')).toBe(
+      '/media/img.png?v=1#anchor',
+    );
   });
 
   it('returns a plain relative path unchanged', () => {
@@ -32,6 +36,8 @@ describe('proxyMediaUrl', () => {
 
   it('returns a URL at the current origin unchanged', () => {
     // jsdom origin is 'http://localhost'
-    expect(proxyMediaUrl('http://localhost/media/recipes/foo.jpg')).toBe('http://localhost/media/recipes/foo.jpg');
+    expect(proxyMediaUrl('http://localhost/media/recipes/foo.jpg')).toBe(
+      'http://localhost/media/recipes/foo.jpg',
+    );
   });
 });

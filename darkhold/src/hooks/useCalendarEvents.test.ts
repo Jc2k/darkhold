@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { groupEventsByLocalDate, formatEventTimeRange, parseCalendarEventsPayload } from './useCalendarEvents';
+import {
+  groupEventsByLocalDate,
+  formatEventTimeRange,
+  parseCalendarEventsPayload,
+} from './useCalendarEvents';
 import type { CalendarEvent } from './useCalendarEvents';
 
 afterEach(() => {
@@ -9,7 +13,12 @@ afterEach(() => {
 describe('groupEventsByLocalDate', () => {
   it('groups timed events by local date', () => {
     const events: CalendarEvent[] = [
-      { name: 'Morning call', start: '2025-05-07T09:00:00.000Z', end: '2025-05-07T10:00:00.000Z', allDay: false },
+      {
+        name: 'Morning call',
+        start: '2025-05-07T09:00:00.000Z',
+        end: '2025-05-07T10:00:00.000Z',
+        allDay: false,
+      },
       { name: 'Afternoon meeting', start: '2025-05-07T14:00:00.000Z', allDay: false },
       { name: 'Next day event', start: '2025-05-08T09:00:00.000Z', allDay: false },
     ];
@@ -74,7 +83,9 @@ describe('parseCalendarEventsPayload', () => {
   });
 
   it('returns events when no feed errors are present', () => {
-    const events: CalendarEvent[] = [{ name: 'Meeting', start: '2025-05-07T10:00:00.000Z', allDay: false }];
+    const events: CalendarEvent[] = [
+      { name: 'Meeting', start: '2025-05-07T10:00:00.000Z', allDay: false },
+    ];
     expect(parseCalendarEventsPayload({ events })).toEqual(events);
   });
 

@@ -68,27 +68,51 @@ const router = createBrowserRouter([
       { index: true, element: <Navigate to={getHomepage()} replace /> },
       {
         path: 'dashboard',
-        element: <AuthGuard><Dashboard /></AuthGuard>,
+        element: (
+          <AuthGuard>
+            <Dashboard />
+          </AuthGuard>
+        ),
       },
       {
         path: 'all-recipes',
-        element: <AuthGuard><AllRecipes /></AuthGuard>,
+        element: (
+          <AuthGuard>
+            <AllRecipes />
+          </AuthGuard>
+        ),
       },
       {
         path: 'search',
-        element: <AuthGuard><Search /></AuthGuard>,
+        element: (
+          <AuthGuard>
+            <Search />
+          </AuthGuard>
+        ),
       },
       {
         path: 'meal-plan',
-        element: <AuthGuard><MealPlanCurrentWeekRedirect /></AuthGuard>,
+        element: (
+          <AuthGuard>
+            <MealPlanCurrentWeekRedirect />
+          </AuthGuard>
+        ),
       },
       {
         path: 'meal-plan/:weekStart',
-        element: <AuthGuard><MealPlanPage /></AuthGuard>,
+        element: (
+          <AuthGuard>
+            <MealPlanPage />
+          </AuthGuard>
+        ),
       },
       {
         path: 'shopping',
-        element: <AuthGuard><ShoppingList /></AuthGuard>,
+        element: (
+          <AuthGuard>
+            <ShoppingList />
+          </AuthGuard>
+        ),
       },
       {
         path: 'settings',
@@ -96,23 +120,43 @@ const router = createBrowserRouter([
       },
       {
         path: 'recipe/:id',
-        element: <AuthGuard><RecipeDetail /></AuthGuard>,
+        element: (
+          <AuthGuard>
+            <RecipeDetail />
+          </AuthGuard>
+        ),
       },
       {
         path: 'meal-plan-entry/:entryId',
-        element: <AuthGuard><MealPlanEntryDetail /></AuthGuard>,
+        element: (
+          <AuthGuard>
+            <MealPlanEntryDetail />
+          </AuthGuard>
+        ),
       },
       {
         path: 'ingredient/:id',
-        element: <AuthGuard><IngredientDetail /></AuthGuard>,
+        element: (
+          <AuthGuard>
+            <IngredientDetail />
+          </AuthGuard>
+        ),
       },
       {
         path: 'books',
-        element: <AuthGuard><Books /></AuthGuard>,
+        element: (
+          <AuthGuard>
+            <Books />
+          </AuthGuard>
+        ),
       },
       {
         path: 'books/:id',
-        element: <AuthGuard><BookDetail /></AuthGuard>,
+        element: (
+          <AuthGuard>
+            <BookDetail />
+          </AuthGuard>
+        ),
       },
       {
         path: 'utilities/gas-marks',
