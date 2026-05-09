@@ -66,11 +66,14 @@ export function FoodPropertiesTable({
       {filtered.map((p, i) => (
         <span key={p.id}>
           {i > 0 && ' · '}
-          {p.property_type.name}: {Math.round(Number(p.property_amount))} {p.property_type.unit ?? ''}
+          {p.property_type.name}: {Math.round(Number(p.property_amount))}{' '}
+          {p.property_type.unit ?? ''}
         </span>
       ))}
       {amount != null && Number(amount) > 0 && unit && (
-        <span className="ms-1">(per {Number(amount)} {unit.name})</span>
+        <span className="ms-1">
+          (per {Number(amount)} {unit.name})
+        </span>
       )}
     </small>
   );

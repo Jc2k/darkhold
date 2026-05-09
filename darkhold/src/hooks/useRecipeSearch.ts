@@ -23,7 +23,9 @@ export function useRecipeSearch(params: SearchParams) {
         ...(params.foods?.length ? { foods: params.foods.join(',') } : {}),
         ...(params.page_size ? { page_size: params.page_size } : {}),
         ...(params.rating !== undefined ? { rating: params.rating } : {}),
-        ...(params.cooking_time__lte !== undefined ? { cooking_time__lte: params.cooking_time__lte } : {}),
+        ...(params.cooking_time__lte !== undefined
+          ? { cooking_time__lte: params.cooking_time__lte }
+          : {}),
         ...(params.new ? { new: true } : {}),
         ...(params.sort_order ? { sort_order: params.sort_order } : {}),
         page: pageParam as number,

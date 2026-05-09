@@ -78,8 +78,8 @@ export function RiceCooking() {
     <div className="mx-auto" style={{ maxWidth: 800 }}>
       <h2 className="mb-2">🍚 Rice Cooking Reference</h2>
       <p className="text-muted mb-4">
-        Water ratios are by volume (cups or any consistent unit). All timings are approximate — adjust
-        to taste and altitude.
+        Water ratios are by volume (cups or any consistent unit). All timings are approximate —
+        adjust to taste and altitude.
       </p>
       <div className="table-responsive">
         <table className="table table-dark table-striped table-bordered align-middle">

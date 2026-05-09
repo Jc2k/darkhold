@@ -16,7 +16,11 @@ export function IngredientDetail() {
   const [modalRecipe, setModalRecipe] = useState<Recipe | null>(null);
   const { tandoor_external_url: externalUrl } = useAppConfig();
 
-  const { data: food, isLoading: foodLoading, isError: foodError } = useQuery({
+  const {
+    data: food,
+    isLoading: foodLoading,
+    isError: foodError,
+  } = useQuery({
     queryKey: ['food', id],
     queryFn: () => apiGet<Food>(`/food/${id}/`),
     enabled: !!id,

@@ -5,12 +5,7 @@
  * spinning up a full HTTP server, keeping them fast and dependency-free.
  */
 
-import {
-  fetchFeedEvents,
-  parseOpenMeteoDaily,
-  parseIcal,
-  parseICalFeeds,
-} from './server.ts';
+import { fetchFeedEvents, parseOpenMeteoDaily, parseIcal, parseICalFeeds } from './server.ts';
 
 // ---------------------------------------------------------------------------
 // Minimal WebSocket stub used by the broadcast tests
@@ -104,7 +99,9 @@ Deno.test('broadcast removes clients that throw on send', () => {
 
   // A client that throws when send() is called
   const faulty = new StubSocket();
-  faulty.send = (_data: string) => { throw new Error('send failed'); };
+  faulty.send = (_data: string) => {
+    throw new Error('send failed');
+  };
 
   clients.add(sender);
   clients.add(faulty);
@@ -259,137 +256,153 @@ Deno.test('parseIcal keeps all-day Monday recurring dates on Monday', () => {
 });
 
 Deno.test('parseIcal handles line folding in SUMMARY', () => {
-  const ical = 'BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:Long summar\r\n y text\r\nDTSTART:20250507T100000Z\r\nEND:VEVENT\r\nEND:VCALENDAR';
-  const events = parseIcal(ical, new Date('2025-05-07T00:00:00Z'), new Date('2025-05-07T23:59:59Z'));
+  const ical =
+    'BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:Long summar\r\n y text\r\nDTSTART:20250507T100000Z\r\nEND:VEVENT\r\nEND:VCALENDAR';
+  const events = parseIcal(
+    ical,
+    new Date('2025-05-07T00:00:00Z'),
+    new Date('2025-05-07T23:59:59Z'),
+  );
   if (events.length !== 1) throw new Error(`expected 1, got ${events.length}`);
   if (events[0].name !== 'Long summary text') throw new Error(`name: "${events[0].name}"`);
 });
 
-Deno.test('fetchFeedEvents uses caldav REPORT with basic auth when feed type is caldav', async () => {
-  const originalFetch = globalThis.fetch;
-  let request: Request | undefined;
-  const reportResponseXml = [
-    '<?xml version="1.0" encoding="utf-8"?>',
-    '<D:multistatus xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">',
-    '  <D:response>',
-    '    <D:propstat>',
-    '      <D:prop>',
-    '        <C:calendar-data>BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:Private\r\nDTSTART:20250507T100000Z\r\nDTEND:20250507T110000Z\r\nEND:VEVENT\r\nEND:VCALENDAR</C:calendar-data>',
-    '      </D:prop>',
-    '    </D:propstat>',
-    '  </D:response>',
-    '</D:multistatus>',
-  ].join('\n');
+Deno.test(
+  'fetchFeedEvents uses caldav REPORT with basic auth when feed type is caldav',
+  async () => {
+    const originalFetch = globalThis.fetch;
+    let request: Request | undefined;
+    const reportResponseXml = [
+      '<?xml version="1.0" encoding="utf-8"?>',
+      '<D:multistatus xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">',
+      '  <D:response>',
+      '    <D:propstat>',
+      '      <D:prop>',
+      '        <C:calendar-data>BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:Private\r\nDTSTART:20250507T100000Z\r\nDTEND:20250507T110000Z\r\nEND:VEVENT\r\nEND:VCALENDAR</C:calendar-data>',
+      '      </D:prop>',
+      '    </D:propstat>',
+      '  </D:response>',
+      '</D:multistatus>',
+    ].join('\n');
 
-  globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
-    request = new Request(input, init);
-    return Promise.resolve(
-      new Response(reportResponseXml, {
-        status: 207,
-        headers: { 'Content-Type': 'application/xml' },
-      }),
-    );
-  }) as typeof fetch;
-
-  try {
-    const events = await fetchFeedEvents(
-      {
-        name: 'CalDAV',
-        url: 'https://caldav.icloud.com/calendar/',
-        type: 'caldav',
-        username: 'user@example.com',
-        password: 'app-password',
-      },
-      new Date('2025-05-07T00:00:00Z'),
-      new Date('2025-05-07T23:59:59Z'),
-    );
-
-    if (!request) throw new Error('expected request to be captured');
-    if (request.method !== 'REPORT') throw new Error(`expected REPORT, got ${request.method}`);
-    if (request.headers.get('Depth') !== '1') throw new Error('expected Depth header');
-    if (!request.headers.get('Authorization')?.startsWith('Basic ')) {
-      throw new Error('expected basic auth header');
-    }
-    const body = await request.text();
-    if (!body.includes('<c:calendar-query')) throw new Error('expected caldav calendar-query element');
-    if (!body.includes('<d:prop>') || !body.includes('<c:calendar-data')) {
-      throw new Error('expected DAV prop with calendar-data');
-    }
-    if (!body.includes('<c:filter>')) throw new Error('expected filter element');
-    if (!body.includes('<c:comp-filter name="VCALENDAR">')) throw new Error('expected VCALENDAR comp-filter');
-    if (!body.includes('<c:comp-filter name="VEVENT">')) throw new Error('expected VEVENT comp-filter');
-    if (events.length !== 1) throw new Error(`expected 1 event, got ${events.length}`);
-    if (events[0].name !== 'Private') throw new Error(`unexpected event: ${events[0].name}`);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
-
-Deno.test('fetchFeedEvents retries caldav REPORT without time-range when filtered query returns no events', async () => {
-  const originalFetch = globalThis.fetch;
-  const requests: Request[] = [];
-
-  const emptyResponseXml = [
-    '<?xml version="1.0" encoding="utf-8"?>',
-    '<D:multistatus xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">',
-    '</D:multistatus>',
-  ].join('\n');
-  const recurringResponseXml = [
-    '<?xml version="1.0" encoding="utf-8"?>',
-    '<D:multistatus xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">',
-    '  <D:response>',
-    '    <D:propstat>',
-    '      <D:prop>',
-    '        <C:calendar-data>BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:Weekly standup\r\nDTSTART:20240101T090000Z\r\nDTEND:20240101T093000Z\r\nRRULE:FREQ=WEEKLY;BYDAY=MO\r\nEND:VEVENT\r\nEND:VCALENDAR</C:calendar-data>',
-    '      </D:prop>',
-    '    </D:propstat>',
-    '  </D:response>',
-    '</D:multistatus>',
-  ].join('\n');
-
-  globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
-    const request = new Request(input, init);
-    requests.push(request);
-    if (requests.length === 1) {
+    globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+      request = new Request(input, init);
       return Promise.resolve(
-        new Response(emptyResponseXml, {
+        new Response(reportResponseXml, {
           status: 207,
           headers: { 'Content-Type': 'application/xml' },
         }),
       );
+    }) as typeof fetch;
+
+    try {
+      const events = await fetchFeedEvents(
+        {
+          name: 'CalDAV',
+          url: 'https://caldav.icloud.com/calendar/',
+          type: 'caldav',
+          username: 'user@example.com',
+          password: 'app-password',
+        },
+        new Date('2025-05-07T00:00:00Z'),
+        new Date('2025-05-07T23:59:59Z'),
+      );
+
+      if (!request) throw new Error('expected request to be captured');
+      if (request.method !== 'REPORT') throw new Error(`expected REPORT, got ${request.method}`);
+      if (request.headers.get('Depth') !== '1') throw new Error('expected Depth header');
+      if (!request.headers.get('Authorization')?.startsWith('Basic ')) {
+        throw new Error('expected basic auth header');
+      }
+      const body = await request.text();
+      if (!body.includes('<c:calendar-query'))
+        throw new Error('expected caldav calendar-query element');
+      if (!body.includes('<d:prop>') || !body.includes('<c:calendar-data')) {
+        throw new Error('expected DAV prop with calendar-data');
+      }
+      if (!body.includes('<c:filter>')) throw new Error('expected filter element');
+      if (!body.includes('<c:comp-filter name="VCALENDAR">'))
+        throw new Error('expected VCALENDAR comp-filter');
+      if (!body.includes('<c:comp-filter name="VEVENT">'))
+        throw new Error('expected VEVENT comp-filter');
+      if (events.length !== 1) throw new Error(`expected 1 event, got ${events.length}`);
+      if (events[0].name !== 'Private') throw new Error(`unexpected event: ${events[0].name}`);
+    } finally {
+      globalThis.fetch = originalFetch;
     }
-    return Promise.resolve(
-      new Response(recurringResponseXml, {
-        status: 207,
-        headers: { 'Content-Type': 'application/xml' },
-      }),
-    );
-  }) as typeof fetch;
+  },
+);
 
-  try {
-    const events = await fetchFeedEvents(
-      {
-        name: 'CalDAV',
-        url: 'https://caldav.icloud.com/calendar/',
-        type: 'caldav',
-      },
-      new Date('2025-05-05T00:00:00Z'),
-      new Date('2025-05-18T23:59:59Z'),
-    );
+Deno.test(
+  'fetchFeedEvents retries caldav REPORT without time-range when filtered query returns no events',
+  async () => {
+    const originalFetch = globalThis.fetch;
+    const requests: Request[] = [];
 
-    if (requests.length !== 2) throw new Error(`expected 2 requests, got ${requests.length}`);
-    const firstBody = await requests[0].text();
-    const secondBody = await requests[1].text();
-    if (!firstBody.includes('time-range')) throw new Error('first query should include time-range');
-    if (secondBody.includes('time-range')) throw new Error('fallback query should omit time-range');
-    if (events.length !== 2) throw new Error(`expected 2 events, got ${events.length}`);
-    const starts = events.map((e) => e.start.split('T')[0]);
-    if (!starts.includes('2025-05-05')) throw new Error('missing 2025-05-05 recurrence');
-    if (!starts.includes('2025-05-12')) throw new Error('missing 2025-05-12 recurrence');
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
+    const emptyResponseXml = [
+      '<?xml version="1.0" encoding="utf-8"?>',
+      '<D:multistatus xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">',
+      '</D:multistatus>',
+    ].join('\n');
+    const recurringResponseXml = [
+      '<?xml version="1.0" encoding="utf-8"?>',
+      '<D:multistatus xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">',
+      '  <D:response>',
+      '    <D:propstat>',
+      '      <D:prop>',
+      '        <C:calendar-data>BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:Weekly standup\r\nDTSTART:20240101T090000Z\r\nDTEND:20240101T093000Z\r\nRRULE:FREQ=WEEKLY;BYDAY=MO\r\nEND:VEVENT\r\nEND:VCALENDAR</C:calendar-data>',
+      '      </D:prop>',
+      '    </D:propstat>',
+      '  </D:response>',
+      '</D:multistatus>',
+    ].join('\n');
+
+    globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+      const request = new Request(input, init);
+      requests.push(request);
+      if (requests.length === 1) {
+        return Promise.resolve(
+          new Response(emptyResponseXml, {
+            status: 207,
+            headers: { 'Content-Type': 'application/xml' },
+          }),
+        );
+      }
+      return Promise.resolve(
+        new Response(recurringResponseXml, {
+          status: 207,
+          headers: { 'Content-Type': 'application/xml' },
+        }),
+      );
+    }) as typeof fetch;
+
+    try {
+      const events = await fetchFeedEvents(
+        {
+          name: 'CalDAV',
+          url: 'https://caldav.icloud.com/calendar/',
+          type: 'caldav',
+        },
+        new Date('2025-05-05T00:00:00Z'),
+        new Date('2025-05-18T23:59:59Z'),
+      );
+
+      if (requests.length !== 2) throw new Error(`expected 2 requests, got ${requests.length}`);
+      const firstBody = await requests[0].text();
+      const secondBody = await requests[1].text();
+      if (!firstBody.includes('time-range'))
+        throw new Error('first query should include time-range');
+      if (secondBody.includes('time-range'))
+        throw new Error('fallback query should omit time-range');
+      if (events.length !== 2) throw new Error(`expected 2 events, got ${events.length}`);
+      const starts = events.map((e) => e.start.split('T')[0]);
+      if (!starts.includes('2025-05-05')) throw new Error('missing 2025-05-05 recurrence');
+      if (!starts.includes('2025-05-12')) throw new Error('missing 2025-05-12 recurrence');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  },
+);
 
 Deno.test('fetchFeedEvents parses CalDAV calendar-data wrapped in CDATA', async () => {
   const originalFetch = globalThis.fetch;
@@ -455,8 +468,10 @@ Deno.test('fetchFeedEvents surfaces CalDAV error response text for diagnostics',
     throw new Error('expected fetchFeedEvents to throw');
   } catch (err) {
     if (!(err instanceof Error)) throw new Error(`expected Error, got ${String(err)}`);
-    if (!err.message.includes('HTTP 401')) throw new Error(`expected status in error, got ${err.message}`);
-    if (!err.message.includes('Unauthorized')) throw new Error(`expected response text in error, got ${err.message}`);
+    if (!err.message.includes('HTTP 401'))
+      throw new Error(`expected status in error, got ${err.message}`);
+    if (!err.message.includes('Unauthorized'))
+      throw new Error(`expected response text in error, got ${err.message}`);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -485,8 +500,10 @@ Deno.test('fetchFeedEvents surfaces ICS error response text for diagnostics', as
     throw new Error('expected fetchFeedEvents to throw');
   } catch (err) {
     if (!(err instanceof Error)) throw new Error(`expected Error, got ${String(err)}`);
-    if (!err.message.includes('HTTP 403')) throw new Error(`expected status in error, got ${err.message}`);
-    if (!err.message.includes('Forbidden')) throw new Error(`expected response text in error, got ${err.message}`);
+    if (!err.message.includes('HTTP 403'))
+      throw new Error(`expected status in error, got ${err.message}`);
+    if (!err.message.includes('Forbidden'))
+      throw new Error(`expected response text in error, got ${err.message}`);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -527,16 +544,26 @@ Deno.test('fetchFeedEvents omits response summary when error body is empty', asy
 // ---------------------------------------------------------------------------
 
 Deno.test('parseICalFeeds loads a valid ICS feed', () => {
-  const feeds = parseICalFeeds(JSON.stringify([{ name: 'Cal', url: 'https://example.com/cal.ics' }]));
+  const feeds = parseICalFeeds(
+    JSON.stringify([{ name: 'Cal', url: 'https://example.com/cal.ics' }]),
+  );
   if (feeds.length !== 1) throw new Error(`expected 1 feed, got ${feeds.length}`);
   if (feeds[0].name !== 'Cal') throw new Error(`unexpected name: ${feeds[0].name}`);
   if (feeds[0].type !== undefined) throw new Error(`expected no type, got ${feeds[0].type}`);
 });
 
 Deno.test('parseICalFeeds loads a valid CalDAV feed with credentials', () => {
-  const feeds = parseICalFeeds(JSON.stringify([
-    { name: 'iCloud', url: 'https://caldav.icloud.com/cal/', type: 'caldav', username: 'u', password: 'p' },
-  ]));
+  const feeds = parseICalFeeds(
+    JSON.stringify([
+      {
+        name: 'iCloud',
+        url: 'https://caldav.icloud.com/cal/',
+        type: 'caldav',
+        username: 'u',
+        password: 'p',
+      },
+    ]),
+  );
   if (feeds.length !== 1) throw new Error(`expected 1 feed, got ${feeds.length}`);
   if (feeds[0].type !== 'caldav') throw new Error(`expected type caldav, got ${feeds[0].type}`);
   if (feeds[0].username !== 'u') throw new Error(`unexpected username: ${feeds[0].username}`);
@@ -544,63 +571,77 @@ Deno.test('parseICalFeeds loads a valid CalDAV feed with credentials', () => {
 });
 
 Deno.test('parseICalFeeds normalises type to lowercase (CalDAV → caldav)', () => {
-  const feeds = parseICalFeeds(JSON.stringify([
-    { name: 'iCloud', url: 'https://caldav.icloud.com/cal/', type: 'CalDAV', username: 'u', password: 'p' },
-  ]));
+  const feeds = parseICalFeeds(
+    JSON.stringify([
+      {
+        name: 'iCloud',
+        url: 'https://caldav.icloud.com/cal/',
+        type: 'CalDAV',
+        username: 'u',
+        password: 'p',
+      },
+    ]),
+  );
   if (feeds.length !== 1) throw new Error(`expected 1 feed, got ${feeds.length}`);
-  if (feeds[0].type !== 'caldav') throw new Error(`expected type caldav after normalisation, got ${feeds[0].type}`);
+  if (feeds[0].type !== 'caldav')
+    throw new Error(`expected type caldav after normalisation, got ${feeds[0].type}`);
 });
 
 Deno.test('parseICalFeeds normalises type to lowercase (ICS → ics)', () => {
-  const feeds = parseICalFeeds(JSON.stringify([
-    { name: 'Cal', url: 'https://example.com/cal.ics', type: 'ICS' },
-  ]));
+  const feeds = parseICalFeeds(
+    JSON.stringify([{ name: 'Cal', url: 'https://example.com/cal.ics', type: 'ICS' }]),
+  );
   if (feeds.length !== 1) throw new Error(`expected 1 feed, got ${feeds.length}`);
-  if (feeds[0].type !== 'ics') throw new Error(`expected type ics after normalisation, got ${feeds[0].type}`);
+  if (feeds[0].type !== 'ics')
+    throw new Error(`expected type ics after normalisation, got ${feeds[0].type}`);
 });
 
 Deno.test('parseICalFeeds treats null type as absent (no type)', () => {
-  const feeds = parseICalFeeds(JSON.stringify([
-    { name: 'Cal', url: 'https://example.com/cal.ics', type: null },
-  ]));
+  const feeds = parseICalFeeds(
+    JSON.stringify([{ name: 'Cal', url: 'https://example.com/cal.ics', type: null }]),
+  );
   if (feeds.length !== 1) throw new Error(`expected 1 feed, got ${feeds.length}`);
   if (feeds[0].type !== undefined) throw new Error(`expected no type, got ${feeds[0].type}`);
 });
 
 Deno.test('parseICalFeeds treats null username as absent', () => {
-  const feeds = parseICalFeeds(JSON.stringify([
-    { name: 'Cal', url: 'https://example.com/cal.ics', username: null },
-  ]));
+  const feeds = parseICalFeeds(
+    JSON.stringify([{ name: 'Cal', url: 'https://example.com/cal.ics', username: null }]),
+  );
   if (feeds.length !== 1) throw new Error(`expected 1 feed, got ${feeds.length}`);
-  if (feeds[0].username !== undefined) throw new Error(`expected no username, got ${feeds[0].username}`);
+  if (feeds[0].username !== undefined)
+    throw new Error(`expected no username, got ${feeds[0].username}`);
 });
 
 Deno.test('parseICalFeeds treats null password as absent', () => {
-  const feeds = parseICalFeeds(JSON.stringify([
-    { name: 'Cal', url: 'https://example.com/cal.ics', password: null },
-  ]));
+  const feeds = parseICalFeeds(
+    JSON.stringify([{ name: 'Cal', url: 'https://example.com/cal.ics', password: null }]),
+  );
   if (feeds.length !== 1) throw new Error(`expected 1 feed, got ${feeds.length}`);
-  if (feeds[0].password !== undefined) throw new Error(`expected no password, got ${feeds[0].password}`);
+  if (feeds[0].password !== undefined)
+    throw new Error(`expected no password, got ${feeds[0].password}`);
 });
 
 Deno.test('parseICalFeeds keeps CalDAV feed when HA sends null for unset optional fields', () => {
   // Simulates HA passing null for optional fields the user did not fill in
-  const feeds = parseICalFeeds(JSON.stringify([
-    {
-      name: 'iCloud',
-      url: 'https://caldav.icloud.com/cal/',
-      type: 'caldav',
-      username: 'user@icloud.com',
-      password: 'app-specific-password',
-    },
-    {
-      name: 'Sports',
-      url: 'https://example.com/sports.ics',
-      type: null,
-      username: null,
-      password: null,
-    },
-  ]));
+  const feeds = parseICalFeeds(
+    JSON.stringify([
+      {
+        name: 'iCloud',
+        url: 'https://caldav.icloud.com/cal/',
+        type: 'caldav',
+        username: 'user@icloud.com',
+        password: 'app-specific-password',
+      },
+      {
+        name: 'Sports',
+        url: 'https://example.com/sports.ics',
+        type: null,
+        username: null,
+        password: null,
+      },
+    ]),
+  );
   if (feeds.length !== 2) throw new Error(`expected 2 feeds, got ${feeds.length}`);
   const caldav = feeds.find((f) => f.name === 'iCloud');
   if (!caldav) throw new Error('CalDAV feed missing');
@@ -611,17 +652,18 @@ Deno.test('parseICalFeeds keeps CalDAV feed when HA sends null for unset optiona
 });
 
 Deno.test('parseICalFeeds rejects feed with unknown type string', () => {
-  const feeds = parseICalFeeds(JSON.stringify([
-    { name: 'Bad', url: 'https://example.com/', type: 'webdav' },
-  ]));
+  const feeds = parseICalFeeds(
+    JSON.stringify([{ name: 'Bad', url: 'https://example.com/', type: 'webdav' }]),
+  );
   if (feeds.length !== 0) throw new Error(`expected 0 feeds, got ${feeds.length}`);
 });
 
 Deno.test('parseICalFeeds rejects feed with only username and no password', () => {
-  const feeds = parseICalFeeds(JSON.stringify([
-    { name: 'Cal', url: 'https://example.com/cal.ics', username: 'user' },
-  ]));
-  if (feeds.length !== 0) throw new Error(`expected 0 feeds (incomplete credentials), got ${feeds.length}`);
+  const feeds = parseICalFeeds(
+    JSON.stringify([{ name: 'Cal', url: 'https://example.com/cal.ics', username: 'user' }]),
+  );
+  if (feeds.length !== 0)
+    throw new Error(`expected 0 feeds (incomplete credentials), got ${feeds.length}`);
 });
 
 Deno.test('fetchFeedEvents truncates long response text in diagnostics', async () => {
@@ -671,7 +713,8 @@ Deno.test('parseOpenMeteoDaily maps weather arrays into day forecasts', () => {
   if (days.length !== 2) throw new Error(`expected 2 days, got ${days.length}`);
   if (days[0].date !== '2026-05-01') throw new Error('date mismatch');
   if (days[1].weatherCode !== 63) throw new Error('weather code mismatch');
-  if (days[1].precipitationProbabilityMax !== 78) throw new Error('precipitation probability mismatch');
+  if (days[1].precipitationProbabilityMax !== 78)
+    throw new Error('precipitation probability mismatch');
 });
 
 Deno.test('parseOpenMeteoDaily skips entries with incomplete data', () => {

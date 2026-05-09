@@ -128,9 +128,7 @@ export function useCalendarEvents(fromDate: Date, toDate: Date) {
     retry: 1,
   });
 
-  const byDate: CalendarEventsByDate = query.data
-    ? groupEventsByLocalDate(query.data)
-    : {};
+  const byDate: CalendarEventsByDate = query.data ? groupEventsByLocalDate(query.data) : {};
 
   return { ...query, byDate };
 }

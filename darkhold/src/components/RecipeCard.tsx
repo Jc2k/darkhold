@@ -24,9 +24,9 @@ const PLACEHOLDER_ICON_COLOR = '#a0a0a0';
 export function RecipeCard({ recipe, onAddToMealPlan, linkTo, imageOverlayAction }: Props) {
   const navigate = useNavigate();
   const destination = linkTo ?? `/recipe/${recipe.id}`;
-  const keywords = (Array.isArray(recipe.keywords)
+  const keywords = Array.isArray(recipe.keywords)
     ? recipe.keywords.filter((k): k is Keyword => typeof k === 'object')
-    : []);
+    : [];
 
   return (
     <Card className="h-100 recipe-card" style={{ cursor: 'pointer' }}>
@@ -51,9 +51,16 @@ export function RecipeCard({ recipe, onAddToMealPlan, linkTo, imageOverlayAction
             }}
             onClick={() => navigate(destination)}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 24 24" fill={PLACEHOLDER_ICON_COLOR} aria-hidden="true">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="72"
+              height="72"
+              viewBox="0 0 24 24"
+              fill={PLACEHOLDER_ICON_COLOR}
+              aria-hidden="true"
+            >
               {/* Pizza slice */}
-              <path d="M12 2C6.48 2 2 6.48 2 12h10V2zm0 0c5.52 0 10 4.48 10 10h-10V2zM2 12c0 5.52 4.48 10 10 10L12 12H2z"/>
+              <path d="M12 2C6.48 2 2 6.48 2 12h10V2zm0 0c5.52 0 10 4.48 10 10h-10V2zM2 12c0 5.52 4.48 10 10 10L12 12H2z" />
             </svg>
           </div>
         )}

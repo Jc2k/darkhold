@@ -23,15 +23,17 @@ describe('getVersionReloadUrl', () => {
   });
 
   it('preserves existing query parameters and hash fragments', () => {
-    expect(getVersionReloadUrl('https://darkhold.example.com/search?q=pasta#results', '1.2.4')).toBe(
-      'https://darkhold.example.com/search?q=pasta&darkhold_reload_version=1.2.4#results',
-    );
+    expect(
+      getVersionReloadUrl('https://darkhold.example.com/search?q=pasta#results', '1.2.4'),
+    ).toBe('https://darkhold.example.com/search?q=pasta&darkhold_reload_version=1.2.4#results');
   });
 
   it('replaces any stale reload version parameter', () => {
-    expect(getVersionReloadUrl(
-      'https://darkhold.example.com/dashboard?darkhold_reload_version=1.2.3',
-      '1.2.4',
-    )).toBe('https://darkhold.example.com/dashboard?darkhold_reload_version=1.2.4');
+    expect(
+      getVersionReloadUrl(
+        'https://darkhold.example.com/dashboard?darkhold_reload_version=1.2.3',
+        '1.2.4',
+      ),
+    ).toBe('https://darkhold.example.com/dashboard?darkhold_reload_version=1.2.4');
   });
 });

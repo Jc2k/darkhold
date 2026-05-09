@@ -4,7 +4,7 @@ interface LoadingMascotProps {
   label?: string;
 }
 
-export function LoadingMascot({ label = "Loading…" }: LoadingMascotProps) {
+export function LoadingMascot({ label = 'Loading…' }: LoadingMascotProps) {
   return (
     <div
       className="d-flex flex-column align-items-center justify-content-center"

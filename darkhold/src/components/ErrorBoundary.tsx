@@ -5,13 +5,19 @@ function getErrorDetails(error: unknown): { title: string; message: string } {
   if (isRouteErrorResponse(error)) {
     return {
       title: `${error.status} ${error.statusText}`,
-      message: typeof error.data === 'string' ? error.data : 'An unexpected error occurred. Please try again.',
+      message:
+        typeof error.data === 'string'
+          ? error.data
+          : 'An unexpected error occurred. Please try again.',
     };
   }
   if (error instanceof Error) {
     return { title: 'Something went wrong', message: error.message };
   }
-  return { title: 'Something went wrong', message: 'An unexpected error occurred. Please try again.' };
+  return {
+    title: 'Something went wrong',
+    message: 'An unexpected error occurred. Please try again.',
+  };
 }
 
 export function ErrorBoundary() {

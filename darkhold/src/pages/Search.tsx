@@ -21,19 +21,30 @@ interface FilterConfig {
 
 const FILTER_CONFIGS: FilterConfig[] = [
   { key: 'tags', label: 'Tags', emoji: '🏷️', urlParam: 'keywords', searcher: searchKeywords },
-  { key: 'ingredients', label: 'Ingredients', emoji: '🥕', urlParam: 'foods', searcher: searchFoods },
+  {
+    key: 'ingredients',
+    label: 'Ingredients',
+    emoji: '🥕',
+    urlParam: 'foods',
+    searcher: searchFoods,
+  },
 ];
 
-async function loadSelectedOptions(path: '/keyword/' | '/food/', ids: number[]): Promise<FilterOption[]> {
-  const options = await Promise.all(ids.map(async (id) => {
-    try {
-      const option = await apiGet<FilterOption>(`${path}${id}/`);
-      return { id: option.id, name: option.name };
-    } catch (error) {
-      console.warn('Failed to restore search filter option', { path, id, error });
-      return null;
-    }
-  }));
+async function loadSelectedOptions(
+  path: '/keyword/' | '/food/',
+  ids: number[],
+): Promise<FilterOption[]> {
+  const options = await Promise.all(
+    ids.map(async (id) => {
+      try {
+        const option = await apiGet<FilterOption>(`${path}${id}/`);
+        return { id: option.id, name: option.name };
+      } catch (error) {
+        console.warn('Failed to restore search filter option', { path, id, error });
+        return null;
+      }
+    }),
+  );
   return options.filter((option): option is FilterOption => option !== null);
 }
 
@@ -139,7 +150,15 @@ export function Search() {
   };
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, isError } =
-    useRecipeSearch({ query: q, keywords: keywordIds, foods: foodIds, rating, cooking_time__lte: cookingTimeLte, new: newOnly, sort_order: sortOrder });
+    useRecipeSearch({
+      query: q,
+      keywords: keywordIds,
+      foods: foodIds,
+      rating,
+      cooking_time__lte: cookingTimeLte,
+      new: newOnly,
+      sort_order: sortOrder,
+    });
 
   const recipes = data?.pages.flatMap((p) => p.results) ?? [];
 
@@ -158,10 +177,19 @@ export function Search() {
     const observer = new IntersectionObserver(handleObserver, { threshold: 0.1 });
     const el = loaderRef.current;
     if (el) observer.observe(el);
-    return () => { if (el) observer.unobserve(el); };
+    return () => {
+      if (el) observer.unobserve(el);
+    };
   }, [handleObserver]);
 
-  const hasQuery = !!(q || keywordIds.length || foodIds.length || rating !== undefined || cookingTimeLte !== undefined || newOnly);
+  const hasQuery = !!(
+    q ||
+    keywordIds.length ||
+    foodIds.length ||
+    rating !== undefined ||
+    cookingTimeLte !== undefined ||
+    newOnly
+  );
 
   return (
     <div className="pt-2">
@@ -176,7 +204,9 @@ export function Search() {
             />
           </Col>
           <Col xs="auto">
-            <Button type="submit" variant="primary">Search</Button>
+            <Button type="submit" variant="primary">
+              Search
+            </Button>
           </Col>
           <Col xs="auto">
             <Button
@@ -195,27 +225,36 @@ export function Search() {
       <Collapse in={filtersOpen}>
         <div id="advanced-filters" className="border rounded p-3 mb-3 bg-light">
           <div className="d-flex flex-wrap gap-2 mb-3">
-            {FILTER_CONFIGS.filter(({ key }) => !activeFilters.has(key)).map(({ key, label, emoji }) => (
-              <Button key={key} variant="outline-primary" size="sm" onClick={() => addFilter(key)}>
-                {emoji} {label}
-              </Button>
-            ))}
+            {FILTER_CONFIGS.filter(({ key }) => !activeFilters.has(key)).map(
+              ({ key, label, emoji }) => (
+                <Button
+                  key={key}
+                  variant="outline-primary"
+                  size="sm"
+                  onClick={() => addFilter(key)}
+                >
+                  {emoji} {label}
+                </Button>
+              ),
+            )}
             {FILTER_CONFIGS.every(({ key }) => activeFilters.has(key)) && (
               <span className="text-muted small align-self-center">All filters added.</span>
             )}
           </div>
 
-          {FILTER_CONFIGS.filter(({ key }) => activeFilters.has(key)).map(({ key, label, searcher }) => (
-            <AsyncTypeaheadFilter
-              key={key}
-              id={`${key}-filter`}
-              label={label}
-              selected={selectedOptions[key]}
-              onSearch={searcher}
-              onChange={(selected) => handleFilterChange(key, selected)}
-              onRemove={() => removeFilter(key)}
-            />
-          ))}
+          {FILTER_CONFIGS.filter(({ key }) => activeFilters.has(key)).map(
+            ({ key, label, searcher }) => (
+              <AsyncTypeaheadFilter
+                key={key}
+                id={`${key}-filter`}
+                label={label}
+                selected={selectedOptions[key]}
+                onSearch={searcher}
+                onChange={(selected) => handleFilterChange(key, selected)}
+                onRemove={() => removeFilter(key)}
+              />
+            ),
+          )}
         </div>
       </Collapse>
 

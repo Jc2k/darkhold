@@ -81,19 +81,29 @@ const cookLogButtonStyle: React.CSSProperties = {
   right: 88,
 };
 
-function UpcomingMealsShelf({ days, mealsByDay, loading, error, onAddToMealPlan, cookedToday, onLogCook }: UpcomingMealsShelfProps) {
+function UpcomingMealsShelf({
+  days,
+  mealsByDay,
+  loading,
+  error,
+  onAddToMealPlan,
+  cookedToday,
+  onLogCook,
+}: UpcomingMealsShelfProps) {
   // Flatten days into individual card items so all cards sit in one horizontal row.
   // The date label is shown only above the first card of each day group.
   const DATE_LABEL_HEIGHT = '1.4rem';
   const todayStr = formatDate(new Date());
-  const items = days.flatMap((day): Array<{ day: Date; entry: MealPlan | null; isFirstOfDay: boolean }> => {
-    const key = formatDate(day);
-    const entries = mealsByDay[key] ?? [];
-    if (entries.length === 0) {
-      return [{ day, entry: null, isFirstOfDay: true }];
-    }
-    return entries.map((entry, index) => ({ day, entry, isFirstOfDay: index === 0 }));
-  });
+  const items = days.flatMap(
+    (day): Array<{ day: Date; entry: MealPlan | null; isFirstOfDay: boolean }> => {
+      const key = formatDate(day);
+      const entries = mealsByDay[key] ?? [];
+      if (entries.length === 0) {
+        return [{ day, entry: null, isFirstOfDay: true }];
+      }
+      return entries.map((entry, index) => ({ day, entry, isFirstOfDay: index === 0 }));
+    },
+  );
 
   if (loading) return null;
 
@@ -146,7 +156,10 @@ function UpcomingMealsShelf({ days, mealsByDay, loading, error, onAddToMealPlan,
                             variant="secondary"
                             size="sm"
                             style={cookLogButtonStyle}
-                            onClick={(e) => { e.stopPropagation(); onLogCook(entry); }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onLogCook(entry);
+                            }}
                             aria-label="Log as cooked"
                           >
                             <Check2Circle size={14} />
@@ -181,7 +194,10 @@ function useTagShelf(tag: string) {
   const keywordQuery = useQuery({
     queryKey: ['keywords', 'by-name', tag],
     queryFn: async () => {
-      const data = await apiGet<PaginatedResponse<Keyword>>('/keyword/', { query: tag, page_size: 100 });
+      const data = await apiGet<PaginatedResponse<Keyword>>('/keyword/', {
+        query: tag,
+        page_size: 100,
+      });
       return data.results.find((k) => k.name.toLowerCase() === tag.toLowerCase()) ?? null;
     },
   });
@@ -215,10 +231,10 @@ interface SeasonConfig {
 }
 
 const SEASON_CONFIGS: SeasonConfig[] = [
-  { tag: 'spring',    title: 'Spring',    emoji: '🌸' },
-  { tag: 'summer',    title: 'Summer',    emoji: '☀️' },
-  { tag: 'autumn',    title: 'Autumn',    emoji: '🍂' },
-  { tag: 'winter',    title: 'Winter',    emoji: '❄️' },
+  { tag: 'spring', title: 'Spring', emoji: '🌸' },
+  { tag: 'summer', title: 'Summer', emoji: '☀️' },
+  { tag: 'autumn', title: 'Autumn', emoji: '🍂' },
+  { tag: 'winter', title: 'Winter', emoji: '❄️' },
   { tag: 'christmas', title: 'Christmas', emoji: '🎄' },
 ];
 
@@ -236,7 +252,13 @@ function getActiveSeasons(date: Date): Set<string> {
   if ((month === 8 && day >= 15) || (month >= 9 && month <= 11) || (month === 12 && day <= 14)) {
     active.add('autumn');
   }
-  if ((month === 11 && day >= 15) || month === 12 || month === 1 || month === 2 || (month === 3 && day <= 14)) {
+  if (
+    (month === 11 && day >= 15) ||
+    month === 12 ||
+    month === 1 ||
+    month === 2 ||
+    (month === 3 && day <= 14)
+  ) {
     active.add('winter');
   }
   if (month === 12) {
@@ -250,7 +272,10 @@ function useSeasonalShelf(tag: string, enabled: boolean) {
   const keywordQuery = useQuery({
     queryKey: ['keywords', 'by-name', tag],
     queryFn: async () => {
-      const data = await apiGet<PaginatedResponse<Keyword>>('/keyword/', { query: tag, page_size: 100 });
+      const data = await apiGet<PaginatedResponse<Keyword>>('/keyword/', {
+        query: tag,
+        page_size: 100,
+      });
       return data.results.find((k) => k.name.toLowerCase() === tag.toLowerCase()) ?? null;
     },
     enabled,
@@ -260,7 +285,11 @@ function useSeasonalShelf(tag: string, enabled: boolean) {
 
   const recipeQuery = useQuery({
     queryKey: ['recipes', 'seasonal', tag],
-    queryFn: () => apiGet<PaginatedResponse<Recipe>>('/recipe/', { keywords: keywordId as number, page_size: 10 }),
+    queryFn: () =>
+      apiGet<PaginatedResponse<Recipe>>('/recipe/', {
+        keywords: keywordId as number,
+        page_size: 10,
+      }),
     enabled: enabled && keywordId !== undefined,
   });
 
@@ -279,9 +308,9 @@ interface TagShelfConfig {
 }
 
 const TAG_SHELF_CONFIGS: TagShelfConfig[] = [
-  { tag: 'Adam',     title: 'Adam',     emoji: '👨‍🍳' },
+  { tag: 'Adam', title: 'Adam', emoji: '👨‍🍳' },
   { tag: 'soy-free', title: 'Soy Free', emoji: '🌱' },
-  { tag: 'pasta',    title: 'Pasta',    emoji: '🍝' },
+  { tag: 'pasta', title: 'Pasta', emoji: '🍝' },
 ];
 
 function TagShelf({
@@ -403,7 +432,12 @@ function UpSoonShelf({ onAddToMealPlan }: { onAddToMealPlan: (r: Recipe) => void
 
   return (
     <RecipeShelf
-      title={<><BookmarkFill className="me-2 text-warning" />Up Soon</>}
+      title={
+        <>
+          <BookmarkFill className="me-2 text-warning" />
+          Up Soon
+        </>
+      }
       searchLink="/books"
       recipes={recipes}
       loading={isLoading}
@@ -414,9 +448,8 @@ function UpSoonShelf({ onAddToMealPlan }: { onAddToMealPlan: (r: Recipe) => void
 }
 
 function RecentlyViewedShelf({ onAddToMealPlan }: { onAddToMealPlan: (r: Recipe) => void }) {
-  const { data, isLoading, isError } = useDashboardShelf(
-    ['recently-viewed'],
-    () => apiGet<PaginatedResponse<Recipe>>('/recipe/', {
+  const { data, isLoading, isError } = useDashboardShelf(['recently-viewed'], () =>
+    apiGet<PaginatedResponse<Recipe>>('/recipe/', {
       sort_order: '-lastviewed',
       viewedon_gte: '2000-01-01',
       page_size: 10,
@@ -459,12 +492,11 @@ export function Dashboard() {
     cookLogEntry && typeof cookLogEntry.meal_type === 'object'
       ? (cookLogEntry.meal_type as MealType)
       : undefined;
-  const cookLogRecipeId =
-    cookLogEntry
-      ? typeof cookLogEntry.recipe === 'object'
-        ? cookLogEntry.recipe.id
-        : (cookLogEntry.recipe as number)
-      : 0;
+  const cookLogRecipeId = cookLogEntry
+    ? typeof cookLogEntry.recipe === 'object'
+      ? cookLogEntry.recipe.id
+      : (cookLogEntry.recipe as number)
+    : 0;
   const cookLogDate = cookLogEntry?.from_date.split('T')[0] ?? '';
 
   const upcomingMealPlanEntries = useMemo(() => {
@@ -493,9 +525,8 @@ export function Dashboard() {
     }
   }
 
-  const recentlyAdded = useDashboardShelf(
-    ['recipes', 'recent'],
-    () => apiGet<PaginatedResponse<Recipe>>('/recipe/', { new: true, sort_order: '-id', page_size: 10 }),
+  const recentlyAdded = useDashboardShelf(['recipes', 'recent'], () =>
+    apiGet<PaginatedResponse<Recipe>>('/recipe/', { new: true, sort_order: '-id', page_size: 10 }),
   );
 
   const regulars = useRegularsShelf();
@@ -503,7 +534,10 @@ export function Dashboard() {
   // On cold start (no cached data), show a full-page spinner until at least one
   // shelf query has settled so shelves don't flash in an empty state then vanish.
   const isInitialDashboardLoad =
-    currentWeekMealPlan.isLoading && nextWeekMealPlan.isLoading && regulars.isLoading && recentlyAdded.isLoading;
+    currentWeekMealPlan.isLoading &&
+    nextWeekMealPlan.isLoading &&
+    regulars.isLoading &&
+    recentlyAdded.isLoading;
 
   if (isInitialDashboardLoad) {
     return <LoadingMascot />;
@@ -553,11 +587,7 @@ export function Dashboard() {
       ))}
 
       {TAG_SHELF_CONFIGS.map((config) => (
-        <TagShelf
-          key={config.tag}
-          config={config}
-          onAddToMealPlan={setModalRecipe}
-        />
+        <TagShelf key={config.tag} config={config} onAddToMealPlan={setModalRecipe} />
       ))}
 
       <MealPlanAddModal recipe={modalRecipe} onHide={() => setModalRecipe(null)} />

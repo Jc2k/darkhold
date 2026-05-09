@@ -1,7 +1,13 @@
 import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPost, apiDelete } from '../api/client';
-import type { RecipeBook, RecipeBookEntry, Recipe, User, PaginatedResponse } from '../api/tandoor-types';
+import type {
+  RecipeBook,
+  RecipeBookEntry,
+  Recipe,
+  User,
+  PaginatedResponse,
+} from '../api/tandoor-types';
 import { broadcastInvalidation } from './useInvalidationSocket';
 
 export const UP_SOON_BOOK_NAME = 'Up Soon';
@@ -22,7 +28,10 @@ async function fetchAllBooks(): Promise<RecipeBook[]> {
   let page = 1;
   let hasNext = true;
   while (hasNext) {
-    const data = await apiGet<PaginatedResponse<RecipeBook>>('/recipe-book/', { page_size: 100, page });
+    const data = await apiGet<PaginatedResponse<RecipeBook>>('/recipe-book/', {
+      page_size: 100,
+      page,
+    });
     all.push(...data.results);
     hasNext = !!data.next;
     page++;

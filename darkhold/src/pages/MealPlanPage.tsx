@@ -1,17 +1,8 @@
-import { useEffect, useState, useRef } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import {
-  Card,
-  Table,
-  Button,
-  InputGroup,
-  Modal,
-  Form,
-  Spinner,
-  Alert,
-} from "react-bootstrap";
-import { AsyncTypeahead } from "react-bootstrap-typeahead";
-import "react-bootstrap-typeahead/css/Typeahead.css";
+import { useEffect, useState, useRef } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Card, Table, Button, InputGroup, Modal, Form, Spinner, Alert } from 'react-bootstrap';
+import { AsyncTypeahead } from 'react-bootstrap-typeahead';
+import 'react-bootstrap-typeahead/css/Typeahead.css';
 import {
   Trash3,
   Plus,
@@ -24,8 +15,8 @@ import {
   CloudSnowFill,
   CloudLightningRainFill,
   CloudFog2Fill,
-} from "react-bootstrap-icons";
-import { proxyMediaUrl } from "../utils/mediaUrl";
+} from 'react-bootstrap-icons';
+import { proxyMediaUrl } from '../utils/mediaUrl';
 import {
   DndContext,
   DragOverlay,
@@ -37,61 +28,49 @@ import {
   useDroppable,
   type DragEndEvent,
   type DragStartEvent,
-} from "@dnd-kit/core";
-import { SortableContext, useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+} from '@dnd-kit/core';
+import { SortableContext, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import {
   useMealPlan,
   useDeleteMealPlan,
   useCreateMealPlan,
   useUpdateMealPlan,
-} from "../hooks/useMealPlan";
+} from '../hooks/useMealPlan';
 import {
   useCalendarEvents,
   formatEventTimeRange,
   useRefetchCalendarEvents,
-} from "../hooks/useCalendarEvents";
-import type {
-  CalendarEventsByDate,
-  CalendarEvent,
-} from "../hooks/useCalendarEvents";
+} from '../hooks/useCalendarEvents';
+import type { CalendarEventsByDate, CalendarEvent } from '../hooks/useCalendarEvents';
 import {
   getWeatherDisruptionBand,
   useRefetchWeatherForecast,
   useWeatherForecast,
-} from "../hooks/useWeatherForecast";
+} from '../hooks/useWeatherForecast';
 import type {
   WeatherByDate,
   WeatherDayForecast,
   WeatherDisruptionBand,
-} from "../hooks/useWeatherForecast";
-import { useQuery } from "@tanstack/react-query";
-import { apiGet } from "../api/client";
-import type {
-  MealPlan,
-  Recipe,
-  MealType,
-  PaginatedResponse,
-} from "../api/tandoor-types";
-import { deriveMealType } from "../utils/mealUtils";
+} from '../hooks/useWeatherForecast';
+import { useQuery } from '@tanstack/react-query';
+import { apiGet } from '../api/client';
+import type { MealPlan, Recipe, MealType, PaginatedResponse } from '../api/tandoor-types';
+import { deriveMealType } from '../utils/mealUtils';
 import {
   formatDate,
   formatMonthYear,
   getMealPlanWeekStartSaturday,
   getWeekStartingSaturday,
   parseLocalDate,
-} from "../utils/dateUtils";
-import { LoadingMascot } from "../components/LoadingMascot";
-import { NoTokenAlert } from "../components/NoTokenAlert";
-import { CookLogModal } from "../components/CookLogModal";
-import {
-  useCookLog,
-  isCookedOnDate,
-  type CookedByDate,
-} from "../hooks/useCookLog";
-import { smallCircleButtonStyle } from "../utils/buttonStyles";
-import { usePullToRefresh } from "../hooks/usePullToRefresh";
-import { DroppableTableRow } from "./DroppableTableRow";
+} from '../utils/dateUtils';
+import { LoadingMascot } from '../components/LoadingMascot';
+import { NoTokenAlert } from '../components/NoTokenAlert';
+import { CookLogModal } from '../components/CookLogModal';
+import { useCookLog, isCookedOnDate, type CookedByDate } from '../hooks/useCookLog';
+import { smallCircleButtonStyle } from '../utils/buttonStyles';
+import { usePullToRefresh } from '../hooks/usePullToRefresh';
+import { DroppableTableRow } from './DroppableTableRow';
 
 type WithSortable = { sortable?: { containerId: string } } | undefined;
 
@@ -100,13 +79,13 @@ const noop = () => {};
 const navButtonStyle: React.CSSProperties = {
   minWidth: 44,
   minHeight: 44,
-  fontSize: "1.5rem",
+  fontSize: '1.5rem',
   lineHeight: 1,
-  padding: "0 0.5rem",
+  padding: '0 0.5rem',
 };
 
 const compactTitleButtonSizePx = 24;
-const compactTitleButtonFontSize = "0.875rem";
+const compactTitleButtonFontSize = '0.875rem';
 const circleButtonStyle = smallCircleButtonStyle;
 const compactTitleButtonStyle: React.CSSProperties = {
   ...smallCircleButtonStyle,
@@ -114,8 +93,8 @@ const compactTitleButtonStyle: React.CSSProperties = {
   height: compactTitleButtonSizePx,
   fontSize: compactTitleButtonFontSize,
 };
-const PLACEHOLDER_BG = "#d0d0d0";
-const PLACEHOLDER_ICON_COLOR = "#a0a0a0";
+const PLACEHOLDER_BG = '#d0d0d0';
+const PLACEHOLDER_ICON_COLOR = '#a0a0a0';
 
 function ThumbnailPlaceholder({
   dragProps,
@@ -130,14 +109,14 @@ function ThumbnailPlaceholder({
       role="img"
       aria-label="No image available"
       style={{
-        width: "100%",
-        height: "100%",
+        width: '100%',
+        height: '100%',
         background: PLACEHOLDER_BG,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        WebkitTouchCallout: "none",
-        userSelect: "none",
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        WebkitTouchCallout: 'none',
+        userSelect: 'none',
         ...dragStyle,
       }}
       {...restDragProps}
@@ -163,10 +142,10 @@ function addDays(d: Date, n: number): Date {
 }
 
 function shortDay(d: Date): string {
-  return d.toLocaleDateString("en-GB", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
+  return d.toLocaleDateString('en-GB', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
   });
 }
 
@@ -189,63 +168,45 @@ function weatherIconForCode(code: number) {
     code === 82
   )
     return <CloudRainFill size={14} aria-hidden="true" />;
-  if (
-    code === 71 ||
-    code === 73 ||
-    code === 75 ||
-    code === 77 ||
-    code === 85 ||
-    code === 86
-  ) {
+  if (code === 71 || code === 73 || code === 75 || code === 77 || code === 85 || code === 86) {
     return <CloudSnowFill size={14} aria-hidden="true" />;
   }
-  if (code === 45 || code === 48)
-    return <CloudFog2Fill size={14} aria-hidden="true" />;
+  if (code === 45 || code === 48) return <CloudFog2Fill size={14} aria-hidden="true" />;
   if (code === 0) return <SunFill size={14} aria-hidden="true" />;
-  if (code === 1 || code === 2)
-    return <CloudSunFill size={14} aria-hidden="true" />;
+  if (code === 1 || code === 2) return <CloudSunFill size={14} aria-hidden="true" />;
   return <CloudFill size={14} aria-hidden="true" />;
 }
 
 function weatherSummaryForCode(code: number): string {
-  if (code === 0) return "Clear";
-  if (code === 1 || code === 2) return "Partly cloudy";
-  if (code === 3) return "Overcast";
-  if (code === 45 || code === 48) return "Fog";
-  if (code === 51 || code === 53 || code === 55 || code === 56 || code === 57)
-    return "Drizzle";
-  if (code === 61 || code === 63 || code === 65 || code === 66 || code === 67)
-    return "Rain";
-  if (
-    code === 71 ||
-    code === 73 ||
-    code === 75 ||
-    code === 77 ||
-    code === 85 ||
-    code === 86
-  )
-    return "Snow";
-  if (code === 80 || code === 81 || code === 82) return "Rain showers";
-  if (code === 95 || code === 96 || code === 99) return "Thunderstorm";
-  return "Mixed weather";
+  if (code === 0) return 'Clear';
+  if (code === 1 || code === 2) return 'Partly cloudy';
+  if (code === 3) return 'Overcast';
+  if (code === 45 || code === 48) return 'Fog';
+  if (code === 51 || code === 53 || code === 55 || code === 56 || code === 57) return 'Drizzle';
+  if (code === 61 || code === 63 || code === 65 || code === 66 || code === 67) return 'Rain';
+  if (code === 71 || code === 73 || code === 75 || code === 77 || code === 85 || code === 86)
+    return 'Snow';
+  if (code === 80 || code === 81 || code === 82) return 'Rain showers';
+  if (code === 95 || code === 96 || code === 99) return 'Thunderstorm';
+  return 'Mixed weather';
 }
 
 function formatWeatherTime(isoDateTime: string): string {
   const parsed = new Date(isoDateTime);
-  if (isNaN(parsed.getTime())) return "--:--";
-  return parsed.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  if (isNaN(parsed.getTime())) return '--:--';
+  return parsed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 function weatherDisruptionLabel(band: WeatherDisruptionBand): string {
-  if (band === "definitely_disrupted") return "Definitely disrupted";
-  if (band === "might_be_disrupted") return "Might be disrupted";
-  return "OK";
+  if (band === 'definitely_disrupted') return 'Definitely disrupted';
+  if (band === 'might_be_disrupted') return 'Might be disrupted';
+  return 'OK';
 }
 
 function weatherDisruptionClassName(band: WeatherDisruptionBand): string {
-  if (band === "definitely_disrupted") return "text-danger";
-  if (band === "might_be_disrupted") return "text-warning";
-  return "text-success";
+  if (band === 'definitely_disrupted') return 'text-danger';
+  if (band === 'might_be_disrupted') return 'text-warning';
+  return 'text-success';
 }
 
 interface DayCalendarWeatherInfoProps {
@@ -254,23 +215,19 @@ interface DayCalendarWeatherInfoProps {
   centered?: boolean;
 }
 
-function DayCalendarWeatherInfo({
-  dayEvents,
-  weather,
-  centered,
-}: DayCalendarWeatherInfoProps) {
+function DayCalendarWeatherInfo({ dayEvents, weather, centered }: DayCalendarWeatherInfoProps) {
   if (!weather && dayEvents.length === 0) return null;
   const disruptionBand = weather ? getWeatherDisruptionBand(weather) : null;
   return (
     <div
-      className={`text-muted ${centered ? "text-center" : ""}`}
-      style={{ fontSize: "0.7rem", lineHeight: 1.5 }}
+      className={`text-muted ${centered ? 'text-center' : ''}`}
+      style={{ fontSize: '0.7rem', lineHeight: 1.5 }}
     >
       {weather && (
         <div className="mb-1">
           <div
             className="meal-plan-weather-line d-flex align-items-center gap-1"
-            style={{ justifyContent: centered ? "center" : undefined }}
+            style={{ justifyContent: centered ? 'center' : undefined }}
           >
             {weatherIconForCode(weather.weatherCode)}
             <span>{weatherSummaryForCode(weather.weatherCode)}</span>
@@ -279,7 +236,7 @@ function DayCalendarWeatherInfo({
             </span>
           </div>
           <div className="meal-plan-weather-sun">
-            Sunrise {formatWeatherTime(weather.sunrise)} · Sunset{" "}
+            Sunrise {formatWeatherTime(weather.sunrise)} · Sunset{' '}
             {formatWeatherTime(weather.sunset)}
           </div>
           {disruptionBand && (
@@ -289,7 +246,7 @@ function DayCalendarWeatherInfo({
             >
               {weatherDisruptionLabel(disruptionBand)} (
               <span title="precipitation probability / expected rainfall">
-                {Math.round(weather.precipitationProbabilityMax)}% /{" "}
+                {Math.round(weather.precipitationProbabilityMax)}% /{' '}
                 {weather.precipitationSumMm.toFixed(1)} mm
               </span>
               )
@@ -319,7 +276,7 @@ function parseContainerId(id: string): {
   date: string;
   mealTypeId: number | null;
 } {
-  const sep = id.indexOf("__");
+  const sep = id.indexOf('__');
   if (sep === -1) return { date: id, mealTypeId: null };
   const parsed = parseInt(id.slice(sep + 2), 10);
   return { date: id.slice(0, sep), mealTypeId: isNaN(parsed) ? null : parsed };
@@ -408,26 +365,24 @@ function EntryCard({
   isCooked,
   onLogCook,
 }: EntryCardProps) {
-  const recipe = typeof entry.recipe === "object" ? entry.recipe : null;
+  const recipe = typeof entry.recipe === 'object' ? entry.recipe : null;
   const thumbnailSrc = recipe?.image ? proxyMediaUrl(recipe.image) : undefined;
   const titleText = recipe?.name ?? `Recipe #${entry.recipe}`;
   const showPrimaryLogAction = Boolean(!isCooked && onLogCook);
 
   return (
-    <Card
-      className={`meal-plan-entry-card border-1 ${dragging ? "shadow-lg" : "shadow-sm"}`}
-    >
+    <Card className={`meal-plan-entry-card border-1 ${dragging ? 'shadow-lg' : 'shadow-sm'}`}>
       <div className="d-flex meal-plan-entry-body">
         <div className="meal-plan-entry-thumb-slot">
           {thumbnailSrc ? (
             <img
               src={thumbnailSrc}
-              alt={recipe?.name ?? ""}
+              alt={recipe?.name ?? ''}
               draggable={false}
               className="meal-plan-entry-thumb"
               style={{
-                cursor: dragging ? "grabbing" : "grab",
-                touchAction: "none",
+                cursor: dragging ? 'grabbing' : 'grab',
+                touchAction: 'none',
               }}
             />
           ) : (
@@ -435,7 +390,10 @@ function EntryCard({
           )}
         </div>
         <div className="meal-plan-entry-content" onClick={() => onClick(entry)}>
-          <div className="small fw-semibold meal-plan-entry-title bg-body-tertiary" title={titleText}>
+          <div
+            className="small fw-semibold meal-plan-entry-title bg-body-tertiary"
+            title={titleText}
+          >
             <span className="meal-plan-entry-title-label">{titleText}</span>
             {!dragging && (
               <CompactEntryActions
@@ -491,7 +449,7 @@ function SortableEntry({
     id: entry.id,
   });
   const style = { transform: CSS.Transform.toString(transform), transition };
-  const recipe = typeof entry.recipe === "object" ? entry.recipe : null;
+  const recipe = typeof entry.recipe === 'object' ? entry.recipe : null;
   const thumbnailSrc = recipe?.image ? proxyMediaUrl(recipe.image) : undefined;
   const titleText = recipe?.name ?? `Recipe #${entry.recipe}`;
   const showPrimaryLogAction = Boolean(!isCooked && onLogCook);
@@ -503,7 +461,7 @@ function SortableEntry({
       {...attributes}
       className="meal-plan-sortable-entry"
     >
-      <div style={{ position: "relative" }}>
+      <div style={{ position: 'relative' }}>
         <Card
           className="meal-plan-entry-card border-1 shadow-sm"
           style={isPending ? { opacity: 0.55 } : undefined}
@@ -515,26 +473,26 @@ function SortableEntry({
                   ref={setActivatorNodeRef}
                   {...listeners}
                   src={thumbnailSrc}
-                  alt={recipe?.name ?? ""}
+                  alt={recipe?.name ?? ''}
                   draggable={false}
                   className="meal-plan-entry-thumb"
-                  style={{ cursor: "grab", touchAction: "none" }}
+                  style={{ cursor: 'grab', touchAction: 'none' }}
                 />
               ) : (
                 <ThumbnailPlaceholder
                   dragProps={{
                     ref: setActivatorNodeRef as React.Ref<HTMLDivElement>,
                     ...listeners,
-                    style: { cursor: "grab", touchAction: "none" },
+                    style: { cursor: 'grab', touchAction: 'none' },
                   }}
                 />
               )}
             </div>
-            <div
-              className="meal-plan-entry-content"
-              onClick={() => onClick(entry)}
-            >
-              <div className="small fw-semibold meal-plan-entry-title bg-body-tertiary" title={titleText}>
+            <div className="meal-plan-entry-content" onClick={() => onClick(entry)}>
+              <div
+                className="small fw-semibold meal-plan-entry-title bg-body-tertiary"
+                title={titleText}
+              >
                 <span className="meal-plan-entry-title-label">{titleText}</span>
                 {!isDragging && (
                   <CompactEntryActions
@@ -559,14 +517,14 @@ function SortableEntry({
         {isPending && (
           <div
             style={{
-              position: "absolute",
+              position: 'absolute',
               inset: 0,
               borderRadius: 4,
-              backgroundColor: "rgba(200, 200, 200, 0.35)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              pointerEvents: "none",
+              backgroundColor: 'rgba(200, 200, 200, 0.35)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              pointerEvents: 'none',
             }}
           >
             <Spinner size="sm" variant="secondary" />
@@ -590,8 +548,8 @@ function DroppableDay({ dateKey, children }: DroppableDayProps) {
       className="meal-plan-day"
       style={{
         borderRadius: 4,
-        backgroundColor: isOver ? "rgba(13, 110, 253, 0.08)" : undefined,
-        transition: "background-color 0.15s",
+        backgroundColor: isOver ? 'rgba(13, 110, 253, 0.08)' : undefined,
+        transition: 'background-color 0.15s',
       }}
     >
       {children}
@@ -608,25 +566,18 @@ interface AddMealModalProps {
 
 function hasUnresolvedKeywordIds(recipe: Recipe): boolean {
   return Array.isArray(recipe.keywords)
-    ? recipe.keywords.some((k) => typeof k === "number")
+    ? recipe.keywords.some((k) => typeof k === 'number')
     : false;
 }
 
-function AddMealModal({
-  date,
-  onHide,
-  mealTypes,
-  initialMealTypeId,
-}: AddMealModalProps) {
+function AddMealModal({ date, onHide, mealTypes, initialMealTypeId }: AddMealModalProps) {
   const [isSearching, setIsSearching] = useState(false);
   const [recipeOptions, setRecipeOptions] = useState<Recipe[]>([]);
   const [searchError, setSearchError] = useState(false);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
-  const [selectedMealTypeId, setSelectedMealTypeId] = useState<
-    number | undefined
-  >(undefined);
+  const [selectedMealTypeId, setSelectedMealTypeId] = useState<number | undefined>(undefined);
   const [servings, setServings] = useState(1);
-  const [note, setNote] = useState("");
+  const [note, setNote] = useState('');
   const createMeal = useCreateMealPlan();
   const defaultMealTypeId = initialMealTypeId ?? mealTypes[0]?.id;
   useEffect(() => {
@@ -637,7 +588,7 @@ function AddMealModal({
     setIsSearching(true);
     setSearchError(false);
     try {
-      const data = await apiGet<PaginatedResponse<Recipe>>("/recipe/", {
+      const data = await apiGet<PaginatedResponse<Recipe>>('/recipe/', {
         query,
         page_size: 10,
       });
@@ -671,14 +622,12 @@ function AddMealModal({
         hydratedRecipe = await apiGet<Recipe>(`/recipe/${r.id}/`);
       } catch (error) {
         console.warn(
-          "Failed to hydrate recipe details for meal type matching; using selected recipe payload",
+          'Failed to hydrate recipe details for meal type matching; using selected recipe payload',
           { recipeId: r.id, error },
         );
       }
     }
-    setSelectedMealTypeId(
-      deriveMealType(hydratedRecipe, mealTypes) ?? mealTypes[0]?.id,
-    );
+    setSelectedMealTypeId(deriveMealType(hydratedRecipe, mealTypes) ?? mealTypes[0]?.id);
   };
 
   const handleSubmit = async () => {
@@ -713,10 +662,7 @@ function AddMealModal({
             onSearch={handleRecipeSearch}
             onChange={(opts) => {
               void handleSelectRecipe(opts as Recipe[]).catch((error) => {
-                console.warn(
-                  "Failed to resolve meal type for selected recipe",
-                  error,
-                );
+                console.warn('Failed to resolve meal type for selected recipe', error);
               });
             }}
             placeholder="Type to search…"
@@ -746,9 +692,9 @@ function AddMealModal({
               onChange={(e) => {
                 const val = parseInt(e.target.value, 10);
                 if (!isNaN(val) && val >= 1) setServings(val);
-                else if (e.target.value === "") setServings(1);
+                else if (e.target.value === '') setServings(1);
               }}
-              style={{ textAlign: "center" }}
+              style={{ textAlign: 'center' }}
             />
             <Button
               className="px-3"
@@ -778,14 +724,10 @@ function AddMealModal({
         </Button>
         <Button
           variant="success"
-          disabled={
-            !selectedRecipe ||
-            createMeal.isPending ||
-            !selectedMealTypeId
-          }
+          disabled={!selectedRecipe || createMeal.isPending || !selectedMealTypeId}
           onClick={handleSubmit}
         >
-          {createMeal.isPending ? <Spinner size="sm" /> : "Add"}
+          {createMeal.isPending ? <Spinner size="sm" /> : 'Add'}
         </Button>
       </Modal.Footer>
     </Modal>
@@ -798,9 +740,9 @@ interface EditMealModalProps {
 }
 
 function EditMealModal({ entry, onHide }: EditMealModalProps) {
-  const recipe = typeof entry.recipe === "object" ? entry.recipe : null;
+  const recipe = typeof entry.recipe === 'object' ? entry.recipe : null;
   const [servings, setServings] = useState<number>(entry.servings ?? 1);
-  const [note, setNote] = useState<string>(entry.note ?? "");
+  const [note, setNote] = useState<string>(entry.note ?? '');
   const updateMeal = useUpdateMealPlan();
 
   // Initialise the week picker to the week that contains the entry's current date.
@@ -810,30 +752,22 @@ function EditMealModal({ entry, onHide }: EditMealModalProps) {
     const daysUntilSat = (6 - today.getDay() + 7) % 7;
     const baseSat = new Date(today);
     baseSat.setDate(today.getDate() + daysUntilSat);
-    const [y, m, d] = entry.from_date.split("T")[0].split("-").map(Number);
+    const [y, m, d] = entry.from_date.split('T')[0].split('-').map(Number);
     const entryDate = new Date(y, m - 1, d);
     entryDate.setHours(0, 0, 0, 0);
     const daysSinceSat = (entryDate.getDay() - 6 + 7) % 7;
     const entrySat = new Date(entryDate);
     entrySat.setDate(entryDate.getDate() - daysSinceSat);
-    return Math.round(
-      (entrySat.getTime() - baseSat.getTime()) / (7 * 24 * 60 * 60 * 1000),
-    );
+    return Math.round((entrySat.getTime() - baseSat.getTime()) / (7 * 24 * 60 * 60 * 1000));
   })();
 
   const [weekOffset, setWeekOffset] = useState(initialWeekOffset);
   const days = getWeekStartingSaturday(weekOffset);
-  const [selectedDate, setSelectedDate] = useState<string>(
-    entry.from_date.split("T")[0],
-  );
+  const [selectedDate, setSelectedDate] = useState<string>(entry.from_date.split('T')[0]);
 
   const handleSubmit = async () => {
-    const recipeId =
-      typeof entry.recipe === "object" ? entry.recipe.id : entry.recipe;
-    const mealTypeId =
-      typeof entry.meal_type === "object"
-        ? entry.meal_type.id
-        : entry.meal_type;
+    const recipeId = typeof entry.recipe === 'object' ? entry.recipe.id : entry.recipe;
+    const mealTypeId = typeof entry.meal_type === 'object' ? entry.meal_type.id : entry.meal_type;
     await updateMeal.mutateAsync({
       id: entry.id,
       data: {
@@ -854,10 +788,10 @@ function EditMealModal({ entry, onHide }: EditMealModalProps) {
         <Modal.Title
           className="fs-6"
           style={{
-            overflow: "hidden",
-            display: "-webkit-box",
+            overflow: 'hidden',
+            display: '-webkit-box',
             WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical",
+            WebkitBoxOrient: 'vertical',
           }}
         >
           Edit "{recipe?.name ?? `Recipe #${entry.recipe}`}"
@@ -882,21 +816,17 @@ function EditMealModal({ entry, onHide }: EditMealModalProps) {
               <Button
                 key={d.toISOString()}
                 size="sm"
-                variant={
-                  formatDate(d) === selectedDate
-                    ? "primary"
-                    : "outline-secondary"
-                }
+                variant={formatDate(d) === selectedDate ? 'primary' : 'outline-secondary'}
                 onClick={() => setSelectedDate(formatDate(d))}
                 className="d-flex flex-column align-items-center px-2 py-1 flex-fill"
                 style={{ minWidth: 0 }}
               >
-                <span style={{ fontSize: "0.65rem", lineHeight: 1 }}>
-                  {d.toLocaleDateString("en-GB", { weekday: "short" })}
+                <span style={{ fontSize: '0.65rem', lineHeight: 1 }}>
+                  {d.toLocaleDateString('en-GB', { weekday: 'short' })}
                 </span>
                 <span
                   style={{
-                    fontSize: "0.85rem",
+                    fontSize: '0.85rem',
                     lineHeight: 1.2,
                     fontWeight: 600,
                   }}
@@ -934,9 +864,9 @@ function EditMealModal({ entry, onHide }: EditMealModalProps) {
               onChange={(e) => {
                 const val = parseInt(e.target.value, 10);
                 if (!isNaN(val) && val >= 1) setServings(val);
-                else if (e.target.value === "") setServings(1);
+                else if (e.target.value === '') setServings(1);
               }}
-              style={{ textAlign: "center" }}
+              style={{ textAlign: 'center' }}
             />
             <Button
               className="px-3"
@@ -964,12 +894,8 @@ function EditMealModal({ entry, onHide }: EditMealModalProps) {
         <Button variant="secondary" onClick={onHide}>
           Cancel
         </Button>
-        <Button
-          variant="primary"
-          onClick={handleSubmit}
-          disabled={updateMeal.isPending}
-        >
-          {updateMeal.isPending ? <Spinner size="sm" /> : "Save"}
+        <Button variant="primary" onClick={handleSubmit} disabled={updateMeal.isPending}>
+          {updateMeal.isPending ? <Spinner size="sm" /> : 'Save'}
         </Button>
       </Modal.Footer>
     </Modal>
@@ -1011,39 +937,27 @@ function MealPlanTableView({
 }: MealPlanTableViewProps) {
   return (
     <div className="meal-plan-table-shell">
-      <div style={{ overflowX: "auto" }}>
+      <div style={{ overflowX: 'auto' }}>
         <Table bordered size="sm" className="meal-plan-table mb-0 w-100">
           <colgroup>
-            <col style={{ width: "12%" }} />
+            <col style={{ width: '12%' }} />
             {mealTypes.map((mt) => (
               <col key={mt.id} />
             ))}
-            {(calendarEventsByDate || weatherByDate) && (
-              <col style={{ width: "24%" }} />
-            )}
+            {(calendarEventsByDate || weatherByDate) && <col style={{ width: '24%' }} />}
           </colgroup>
           <thead>
             <tr className="meal-plan-table-header-row">
-              <th
-                className="py-2 ps-2 text-muted fw-semibold"
-                style={{ fontSize: "0.75rem" }}
-              >
+              <th className="py-2 ps-2 text-muted fw-semibold" style={{ fontSize: '0.75rem' }}>
                 Day
               </th>
               {mealTypes.map((mt) => (
-                <th
-                  key={mt.id}
-                  className="py-2 ps-2 fw-semibold"
-                  style={{ fontSize: "0.75rem" }}
-                >
+                <th key={mt.id} className="py-2 ps-2 fw-semibold" style={{ fontSize: '0.75rem' }}>
                   {mt.name}
                 </th>
               ))}
               {(calendarEventsByDate || weatherByDate) && (
-                <th
-                  className="py-2 ps-2 text-muted fw-semibold"
-                  style={{ fontSize: "0.75rem" }}
-                >
+                <th className="py-2 ps-2 text-muted fw-semibold" style={{ fontSize: '0.75rem' }}>
                   Weather & events
                 </th>
               )}
@@ -1060,20 +974,17 @@ function MealPlanTableView({
                 <DroppableTableRow
                   key={dateKey}
                   dateKey={dateKey}
-                  className={`meal-plan-mobile-row meal-plan-table-data-row ${isToday ? "table-primary" : ""}`}
+                  className={`meal-plan-mobile-row meal-plan-table-data-row ${isToday ? 'table-primary' : ''}`}
                 >
                   <td
-                    className={`meal-plan-mobile-cell py-2 px-2 align-top ${isToday ? "bg-primary text-white" : "bg-body-tertiary"}`}
+                    className={`meal-plan-mobile-cell py-2 px-2 align-top ${isToday ? 'bg-primary text-white' : 'bg-body-tertiary'}`}
                   >
                     <div className="d-flex justify-content-between align-items-center">
-                      <small
-                        className="fw-semibold"
-                        style={{ whiteSpace: "nowrap" }}
-                      >
+                      <small className="fw-semibold" style={{ whiteSpace: 'nowrap' }}>
                         {shortDay(day)}
                       </small>
                       <Button
-                        variant={isToday ? "light" : "outline-success"}
+                        variant={isToday ? 'light' : 'outline-success'}
                         size="sm"
                         style={circleButtonStyle}
                         onClick={() => onAddMeal(dateKey)}
@@ -1090,21 +1001,15 @@ function MealPlanTableView({
                     return (
                       <td
                         key={mt.id}
-                        className={`meal-plan-mobile-cell meal-plan-entry-cell align-top ${entries.length === 0 ? "meal-plan-mobile-empty" : ""}`}
+                        className={`meal-plan-mobile-cell meal-plan-entry-cell align-top ${entries.length === 0 ? 'meal-plan-mobile-empty' : ''}`}
                       >
                         <DroppableDay dateKey={containerId}>
-                          <SortableContext
-                            id={containerId}
-                            items={entries.map((e) => e.id)}
-                          >
+                          <SortableContext id={containerId} items={entries.map((e) => e.id)}>
                             {entries.map((entry) => {
                               const recipeId =
-                                typeof entry.recipe === "object"
-                                  ? entry.recipe.id
-                                  : entry.recipe;
+                                typeof entry.recipe === 'object' ? entry.recipe.id : entry.recipe;
                               const cooked =
-                                isPastOrToday &&
-                                isCookedOnDate(cookLogData, recipeId, dateKey);
+                                isPastOrToday && isCookedOnDate(cookLogData, recipeId, dateKey);
                               return (
                                 <SortableEntry
                                   key={entry.id}
@@ -1114,9 +1019,7 @@ function MealPlanTableView({
                                   onEdit={onEdit}
                                   isPending={pendingMoves.has(entry.id)}
                                   isCooked={cooked}
-                                  onLogCook={
-                                    isPastOrToday ? onLogCook : undefined
-                                  }
+                                  onLogCook={isPastOrToday ? onLogCook : undefined}
                                 />
                               );
                             })}
@@ -1127,10 +1030,7 @@ function MealPlanTableView({
                   })}
                   {(calendarEventsByDate || weatherByDate) && (
                     <td className="meal-plan-mobile-cell meal-plan-weather-cell align-top">
-                      <DayCalendarWeatherInfo
-                        dayEvents={dayEvents}
-                        weather={dayWeather}
-                      />
+                      <DayCalendarWeatherInfo dayEvents={dayEvents} weather={dayWeather} />
                     </td>
                   )}
                 </DroppableTableRow>
@@ -1154,10 +1054,8 @@ export function MealPlanPage() {
   const [cookLogEntry, setCookLogEntry] = useState<MealPlan | null>(null);
   const [editEntry, setEditEntry] = useState<MealPlan | null>(null);
   // Maps entry id -> optimistic target date for in-flight cross-day moves
-  const [pendingMoves, setPendingMoves] = useState<Map<number, string>>(
-    new Map(),
-  );
-  const hasPersonalToken = Boolean(localStorage.getItem("tandoor_token"));
+  const [pendingMoves, setPendingMoves] = useState<Map<number, string>>(new Map());
+  const hasPersonalToken = Boolean(localStorage.getItem('tandoor_token'));
 
   const today = new Date();
   const currentWeekStart = getMealPlanWeekStartSaturday(today);
@@ -1179,10 +1077,7 @@ export function MealPlanPage() {
   // Fetch cook logs for the past/today portion of the displayed week.
   // Only dates <= today can have cook logs; use the week start or today
   // (whichever is earlier) as the fromDate.
-  const cookLogFrom =
-    formatDate(weekStartDate) <= todayStr
-      ? formatDate(weekStartDate)
-      : todayStr;
+  const cookLogFrom = formatDate(weekStartDate) <= todayStr ? formatDate(weekStartDate) : todayStr;
   const { data: cookLogData } = useCookLog(cookLogFrom, todayStr);
 
   // Fetch calendar events for the displayed week.
@@ -1225,14 +1120,12 @@ export function MealPlanPage() {
   };
 
   const { data: mealTypesData } = useQuery({
-    queryKey: ["meal-types"],
-    queryFn: () => apiGet<PaginatedResponse<MealType>>("/meal-type/"),
+    queryKey: ['meal-types'],
+    queryFn: () => apiGet<PaginatedResponse<MealType>>('/meal-type/'),
   });
   const mealTypes = mealTypesData?.results ?? [];
 
-  const sortedMealTypes = [...mealTypes].sort(
-    (a, b) => (a.order ?? 0) - (b.order ?? 0),
-  );
+  const sortedMealTypes = [...mealTypes].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -1244,9 +1137,7 @@ export function MealPlanPage() {
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStartDate, i));
 
   const allEntries = data?.results ?? [];
-  const byDayAndMealType = days.reduce<
-    Record<string, Record<number, MealPlan[]>>
-  >((acc, day) => {
+  const byDayAndMealType = days.reduce<Record<string, Record<number, MealPlan[]>>>((acc, day) => {
     const dateKey = formatDate(day);
     acc[dateKey] = {};
     for (const mt of sortedMealTypes) acc[dateKey][mt.id] = [];
@@ -1260,20 +1151,15 @@ export function MealPlanPage() {
       const { date, mealTypeId: pendingMtId } = parseContainerId(pendingTarget);
       effectiveDate = date;
       effectiveMtId =
-        pendingMtId ??
-        (typeof e.meal_type === "object" ? e.meal_type.id : e.meal_type);
+        pendingMtId ?? (typeof e.meal_type === 'object' ? e.meal_type.id : e.meal_type);
     } else {
-      effectiveDate = e.from_date.split("T")[0];
-      effectiveMtId =
-        typeof e.meal_type === "object" ? e.meal_type.id : e.meal_type;
+      effectiveDate = e.from_date.split('T')[0];
+      effectiveMtId = typeof e.meal_type === 'object' ? e.meal_type.id : e.meal_type;
     }
     byDayAndMealType[effectiveDate]?.[effectiveMtId]?.push(e);
   }
 
-  const activeEntry =
-    activeId != null
-      ? (allEntries.find((e) => e.id === activeId) ?? null)
-      : null;
+  const activeEntry = activeId != null ? (allEntries.find((e) => e.id === activeId) ?? null) : null;
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as number);
@@ -1286,19 +1172,17 @@ export function MealPlanPage() {
     if (!hasPersonalToken) return;
 
     const activeEntryId = active.id as number;
-    const activeContainerId = (active.data.current as WithSortable)?.sortable
-      ?.containerId;
+    const activeContainerId = (active.data.current as WithSortable)?.sortable?.containerId;
 
     if (!activeContainerId) return;
 
     // over.id is a string (dateKey) when dropped on a DroppableDay container,
     // or a number (entry id) when dropped on a SortableEntry.
     let targetContainerId: string;
-    if (typeof over.id === "string") {
+    if (typeof over.id === 'string') {
       targetContainerId = over.id;
     } else {
-      const overContainerId = (over.data.current as WithSortable)?.sortable
-        ?.containerId;
+      const overContainerId = (over.data.current as WithSortable)?.sortable?.containerId;
       if (!overContainerId) return;
       targetContainerId = overContainerId;
     }
@@ -1308,21 +1192,15 @@ export function MealPlanPage() {
     // Cross-container move: optimistically update UI then confirm via API
     const entry = allEntries.find((e) => e.id === activeEntryId);
     if (!entry) return;
-    const recipeId =
-      typeof entry.recipe === "object" ? entry.recipe.id : entry.recipe;
+    const recipeId = typeof entry.recipe === 'object' ? entry.recipe.id : entry.recipe;
     const entryMealTypeId =
-      typeof entry.meal_type === "object"
-        ? entry.meal_type.id
-        : entry.meal_type;
+      typeof entry.meal_type === 'object' ? entry.meal_type.id : entry.meal_type;
 
-    const { date: targetDate, mealTypeId: targetMealTypeId } =
-      parseContainerId(targetContainerId);
+    const { date: targetDate, mealTypeId: targetMealTypeId } = parseContainerId(targetContainerId);
     const newMealTypeId = targetMealTypeId ?? entryMealTypeId;
 
     // Immediately show the entry in the new container
-    setPendingMoves((prev) =>
-      new Map(prev).set(activeEntryId, targetContainerId),
-    );
+    setPendingMoves((prev) => new Map(prev).set(activeEntryId, targetContainerId));
 
     updateMeal.mutate(
       {
@@ -1357,41 +1235,39 @@ export function MealPlanPage() {
 
   // Derived cook log modal props — computed outside JSX to avoid inline IIFEs.
   const cookLogMealType =
-    cookLogEntry && typeof cookLogEntry.meal_type === "object"
+    cookLogEntry && typeof cookLogEntry.meal_type === 'object'
       ? (cookLogEntry.meal_type as MealType)
       : undefined;
   const cookLogRecipeId = cookLogEntry
-    ? typeof cookLogEntry.recipe === "object"
+    ? typeof cookLogEntry.recipe === 'object'
       ? cookLogEntry.recipe.id
       : (cookLogEntry.recipe as number)
     : 0;
-  const cookLogDate = cookLogEntry?.from_date.split("T")[0] ?? "";
+  const cookLogDate = cookLogEntry?.from_date.split('T')[0] ?? '';
 
   return (
     <div className="pt-2 meal-plan-page">
       {!hasPersonalToken && <NoTokenAlert />}
       {isCalendarError && (
         <Alert variant="warning" className="py-2 mb-3">
-          Calendar sync issue:{" "}
+          Calendar sync issue:{' '}
           {calendarError instanceof Error
             ? calendarError.message
-            : "Unable to load calendar events. Please try again later."}
+            : 'Unable to load calendar events. Please try again later.'}
         </Alert>
       )}
       {isWeatherError && (
         <Alert variant="warning" className="py-2 mb-3">
-          Weather sync issue:{" "}
+          Weather sync issue:{' '}
           {weatherError instanceof Error
             ? weatherError.message
-            : "Unable to load weather forecast. Please try again later."}
+            : 'Unable to load weather forecast. Please try again later.'}
         </Alert>
       )}
       <div className="d-flex align-items-center mb-3">
         <Button
           variant="outline-secondary"
-          onClick={() =>
-            navigate(`/meal-plan/${formatDate(addDays(weekStartDate, -7))}`)
-          }
+          onClick={() => navigate(`/meal-plan/${formatDate(addDays(weekStartDate, -7))}`)}
           aria-label="Previous week"
           style={navButtonStyle}
         >
@@ -1400,10 +1276,8 @@ export function MealPlanPage() {
         <div className="flex-grow-1 text-center">
           <Button
             variant="outline-secondary"
-            style={{ minHeight: 44, padding: "0 1rem" }}
-            onClick={() =>
-              navigate(`/meal-plan/${formatDate(currentWeekStart)}`)
-            }
+            style={{ minHeight: 44, padding: '0 1rem' }}
+            onClick={() => navigate(`/meal-plan/${formatDate(currentWeekStart)}`)}
             aria-label="Go to current week"
           >
             Today
@@ -1411,9 +1285,7 @@ export function MealPlanPage() {
         </div>
         <Button
           variant="outline-secondary"
-          onClick={() =>
-            navigate(`/meal-plan/${formatDate(addDays(weekStartDate, 7))}`)
-          }
+          onClick={() => navigate(`/meal-plan/${formatDate(addDays(weekStartDate, 7))}`)}
           aria-label="Next week"
           style={navButtonStyle}
         >
@@ -1432,9 +1304,9 @@ export function MealPlanPage() {
       >
         <div
           style={{
-            paddingLeft: "0.5rem",
-            paddingRight: "0.5rem",
-            marginTop: "1rem",
+            paddingLeft: '0.5rem',
+            paddingRight: '0.5rem',
+            marginTop: '1rem',
           }}
         >
           <MealPlanTableView
@@ -1456,14 +1328,7 @@ export function MealPlanPage() {
         </div>
 
         <DragOverlay>
-          {activeEntry && (
-            <EntryCard
-              entry={activeEntry}
-              onDelete={noop}
-              onClick={noop}
-              dragging
-            />
-          )}
+          {activeEntry && <EntryCard entry={activeEntry} onDelete={noop} onClick={noop} dragging />}
         </DragOverlay>
       </DndContext>
 
@@ -1484,9 +1349,7 @@ export function MealPlanPage() {
           mealType={cookLogMealType}
         />
       )}
-      {editEntry && (
-        <EditMealModal entry={editEntry} onHide={() => setEditEntry(null)} />
-      )}
+      {editEntry && <EditMealModal entry={editEntry} onHide={() => setEditEntry(null)} />}
     </div>
   );
 }

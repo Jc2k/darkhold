@@ -33,7 +33,14 @@ export function getVersionReloadUrl(currentUrl: string, serverVersion: string): 
 
 function handleVersionMessage(serverVersion: string): void {
   // Avoid an infinite reload loop: only reload once per server version
-  if (!shouldReloadForVersion(serverVersion, __APP_VERSION__, sessionStorage.getItem(RELOAD_VERSION_KEY))) return;
+  if (
+    !shouldReloadForVersion(
+      serverVersion,
+      __APP_VERSION__,
+      sessionStorage.getItem(RELOAD_VERSION_KEY),
+    )
+  )
+    return;
   sessionStorage.setItem(RELOAD_VERSION_KEY, serverVersion);
   window.location.replace(getVersionReloadUrl(window.location.href, serverVersion));
 }

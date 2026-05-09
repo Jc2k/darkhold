@@ -12,16 +12,18 @@ describe('parseWeatherForecastPayload', () => {
   });
 
   it('returns days from payload', () => {
-    const days: WeatherDayForecast[] = [{
-      date: '2026-05-01',
-      weatherCode: 1,
-      tempMinC: 8,
-      tempMaxC: 14,
-      sunrise: '2026-05-01T05:20',
-      sunset: '2026-05-01T20:35',
-      precipitationSumMm: 0,
-      precipitationProbabilityMax: 10,
-    }];
+    const days: WeatherDayForecast[] = [
+      {
+        date: '2026-05-01',
+        weatherCode: 1,
+        tempMinC: 8,
+        tempMaxC: 14,
+        sunrise: '2026-05-01T05:20',
+        sunset: '2026-05-01T20:35',
+        precipitationSumMm: 0,
+        precipitationProbabilityMax: 10,
+      },
+    ];
     expect(parseWeatherForecastPayload({ days })).toEqual(days);
   });
 });

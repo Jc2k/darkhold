@@ -23,8 +23,7 @@ export function UpSoonButton({ recipeId, style }: Props) {
         overlay={
           <Popover>
             <Popover.Body className="p-2">
-              A personal API token is required.{' '}
-              <Link to="/settings">Go to Settings →</Link>
+              A personal API token is required. <Link to="/settings">Go to Settings →</Link>
             </Popover.Body>
           </Popover>
         }
@@ -54,13 +53,7 @@ export function UpSoonButton({ recipeId, style }: Props) {
       disabled={isPending}
       aria-label={isInUpSoon ? 'Remove from Up Soon' : 'Add to Up Soon'}
     >
-      {isPending ? (
-        <Spinner size="sm" />
-      ) : isInUpSoon ? (
-        <BookmarkDash />
-      ) : (
-        <BookmarkPlus />
-      )}
+      {isPending ? <Spinner size="sm" /> : isInUpSoon ? <BookmarkDash /> : <BookmarkPlus />}
     </Button>
   );
 }
