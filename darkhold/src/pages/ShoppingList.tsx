@@ -63,7 +63,8 @@ function aggregateByIngredient(entries: ShoppingEntry[]): AggregatedIngredient[]
     const agg = map.get(key)!;
     agg.entries.push(entry);
     if (!entry.checked) agg.allChecked = false;
-    const recipeName = entry.list_recipe_data?.recipe_data.name;
+    const recipeName =
+      entry.list_recipe_data?.recipe_data.name ?? entry.recipe_mealplan?.recipe_name;
     if (recipeName && !agg.recipes.includes(recipeName)) {
       agg.recipes.push(recipeName);
     }
@@ -71,16 +72,28 @@ function aggregateByIngredient(entries: ShoppingEntry[]): AggregatedIngredient[]
   return Array.from(map.values());
 }
 
+function groupByRecipe(entries: ShoppingEntry[]): Record<string, ShoppingEntry[]> {
+  const groups: Record<string, ShoppingEntry[]> = {};
+  for (const entry of entries) {
+    const key =
+      entry.list_recipe_data?.recipe_data.name ?? entry.recipe_mealplan?.recipe_name ?? 'No recipe';
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(entry);
+  }
+  return groups;
+}
+
 export function ShoppingList() {
   const qc = useQueryClient();
   const [pendingIds, setPendingIds] = useState<Set<number>>(new Set());
   const [isClearing, setIsClearing] = useState(false);
   const [clearError, setClearError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'category' | 'recipe'>('category');
   const hasPersonalToken = Boolean(localStorage.getItem('tandoor_token'));
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['shopping-list'],
-    queryFn: () => apiGet<{ results: ShoppingEntry[] }>('/shopping-list-entry/?checked=false'),
+    queryFn: () => apiGet<{ results: ShoppingEntry[] }>('/shopping-list-entry/'),
   });
 
   const toggle = useMutation({
@@ -159,11 +172,21 @@ export function ShoppingList() {
 
   const groups = groupByCategory(entries);
   const categoryNames = Object.keys(groups).filter((k) => groups[k].length > 0);
+  const recipeGroups = groupByRecipe(entries);
+  const recipeNames = Object.keys(recipeGroups).filter((k) => recipeGroups[k].length > 0);
+  const remainingCount = entries.filter((entry) => !entry.checked).length;
 
   return (
     <div className="pt-2">
       {!hasPersonalToken && <NoTokenAlert />}
-      <div className="d-flex align-items-center justify-content-end mb-1">
+      <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-1">
+        <Form.Check
+          type="switch"
+          id="shopping-view-mode"
+          label={viewMode === 'recipe' ? 'View: recipe' : 'View: category'}
+          checked={viewMode === 'recipe'}
+          onChange={(event) => setViewMode(event.currentTarget.checked ? 'recipe' : 'category')}
+        />
         <Button
           variant="outline-danger"
           size="sm"
@@ -181,7 +204,7 @@ export function ShoppingList() {
         </Button>
       </div>
       <p className="text-muted small mb-3">
-        {entries.length} item{entries.length !== 1 ? 's' : ''}
+        {remainingCount} remaining of {entries.length} item{entries.length !== 1 ? 's' : ''}
       </p>
       {clearError && (
         <Alert variant="danger" dismissible onClose={() => setClearError(null)}>
@@ -189,15 +212,16 @@ export function ShoppingList() {
         </Alert>
       )}
 
-      {categoryNames.map((cat) => {
-        const aggregated = aggregateByIngredient(groups[cat]);
+      {(viewMode === 'recipe' ? recipeNames : categoryNames).map((groupName) => {
+        const groupedEntries = viewMode === 'recipe' ? recipeGroups[groupName] : groups[groupName];
+        const aggregated = aggregateByIngredient(groupedEntries);
         return (
-          <div key={cat} className="mb-4">
+          <div key={groupName} className="mb-4">
             <h6
               className="text-muted text-uppercase mb-1"
               style={{ fontSize: '0.75rem', letterSpacing: '0.05em' }}
             >
-              {cat}
+              {groupName}
               <Badge bg="secondary" className="ms-2">
                 {aggregated.length}
               </Badge>
@@ -205,11 +229,17 @@ export function ShoppingList() {
             <ListGroup variant="flush" className="border rounded">
               {aggregated.map((agg) => {
                 const foodName = agg.food?.name ?? 'Unknown item';
-                const amounts = agg.entries.map(formatAmount).filter(Boolean).join(' + ');
                 const notes = [
                   ...new Set(agg.entries.map((e) => e.ingredient_note).filter(Boolean)),
                 ];
                 const isPending = agg.entries.some((e) => pendingIds.has(e.id));
+                const quantityParts = agg.entries
+                  .map((entry) => ({
+                    id: entry.id,
+                    text: formatAmount(entry),
+                    checked: entry.checked,
+                  }))
+                  .filter((part) => part.text);
 
                 return (
                   <ListGroup.Item
@@ -249,12 +279,24 @@ export function ShoppingList() {
                         )}
                       </button>
                       <div className="flex-grow-1">
+                        {quantityParts.length > 0 && (
+                          <span className="me-1 text-muted small">
+                            {quantityParts.map((part, index) => (
+                              <span
+                                key={part.id}
+                                className={part.checked ? 'text-decoration-line-through' : ''}
+                              >
+                                {index > 0 && <span>{' + '}</span>}
+                                {part.text}
+                              </span>
+                            ))}
+                          </span>
+                        )}
                         <span
                           className={
                             agg.allChecked ? 'text-decoration-line-through text-muted' : ''
                           }
                         >
-                          {amounts && <span className="me-1 text-muted small">{amounts}</span>}
                           {agg.food?.id != null ? (
                             <Link to={`/ingredient/${agg.food.id}`}>{foodName}</Link>
                           ) : (
@@ -266,7 +308,7 @@ export function ShoppingList() {
                             ({note})
                           </span>
                         ))}
-                        {agg.recipes.length > 1 && (
+                        {viewMode === 'category' && agg.recipes.length > 1 && (
                           <span className="ms-2">
                             <Badge
                               bg="secondary"
