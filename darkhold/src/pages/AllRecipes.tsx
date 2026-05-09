@@ -164,7 +164,7 @@ export function AllRecipes() {
           >
             <h5
               className="sticky-top bg-body py-2 border-bottom mb-0"
-              style={{ top: 'env(safe-area-inset-top)', zIndex: 10 }}
+              style={{ top: 'env(safe-area-inset-top, 0px)', zIndex: 10 }}
             >
               {tag}
               <span className="text-muted fw-normal ms-2 small">({recipes.length})</span>
