@@ -501,7 +501,7 @@ function SortableEntry({
       ref={setNodeRef}
       style={{ ...style, opacity: isDragging ? 0.3 : 1 }}
       {...attributes}
-      className="mb-2"
+      className="meal-plan-sortable-entry"
     >
       <div style={{ position: "relative" }}>
         <Card
@@ -1090,7 +1090,7 @@ function MealPlanTableView({
                     return (
                       <td
                         key={mt.id}
-                        className={`meal-plan-mobile-cell p-1 align-top ${entries.length === 0 ? "meal-plan-mobile-empty" : ""}`}
+                        className={`meal-plan-mobile-cell meal-plan-entry-cell align-top ${entries.length === 0 ? "meal-plan-mobile-empty" : ""}`}
                       >
                         <DroppableDay dateKey={containerId}>
                           <SortableContext
@@ -1126,7 +1126,7 @@ function MealPlanTableView({
                     );
                   })}
                   {(calendarEventsByDate || weatherByDate) && (
-                    <td className="meal-plan-mobile-cell p-1 align-top">
+                    <td className="meal-plan-mobile-cell meal-plan-weather-cell align-top">
                       <DayCalendarWeatherInfo
                         dayEvents={dayEvents}
                         weather={dayWeather}
