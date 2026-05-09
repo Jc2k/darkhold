@@ -209,9 +209,9 @@
 /* iPhone-sized viewports: restore full cell padding so cards are not pressed into headers
    and keep consistent spacing around each card. */
 @media (max-width: 430px) {
-    .meal-plan-page .meal-plan-entry-cell {
-        padding: 0.5rem;
-    }
+  .meal-plan-page .meal-plan-entry-cell {
+    padding: 0.5rem;
+  }
 }
 
 /* Weather / events cell: 0.5rem on all sides to avoid content being squished against borders. */
