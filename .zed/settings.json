@@ -1,0 +1,33 @@
+{
+  "format_on_save": "on",
+  "languages": {
+    "TypeScript": {
+      "formatter": {
+        "external": {
+          "command": "npx",
+          "arguments": [
+            "--prefix",
+            "darkhold",
+            "prettier",
+            "--stdin-filepath",
+            "{buffer_path}"
+          ]
+        }
+      }
+    },
+    "TSX": {
+      "formatter": {
+        "external": {
+          "command": "npx",
+          "arguments": [
+            "--prefix",
+            "darkhold",
+            "prettier",
+            "--stdin-filepath",
+            "{buffer_path}"
+          ]
+        }
+      }
+    }
+  }
+}

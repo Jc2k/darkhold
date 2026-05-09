@@ -43,9 +43,11 @@ Tests are co-located next to source files as `*.test.ts` or `*.test.tsx` files.
 
 Before every `git commit`, always run all of the following from the `darkhold/` directory and fix any failures:
 
-1. `npm test` — frontend unit tests (vitest)
-2. `npx tsc --noEmit` — TypeScript type checking
-3. `deno task test` — server unit tests
+1. `npm run format` — apply Prettier formatting
+2. `npm run format:check` — verify formatting is clean
+3. `npm test` — frontend unit tests (vitest)
+4. `npx tsc --noEmit` — TypeScript type checking
+5. `deno task test` — server unit tests
 
 Do not commit if any of these fail.
 

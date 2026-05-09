@@ -35,6 +35,8 @@ jobs:
       - uses: denoland/setup-deno@v2
       - name: Install npm dependencies
         run: npm ci --legacy-peer-deps
+      - name: Check formatting
+        run: npm run format:check
       - name: Run frontend unit tests
         run: npm test
       - name: TypeScript type check
