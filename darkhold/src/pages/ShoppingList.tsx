@@ -206,7 +206,8 @@ export function ShoppingList() {
         </Button>
       </div>
       <p className="text-muted small mb-3">
-        {remainingCount} remaining of {entries.length} item{entries.length !== 1 ? 's' : ''}
+        {remainingCount} item{remainingCount !== 1 ? 's' : ''} remaining of {entries.length} item
+        {entries.length !== 1 ? 's' : ''}
       </p>
       {clearError && (
         <Alert variant="danger" dismissible onClose={() => setClearError(null)}>
