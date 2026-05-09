@@ -28,6 +28,12 @@
   padding-bottom: calc(3rem + env(safe-area-inset-bottom)) !important;
 }
 
+.all-recipes-section-heading {
+  top: 0;
+  top: env(safe-area-inset-top, 0px);
+  z-index: 10;
+}
+
 @media (min-width: 768px) {
   .page-content {
     padding-bottom: 1rem !important;

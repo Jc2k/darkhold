@@ -162,10 +162,7 @@ export function AllRecipes() {
             }}
             className="mb-4"
           >
-            <h5
-              className="sticky-top bg-body py-2 border-bottom mb-0"
-              style={{ top: 0, zIndex: 10 }}
-            >
+            <h5 className="all-recipes-section-heading sticky-top bg-body py-2 border-bottom mb-0">
               {tag}
               <span className="text-muted fw-normal ms-2 small">({recipes.length})</span>
             </h5>
