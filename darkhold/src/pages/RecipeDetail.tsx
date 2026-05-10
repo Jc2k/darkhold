@@ -135,7 +135,7 @@ function CookingMode({
 
   return (
     <Modal show fullscreen onHide={onClose}>
-      <Modal.Header closeButton>
+      <Modal.Header closeButton style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
         <Modal.Title>
           Step {index + 1} of {sorted.length}
         </Modal.Title>
@@ -152,7 +152,10 @@ function CookingMode({
           {!!current?.time && <Badge bg="info">{current.time} min</Badge>}
         </div>
       </Modal.Body>
-      <Modal.Footer className="justify-content-between">
+      <Modal.Footer
+        className="justify-content-between"
+        style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}
+      >
         <Button variant="secondary" disabled={index === 0} onClick={() => setIndex((i) => i - 1)}>
           ← Previous
         </Button>

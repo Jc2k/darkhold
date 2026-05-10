@@ -160,6 +160,7 @@ export function Layout() {
               </ListGroup.Item>
             ))}
           </ListGroup>
+          <div style={{ height: 'env(safe-area-inset-bottom)' }} />
         </Offcanvas.Body>
       </Offcanvas>
 
