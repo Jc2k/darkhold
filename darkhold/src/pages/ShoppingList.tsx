@@ -18,7 +18,16 @@ interface ShoppingEntry {
   food: Food | null;
   checked: boolean;
   ingredient_note?: string | null;
-  recipe_mealplan?: { recipe_name: string } | null;
+  recipe_mealplan?: {
+    recipe_name: string;
+    from_date?: string | null;
+    meal_type?: {
+      id?: number;
+      name?: string | null;
+      order?: number | null;
+      time?: string | null;
+    } | null;
+  } | null;
   list_recipe_data?: { recipe_data: { name: string } } | null;
   list_recipe?: number | null;
   supermarket_category?: SupermarketCategory | null;
@@ -76,13 +85,89 @@ function aggregateByIngredient(entries: ShoppingEntry[]): AggregatedIngredient[]
 }
 
 function groupByRecipe(entries: ShoppingEntry[]): Record<string, ShoppingEntry[]> {
-  const groups: Record<string, ShoppingEntry[]> = {};
-  for (const entry of entries) {
+  type RecipeSortPosition = {
+    date: string;
+    mealTimeMinutes: number;
+    mealOrder: number;
+    index: number;
+  };
+  type RecipeGroup = {
+    name: string;
+    entries: ShoppingEntry[];
+    firstIndex: number;
+    position: RecipeSortPosition | null;
+  };
+
+  const toMealTimeMinutes = (
+    mealType?: { name?: string | null; time?: string | null } | null,
+  ): number => {
+    const time = mealType?.time;
+    if (time) {
+      const match = time.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+      if (match) {
+        const hours = Number(match[1]);
+        const minutes = Number(match[2]);
+        if (
+          Number.isInteger(hours) &&
+          Number.isInteger(minutes) &&
+          hours >= 0 &&
+          hours <= 23 &&
+          minutes >= 0 &&
+          minutes <= 59
+        ) {
+          return hours * 60 + minutes;
+        }
+      }
+    }
+
+    const name = mealType?.name?.toLowerCase();
+    if (name?.includes('breakfast')) return 8 * 60;
+    if (name?.includes('lunch')) return 12 * 60;
+    if (name?.includes('dinner')) return 18 * 60;
+    return Number.MAX_SAFE_INTEGER;
+  };
+
+  const comparePositions = (a: RecipeSortPosition, b: RecipeSortPosition): number => {
+    if (a.date !== b.date) return a.date.localeCompare(b.date);
+    if (a.mealTimeMinutes !== b.mealTimeMinutes) return a.mealTimeMinutes - b.mealTimeMinutes;
+    if (a.mealOrder !== b.mealOrder) return a.mealOrder - b.mealOrder;
+    return a.index - b.index;
+  };
+
+  const groups = new Map<string, RecipeGroup>();
+  entries.forEach((entry, index) => {
     const key = getRecipeName(entry) ?? 'No recipe';
-    if (!groups[key]) groups[key] = [];
-    groups[key].push(entry);
-  }
-  return groups;
+    if (!groups.has(key)) {
+      groups.set(key, { name: key, entries: [], firstIndex: index, position: null });
+    }
+    const group = groups.get(key)!;
+    group.entries.push(entry);
+
+    const date = entry.recipe_mealplan?.from_date?.split('T')[0];
+    if (date) {
+      const position: RecipeSortPosition = {
+        date,
+        mealTimeMinutes: toMealTimeMinutes(entry.recipe_mealplan?.meal_type),
+        mealOrder: entry.recipe_mealplan?.meal_type?.order ?? Number.MAX_SAFE_INTEGER,
+        index,
+      };
+      if (!group.position || comparePositions(position, group.position) < 0) {
+        group.position = position;
+      }
+    }
+  });
+
+  return Object.fromEntries(
+    Array.from(groups.values())
+      .sort((a, b) => {
+        if (a.position && b.position) return comparePositions(a.position, b.position);
+        if (a.position) return -1;
+        if (b.position) return 1;
+        if (a.firstIndex !== b.firstIndex) return a.firstIndex - b.firstIndex;
+        return a.name.localeCompare(b.name);
+      })
+      .map((group) => [group.name, group.entries]),
+  );
 }
 
 export function ShoppingList() {
