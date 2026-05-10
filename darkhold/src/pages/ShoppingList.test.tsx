@@ -129,4 +129,72 @@ describe('ShoppingList', () => {
     expect(container.textContent).toContain('Cake');
     expect(container.textContent).toContain('Bread');
   });
+
+  it('orders recipe groups by meal-plan date and meal-type time', () => {
+    useQueryMock.mockReturnValue({
+      data: {
+        results: [
+          {
+            id: 1,
+            amount: 1,
+            unit_name: 'cup',
+            food: makeFood(),
+            checked: false,
+            list_recipe_data: { recipe_data: { name: 'Dinner Recipe' } },
+            recipe_mealplan: {
+              recipe_name: 'Dinner Recipe',
+              from_date: '2026-01-01',
+              meal_type: { name: 'Dinner', time: '18:00' },
+            },
+          },
+          {
+            id: 2,
+            amount: 1,
+            unit_name: 'cup',
+            food: { ...makeFood(), id: 2, name: 'Milk' },
+            checked: false,
+            list_recipe_data: { recipe_data: { name: 'Breakfast Recipe' } },
+            recipe_mealplan: {
+              recipe_name: 'Breakfast Recipe',
+              from_date: '2026-01-01',
+              meal_type: { name: 'Breakfast', time: '08:00' },
+            },
+          },
+          {
+            id: 3,
+            amount: 1,
+            unit_name: 'cup',
+            food: { ...makeFood(), id: 3, name: 'Lettuce' },
+            checked: false,
+            list_recipe_data: { recipe_data: { name: 'Next Day Recipe' } },
+            recipe_mealplan: {
+              recipe_name: 'Next Day Recipe',
+              from_date: '2026-01-02',
+              meal_type: { name: 'Lunch', time: '12:00' },
+            },
+          },
+        ],
+      },
+      isLoading: false,
+      isError: false,
+    });
+
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <ShoppingList />
+        </MemoryRouter>,
+      );
+    });
+
+    const viewSwitch = container.querySelector<HTMLInputElement>('#shopping-view-mode');
+    act(() => {
+      viewSwitch?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    const groupNames = Array.from(container.querySelectorAll('h6')).map((node) =>
+      node.childNodes[0]?.textContent?.trim(),
+    );
+    expect(groupNames).toEqual(['Breakfast Recipe', 'Dinner Recipe', 'Next Day Recipe']);
+  });
 });
