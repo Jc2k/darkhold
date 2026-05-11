@@ -55,7 +55,14 @@ import type {
 } from '../hooks/useWeatherForecast';
 import { useQuery } from '@tanstack/react-query';
 import { apiGet } from '../api/client';
-import type { MealPlan, Recipe, MealType, PaginatedResponse } from '../api/tandoor-types';
+import type {
+  MealPlan,
+  Recipe,
+  MealType,
+  PaginatedResponse,
+  RecipeIngredient,
+  Food,
+} from '../api/tandoor-types';
 import { deriveMealType } from '../utils/mealUtils';
 import {
   formatDate,
@@ -564,10 +571,10 @@ interface AddMealModalProps {
   initialMealTypeId?: number;
 }
 
-function hasUnresolvedKeywordIds(recipe: Recipe): boolean {
-  return Array.isArray(recipe.keywords)
-    ? recipe.keywords.some((k) => typeof k === 'number')
-    : false;
+interface SubRecipeLink {
+  recipeId: number;
+  recipeName: string;
+  foodName: string;
 }
 
 function AddMealModal({ date, onHide, mealTypes, initialMealTypeId }: AddMealModalProps) {
@@ -580,6 +587,8 @@ function AddMealModal({ date, onHide, mealTypes, initialMealTypeId }: AddMealMod
   const [note, setNote] = useState('');
   const createMeal = useCreateMealPlan();
   const defaultMealTypeId = initialMealTypeId ?? mealTypes[0]?.id;
+  const [subRecipeLinks, setSubRecipeLinks] = useState<SubRecipeLink[] | null>(null);
+  const [subRecipeToggles, setSubRecipeToggles] = useState<Record<number, boolean>>({});
   useEffect(() => {
     setSelectedMealTypeId((prev) => prev ?? defaultMealTypeId);
   }, [defaultMealTypeId]);
@@ -603,11 +612,16 @@ function AddMealModal({ date, onHide, mealTypes, initialMealTypeId }: AddMealMod
 
   const handleSelectRecipe = async (selected: Recipe[]) => {
     const r = selected[0] ?? null;
+    console.log(r);
     setSelectedRecipe(r);
+
     if (!r) {
+      setSubRecipeLinks([]);
       setSelectedMealTypeId(initialMealTypeId ?? mealTypes[0]?.id);
       return;
     }
+
+    setSubRecipeLinks(null);
     setServings(r.servings ?? 1);
 
     if (initialMealTypeId) {
@@ -615,20 +629,43 @@ function AddMealModal({ date, onHide, mealTypes, initialMealTypeId }: AddMealMod
       return;
     }
 
-    let hydratedRecipe = r;
-    const needsRecipeHydration = hasUnresolvedKeywordIds(r);
-    if (needsRecipeHydration) {
-      try {
-        hydratedRecipe = await apiGet<Recipe>(`/recipe/${r.id}/`);
-      } catch (error) {
-        console.warn(
-          'Failed to hydrate recipe details for meal type matching; using selected recipe payload',
-          { recipeId: r.id, error },
-        );
+    const fullRecipe = await apiGet<Recipe>(`/recipe/${r!.id}/`);
+
+    const seen = new Set<number>();
+    const links: SubRecipeLink[] = [];
+    if (fullRecipe?.steps) {
+      for (const step of fullRecipe.steps) {
+        for (const ing of (step.ingredients ?? []) as RecipeIngredient[]) {
+          const food = ing.food && typeof ing.food === 'object' ? (ing.food as Food) : null;
+          if (food?.recipe && !seen.has(food.recipe.id)) {
+            seen.add(food.recipe.id);
+            links.push({
+              recipeId: food.recipe.id,
+              recipeName: food.recipe.name,
+              foodName: food.name,
+            });
+          }
+        }
       }
     }
-    setSelectedMealTypeId(deriveMealType(hydratedRecipe, mealTypes) ?? mealTypes[0]?.id);
+    setSubRecipeLinks(links);
+
+    setSelectedMealTypeId(deriveMealType(fullRecipe, mealTypes) ?? mealTypes[0]?.id);
   };
+
+  // Initialise toggles (all on by default) when sub-recipe list becomes available
+  useEffect(() => {
+    if (subRecipeLinks?.length === 0) return;
+    setSubRecipeToggles((prev) => {
+      const next: Record<number, boolean> = {};
+      if (subRecipeLinks) {
+        for (const link of subRecipeLinks) {
+          next[link.recipeId] = prev[link.recipeId] ?? true;
+        }
+      }
+      return next;
+    });
+  }, [subRecipeLinks]);
 
   const handleSubmit = async () => {
     if (!selectedRecipe) return;
@@ -641,6 +678,21 @@ function AddMealModal({ date, onHide, mealTypes, initialMealTypeId }: AddMealMod
       ...(note ? { note } : {}),
       addshopping: true,
     });
+    if (subRecipeLinks) {
+      await Promise.all(
+        subRecipeLinks
+          .filter((link) => subRecipeToggles[link.recipeId])
+          .map((link) =>
+            createMeal.mutateAsync({
+              recipe: link.recipeId as unknown as Recipe,
+              meal_type: selectedMealTypeId as unknown as MealType,
+              from_date: date,
+              servings: 1,
+              addshopping: true,
+            }),
+          ),
+      );
+    }
     onHide();
   };
 
@@ -717,6 +769,28 @@ function AddMealModal({ date, onHide, mealTypes, initialMealTypeId }: AddMealMod
             placeholder="Optional notes…"
           />
         </Form.Group>
+
+        {subRecipeLinks === null && <Spinner size="sm" />}
+
+        {subRecipeLinks && subRecipeLinks.length > 0 && (
+          <div className="mb-3">
+            {subRecipeLinks.map((link) => (
+              <Form.Check
+                key={link.recipeId}
+                type="switch"
+                id={`sub-recipe-${link.recipeId}`}
+                label={`Are you making ${link.foodName} from scratch?`}
+                checked={subRecipeToggles[link.recipeId] ?? false}
+                onChange={(e) => {
+                  setSubRecipeToggles((prev) => ({
+                    ...prev,
+                    [link.recipeId]: e.target.checked,
+                  }));
+                }}
+              />
+            ))}
+          </div>
+        )}
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={onHide}>
