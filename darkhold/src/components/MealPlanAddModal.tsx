@@ -62,6 +62,11 @@ export function MealPlanAddModal({ recipe, keywordNameById, onHide }: Props) {
     return links;
   }, [fullRecipe]);
 
+  // Reset toggles when the recipe changes
+  useEffect(() => {
+    setSubRecipeToggles({});
+  }, [recipe?.id]);
+
   // Initialise toggles (all on by default) when sub-recipe list becomes available
   useEffect(() => {
     if (subRecipeLinks.length === 0) return;
@@ -73,11 +78,6 @@ export function MealPlanAddModal({ recipe, keywordNameById, onHide }: Props) {
       return next;
     });
   }, [subRecipeLinks]);
-
-  // Reset toggles when the recipe changes
-  useEffect(() => {
-    setSubRecipeToggles({});
-  }, [recipe?.id]);
 
   const { data: mealTypesData } = useQuery({
     queryKey: ['meal-types'],
