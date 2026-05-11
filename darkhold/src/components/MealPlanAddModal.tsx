@@ -231,7 +231,7 @@ export function MealPlanAddModal({ recipe, keywordNameById, onHide }: Props) {
                 type="switch"
                 id={`sub-recipe-${link.recipeId}`}
                 label={`Are you making ${link.foodName} from scratch?`}
-                checked={subRecipeToggles[link.recipeId] ?? true}
+                checked={subRecipeToggles[link.recipeId] ?? false}
                 onChange={(e) =>
                   setSubRecipeToggles((prev) => ({
                     ...prev,
