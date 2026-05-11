@@ -1,12 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Modal, Button, Form, InputGroup, Spinner, Alert } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
-import type { Recipe, MealType } from '../api/tandoor-types';
+import type { Recipe, MealType, Food, RecipeIngredient } from '../api/tandoor-types';
 import { useCreateMealPlan } from '../hooks/useMealPlan';
 import { useQuery } from '@tanstack/react-query';
 import { apiGet } from '../api/client';
 import { deriveMealType } from '../utils/mealUtils';
 import { formatDate, formatMonthYear, getWeekStartingSaturday } from '../utils/dateUtils';
+
+interface SubRecipeLink {
+  recipeId: number;
+  recipeName: string;
+  foodName: string;
+}
 
 interface Props {
   recipe: Recipe | null;
@@ -20,6 +26,7 @@ export function MealPlanAddModal({ recipe, keywordNameById, onHide }: Props) {
   const [selectedDate, setSelectedDate] = useState<Date>(() => getWeekStartingSaturday(0)[0]);
   const [servings, setServings] = useState<number>(recipe?.servings ?? 1);
   const [note, setNote] = useState('');
+  const [subRecipeToggles, setSubRecipeToggles] = useState<Record<number, boolean>>({});
   const hasPersonalToken = Boolean(localStorage.getItem('tandoor_token'));
 
   useEffect(() => {
@@ -27,6 +34,50 @@ export function MealPlanAddModal({ recipe, keywordNameById, onHide }: Props) {
       setServings(recipe.servings ?? 1);
     }
   }, [recipe]);
+
+  // Fetch full recipe to enumerate steps/ingredients for sub-recipe links
+  const { data: fullRecipe } = useQuery({
+    queryKey: ['recipe', recipe?.id ? String(recipe.id) : ''],
+    queryFn: () => apiGet<Recipe>(`/recipe/${recipe!.id}/`),
+    enabled: !!recipe?.id,
+  });
+
+  const subRecipeLinks = useMemo<SubRecipeLink[]>(() => {
+    if (!fullRecipe?.steps) return [];
+    const seen = new Set<number>();
+    const links: SubRecipeLink[] = [];
+    for (const step of fullRecipe.steps) {
+      for (const ing of (step.ingredients ?? []) as RecipeIngredient[]) {
+        const food = ing.food && typeof ing.food === 'object' ? (ing.food as Food) : null;
+        if (food?.recipe && !seen.has(food.recipe.id)) {
+          seen.add(food.recipe.id);
+          links.push({
+            recipeId: food.recipe.id,
+            recipeName: food.recipe.name,
+            foodName: food.name,
+          });
+        }
+      }
+    }
+    return links;
+  }, [fullRecipe]);
+
+  // Initialise toggles (all on by default) when sub-recipe list becomes available
+  useEffect(() => {
+    if (subRecipeLinks.length === 0) return;
+    setSubRecipeToggles((prev) => {
+      const next: Record<number, boolean> = {};
+      for (const link of subRecipeLinks) {
+        next[link.recipeId] = prev[link.recipeId] ?? true;
+      }
+      return next;
+    });
+  }, [subRecipeLinks]);
+
+  // Reset toggles when the recipe changes
+  useEffect(() => {
+    setSubRecipeToggles({});
+  }, [recipe?.id]);
 
   const { data: mealTypesData } = useQuery({
     queryKey: ['meal-types'],
@@ -39,18 +90,30 @@ export function MealPlanAddModal({ recipe, keywordNameById, onHide }: Props) {
   if (!recipe) return null;
 
   const effectiveMealTypeId = deriveMealType(recipe, mealTypes, keywordNameById);
+  const mealTypeId = (effectiveMealTypeId ?? mealTypes[0]?.id) as unknown as MealType;
 
   const handleSubmit = async () => {
     if (!hasPersonalToken) return;
     const date = formatDate(selectedDate);
     await createMealPlan.mutateAsync({
       recipe: recipe.id as unknown as Recipe,
-      meal_type: (effectiveMealTypeId ?? mealTypes[0]?.id) as unknown as MealType,
+      meal_type: mealTypeId,
       from_date: date,
       servings,
       ...(note ? { note } : {}),
       addshopping: true,
     });
+    for (const link of subRecipeLinks) {
+      if (subRecipeToggles[link.recipeId]) {
+        await createMealPlan.mutateAsync({
+          recipe: link.recipeId as unknown as Recipe,
+          meal_type: mealTypeId,
+          from_date: date,
+          servings: 1,
+          addshopping: true,
+        });
+      }
+    }
     onHide();
   };
 
@@ -157,6 +220,26 @@ export function MealPlanAddModal({ recipe, keywordNameById, onHide }: Props) {
             placeholder="Optional notes…"
           />
         </Form.Group>
+
+        {subRecipeLinks.length > 0 && (
+          <div className="mb-3">
+            {subRecipeLinks.map((link) => (
+              <Form.Check
+                key={link.recipeId}
+                type="switch"
+                id={`sub-recipe-${link.recipeId}`}
+                label={`Are you making ${link.foodName} from scratch?`}
+                checked={subRecipeToggles[link.recipeId] ?? true}
+                onChange={(e) =>
+                  setSubRecipeToggles((prev) => ({
+                    ...prev,
+                    [link.recipeId]: e.target.checked,
+                  }))
+                }
+              />
+            ))}
+          </div>
+        )}
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={onHide}>
