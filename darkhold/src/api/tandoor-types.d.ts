@@ -60,6 +60,8 @@ export interface Food {
   properties_food_amount?: number | string | null;
   /** Unit for properties_food_amount */
   properties_food_unit?: RecipeUnit | null;
+  /** Linked recipe that describes how to make this food from scratch */
+  recipe?: { id: number; name: string } | null;
 }
 
 /** Unit of measurement */

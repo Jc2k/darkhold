@@ -71,11 +71,13 @@ function IngredientList({
   linkFoods = false,
   scaleFactor,
   itemProp,
+  showRecipeLinks = true,
 }: {
   ingredients: RecipeIngredient[];
   linkFoods?: boolean;
   scaleFactor?: number;
   itemProp?: string;
+  showRecipeLinks?: boolean;
 }) {
   const sections = splitIngredientSections(ingredients);
   return (
@@ -109,6 +111,11 @@ function IngredientList({
                     <span>Ingredient #{typeof ing.food === 'number' ? ing.food : ''}</span>
                   ) : null}
                   {ing.note && <span className="text-muted"> ({ing.note})</span>}
+                  {showRecipeLinks && food?.recipe && (
+                    <Link to={`/recipe/${food.recipe.id}`} className="ms-1 small text-muted">
+                      → {food.recipe.name}
+                    </Link>
+                  )}
                 </li>
               );
             })}
@@ -145,7 +152,11 @@ function CookingMode({
           {current?.name && <h5 className="mb-3">{current.name}</h5>}
           {current?.ingredients && current.ingredients.length > 0 && (
             <div className="mb-3">
-              <IngredientList ingredients={current.ingredients} scaleFactor={scaleFactor} />
+              <IngredientList
+                ingredients={current.ingredients}
+                scaleFactor={scaleFactor}
+                showRecipeLinks={false}
+              />
             </div>
           )}
           <ReactMarkdown>{current?.instruction ?? ''}</ReactMarkdown>
