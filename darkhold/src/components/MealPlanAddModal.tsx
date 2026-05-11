@@ -103,17 +103,19 @@ export function MealPlanAddModal({ recipe, keywordNameById, onHide }: Props) {
       ...(note ? { note } : {}),
       addshopping: true,
     });
-    for (const link of subRecipeLinks) {
-      if (subRecipeToggles[link.recipeId]) {
-        await createMealPlan.mutateAsync({
-          recipe: link.recipeId as unknown as Recipe,
-          meal_type: mealTypeId,
-          from_date: date,
-          servings: 1,
-          addshopping: true,
-        });
-      }
-    }
+    await Promise.all(
+      subRecipeLinks
+        .filter((link) => subRecipeToggles[link.recipeId])
+        .map((link) =>
+          createMealPlan.mutateAsync({
+            recipe: link.recipeId as unknown as Recipe,
+            meal_type: mealTypeId,
+            from_date: date,
+            servings: 1,
+            addshopping: true,
+          }),
+        ),
+    );
     onHide();
   };
 
