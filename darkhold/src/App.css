@@ -62,7 +62,7 @@
   margin: 0 auto;
 }
 
-@media (max-width: 1111.98px) {
+@media (max-width: 1023.98px) {
   .meal-plan-page .meal-plan-table {
     display: block;
     table-layout: auto;
@@ -206,7 +206,7 @@
   padding: 0.3rem;
 }
 
-@media (max-width: 1111.98px) {
+@media (max-width: 1023.98px) {
   .meal-plan-page .meal-plan-entry-cell {
     padding: 0 0.3rem;
   }
@@ -230,7 +230,7 @@
   margin-bottom: 0.3rem;
 }
 
-@media (min-width: 1112px) {
+@media (min-width: 1024px) {
   .meal-plan-page .meal-plan-table-header-row {
     display: table-row;
   }
@@ -250,7 +250,7 @@
   }
 }
 
-@media (min-width: 1112px) and (max-width: 1399.98px) {
+@media (min-width: 1024px) and (max-width: 1399.98px) {
   /* Keep the narrower tablet/xl thumbnail width active through the xl range. */
   .meal-plan-page .meal-plan-entry-thumb-slot {
     width: 50px;
@@ -258,7 +258,7 @@
   }
 }
 
-@media (min-width: 1112px) {
+@media (min-width: 1024px) {
   .meal-plan-page .meal-plan-weather-line,
   .meal-plan-page .meal-plan-weather-sun {
     white-space: nowrap;
