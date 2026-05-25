@@ -121,6 +121,10 @@ const compactTitleButtonStyle: React.CSSProperties = {
 const PLACEHOLDER_BG = '#d0d0d0';
 const PLACEHOLDER_ICON_COLOR = '#a0a0a0';
 
+/**
+ * Use dedicated mouse + touch sensors to avoid iPad Safari touch drags being
+ * treated as PointerSensor interactions, which were unreliable across days/types.
+ */
 export function useMealPlanSensors() {
   return useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
