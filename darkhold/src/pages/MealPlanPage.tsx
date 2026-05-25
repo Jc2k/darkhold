@@ -15,6 +15,7 @@ import {
   CloudSnowFill,
   CloudLightningRainFill,
   CloudFog2Fill,
+  Stars,
 } from 'react-bootstrap-icons';
 import { proxyMediaUrl } from '../utils/mediaUrl';
 import {
@@ -53,7 +54,7 @@ import type {
   WeatherDayForecast,
   WeatherDisruptionBand,
 } from '../hooks/useWeatherForecast';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiGet } from '../api/client';
 import type {
   MealPlan,
@@ -78,6 +79,9 @@ import { useCookLog, isCookedOnDate, type CookedByDate } from '../hooks/useCookL
 import { smallCircleButtonStyle } from '../utils/buttonStyles';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import { DroppableTableRow } from './DroppableTableRow';
+import { buildMealAssistantPlan, type MealAssistantSlotPlan } from '../utils/mealPlanningAssistant';
+import { getMealPlanningAssistantDataQueryOptions } from '../hooks/useMealPlanningAssistantData';
+import { MealPlanAssistantModal } from '../components/MealPlanAssistantModal';
 
 type WithSortable = { sortable?: { containerId: string } } | undefined;
 
@@ -297,6 +301,8 @@ interface EntryCardProps {
   dragging?: boolean;
   isCooked?: boolean;
   onLogCook?: (entry: MealPlan) => void;
+  assistantEnabled?: boolean;
+  onShowAssistant?: (entry: MealPlan) => void;
 }
 
 interface CompactEntryActionsProps {
@@ -305,6 +311,8 @@ interface CompactEntryActionsProps {
   onEdit?: (entry: MealPlan) => void;
   showPrimaryLogAction: boolean;
   onLogCook?: (entry: MealPlan) => void;
+  assistantEnabled?: boolean;
+  onShowAssistant?: (entry: MealPlan) => void;
 }
 
 function CompactEntryActions({
@@ -313,6 +321,8 @@ function CompactEntryActions({
   onEdit,
   showPrimaryLogAction,
   onLogCook,
+  assistantEnabled,
+  onShowAssistant,
 }: CompactEntryActionsProps) {
   return (
     <div
@@ -331,6 +341,20 @@ function CompactEntryActions({
           aria-label="Log as cooked"
         >
           <Check2Circle size={14} />
+        </Button>
+      )}
+      {assistantEnabled && onShowAssistant && (
+        <Button
+          variant="outline-warning"
+          size="sm"
+          style={compactTitleButtonStyle}
+          onClick={(e) => {
+            e.stopPropagation();
+            onShowAssistant(entry);
+          }}
+          aria-label="Explain assisted meal"
+        >
+          <Stars size={14} />
         </Button>
       )}
       {onEdit && (
@@ -371,6 +395,8 @@ function EntryCard({
   dragging,
   isCooked,
   onLogCook,
+  assistantEnabled,
+  onShowAssistant,
 }: EntryCardProps) {
   const recipe = typeof entry.recipe === 'object' ? entry.recipe : null;
   const thumbnailSrc = recipe?.image ? proxyMediaUrl(recipe.image) : undefined;
@@ -409,6 +435,8 @@ function EntryCard({
                 onEdit={onEdit}
                 showPrimaryLogAction={showPrimaryLogAction}
                 onLogCook={onLogCook}
+                assistantEnabled={assistantEnabled}
+                onShowAssistant={onShowAssistant}
               />
             )}
           </div>
@@ -433,6 +461,8 @@ interface SortableEntryProps {
   isPending?: boolean;
   isCooked?: boolean;
   onLogCook?: (entry: MealPlan) => void;
+  assistantEnabled?: boolean;
+  onShowAssistant?: (entry: MealPlan) => void;
 }
 
 function SortableEntry({
@@ -443,6 +473,8 @@ function SortableEntry({
   isPending,
   isCooked,
   onLogCook,
+  assistantEnabled,
+  onShowAssistant,
 }: SortableEntryProps) {
   const {
     attributes,
@@ -508,6 +540,8 @@ function SortableEntry({
                     onEdit={onEdit}
                     showPrimaryLogAction={showPrimaryLogAction}
                     onLogCook={onLogCook}
+                    assistantEnabled={assistantEnabled}
+                    onShowAssistant={onShowAssistant}
                   />
                 )}
               </div>
@@ -991,6 +1025,9 @@ interface MealPlanTableViewProps {
   cookLogData: CookedByDate | undefined;
   calendarEventsByDate?: CalendarEventsByDate;
   weatherByDate?: WeatherByDate;
+  assistantMode: boolean;
+  assistedEntryIds: Set<number>;
+  onShowAssistant: (entry: MealPlan) => void;
 }
 
 function MealPlanTableView({
@@ -1008,6 +1045,9 @@ function MealPlanTableView({
   cookLogData,
   calendarEventsByDate,
   weatherByDate,
+  assistantMode,
+  assistedEntryIds,
+  onShowAssistant,
 }: MealPlanTableViewProps) {
   return (
     <div className="meal-plan-table-shell">
@@ -1094,6 +1134,8 @@ function MealPlanTableView({
                                   isPending={pendingMoves.has(entry.id)}
                                   isCooked={cooked}
                                   onLogCook={isPastOrToday ? onLogCook : undefined}
+                                  assistantEnabled={assistantMode && assistedEntryIds.has(entry.id)}
+                                  onShowAssistant={onShowAssistant}
                                 />
                               );
                             })}
@@ -1119,6 +1161,7 @@ function MealPlanTableView({
 
 export function MealPlanPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { weekStart } = useParams<{ weekStart: string }>();
   const [addModal, setAddModal] = useState<{
     date: string;
@@ -1127,6 +1170,17 @@ export function MealPlanPage() {
   const [activeId, setActiveId] = useState<number | null>(null);
   const [cookLogEntry, setCookLogEntry] = useState<MealPlan | null>(null);
   const [editEntry, setEditEntry] = useState<MealPlan | null>(null);
+  const [assistantMode, setAssistantMode] = useState(false);
+  const [assistantEntryPlans, setAssistantEntryPlans] = useState<
+    Record<number, MealAssistantSlotPlan>
+  >({});
+  const [assistantModalPlan, setAssistantModalPlan] = useState<MealAssistantSlotPlan | null>(null);
+  const [assistantModalEntry, setAssistantModalEntry] = useState<MealPlan | null>(null);
+  const [assistantFeedback, setAssistantFeedback] = useState<{
+    variant: 'info' | 'warning' | 'danger' | 'success';
+    message: string;
+  } | null>(null);
+  const [isAssistantPlanning, setIsAssistantPlanning] = useState(false);
   // Maps entry id -> optimistic target date for in-flight cross-day moves
   const [pendingMoves, setPendingMoves] = useState<Map<number, string>>(new Map());
   const hasPersonalToken = Boolean(localStorage.getItem('tandoor_token'));
@@ -1186,6 +1240,7 @@ export function MealPlanPage() {
   const hasEverHadData = useRef(false);
   if (data !== undefined) hasEverHadData.current = true;
   const deleteMeal = useDeleteMealPlan();
+  const createMealPlan = useCreateMealPlan();
   const updateMeal = useUpdateMealPlan();
 
   const handleDelete = (id: number) => {
@@ -1200,6 +1255,10 @@ export function MealPlanPage() {
   const mealTypes = mealTypesData?.results ?? [];
 
   const sortedMealTypes = [...mealTypes].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  const dinnerMealType =
+    sortedMealTypes.find((mealType) => mealType.name.toLowerCase().includes('dinner')) ??
+    sortedMealTypes[0];
+  const dinnerMealTypeId = dinnerMealType?.id;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -1232,6 +1291,7 @@ export function MealPlanPage() {
     }
     byDayAndMealType[effectiveDate]?.[effectiveMtId]?.push(e);
   }
+  const assistedEntryIds = new Set(Object.keys(assistantEntryPlans).map((value) => Number(value)));
 
   const activeEntry = activeId != null ? (allEntries.find((e) => e.id === activeId) ?? null) : null;
 
@@ -1303,6 +1363,102 @@ export function MealPlanPage() {
     setActiveId(null);
   };
 
+  const handleShowAssistant = (entry: MealPlan) => {
+    setAssistantModalEntry(entry);
+    setAssistantModalPlan(assistantEntryPlans[entry.id] ?? null);
+  };
+
+  const handleAssistantToggle = async () => {
+    if (!hasPersonalToken) return;
+    if (isLoading) return;
+
+    if (assistantMode) {
+      setAssistantMode(false);
+      setAssistantModalEntry(null);
+      setAssistantModalPlan(null);
+      return;
+    }
+
+    if (!dinnerMealTypeId || isAssistantPlanning) return;
+
+    const emptyDinnerDates = days
+      .map((day) => formatDate(day))
+      .filter((date) => (byDayAndMealType[date]?.[dinnerMealTypeId] ?? []).length === 0);
+
+    setAssistantMode(true);
+    setAssistantFeedback(null);
+
+    if (emptyDinnerDates.length === 0) {
+      setAssistantFeedback({
+        variant: 'info',
+        message: 'There are no empty dinner slots to fill in this week.',
+      });
+      return;
+    }
+
+    setIsAssistantPlanning(true);
+
+    try {
+      const assistantData = await queryClient.fetchQuery(
+        getMealPlanningAssistantDataQueryOptions(weekStartDate, endDate),
+      );
+      const plan = buildMealAssistantPlan({
+        weekStart: weekStartDate,
+        weekEnd: endDate,
+        emptyDinnerDates,
+        existingWeekMeals: allEntries,
+        historicalMeals: assistantData.historicalMeals,
+        recipes: assistantData.recipes,
+        keywordNameById: assistantData.keywordNameById,
+        upSoonRecipeIds: assistantData.upSoonRecipeIds,
+        recentAddedRecipeIds: assistantData.recentAddedRecipeIds,
+        calendarEventsByDate,
+        weatherByDate,
+        dinnerTime: dinnerMealType.time,
+      });
+
+      if (plan.slots.length === 0) {
+        setAssistantFeedback({
+          variant: 'warning',
+          message: plan.issues[0] ?? 'No suitable assisted meals were available for this week.',
+        });
+        return;
+      }
+
+      const nextPlans: Record<number, MealAssistantSlotPlan> = {};
+      for (const slotPlan of plan.slots) {
+        const created = await createMealPlan.mutateAsync({
+          recipe: slotPlan.selected.recipe.id as unknown as Recipe,
+          meal_type: dinnerMealTypeId as unknown as MealType,
+          from_date: slotPlan.date,
+          servings: slotPlan.selected.recipe.servings ?? 1,
+          addshopping: true,
+        });
+        nextPlans[created.id] = slotPlan;
+      }
+
+      setAssistantEntryPlans((current) => ({ ...current, ...nextPlans }));
+      setAssistantFeedback({
+        variant: plan.issues.length > 0 ? 'warning' : 'success',
+        message:
+          plan.issues.length > 0
+            ? `Filled ${plan.slots.length} dinner slot${plan.slots.length === 1 ? '' : 's'}. ${plan.issues.join(' ')}`
+            : `Filled ${plan.slots.length} dinner slot${plan.slots.length === 1 ? '' : 's'}.`,
+      });
+    } catch (error) {
+      setAssistantMode(false);
+      setAssistantFeedback({
+        variant: 'danger',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Assisted meal planning failed. Please try again.',
+      });
+    } finally {
+      setIsAssistantPlanning(false);
+    }
+  };
+
   if (isError) {
     return <Alert variant="danger">Failed to load meal plan.</Alert>;
   }
@@ -1338,6 +1494,16 @@ export function MealPlanPage() {
             : 'Unable to load weather forecast. Please try again later.'}
         </Alert>
       )}
+      {assistantFeedback && (
+        <Alert
+          variant={assistantFeedback.variant}
+          className="py-2 mb-3"
+          dismissible
+          onClose={() => setAssistantFeedback(null)}
+        >
+          {assistantFeedback.message}
+        </Alert>
+      )}
       <div className="d-flex align-items-center mb-3">
         <Button
           variant="outline-secondary"
@@ -1348,14 +1514,31 @@ export function MealPlanPage() {
           ‹
         </Button>
         <div className="flex-grow-1 text-center">
-          <Button
-            variant="outline-secondary"
-            style={{ minHeight: 44, padding: '0 1rem' }}
-            onClick={() => navigate(`/meal-plan/${formatDate(currentWeekStart)}`)}
-            aria-label="Go to current week"
-          >
-            Today
-          </Button>
+          <div className="d-inline-flex align-items-center gap-2">
+            <Button
+              variant="outline-secondary"
+              style={{ minHeight: 44, padding: '0 1rem' }}
+              onClick={() => navigate(`/meal-plan/${formatDate(currentWeekStart)}`)}
+              aria-label="Go to current week"
+            >
+              Today
+            </Button>
+            <Button
+              variant={assistantMode ? 'warning' : 'outline-warning'}
+              style={circleButtonStyle}
+              onClick={() => {
+                void handleAssistantToggle();
+              }}
+              disabled={!hasPersonalToken || !dinnerMealTypeId || isAssistantPlanning || isLoading}
+              aria-label={
+                assistantMode
+                  ? 'Turn off meal planning assistance'
+                  : 'Turn on meal planning assistance'
+              }
+            >
+              {isAssistantPlanning ? <Spinner size="sm" /> : <Stars size={16} />}
+            </Button>
+          </div>
         </div>
         <Button
           variant="outline-secondary"
@@ -1398,11 +1581,23 @@ export function MealPlanPage() {
             cookLogData={cookLogData}
             calendarEventsByDate={calendarEventsByDate}
             weatherByDate={weatherByDate}
+            assistantMode={assistantMode}
+            assistedEntryIds={assistedEntryIds}
+            onShowAssistant={handleShowAssistant}
           />
         </div>
 
         <DragOverlay>
-          {activeEntry && <EntryCard entry={activeEntry} onDelete={noop} onClick={noop} dragging />}
+          {activeEntry && (
+            <EntryCard
+              entry={activeEntry}
+              onDelete={noop}
+              onClick={noop}
+              dragging
+              assistantEnabled={assistantMode && assistedEntryIds.has(activeEntry.id)}
+              onShowAssistant={handleShowAssistant}
+            />
+          )}
         </DragOverlay>
       </DndContext>
 
@@ -1424,6 +1619,14 @@ export function MealPlanPage() {
         />
       )}
       {editEntry && <EditMealModal entry={editEntry} onHide={() => setEditEntry(null)} />}
+      <MealPlanAssistantModal
+        analysis={assistantModalPlan}
+        currentEntry={assistantModalEntry}
+        onHide={() => {
+          setAssistantModalEntry(null);
+          setAssistantModalPlan(null);
+        }}
+      />
     </div>
   );
 }
