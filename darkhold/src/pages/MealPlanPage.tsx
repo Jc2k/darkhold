@@ -32,7 +32,7 @@ import {
   DndContext,
   DragOverlay,
   closestCenter,
-  PointerSensor,
+  MouseSensor,
   TouchSensor,
   useSensor,
   useSensors,
@@ -120,6 +120,15 @@ const compactTitleButtonStyle: React.CSSProperties = {
 };
 const PLACEHOLDER_BG = '#d0d0d0';
 const PLACEHOLDER_ICON_COLOR = '#a0a0a0';
+
+export function useMealPlanSensors() {
+  return useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 200, tolerance: 8 },
+    }),
+  );
+}
 
 function ThumbnailPlaceholder({
   dragProps,
@@ -1375,12 +1384,7 @@ export function MealPlanPage() {
     });
   }, [assistantEntryPlans, assistantMode, canonicalWeekStart]);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, {
-      activationConstraint: { delay: 200, tolerance: 8 },
-    }),
-  );
+  const sensors = useMealPlanSensors();
 
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStartDate, i));
 
