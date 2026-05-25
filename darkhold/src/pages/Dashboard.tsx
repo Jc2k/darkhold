@@ -23,6 +23,51 @@ function addDays(date: Date, numDays: number): Date {
   return result;
 }
 
+function toMealTimeMinutes(mealType: MealType | number): number {
+  if (typeof mealType !== 'object') return Number.MAX_SAFE_INTEGER;
+
+  const time = mealType.time;
+  if (!time) return Number.MAX_SAFE_INTEGER;
+
+  const match = time.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (!match) return Number.MAX_SAFE_INTEGER;
+
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (
+    !Number.isInteger(hours) ||
+    !Number.isInteger(minutes) ||
+    hours < 0 ||
+    hours > 23 ||
+    minutes < 0 ||
+    minutes > 59
+  ) {
+    return Number.MAX_SAFE_INTEGER;
+  }
+
+  return hours * 60 + minutes;
+}
+
+function compareMealPlanEntries(a: MealPlan, b: MealPlan): number {
+  if (a.from_date !== b.from_date) return a.from_date.localeCompare(b.from_date);
+
+  const aMealTime = toMealTimeMinutes(a.meal_type);
+  const bMealTime = toMealTimeMinutes(b.meal_type);
+  if (aMealTime !== bMealTime) return aMealTime - bMealTime;
+
+  const aMealOrder =
+    typeof a.meal_type === 'object'
+      ? (a.meal_type.order ?? Number.MAX_SAFE_INTEGER)
+      : Number.MAX_SAFE_INTEGER;
+  const bMealOrder =
+    typeof b.meal_type === 'object'
+      ? (b.meal_type.order ?? Number.MAX_SAFE_INTEGER)
+      : Number.MAX_SAFE_INTEGER;
+  if (aMealOrder !== bMealOrder) return aMealOrder - bMealOrder;
+
+  return a.id - b.id;
+}
+
 function shortDay(date: Date): string {
   return date.toLocaleDateString('en-GB', { weekday: 'short', month: 'short', day: 'numeric' });
 }
@@ -515,9 +560,7 @@ export function Dashboard() {
   for (const day of days) {
     mealsByDay[formatDate(day)] = [];
   }
-  const sortedEntries = upcomingMealPlanEntries
-    .slice()
-    .sort((a, b) => a.from_date.localeCompare(b.from_date));
+  const sortedEntries = upcomingMealPlanEntries.slice().sort(compareMealPlanEntries);
   for (const mp of sortedEntries) {
     const key = mp.from_date.split('T')[0];
     if (key in mealsByDay && typeof mp.recipe === 'object') {

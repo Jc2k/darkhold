@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Recipe } from '../api/tandoor-types';
+import { formatDate } from '../utils/dateUtils';
 
 const { useQueryMock, useUpSoonDataMock, useMealPlanMock, useCookLogMock } = vi.hoisted(() => ({
   useQueryMock: vi.fn(),
@@ -127,5 +128,67 @@ describe('Dashboard', () => {
 
     expect(container.textContent).toContain('Up Soon');
     expect(container.querySelector('a[href="/books/42"]')?.textContent).toContain('See all');
+  });
+
+  it('sorts upcoming meals by meal type time for the same day', () => {
+    useUpSoonDataMock.mockReturnValue({
+      data: null,
+      isLoading: false,
+      isError: false,
+    });
+
+    const today = formatDate(new Date());
+    useMealPlanMock
+      .mockReturnValueOnce({
+        data: {
+          results: [
+            {
+              id: 1,
+              from_date: today,
+              recipe: {
+                id: 1,
+                name: 'Late Dinner',
+                created_by: 1,
+                keywords: [],
+                image: null,
+                rating: null,
+              },
+              meal_type: { id: 2, name: 'Dinner', time: '18:00', order: 2 },
+            },
+            {
+              id: 2,
+              from_date: today,
+              recipe: {
+                id: 2,
+                name: 'Early Breakfast',
+                created_by: 1,
+                keywords: [],
+                image: null,
+                rating: null,
+              },
+              meal_type: { id: 1, name: 'Breakfast', time: '08:00', order: 1 },
+            },
+          ],
+        },
+        isLoading: false,
+        isError: false,
+      })
+      .mockReturnValueOnce({ data: { results: [] }, isLoading: false, isError: false });
+
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <Dashboard />
+        </MemoryRouter>,
+      );
+    });
+
+    const pageText = container.textContent ?? '';
+    const breakfastIndex = pageText.indexOf('Early Breakfast');
+    const dinnerIndex = pageText.indexOf('Late Dinner');
+
+    expect(breakfastIndex).toBeGreaterThanOrEqual(0);
+    expect(dinnerIndex).toBeGreaterThanOrEqual(0);
+    expect(breakfastIndex).toBeLessThan(dinnerIndex);
   });
 });
