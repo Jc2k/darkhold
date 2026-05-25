@@ -37,6 +37,7 @@ import {
   useSensor,
   useSensors,
   useDroppable,
+  type Collision,
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core';
@@ -318,6 +319,22 @@ function parseContainerId(id: string): {
   if (sep === -1) return { date: id, mealTypeId: null };
   const parsed = parseInt(id.slice(sep + 2), 10);
   return { date: id.slice(0, sep), mealTypeId: isNaN(parsed) ? null : parsed };
+}
+
+export function getDateMealTypeCollisionId(
+  dateKey: string,
+  activeContainerId: string,
+  collisions?: Collision[] | null,
+): string | null {
+  if (!collisions || collisions.length === 0) return null;
+  const prefix = `${dateKey}__`;
+  const ids = collisions
+    .map((collision) => String(collision.id))
+    .filter((id) => id.startsWith(prefix) && id !== activeContainerId);
+  if (ids.length > 0) return ids[0];
+  return (
+    collisions.map((collision) => String(collision.id)).find((id) => id.startsWith(prefix)) ?? null
+  );
 }
 
 interface PersistedMealAssistantSession {
@@ -1438,6 +1455,17 @@ export function MealPlanPage() {
     let targetContainerId: string;
     if (typeof over.id === 'string') {
       targetContainerId = over.id;
+      const { date, mealTypeId } = parseContainerId(targetContainerId);
+      if (mealTypeId == null) {
+        const collisionTargetId = getDateMealTypeCollisionId(
+          date,
+          activeContainerId,
+          event.collisions,
+        );
+        if (collisionTargetId) {
+          targetContainerId = collisionTargetId;
+        }
+      }
     } else {
       const overContainerId = (over.data.current as WithSortable)?.sortable?.containerId;
       if (!overContainerId) return;
