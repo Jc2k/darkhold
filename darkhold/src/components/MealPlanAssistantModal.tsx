@@ -76,6 +76,7 @@ function AlternativeRecipePreview({
               variant="outline-secondary"
               size="sm"
               disabled={isSwitching}
+              aria-label={`Use ${recipe.name} instead`}
               onClick={() => onSelect(recipe)}
             >
               {isSwitching ? 'Switching…' : 'Use this meal'}

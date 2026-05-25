@@ -92,9 +92,7 @@ describe('MealPlanAssistantModal', () => {
     expect(document.body.textContent).toContain('Use this meal');
     expect(document.body.querySelectorAll('img').length).toBeGreaterThan(1);
 
-    const useThisMealButton = Array.from(document.querySelectorAll('button')).find(
-      (button) => button.textContent === 'Use this meal',
-    );
+    const useThisMealButton = document.querySelector('button[aria-label="Use Takeaway instead"]');
 
     act(() => {
       (useThisMealButton as HTMLButtonElement | undefined)?.click();
