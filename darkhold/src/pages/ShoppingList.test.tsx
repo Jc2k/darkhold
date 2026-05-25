@@ -99,7 +99,7 @@ describe('ShoppingList', () => {
     vi.clearAllMocks();
   });
 
-  it('shows partial grouped state with struck-through checked quantity and recipe toggle', () => {
+  it('shows partial grouped state with struck-through checked quantity and recipe button', () => {
     act(() => {
       root.render(
         <MemoryRouter>
@@ -119,13 +119,17 @@ describe('ShoppingList', () => {
     );
     expect(checkbox?.checked).toBe(false);
 
-    const viewSwitch = container.querySelector<HTMLInputElement>('#shopping-view-mode');
-    expect(viewSwitch).toBeTruthy();
+    const recipeViewButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Show recipe groups"]',
+    );
+    expect(recipeViewButton).toBeTruthy();
+    expect(recipeViewButton?.getAttribute('aria-pressed')).toBe('false');
 
     act(() => {
-      viewSwitch?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      recipeViewButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 
+    expect(recipeViewButton?.getAttribute('aria-pressed')).toBe('true');
     expect(container.textContent).toContain('Cake');
     expect(container.textContent).toContain('Bread');
   });
@@ -187,14 +191,76 @@ describe('ShoppingList', () => {
       );
     });
 
-    const viewSwitch = container.querySelector<HTMLInputElement>('#shopping-view-mode');
+    const viewRecipeButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Show recipe groups"]',
+    );
     act(() => {
-      viewSwitch?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      viewRecipeButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 
     const groupNames = Array.from(container.querySelectorAll('h6')).map((node) =>
       node.childNodes[0]?.textContent?.trim(),
     );
     expect(groupNames).toEqual(['Breakfast Recipe', 'Dinner Recipe', 'Next Day Recipe']);
+  });
+
+  it('hides checked items when the hide toggle is enabled', () => {
+    useQueryMock.mockReturnValue({
+      data: {
+        results: [
+          {
+            id: 1,
+            amount: 1,
+            unit_name: 'cup',
+            food: makeFood(),
+            checked: true,
+            list_recipe_data: { recipe_data: { name: 'Cake' } },
+          },
+          {
+            id: 2,
+            amount: 1,
+            unit_name: 'cup',
+            food: { ...makeFood(), id: 2, name: 'Milk' },
+            checked: false,
+            list_recipe_data: { recipe_data: { name: 'Bread' } },
+          },
+        ],
+      },
+      isLoading: false,
+      isError: false,
+    });
+
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <ShoppingList />
+        </MemoryRouter>,
+      );
+    });
+
+    expect(container.textContent).toContain('Flour');
+    expect(container.textContent).toContain('Milk');
+
+    const hideCheckedButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Hide checked items"]',
+    );
+    expect(hideCheckedButton).toBeTruthy();
+    expect(hideCheckedButton?.getAttribute('aria-pressed')).toBe('false');
+
+    act(() => {
+      hideCheckedButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(hideCheckedButton?.getAttribute('aria-pressed')).toBe('true');
+    expect(container.textContent).not.toContain('Flour');
+    expect(container.textContent).toContain('Milk');
+
+    act(() => {
+      hideCheckedButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(hideCheckedButton?.getAttribute('aria-pressed')).toBe('false');
+    expect(container.textContent).toContain('Flour');
+    expect(container.textContent).toContain('Milk');
   });
 });
