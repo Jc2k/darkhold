@@ -104,9 +104,9 @@ describe('MealPlanAssistantModal', () => {
     expect(document.querySelector('.meal-plan-assistant-modal-content')).not.toBeNull();
     expect(document.querySelector('.meal-plan-assistant-modal-header')).not.toBeNull();
     expect(document.querySelector('.meal-plan-assistant-modal-body')).not.toBeNull();
-    expect(document.querySelector('.modal-dialog')?.classList.contains('modal-dialog-scrollable')).toBe(
-      true,
-    );
+    expect(
+      document.querySelector('.modal-dialog')?.classList.contains('modal-dialog-scrollable'),
+    ).toBe(true);
 
     const useThisMealButton = document.querySelector('button[aria-label="Use Takeaway instead"]');
 
