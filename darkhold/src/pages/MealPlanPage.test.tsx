@@ -22,9 +22,9 @@ vi.mock('@dnd-kit/core', async () => {
   };
 });
 
-import { MouseSensor, TouchSensor } from '@dnd-kit/core';
+import { MouseSensor, TouchSensor, type Collision } from '@dnd-kit/core';
 import { DroppableTableRow } from './DroppableTableRow';
-import { useMealPlanSensors } from './MealPlanPage';
+import { getDateMealTypeCollisionId, useMealPlanSensors } from './MealPlanPage';
 
 function SensorHarness() {
   useMealPlanSensors();
@@ -134,5 +134,33 @@ describe('useMealPlanSensors', () => {
       activationConstraint: { delay: 200, tolerance: 8 },
     });
     expect(useSensorsMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('getDateMealTypeCollisionId', () => {
+  it('prefers a same-day meal-type collision that is not the active container', () => {
+    const collisions = [
+      { id: '2026-05-25' },
+      { id: '2026-05-25__2' },
+      { id: '2026-05-25__1' },
+    ] as Collision[];
+
+    expect(getDateMealTypeCollisionId('2026-05-25', '2026-05-25__1', collisions)).toBe(
+      '2026-05-25__2',
+    );
+  });
+
+  it('falls back to a same-day meal-type collision when only the active container matches', () => {
+    const collisions = [{ id: '2026-05-25' }, { id: '2026-05-25__1' }] as Collision[];
+
+    expect(getDateMealTypeCollisionId('2026-05-25', '2026-05-25__1', collisions)).toBe(
+      '2026-05-25__1',
+    );
+  });
+
+  it('returns null when no same-day meal-type collisions exist', () => {
+    const collisions = [{ id: '2026-05-25' }, { id: '2026-05-26__1' }] as Collision[];
+
+    expect(getDateMealTypeCollisionId('2026-05-25', '2026-05-25__1', collisions)).toBeNull();
   });
 });
