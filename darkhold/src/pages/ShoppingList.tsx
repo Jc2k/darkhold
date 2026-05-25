@@ -1,4 +1,4 @@
-import { ListGroup, Form, Alert, Badge, Spinner, Button } from 'react-bootstrap';
+import { ListGroup, Form, Alert, Badge, Spinner, Button, ButtonGroup } from 'react-bootstrap';
 import { Cart4 } from 'react-bootstrap-icons';
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
@@ -270,21 +270,35 @@ export function ShoppingList() {
     <div className="pt-2">
       {!hasPersonalToken && <NoTokenAlert />}
       <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-1">
-        <div className="d-flex flex-wrap align-items-center gap-3">
-          <Form.Check
-            type="switch"
-            id="shopping-view-mode"
-            label={viewMode === 'recipe' ? 'View: recipe' : 'View: category'}
-            checked={viewMode === 'recipe'}
-            onChange={(event) => setViewMode(event.currentTarget.checked ? 'recipe' : 'category')}
-          />
-          <Form.Check
-            type="switch"
-            id="shopping-hide-checked"
-            label="Hide checked items"
-            checked={hideChecked}
-            onChange={(event) => setHideChecked(event.currentTarget.checked)}
-          />
+        <div className="d-flex flex-wrap align-items-center gap-2">
+          <span className="text-muted small">View</span>
+          <ButtonGroup size="sm" aria-label="Shopping list view">
+            <Button
+              variant={viewMode === 'category' ? 'primary' : 'outline-secondary'}
+              onClick={() => setViewMode('category')}
+              aria-label="Show category groups"
+              aria-pressed={viewMode === 'category'}
+            >
+              Category
+            </Button>
+            <Button
+              variant={viewMode === 'recipe' ? 'primary' : 'outline-secondary'}
+              onClick={() => setViewMode('recipe')}
+              aria-label="Show recipe groups"
+              aria-pressed={viewMode === 'recipe'}
+            >
+              Recipe
+            </Button>
+          </ButtonGroup>
+          <Button
+            variant={hideChecked ? 'primary' : 'outline-secondary'}
+            size="sm"
+            onClick={() => setHideChecked((value) => !value)}
+            aria-label="Hide checked items"
+            aria-pressed={hideChecked}
+          >
+            Hide checked items
+          </Button>
         </div>
         <Button
           variant="outline-danger"

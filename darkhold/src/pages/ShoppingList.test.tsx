@@ -99,7 +99,7 @@ describe('ShoppingList', () => {
     vi.clearAllMocks();
   });
 
-  it('shows partial grouped state with struck-through checked quantity and recipe toggle', () => {
+  it('shows partial grouped state with struck-through checked quantity and recipe button', () => {
     act(() => {
       root.render(
         <MemoryRouter>
@@ -119,13 +119,17 @@ describe('ShoppingList', () => {
     );
     expect(checkbox?.checked).toBe(false);
 
-    const viewSwitch = container.querySelector<HTMLInputElement>('#shopping-view-mode');
-    expect(viewSwitch).toBeTruthy();
+    const recipeViewButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Show recipe groups"]',
+    );
+    expect(recipeViewButton).toBeTruthy();
+    expect(recipeViewButton?.getAttribute('aria-pressed')).toBe('false');
 
     act(() => {
-      viewSwitch?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      recipeViewButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 
+    expect(recipeViewButton?.getAttribute('aria-pressed')).toBe('true');
     expect(container.textContent).toContain('Cake');
     expect(container.textContent).toContain('Bread');
   });
@@ -187,9 +191,11 @@ describe('ShoppingList', () => {
       );
     });
 
-    const viewSwitch = container.querySelector<HTMLInputElement>('#shopping-view-mode');
+    const viewRecipeButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Show recipe groups"]',
+    );
     act(() => {
-      viewSwitch?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      viewRecipeButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 
     const groupNames = Array.from(container.querySelectorAll('h6')).map((node) =>
@@ -235,20 +241,25 @@ describe('ShoppingList', () => {
     expect(container.textContent).toContain('Flour');
     expect(container.textContent).toContain('Milk');
 
-    const hideCheckedSwitch = container.querySelector<HTMLInputElement>('#shopping-hide-checked');
-    expect(hideCheckedSwitch).toBeTruthy();
+    const hideCheckedButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Hide checked items"]',
+    );
+    expect(hideCheckedButton).toBeTruthy();
+    expect(hideCheckedButton?.getAttribute('aria-pressed')).toBe('false');
 
     act(() => {
-      hideCheckedSwitch?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      hideCheckedButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 
+    expect(hideCheckedButton?.getAttribute('aria-pressed')).toBe('true');
     expect(container.textContent).not.toContain('Flour');
     expect(container.textContent).toContain('Milk');
 
     act(() => {
-      hideCheckedSwitch?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      hideCheckedButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 
+    expect(hideCheckedButton?.getAttribute('aria-pressed')).toBe('false');
     expect(container.textContent).toContain('Flour');
     expect(container.textContent).toContain('Milk');
   });
