@@ -1,6 +1,7 @@
 import { Alert, Badge, Button, ListGroup, Modal } from 'react-bootstrap';
 import type { MealPlan, Recipe } from '../api/tandoor-types';
 import type { MealAssistantSlotPlan } from '../utils/mealPlanningAssistant';
+import { parseLocalDate } from '../utils/dateUtils';
 import { proxyMediaUrl } from '../utils/mediaUrl';
 
 interface Props {
@@ -14,6 +15,19 @@ interface Props {
 function formatScore(value: number): string {
   return value > 0 ? `+${value}` : `${value}`;
 }
+
+function formatMealPlannerDate(value: string): string {
+  const parsed = parseLocalDate(value);
+  return parsed
+    ? parsed.toLocaleDateString('en-GB', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+      })
+    : value;
+}
+
+const SCORE_BADGE_CLASS = 'd-inline-flex align-items-center justify-content-center text-center';
 
 function RecipePreview({ recipe, title }: { recipe: Recipe; title?: string }) {
   return (
@@ -68,7 +82,7 @@ function AlternativeRecipePreview({
           )}
         </div>
         <div className="d-flex flex-column align-items-end gap-2 flex-shrink-0">
-          <Badge bg="light" text="dark" pill>
+          <Badge bg="light" text="dark" pill className={SCORE_BADGE_CLASS}>
             {score}
           </Badge>
           {onSelect && (
@@ -98,31 +112,21 @@ export function MealPlanAssistantModal({
   if (!analysis) return null;
 
   const selectedReasons = analysis.selected.components.filter((component) => component.score > 0);
-  const currentRecipeName =
-    currentEntry && typeof currentEntry.recipe === 'object'
-      ? currentEntry.recipe.name
-      : analysis.selected.recipe.name;
   const currentDate = currentEntry?.from_date.split('T')[0] ?? analysis.date;
+  const modalDate = formatMealPlannerDate(currentDate);
 
   return (
     <Modal show={!!analysis} onHide={onHide} centered size="lg">
       <Modal.Header closeButton>
         <Modal.Title className="fs-6 d-flex align-items-center gap-2 flex-wrap">
-          <span>{currentRecipeName}</span>
+          <span>{modalDate}</span>
           <Badge bg="secondary">{analysis.roleLabel}</Badge>
-          <Badge bg="light" text="dark">
+          <Badge bg="light" text="dark" className={SCORE_BADGE_CLASS}>
             Score {analysis.selected.score}
           </Badge>
         </Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        <div className="mb-3">
-          <div className="text-muted small">Current meal date: {currentDate}</div>
-          {currentDate !== analysis.date && (
-            <div className="text-muted small">Originally planned for {analysis.date}</div>
-          )}
-        </div>
-
         <section className="mb-4">
           <RecipePreview recipe={analysis.selected.recipe} title="Current meal" />
         </section>
@@ -144,7 +148,7 @@ export function MealPlanAssistantModal({
                     <div className="fw-semibold">{component.label}</div>
                     <div className="text-muted small">{component.detail}</div>
                   </div>
-                  <Badge bg="success" pill>
+                  <Badge bg="success" pill className={SCORE_BADGE_CLASS}>
                     {formatScore(component.score)}
                   </Badge>
                 </ListGroup.Item>

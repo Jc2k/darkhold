@@ -80,6 +80,8 @@ describe('MealPlanAssistantModal', () => {
     });
 
     expect(document.body.textContent).toContain('Quick Noodles');
+    expect(document.body.textContent).toContain('Sat 30 May');
+    expect(document.body.textContent).not.toContain('2026-05-30');
     expect(document.body.textContent).toContain('Current meal');
     expect(document.body.textContent).toContain('Why it was selected');
     expect(document.body.textContent).toContain('Tagged for busy or quick dinners.');
@@ -91,6 +93,13 @@ describe('MealPlanAssistantModal', () => {
     expect(document.body.textContent).toContain('Useful quick fallback for a busy evening.');
     expect(document.body.textContent).toContain('Use this meal');
     expect(document.body.querySelectorAll('img').length).toBeGreaterThan(1);
+    expect(
+      Array.from(document.querySelectorAll('.badge'))
+        .filter((badge) =>
+          ['Score 36', '+16', '18'].some((value) => badge.textContent?.includes(value)),
+        )
+        .every((badge) => badge.classList.contains('d-inline-flex')),
+    ).toBe(true);
 
     const useThisMealButton = document.querySelector('button[aria-label="Use Takeaway instead"]');
 
