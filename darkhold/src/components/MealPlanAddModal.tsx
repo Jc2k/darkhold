@@ -1,7 +1,14 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Modal, Button, Form, InputGroup, Spinner, Alert } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
-import type { Recipe, MealType, Food, RecipeIngredient } from '../api/tandoor-types';
+import type {
+  Recipe,
+  MealType,
+  Food,
+  RecipeIngredient,
+  Keyword,
+  PaginatedResponse,
+} from '../api/tandoor-types';
 import { useCreateMealPlan } from '../hooks/useMealPlan';
 import { useQuery } from '@tanstack/react-query';
 import { apiGet } from '../api/client';
@@ -18,6 +25,20 @@ interface Props {
   recipe: Recipe | null;
   keywordNameById?: Record<number, string>;
   onHide: () => void;
+}
+
+async function fetchKeywordNameById(): Promise<Record<number, string>> {
+  const map: Record<number, string> = {};
+  let page = 1;
+  while (true) {
+    const data = await apiGet<PaginatedResponse<Keyword>>('/keyword/', { page_size: 100, page });
+    for (const kw of data.results) {
+      map[kw.id] = kw.name;
+    }
+    if (!data.next) break;
+    page++;
+  }
+  return map;
 }
 
 export function MealPlanAddModal({ recipe, keywordNameById, onHide }: Props) {
@@ -84,12 +105,27 @@ export function MealPlanAddModal({ recipe, keywordNameById, onHide }: Props) {
     queryFn: () => apiGet<{ results: MealType[] }>('/meal-type/'),
   });
   const mealTypes = mealTypesData?.results ?? [];
+  const hasUnresolvedKeywordIds =
+    Array.isArray(recipe?.keywords) &&
+    recipe.keywords.some((k) => typeof k === 'number' && !keywordNameById?.[k]);
+  const { data: fetchedKeywordNameById } = useQuery({
+    queryKey: ['keyword-name-by-id'],
+    queryFn: fetchKeywordNameById,
+    enabled: hasUnresolvedKeywordIds,
+  });
+  const effectiveKeywordNameById = useMemo(
+    () => ({
+      ...(fetchedKeywordNameById ?? {}),
+      ...(keywordNameById ?? {}),
+    }),
+    [fetchedKeywordNameById, keywordNameById],
+  );
 
   const createMealPlan = useCreateMealPlan();
 
   if (!recipe) return null;
 
-  const effectiveMealTypeId = deriveMealType(recipe, mealTypes, keywordNameById);
+  const effectiveMealTypeId = deriveMealType(recipe, mealTypes, effectiveKeywordNameById);
   const mealTypeId = (effectiveMealTypeId ?? mealTypes[0]?.id) as unknown as MealType;
 
   const handleSubmit = async () => {
