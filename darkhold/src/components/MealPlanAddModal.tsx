@@ -105,13 +105,17 @@ export function MealPlanAddModal({ recipe, keywordNameById, onHide }: Props) {
     queryFn: () => apiGet<{ results: MealType[] }>('/meal-type/'),
   });
   const mealTypes = mealTypesData?.results ?? [];
-  const hasUnresolvedKeywordIds =
-    Array.isArray(recipe?.keywords) &&
-    recipe.keywords.some((k) => typeof k === 'number' && !keywordNameById?.[k]);
+  const hasUnresolvedKeywordIds = useMemo(
+    () =>
+      Array.isArray(recipe?.keywords) &&
+      recipe.keywords.some((k) => typeof k === 'number' && !keywordNameById?.[k]),
+    [recipe?.keywords, keywordNameById],
+  );
   const { data: fetchedKeywordNameById } = useQuery({
     queryKey: ['keyword-name-by-id'],
     queryFn: fetchKeywordNameById,
     enabled: hasUnresolvedKeywordIds,
+    staleTime: 5 * 60 * 1000,
   });
   const effectiveKeywordNameById = useMemo(
     () => ({
