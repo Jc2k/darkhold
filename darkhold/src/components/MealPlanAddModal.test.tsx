@@ -44,7 +44,12 @@ describe('MealPlanAddModal', () => {
       }
       if (queryKey[0] === 'meal-types') {
         return {
-          data: { results: [{ id: 1, name: 'Breakfast' }, { id: 2, name: 'Dinner' }] },
+          data: {
+            results: [
+              { id: 1, name: 'Breakfast' },
+              { id: 2, name: 'Dinner' },
+            ],
+          },
         };
       }
       if (queryKey[0] === 'keyword-name-by-id') {
