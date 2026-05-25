@@ -52,7 +52,13 @@ export function Layout() {
   return (
     <div className="d-flex flex-column min-vh-100">
       {/* Top navbar - desktop */}
-      <Navbar bg="dark" variant="dark" expand="md" className="d-none d-md-flex px-3">
+      <Navbar
+        bg="dark"
+        variant="dark"
+        expand="md"
+        className="d-none d-md-flex px-3"
+        style={{ paddingTop: 'calc(0.5rem + env(safe-area-inset-top))' }}
+      >
         <Navbar.Brand
           className="d-inline-flex align-items-center"
           style={{ cursor: 'pointer' }}
