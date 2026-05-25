@@ -314,8 +314,8 @@ export function ShoppingList() {
 
       {visibleGroupNames.length === 0 && (
         <Alert variant="light" className="border">
-          All shopping list items are checked. Turn off &quot;Hide checked items&quot; to show
-          them again.
+          All shopping list items are checked. Turn off &quot;Hide checked items&quot; to show them
+          again.
         </Alert>
       )}
 
