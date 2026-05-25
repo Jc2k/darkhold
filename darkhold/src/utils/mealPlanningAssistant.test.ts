@@ -5,6 +5,8 @@ import {
   getRecipeKeywordNames,
   isBusyDinnerDay,
   isGoodWeatherDay,
+  swapMealAssistantSelection,
+  UNSUITABLE_DINNER_TAG_FRAGMENTS,
 } from './mealPlanningAssistant';
 
 function makeRecipe(
@@ -203,5 +205,69 @@ describe('mealPlanningAssistant', () => {
         ...slot.alternatives.map((candidate) => candidate.recipe.id),
       ]),
     ).not.toContain(5);
+  });
+
+  it('filters unsuitable dinner tags such as breakfast, lunch, drink, and baking', () => {
+    expect(UNSUITABLE_DINNER_TAG_FRAGMENTS).toEqual(
+      expect.arrayContaining(['breakfast', 'lunch', 'drink', 'baking']),
+    );
+
+    const dinnerRecipe = makeRecipe(1, 'Pasta Bake', [{ id: 20, name: 'Pasta' }]);
+    const breakfastRecipe = makeRecipe(2, 'Pancakes', [{ id: 21, name: 'Breakfast' }]);
+    const lunchRecipe = makeRecipe(3, 'Soup', [{ id: 22, name: 'Lunch' }]);
+    const drinkRecipe = makeRecipe(4, 'Milkshake', [{ id: 23, name: 'Drink' }]);
+    const bakingRecipe = makeRecipe(5, 'Cupcakes', [{ id: 24, name: 'Baking' }]);
+
+    const plan = buildMealAssistantPlan({
+      weekStart: new Date('2026-05-30T00:00:00'),
+      weekEnd: new Date('2026-06-05T00:00:00'),
+      emptyDinnerDates: ['2026-05-30'],
+      existingWeekMeals: [],
+      historicalMeals: [],
+      recipes: [dinnerRecipe, breakfastRecipe, lunchRecipe, drinkRecipe, bakingRecipe],
+      dinnerTime: '18:00',
+    });
+
+    expect(plan.slots[0]?.selected.recipe.name).toBe('Pasta Bake');
+    expect(plan.slots[0]?.alternatives).toHaveLength(0);
+  });
+
+  it('can swap the selected meal with one of the ranked alternatives', () => {
+    const slot = {
+      date: '2026-05-30',
+      role: 'general-dinner' as const,
+      roleLabel: 'General dinner',
+      selected: {
+        recipe: makeRecipe(1, 'Quick Pasta'),
+        role: 'general-dinner' as const,
+        score: 20,
+        components: [],
+        warnings: [],
+      },
+      alternatives: [
+        {
+          recipe: makeRecipe(2, 'Rice Bowl'),
+          role: 'general-dinner' as const,
+          score: 18,
+          components: [],
+          warnings: [],
+        },
+        {
+          recipe: makeRecipe(3, 'Noodles'),
+          role: 'general-dinner' as const,
+          score: 17,
+          components: [],
+          warnings: [],
+        },
+      ],
+    };
+
+    const updated = swapMealAssistantSelection(slot, 3);
+
+    expect(updated.selected.recipe.name).toBe('Noodles');
+    expect(updated.alternatives.map((alternative) => alternative.recipe.name)).toEqual([
+      'Quick Pasta',
+      'Rice Bowl',
+    ]);
   });
 });

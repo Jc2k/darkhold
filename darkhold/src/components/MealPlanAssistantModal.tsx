@@ -1,10 +1,13 @@
-import { Alert, Badge, ListGroup, Modal } from 'react-bootstrap';
-import type { MealPlan } from '../api/tandoor-types';
+import { Alert, Badge, Button, ListGroup, Modal } from 'react-bootstrap';
+import type { MealPlan, Recipe } from '../api/tandoor-types';
 import type { MealAssistantSlotPlan } from '../utils/mealPlanningAssistant';
+import { proxyMediaUrl } from '../utils/mediaUrl';
 
 interface Props {
   analysis: MealAssistantSlotPlan | null;
   currentEntry?: MealPlan | null;
+  isSwitching?: boolean;
+  onSelectAlternative?: (recipe: Recipe) => void;
   onHide: () => void;
 }
 
@@ -12,7 +15,32 @@ function formatScore(value: number): string {
   return value > 0 ? `+${value}` : `${value}`;
 }
 
-export function MealPlanAssistantModal({ analysis, currentEntry, onHide }: Props) {
+function RecipePreview({ recipe, title }: { recipe: Recipe; title?: string }) {
+  return (
+    <div className="d-flex align-items-center gap-3">
+      <img
+        src={recipe.image ? proxyMediaUrl(recipe.image) : undefined}
+        alt=""
+        width={72}
+        height={72}
+        className="rounded border flex-shrink-0"
+        style={{ objectFit: 'cover' }}
+      />
+      <div className="min-w-0">
+        {title && <div className="text-muted small">{title}</div>}
+        <div className="fw-semibold">{recipe.name}</div>
+      </div>
+    </div>
+  );
+}
+
+export function MealPlanAssistantModal({
+  analysis,
+  currentEntry,
+  isSwitching,
+  onSelectAlternative,
+  onHide,
+}: Props) {
   if (!analysis) return null;
 
   const selectedReasons = analysis.selected.components.filter((component) => component.score > 0);
@@ -40,6 +68,10 @@ export function MealPlanAssistantModal({ analysis, currentEntry, onHide }: Props
             <div className="text-muted small">Originally planned for {analysis.date}</div>
           )}
         </div>
+
+        <section className="mb-4">
+          <RecipePreview recipe={analysis.selected.recipe} title="Current meal" />
+        </section>
 
         <section className="mb-4">
           <h6 className="mb-2">Why it was selected</h6>
@@ -92,9 +124,9 @@ export function MealPlanAssistantModal({ analysis, currentEntry, onHide }: Props
                   .slice(0, 3);
                 return (
                   <ListGroup.Item key={alternative.recipe.id}>
-                    <div className="d-flex justify-content-between align-items-start gap-3">
+                    <div className="d-flex justify-content-between align-items-start gap-3 flex-wrap">
                       <div>
-                        <div className="fw-semibold">{alternative.recipe.name}</div>
+                        <RecipePreview recipe={alternative.recipe} />
                         <div className="text-muted small">
                           {topReasons.length > 0
                             ? topReasons.map((reason) => reason.detail).join(' · ')
@@ -106,9 +138,21 @@ export function MealPlanAssistantModal({ analysis, currentEntry, onHide }: Props
                           </div>
                         )}
                       </div>
-                      <Badge bg="light" text="dark" pill>
-                        {alternative.score}
-                      </Badge>
+                      <div className="d-flex flex-column align-items-end gap-2 ms-auto">
+                        <Badge bg="light" text="dark" pill>
+                          {alternative.score}
+                        </Badge>
+                        {onSelectAlternative && (
+                          <Button
+                            variant="outline-secondary"
+                            size="sm"
+                            disabled={isSwitching}
+                            onClick={() => onSelectAlternative(alternative.recipe)}
+                          >
+                            {isSwitching ? 'Switching…' : 'Use this meal'}
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </ListGroup.Item>
                 );

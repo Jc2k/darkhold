@@ -1,8 +1,12 @@
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MealPlanAssistantModal } from './MealPlanAssistantModal';
+
+vi.mock('../utils/mediaUrl', () => ({
+  proxyMediaUrl: (value: string) => value,
+}));
 
 describe('MealPlanAssistantModal', () => {
   let container: HTMLDivElement;
@@ -67,6 +71,7 @@ describe('MealPlanAssistantModal', () => {
                 },
               ],
             }}
+            onSelectAlternative={() => {}}
             onHide={() => {}}
           />
         </QueryClientProvider>,
@@ -74,6 +79,7 @@ describe('MealPlanAssistantModal', () => {
     });
 
     expect(document.body.textContent).toContain('Quick Noodles');
+    expect(document.body.textContent).toContain('Current meal');
     expect(document.body.textContent).toContain('Why it was selected');
     expect(document.body.textContent).toContain('Tagged for busy or quick dinners.');
     expect(document.body.textContent).toContain(
@@ -82,6 +88,8 @@ describe('MealPlanAssistantModal', () => {
     expect(document.body.textContent).toContain('Best alternatives');
     expect(document.body.textContent).toContain('Takeaway');
     expect(document.body.textContent).toContain('Useful quick fallback for a busy evening.');
+    expect(document.body.textContent).toContain('Use this meal');
+    expect(document.body.querySelectorAll('img').length).toBeGreaterThan(1);
   });
 
   it('renders nothing when no analysis is provided', () => {

@@ -3,7 +3,7 @@ import type { CalendarEventsByDate, CalendarEvent } from '../hooks/useCalendarEv
 import type { WeatherByDate, WeatherDayForecast } from '../hooks/useWeatherForecast';
 import { formatDate, parseLocalDate } from './dateUtils';
 
-const DEFAULT_EXCLUDED_TAG_FRAGMENTS = [
+export const UNSUITABLE_DINNER_TAG_FRAGMENTS = [
   'drink',
   'drinks',
   'lunch',
@@ -377,7 +377,7 @@ function recipePassesBaseFilters(
   if (recipe.rating != null && recipe.rating <= MIN_ACCEPTABLE_RATING) return false;
   if (!recipe.image) return false;
   if (recentRecipeIds.has(recipe.id)) return false;
-  return !recipeHasKeywordFragment(recipe, DEFAULT_EXCLUDED_TAG_FRAGMENTS, keywordNameById);
+  return !recipeHasKeywordFragment(recipe, UNSUITABLE_DINNER_TAG_FRAGMENTS, keywordNameById);
 }
 
 function recipeMatchesRole(
@@ -572,6 +572,27 @@ function updateWeekTagCounts(
     next.set(trackedTag, (next.get(trackedTag) ?? 0) + 1);
   }
   return next;
+}
+
+export function swapMealAssistantSelection(
+  slotPlan: MealAssistantSlotPlan,
+  alternativeRecipeId: number,
+): MealAssistantSlotPlan {
+  const selectedAlternative = slotPlan.alternatives.find(
+    (alternative) => alternative.recipe.id === alternativeRecipeId,
+  );
+  if (!selectedAlternative) return slotPlan;
+
+  return {
+    ...slotPlan,
+    selected: selectedAlternative,
+    alternatives: [
+      slotPlan.selected,
+      ...slotPlan.alternatives.filter(
+        (alternative) => alternative.recipe.id !== alternativeRecipeId,
+      ),
+    ],
+  };
 }
 
 export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistantPlan {

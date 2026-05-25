@@ -79,7 +79,11 @@ import { useCookLog, isCookedOnDate, type CookedByDate } from '../hooks/useCookL
 import { smallCircleButtonStyle } from '../utils/buttonStyles';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import { DroppableTableRow } from './DroppableTableRow';
-import { buildMealAssistantPlan, type MealAssistantSlotPlan } from '../utils/mealPlanningAssistant';
+import {
+  buildMealAssistantPlan,
+  type MealAssistantSlotPlan,
+  swapMealAssistantSelection,
+} from '../utils/mealPlanningAssistant';
 import { getMealPlanningAssistantDataQueryOptions } from '../hooks/useMealPlanningAssistantData';
 import { MealPlanAssistantModal } from '../components/MealPlanAssistantModal';
 
@@ -291,6 +295,63 @@ function parseContainerId(id: string): {
   if (sep === -1) return { date: id, mealTypeId: null };
   const parsed = parseInt(id.slice(sep + 2), 10);
   return { date: id.slice(0, sep), mealTypeId: isNaN(parsed) ? null : parsed };
+}
+
+interface PersistedMealAssistantSession {
+  assistantMode: boolean;
+  assistantEntryPlans: Record<number, MealAssistantSlotPlan>;
+}
+
+function mealAssistantStorageKey(weekStart: string): string {
+  return `meal-plan-assistant:${weekStart}`;
+}
+
+function loadMealAssistantSession(weekStart: string): PersistedMealAssistantSession | null {
+  try {
+    const raw = sessionStorage.getItem(mealAssistantStorageKey(weekStart));
+    if (!raw) return null;
+    return JSON.parse(raw) as PersistedMealAssistantSession;
+  } catch {
+    return null;
+  }
+}
+
+function saveMealAssistantSession(
+  weekStart: string,
+  session: PersistedMealAssistantSession | null,
+): void {
+  const key = mealAssistantStorageKey(weekStart);
+  if (!session || !session.assistantMode || Object.keys(session.assistantEntryPlans).length === 0) {
+    sessionStorage.removeItem(key);
+    return;
+  }
+  sessionStorage.setItem(key, JSON.stringify(session));
+}
+
+function updateMealPlanWeekCache(
+  queryClient: ReturnType<typeof useQueryClient>,
+  weekStart: Date,
+  weekEnd: Date,
+  entry: MealPlan,
+): void {
+  queryClient.setQueryData<PaginatedResponse<MealPlan>>(
+    ['meal-plan', formatDate(weekStart), formatDate(weekEnd)],
+    (current) => {
+      if (!current) return current;
+      const existingIndex = current.results.findIndex((candidate) => candidate.id === entry.id);
+      if (existingIndex === -1) {
+        return {
+          ...current,
+          count: current.count + 1,
+          results: [...current.results, entry],
+        };
+      }
+
+      const nextResults = current.results.slice();
+      nextResults[existingIndex] = entry;
+      return { ...current, results: nextResults };
+    },
+  );
 }
 
 interface EntryCardProps {
@@ -1176,11 +1237,13 @@ export function MealPlanPage() {
   >({});
   const [assistantModalPlan, setAssistantModalPlan] = useState<MealAssistantSlotPlan | null>(null);
   const [assistantModalEntry, setAssistantModalEntry] = useState<MealPlan | null>(null);
+  const [isAssistantSwitching, setIsAssistantSwitching] = useState(false);
   const [assistantFeedback, setAssistantFeedback] = useState<{
     variant: 'info' | 'warning' | 'danger' | 'success';
     message: string;
   } | null>(null);
   const [isAssistantPlanning, setIsAssistantPlanning] = useState(false);
+  const skipAssistantSessionPersist = useRef(false);
   // Maps entry id -> optimistic target date for in-flight cross-day moves
   const [pendingMoves, setPendingMoves] = useState<Map<number, string>>(new Map());
   const hasPersonalToken = Boolean(localStorage.getItem('tandoor_token'));
@@ -1197,6 +1260,14 @@ export function MealPlanPage() {
       navigate(`/meal-plan/${canonicalWeekStart}`, { replace: true });
     }
   }, [canonicalWeekStart, navigate, weekStart]);
+  useEffect(() => {
+    skipAssistantSessionPersist.current = true;
+    const savedSession = loadMealAssistantSession(canonicalWeekStart);
+    setAssistantMode(savedSession?.assistantMode ?? false);
+    setAssistantEntryPlans(savedSession?.assistantEntryPlans ?? {});
+    setAssistantModalEntry(null);
+    setAssistantModalPlan(null);
+  }, [canonicalWeekStart]);
   const todayStr = formatDate(today);
   const endDate = addDays(weekStartDate, 6);
 
@@ -1259,6 +1330,18 @@ export function MealPlanPage() {
     sortedMealTypes.find((mealType) => mealType.name.toLowerCase().includes('dinner')) ??
     sortedMealTypes[0];
   const dinnerMealTypeId = dinnerMealType?.id;
+
+  useEffect(() => {
+    if (skipAssistantSessionPersist.current) {
+      skipAssistantSessionPersist.current = false;
+      return;
+    }
+
+    saveMealAssistantSession(canonicalWeekStart, {
+      assistantMode,
+      assistantEntryPlans,
+    });
+  }, [assistantEntryPlans, assistantMode, canonicalWeekStart]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -1368,12 +1451,50 @@ export function MealPlanPage() {
     setAssistantModalPlan(assistantEntryPlans[entry.id] ?? null);
   };
 
+  const handleSelectAssistantAlternative = async (recipe: Recipe) => {
+    if (!assistantModalEntry || !assistantModalPlan || isAssistantSwitching) return;
+
+    setIsAssistantSwitching(true);
+    try {
+      const recipeId = recipe.id;
+      const mealTypeId =
+        typeof assistantModalEntry.meal_type === 'object'
+          ? assistantModalEntry.meal_type.id
+          : assistantModalEntry.meal_type;
+      const currentDate = assistantModalEntry.from_date.split('T')[0];
+      const updatedEntry = await updateMeal.mutateAsync({
+        id: assistantModalEntry.id,
+        data: {
+          recipe: recipeId,
+          meal_type: mealTypeId,
+          from_date: currentDate,
+          to_date: currentDate,
+          servings: assistantModalEntry.servings ?? 1,
+          ...(assistantModalEntry.note ? { note: assistantModalEntry.note } : {}),
+        },
+      });
+
+      updateMealPlanWeekCache(queryClient, weekStartDate, endDate, updatedEntry);
+
+      const nextPlan = swapMealAssistantSelection(assistantModalPlan, recipeId);
+      setAssistantEntryPlans((current) => ({
+        ...current,
+        [assistantModalEntry.id]: nextPlan,
+      }));
+      setAssistantModalPlan(nextPlan);
+      setAssistantModalEntry(updatedEntry);
+    } finally {
+      setIsAssistantSwitching(false);
+    }
+  };
+
   const handleAssistantToggle = async () => {
     if (!hasPersonalToken) return;
     if (isLoading) return;
 
     if (assistantMode) {
       setAssistantMode(false);
+      setAssistantEntryPlans({});
       setAssistantModalEntry(null);
       setAssistantModalPlan(null);
       return;
@@ -1434,8 +1555,14 @@ export function MealPlanPage() {
           servings: slotPlan.selected.recipe.servings ?? 1,
           addshopping: true,
         });
+        updateMealPlanWeekCache(queryClient, weekStartDate, endDate, created);
         nextPlans[created.id] = slotPlan;
       }
+
+      await queryClient.refetchQueries({
+        queryKey: ['meal-plan', formatDate(weekStartDate), formatDate(endDate)],
+        type: 'active',
+      });
 
       setAssistantEntryPlans((current) => ({ ...current, ...nextPlans }));
       setAssistantFeedback({
@@ -1524,8 +1651,8 @@ export function MealPlanPage() {
               Today
             </Button>
             <Button
-              variant={assistantMode ? 'warning' : 'outline-warning'}
-              style={circleButtonStyle}
+              variant={assistantMode ? 'secondary' : 'outline-secondary'}
+              style={{ minHeight: 44, padding: '0 1rem' }}
               onClick={() => {
                 void handleAssistantToggle();
               }}
@@ -1536,7 +1663,12 @@ export function MealPlanPage() {
                   : 'Turn on meal planning assistance'
               }
             >
-              {isAssistantPlanning ? <Spinner size="sm" /> : <Stars size={16} />}
+              {isAssistantPlanning ? (
+                <Spinner size="sm" className="me-2" />
+              ) : (
+                <Stars size={16} className="me-2" />
+              )}
+              Assist
             </Button>
           </div>
         </div>
@@ -1622,6 +1754,10 @@ export function MealPlanPage() {
       <MealPlanAssistantModal
         analysis={assistantModalPlan}
         currentEntry={assistantModalEntry}
+        isSwitching={isAssistantSwitching}
+        onSelectAlternative={(recipe) => {
+          void handleSelectAssistantAlternative(recipe);
+        }}
         onHide={() => {
           setAssistantModalEntry(null);
           setAssistantModalPlan(null);
