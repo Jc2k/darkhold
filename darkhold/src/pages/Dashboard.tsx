@@ -438,7 +438,7 @@ function UpSoonShelf({ onAddToMealPlan }: { onAddToMealPlan: (r: Recipe) => void
           Up Soon
         </>
       }
-      searchLink="/books"
+      searchLink={data ? `/books/${data.bookId}` : '/books'}
       recipes={recipes}
       loading={isLoading}
       error={isError}
