@@ -119,7 +119,9 @@ export function getRecipeKeywordNames(
   if (!Array.isArray(recipe.keywords)) return [];
   return recipe.keywords.flatMap((keyword) => {
     if (typeof keyword === 'object' && keyword !== null && !Array.isArray(keyword)) {
-      return typeof keyword.name === 'string' ? [keyword.name] : [];
+      if (typeof keyword.name === 'string') return [keyword.name];
+      const resolved = typeof keyword.id === 'number' ? keywordNameById[keyword.id] : undefined;
+      return resolved ? [resolved] : [];
     }
     const resolved = keywordNameById[keyword as number];
     return resolved ? [resolved] : [];

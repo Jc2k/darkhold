@@ -59,6 +59,15 @@ describe('mealPlanningAssistant', () => {
         { 2: 'Quickies' },
       ),
     ).toEqual(['Quickies']);
+
+    expect(
+      getRecipeKeywordNames(
+        {
+          keywords: [{ id: 3 } as unknown as { id: number; name: string }],
+        },
+        { 3: 'Breakfast' },
+      ),
+    ).toEqual(['Breakfast']);
   });
 
   it('detects busy dinner days from long or dinner-time events', () => {
@@ -225,6 +234,27 @@ describe('mealPlanningAssistant', () => {
       existingWeekMeals: [],
       historicalMeals: [],
       recipes: [dinnerRecipe, breakfastRecipe, lunchRecipe, drinkRecipe, bakingRecipe],
+      dinnerTime: '18:00',
+    });
+
+    expect(plan.slots[0]?.selected.recipe.name).toBe('Pasta Bake');
+    expect(plan.slots[0]?.alternatives).toHaveLength(0);
+  });
+
+  it('filters unsuitable dinner tags when recipe keywords only include ids on inline objects', () => {
+    const dinnerRecipe = makeRecipe(1, 'Pasta Bake', [{ id: 20, name: 'Pasta' }]);
+    const breakfastRecipe = makeRecipe(2, 'Granola', [
+      { id: 21 } as unknown as { id: number; name: string },
+    ]);
+
+    const plan = buildMealAssistantPlan({
+      weekStart: new Date('2026-05-30T00:00:00'),
+      weekEnd: new Date('2026-06-05T00:00:00'),
+      emptyDinnerDates: ['2026-05-30'],
+      existingWeekMeals: [],
+      historicalMeals: [],
+      recipes: [dinnerRecipe, breakfastRecipe],
+      keywordNameById: { 21: 'Breakfast' },
       dinnerTime: '18:00',
     });
 
