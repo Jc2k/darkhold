@@ -332,9 +332,9 @@ export function getDateMealTypeCollisionId(
     .map((collision) => String(collision.id))
     .filter((id) => id.startsWith(prefix) && id !== activeContainerId);
   if (ids.length > 0) return ids[0];
-  return collisions
-    .map((collision) => String(collision.id))
-    .find((id) => id.startsWith(prefix)) ?? null;
+  return (
+    collisions.map((collision) => String(collision.id)).find((id) => id.startsWith(prefix)) ?? null
+  );
 }
 
 interface PersistedMealAssistantSession {
