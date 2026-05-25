@@ -12,6 +12,20 @@ const DEFAULT_EXCLUDED_TAG_FRAGMENTS = [
   'dessert',
   'snack',
 ];
+const DEFAULT_DINNER_TIME_MINUTES = 18 * 60;
+const DINNER_WINDOW_MINUTES = 90;
+const LONG_EVENT_THRESHOLD_MINUTES = 120;
+const GOOD_WEATHER_MIN_TEMP_C = 20;
+const GOOD_WEATHER_MAX_PRECIP_PROBABILITY = 20;
+const GOOD_WEATHER_MAX_PRECIP_MM = 0.5;
+const RECENT_WINDOW_DAYS = 14;
+const REGULAR_WINDOW_DAYS = 42;
+const TAKEAWAY_LOOKBACK_DAYS = 21;
+const MIN_ACCEPTABLE_RATING = 1;
+const MIN_REGULAR_RECIPE_COUNT = 2;
+const SAME_CATEGORY_PENALTY_THRESHOLD = 2;
+const FNV_OFFSET_BASIS = 2166136261;
+const FNV_PRIME = 16777619;
 
 const CATEGORY_ROLE_TAGS = {
   pasta: ['pasta'],
@@ -76,7 +90,6 @@ export interface MealAssistantInput {
 interface ScoringContext {
   date: string;
   role: MealAssistantRole;
-  recentRecipeIds: Set<number>;
   upSoonRecipeIds: Set<number>;
   recentAddedRecipeIds: Set<number>;
   regularRecipeIds: Set<number>;
@@ -130,7 +143,7 @@ function recipeHasKeywordFragment(
 }
 
 function parseMealDate(entry: Pick<MealPlan, 'from_date'>): Date | null {
-  const value = entry.from_date.split('T')[0];
+  const value = entry.from_date.includes('T') ? entry.from_date.split('T')[0] : entry.from_date;
   return parseLocalDate(value);
 }
 
@@ -141,11 +154,12 @@ function addDays(date: Date, days: number): Date {
 }
 
 function parseTimeToMinutes(value: string | null | undefined): number {
-  if (!value) return 18 * 60;
+  if (!value) return DEFAULT_DINNER_TIME_MINUTES;
   const [hoursRaw, minutesRaw] = value.split(':');
+  if (minutesRaw === undefined) return DEFAULT_DINNER_TIME_MINUTES;
   const hours = Number(hoursRaw);
   const minutes = Number(minutesRaw);
-  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return 18 * 60;
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return DEFAULT_DINNER_TIME_MINUTES;
   return hours * 60 + minutes;
 }
 
@@ -167,15 +181,15 @@ export function isBusyDinnerDay(
 ): boolean {
   if (events.length === 0) return false;
   const dinnerMinutes = parseTimeToMinutes(dinnerTime);
-  const dinnerWindowStart = dinnerMinutes - 90;
-  const dinnerWindowEnd = dinnerMinutes + 90;
+  const dinnerWindowStart = dinnerMinutes - DINNER_WINDOW_MINUTES;
+  const dinnerWindowEnd = dinnerMinutes + DINNER_WINDOW_MINUTES;
 
   return events.some((event) => {
     if (event.allDay) return true;
     const range = timedEventRangeInMinutes(event);
     if (!range) return false;
     const duration = Math.max(0, range.end - range.start);
-    if (duration >= 120) return true;
+    if (duration >= LONG_EVENT_THRESHOLD_MINUTES) return true;
     return range.start < dinnerWindowEnd && range.end > dinnerWindowStart;
   });
 }
@@ -192,9 +206,9 @@ export function isGoodWeatherDay(
   const isPublicHoliday = publicHolidayDates.has(date);
   if (!isWeekend && !isPublicHoliday) return false;
   return (
-    weather.tempMaxC >= 20 &&
-    weather.precipitationProbabilityMax <= 20 &&
-    weather.precipitationSumMm <= 0.5
+    weather.tempMaxC >= GOOD_WEATHER_MIN_TEMP_C &&
+    weather.precipitationProbabilityMax <= GOOD_WEATHER_MAX_PRECIP_PROBABILITY &&
+    weather.precipitationSumMm <= GOOD_WEATHER_MAX_PRECIP_MM
   );
 }
 
@@ -268,11 +282,20 @@ function buildWeekTagCounts(
   return counts;
 }
 
+function toTitleCase(value: string): string {
+  return value
+    .split('-')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
 function createSeed(value: string): number {
-  let hash = 2166136261;
+  // FNV-1a 32-bit hash keeps role assignment deterministic for a given week,
+  // which avoids unstable plans and still lets us "shuffle" without Math.random().
+  let hash = FNV_OFFSET_BASIS;
   for (let index = 0; index < value.length; index += 1) {
     hash ^= value.charCodeAt(index);
-    hash = Math.imul(hash, 16777619);
+    hash = Math.imul(hash, FNV_PRIME);
   }
   return hash >>> 0;
 }
@@ -293,9 +316,7 @@ function roleLabel(role: MealAssistantRole): string {
   if (role === 'good-weather') return 'Good weather day';
   if (role === 'takeaway') return 'Takeaway night';
   if (role === 'general-dinner') return GENERAL_DINNER_ROLE_LABEL;
-  return role
-    .replace(/(^|-)(\w)/g, (_match, _prefix, letter: string) => ` ${letter.toUpperCase()}`)
-    .trim();
+  return toTitleCase(role);
 }
 
 function buildSlotRoles(
@@ -353,7 +374,7 @@ function recipePassesBaseFilters(
   keywordNameById: Record<number, string>,
   recentRecipeIds: Set<number>,
 ): boolean {
-  if (recipe.rating != null && recipe.rating <= 1) return false;
+  if (recipe.rating != null && recipe.rating <= MIN_ACCEPTABLE_RATING) return false;
   if (!recipe.image) return false;
   if (recentRecipeIds.has(recipe.id)) return false;
   return !recipeHasKeywordFragment(recipe, DEFAULT_EXCLUDED_TAG_FRAGMENTS, keywordNameById);
@@ -425,7 +446,7 @@ function scoreRecipe(
       key: 'role-fit',
       label: 'Takeaway slot',
       score: 18,
-      detail: 'Takeaway has been out of rotation recently.',
+      detail: `Takeaway has been out of rotation for roughly ${TAKEAWAY_LOOKBACK_DAYS} days.`,
     });
   } else if (context.role !== 'general-dinner') {
     components.push({
@@ -500,7 +521,7 @@ function scoreRecipe(
   for (const trackedTag of Object.keys(CATEGORY_ROLE_TAGS)) {
     if (!recipeKeywords.has(trackedTag)) continue;
     const existingCount = context.weekTagCounts.get(trackedTag) ?? 0;
-    if (existingCount >= 2) {
+    if (existingCount >= SAME_CATEGORY_PENALTY_THRESHOLD) {
       components.push({
         key: `imbalance-${trackedTag}`,
         label: 'Week imbalance',
@@ -561,8 +582,8 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
   const weatherByDate = input.weatherByDate ?? {};
   const publicHolidayDates = new Set(input.publicHolidayDates ?? []);
 
-  const recentWindowStart = addDays(input.weekStart, -14);
-  const recentWindowEnd = addDays(input.weekEnd, 14);
+  const recentWindowStart = addDays(input.weekStart, -RECENT_WINDOW_DAYS);
+  const recentWindowEnd = addDays(input.weekEnd, RECENT_WINDOW_DAYS);
   const recentCounts = countRecipesWithinWindow(
     input.historicalMeals,
     recentWindowStart,
@@ -570,7 +591,7 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
   );
   const recentRecipeIds = new Set(recentCounts.keys());
 
-  const regularWindowStart = addDays(input.weekStart, -42);
+  const regularWindowStart = addDays(input.weekStart, -REGULAR_WINDOW_DAYS);
   const regularWindowEnd = addDays(input.weekStart, -1);
   const recentRegularCounts = countRecipesWithinWindow(
     input.historicalMeals,
@@ -579,7 +600,9 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
   );
   const regularRecipeIds = new Set(
     [...recentRegularCounts.entries()]
-      .filter(([recipeId, count]) => count >= 2 && !recentRecipeIds.has(recipeId))
+      .filter(
+        ([recipeId, count]) => count >= MIN_REGULAR_RECIPE_COUNT && !recentRecipeIds.has(recipeId),
+      )
       .map(([recipeId]) => recipeId),
   );
 
@@ -593,7 +616,7 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
   );
   const recentTakeawayMeals = countRecipesWithinWindow(
     input.historicalMeals,
-    addDays(input.weekEnd, -21),
+    addDays(input.weekEnd, -TAKEAWAY_LOOKBACK_DAYS),
     input.weekEnd,
   );
   const shouldSuggestTakeaway =
@@ -645,7 +668,6 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
         scoreRecipe(recipe, keywordNameById, {
           date: slot.date,
           role: slot.role,
-          recentRecipeIds,
           upSoonRecipeIds,
           recentAddedRecipeIds,
           regularRecipeIds,

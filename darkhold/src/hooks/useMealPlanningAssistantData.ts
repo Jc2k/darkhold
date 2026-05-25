@@ -4,6 +4,11 @@ import type { Keyword, MealPlan, PaginatedResponse, Recipe } from '../api/tandoo
 import { fetchUpSoonData } from './useUpSoon';
 import { formatDate } from '../utils/dateUtils';
 
+const HISTORY_LOOKBACK_DAYS = 365;
+const HISTORY_LOOKAHEAD_DAYS = 14;
+const MEAL_PLANNING_ASSISTANT_STALE_TIME_MS = 1000 * 60 * 30;
+const MEAL_PLANNING_ASSISTANT_GC_TIME_MS = 1000 * 60 * 60;
+
 export interface MealPlanningAssistantData {
   recipes: Recipe[];
   keywordNameById: Record<number, string>;
@@ -47,10 +52,10 @@ export async function fetchMealPlanningAssistantData(
   weekEnd: Date,
 ): Promise<MealPlanningAssistantData> {
   const historyStart = new Date(weekStart);
-  historyStart.setDate(historyStart.getDate() - 365);
+  historyStart.setDate(historyStart.getDate() - HISTORY_LOOKBACK_DAYS);
 
   const historyEnd = new Date(weekEnd);
-  historyEnd.setDate(historyEnd.getDate() + 14);
+  historyEnd.setDate(historyEnd.getDate() + HISTORY_LOOKAHEAD_DAYS);
 
   const [recipes, keywordNameById, historicalMeals, upSoonData, recentRecipes] = await Promise.all([
     fetchAllPages<Recipe>('/recipe/'),
@@ -76,7 +81,7 @@ export function getMealPlanningAssistantDataQueryOptions(weekStart: Date, weekEn
   return queryOptions({
     queryKey: ['meal-plan-assistant', formatDate(weekStart), formatDate(weekEnd)],
     queryFn: () => fetchMealPlanningAssistantData(weekStart, weekEnd),
-    staleTime: 1000 * 60 * 30,
-    gcTime: 1000 * 60 * 60,
+    staleTime: MEAL_PLANNING_ASSISTANT_STALE_TIME_MS,
+    gcTime: MEAL_PLANNING_ASSISTANT_GC_TIME_MS,
   });
 }

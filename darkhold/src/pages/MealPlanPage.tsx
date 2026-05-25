@@ -1414,7 +1414,7 @@ export function MealPlanPage() {
         recentAddedRecipeIds: assistantData.recentAddedRecipeIds,
         calendarEventsByDate,
         weatherByDate,
-        dinnerTime: dinnerMealType.time,
+        dinnerTime: dinnerMealType?.time,
       });
 
       if (plan.slots.length === 0) {
@@ -1428,8 +1428,8 @@ export function MealPlanPage() {
       const nextPlans: Record<number, MealAssistantSlotPlan> = {};
       for (const slotPlan of plan.slots) {
         const created = await createMealPlan.mutateAsync({
-          recipe: slotPlan.selected.recipe.id as unknown as Recipe,
-          meal_type: dinnerMealTypeId as unknown as MealType,
+          recipe: slotPlan.selected.recipe.id,
+          meal_type: dinnerMealTypeId,
           from_date: slotPlan.date,
           servings: slotPlan.selected.recipe.servings ?? 1,
           addshopping: true,
