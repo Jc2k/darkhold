@@ -134,7 +134,7 @@ describe('ShoppingList', () => {
     expect(container.textContent).toContain('Bread');
   });
 
-  it('orders recipe groups by meal-plan date and meal-type time', () => {
+  it('orders recipe groups by meal-plan date and meal-type API data', () => {
     useQueryMock.mockReturnValue({
       data: {
         results: [
@@ -144,11 +144,11 @@ describe('ShoppingList', () => {
             unit_name: 'cup',
             food: makeFood(),
             checked: false,
-            list_recipe_data: { recipe_data: { name: 'Dinner Recipe' } },
+            list_recipe_data: { recipe_data: { name: 'Dinner Recipe (Order 2)' } },
             recipe_mealplan: {
-              recipe_name: 'Dinner Recipe',
+              recipe_name: 'Dinner Recipe (Order 2)',
               from_date: '2026-01-01',
-              meal_type: { name: 'Dinner', time: '18:00' },
+              meal_type: { name: 'Dinner', order: 2 },
             },
           },
           {
@@ -157,11 +157,11 @@ describe('ShoppingList', () => {
             unit_name: 'cup',
             food: { ...makeFood(), id: 2, name: 'Milk' },
             checked: false,
-            list_recipe_data: { recipe_data: { name: 'Breakfast Recipe' } },
+            list_recipe_data: { recipe_data: { name: 'Brunch Recipe (Order 1)' } },
             recipe_mealplan: {
-              recipe_name: 'Breakfast Recipe',
+              recipe_name: 'Brunch Recipe (Order 1)',
               from_date: '2026-01-01',
-              meal_type: { name: 'Breakfast', time: '08:00' },
+              meal_type: { name: 'Brunch', order: 1 },
             },
           },
           {
@@ -201,7 +201,11 @@ describe('ShoppingList', () => {
     const groupNames = Array.from(container.querySelectorAll('h6')).map((node) =>
       node.childNodes[0]?.textContent?.trim(),
     );
-    expect(groupNames).toEqual(['Breakfast Recipe', 'Dinner Recipe', 'Next Day Recipe']);
+    expect(groupNames).toEqual([
+      'Brunch Recipe (Order 1)',
+      'Dinner Recipe (Order 2)',
+      'Next Day Recipe',
+    ]);
   });
 
   it('hides checked items when the hide toggle is enabled', () => {

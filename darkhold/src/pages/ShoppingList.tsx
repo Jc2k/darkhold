@@ -119,11 +119,6 @@ function groupByRecipe(entries: ShoppingEntry[]): Record<string, ShoppingEntry[]
         }
       }
     }
-
-    const name = mealType?.name?.toLowerCase();
-    if (name?.includes('breakfast')) return 8 * 60;
-    if (name?.includes('lunch')) return 12 * 60;
-    if (name?.includes('dinner')) return 18 * 60;
     return Number.MAX_SAFE_INTEGER;
   };
 
