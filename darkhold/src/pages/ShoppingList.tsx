@@ -176,6 +176,7 @@ export function ShoppingList() {
   const [isClearing, setIsClearing] = useState(false);
   const [clearError, setClearError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'category' | 'recipe'>('category');
+  const [hideChecked, setHideChecked] = useState(false);
   const hasPersonalToken = Boolean(localStorage.getItem('tandoor_token'));
 
   const { data, isLoading, isError } = useQuery({
@@ -243,6 +244,7 @@ export function ShoppingList() {
   }
 
   const entries = data?.results ?? [];
+  const visibleEntries = hideChecked ? entries.filter((entry) => !entry.checked) : entries;
   if (entries.length === 0) {
     return (
       <div
@@ -257,23 +259,33 @@ export function ShoppingList() {
     );
   }
 
-  const groups = groupByCategory(entries);
+  const groups = groupByCategory(visibleEntries);
   const categoryNames = Object.keys(groups).filter((k) => groups[k].length > 0);
-  const recipeGroups = groupByRecipe(entries);
+  const recipeGroups = groupByRecipe(visibleEntries);
   const recipeNames = Object.keys(recipeGroups).filter((k) => recipeGroups[k].length > 0);
   const remainingCount = entries.filter((entry) => !entry.checked).length;
+  const visibleGroupNames = viewMode === 'recipe' ? recipeNames : categoryNames;
 
   return (
     <div className="pt-2">
       {!hasPersonalToken && <NoTokenAlert />}
       <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-1">
-        <Form.Check
-          type="switch"
-          id="shopping-view-mode"
-          label={viewMode === 'recipe' ? 'View: recipe' : 'View: category'}
-          checked={viewMode === 'recipe'}
-          onChange={(event) => setViewMode(event.currentTarget.checked ? 'recipe' : 'category')}
-        />
+        <div className="d-flex flex-wrap align-items-center gap-3">
+          <Form.Check
+            type="switch"
+            id="shopping-view-mode"
+            label={viewMode === 'recipe' ? 'View: recipe' : 'View: category'}
+            checked={viewMode === 'recipe'}
+            onChange={(event) => setViewMode(event.currentTarget.checked ? 'recipe' : 'category')}
+          />
+          <Form.Check
+            type="switch"
+            id="shopping-hide-checked"
+            label="Hide checked items"
+            checked={hideChecked}
+            onChange={(event) => setHideChecked(event.currentTarget.checked)}
+          />
+        </div>
         <Button
           variant="outline-danger"
           size="sm"
@@ -300,7 +312,14 @@ export function ShoppingList() {
         </Alert>
       )}
 
-      {(viewMode === 'recipe' ? recipeNames : categoryNames).map((groupName) => {
+      {visibleGroupNames.length === 0 && (
+        <Alert variant="light" className="border">
+          All shopping list items are checked. Turn off &quot;Hide checked items&quot; to show
+          them again.
+        </Alert>
+      )}
+
+      {visibleGroupNames.map((groupName) => {
         const groupedEntries = viewMode === 'recipe' ? recipeGroups[groupName] : groups[groupName];
         const aggregated = aggregateByIngredient(groupedEntries);
         return (

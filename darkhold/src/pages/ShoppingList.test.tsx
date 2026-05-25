@@ -197,4 +197,59 @@ describe('ShoppingList', () => {
     );
     expect(groupNames).toEqual(['Breakfast Recipe', 'Dinner Recipe', 'Next Day Recipe']);
   });
+
+  it('hides checked items when the hide toggle is enabled', () => {
+    useQueryMock.mockReturnValue({
+      data: {
+        results: [
+          {
+            id: 1,
+            amount: 1,
+            unit_name: 'cup',
+            food: makeFood(),
+            checked: true,
+            list_recipe_data: { recipe_data: { name: 'Cake' } },
+          },
+          {
+            id: 2,
+            amount: 1,
+            unit_name: 'cup',
+            food: { ...makeFood(), id: 2, name: 'Milk' },
+            checked: false,
+            list_recipe_data: { recipe_data: { name: 'Bread' } },
+          },
+        ],
+      },
+      isLoading: false,
+      isError: false,
+    });
+
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <ShoppingList />
+        </MemoryRouter>,
+      );
+    });
+
+    expect(container.textContent).toContain('Flour');
+    expect(container.textContent).toContain('Milk');
+
+    const hideCheckedSwitch = container.querySelector<HTMLInputElement>('#shopping-hide-checked');
+    expect(hideCheckedSwitch).toBeTruthy();
+
+    act(() => {
+      hideCheckedSwitch?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(container.textContent).not.toContain('Flour');
+    expect(container.textContent).toContain('Milk');
+
+    act(() => {
+      hideCheckedSwitch?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(container.textContent).toContain('Flour');
+    expect(container.textContent).toContain('Milk');
+  });
 });
