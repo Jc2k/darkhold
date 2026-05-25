@@ -27,7 +27,7 @@ interface Props {
   onHide: () => void;
 }
 
-async function fetchKeywordNameById(): Promise<Record<number, string>> {
+export async function fetchKeywordNameById(): Promise<Record<number, string>> {
   const map: Record<number, string> = {};
   let page = 1;
   while (true) {

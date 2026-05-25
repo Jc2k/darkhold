@@ -4,12 +4,13 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Recipe } from '../api/tandoor-types';
 
-const { useQueryMock, createMealPlanMock } = vi.hoisted(() => ({
+const { useQueryMock, createMealPlanMock, apiGetMock } = vi.hoisted(() => ({
   useQueryMock: vi.fn(),
   createMealPlanMock: {
     mutateAsync: vi.fn().mockResolvedValue({}),
     isPending: false,
   },
+  apiGetMock: vi.fn(),
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -20,7 +21,11 @@ vi.mock('../hooks/useMealPlan', () => ({
   useCreateMealPlan: () => createMealPlanMock,
 }));
 
-import { MealPlanAddModal } from './MealPlanAddModal';
+vi.mock('../api/client', () => ({
+  apiGet: apiGetMock,
+}));
+
+import { MealPlanAddModal, fetchKeywordNameById } from './MealPlanAddModal';
 
 type ReactActGlobal = typeof globalThis & {
   IS_REACT_ACT_ENVIRONMENT?: boolean;
@@ -97,5 +102,23 @@ describe('MealPlanAddModal', () => {
       }),
     );
     expect(onHide).toHaveBeenCalled();
+  });
+
+  it('fetches all keyword pages into an id-to-name map', async () => {
+    apiGetMock
+      .mockResolvedValueOnce({
+        results: [{ id: 10, name: 'Breakfast' }],
+        next: '/keyword/?page=2',
+      })
+      .mockResolvedValueOnce({
+        results: [{ id: 11, name: 'Lunch' }],
+        next: null,
+      });
+
+    const result = await fetchKeywordNameById();
+
+    expect(apiGetMock).toHaveBeenNthCalledWith(1, '/keyword/', { page_size: 100, page: 1 });
+    expect(apiGetMock).toHaveBeenNthCalledWith(2, '/keyword/', { page_size: 100, page: 2 });
+    expect(result).toEqual({ 10: 'Breakfast', 11: 'Lunch' });
   });
 });
