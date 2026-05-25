@@ -7,7 +7,7 @@
     [
       "@semantic-release/exec",
       {
-        "prepareCmd": "sed -i 's/^version: .*/version: \"${nextRelease.version}\"/' darkhold/config.yaml"
+        "prepareCmd": "sed -i \"s/^version: .*/version: '${nextRelease.version}'/\" darkhold/config.yaml"
       }
     ],
     [
