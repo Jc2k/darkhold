@@ -30,6 +30,7 @@ describe('MealPlanAssistantModal', () => {
 
   it('renders the selected meal, reasons, warnings, and alternatives', () => {
     const client = new QueryClient();
+    const onSelectAlternative = vi.fn();
     act(() => {
       root.render(
         <QueryClientProvider client={client}>
@@ -71,7 +72,7 @@ describe('MealPlanAssistantModal', () => {
                 },
               ],
             }}
-            onSelectAlternative={() => {}}
+            onSelectAlternative={onSelectAlternative}
             onHide={() => {}}
           />
         </QueryClientProvider>,
@@ -90,6 +91,21 @@ describe('MealPlanAssistantModal', () => {
     expect(document.body.textContent).toContain('Useful quick fallback for a busy evening.');
     expect(document.body.textContent).toContain('Use this meal');
     expect(document.body.querySelectorAll('img').length).toBeGreaterThan(1);
+
+    const useThisMealButton = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent === 'Use this meal',
+    );
+
+    act(() => {
+      (useThisMealButton as HTMLButtonElement | undefined)?.click();
+    });
+
+    expect(onSelectAlternative).toHaveBeenCalledWith({
+      id: 2,
+      name: 'Takeaway',
+      created_by: 1,
+      image: '/alt.jpg',
+    });
   });
 
   it('renders nothing when no analysis is provided', () => {

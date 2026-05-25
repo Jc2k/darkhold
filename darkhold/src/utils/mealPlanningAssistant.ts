@@ -130,6 +130,11 @@ function recipeKeywordSet(recipe: Recipe, keywordNameById: Record<number, string
   return new Set(getRecipeKeywordNames(recipe, keywordNameById).map(normalizeKeyword));
 }
 
+function recipeNameIncludesFragment(recipe: Recipe, fragments: readonly string[]): boolean {
+  const normalizedName = normalizeKeyword(recipe.name);
+  return fragments.some((fragment) => normalizedName.includes(normalizeKeyword(fragment)));
+}
+
 function recipeHasKeywordFragment(
   recipe: Recipe,
   fragments: readonly string[],
@@ -140,6 +145,25 @@ function recipeHasKeywordFragment(
     const normalized = normalizeKeyword(fragment);
     return keywords.some((keyword) => keyword.includes(normalized));
   });
+}
+
+function recipeHasFragment(
+  recipe: Recipe,
+  fragments: readonly string[],
+  keywordNameById: Record<number, string>,
+): boolean {
+  return (
+    recipeNameIncludesFragment(recipe, fragments) ||
+    recipeHasKeywordFragment(recipe, fragments, keywordNameById)
+  );
+}
+
+function recipeMatchesCategoryRole(
+  recipe: Recipe,
+  role: keyof typeof CATEGORY_ROLE_TAGS,
+  keywordNameById: Record<number, string>,
+): boolean {
+  return recipeHasFragment(recipe, CATEGORY_ROLE_TAGS[role], keywordNameById);
 }
 
 function parseMealDate(entry: Pick<MealPlan, 'from_date'>): Date | null {
@@ -273,9 +297,15 @@ function buildWeekTagCounts(
   const counts = new Map<string, number>();
   for (const entry of entries) {
     if (typeof entry.recipe !== 'object' || !entry.recipe) continue;
-    const tags = recipeKeywordSet(entry.recipe, keywordNameById);
     for (const trackedTag of Object.keys(CATEGORY_ROLE_TAGS)) {
-      if (!tags.has(trackedTag)) continue;
+      if (
+        !recipeMatchesCategoryRole(
+          entry.recipe,
+          trackedTag as keyof typeof CATEGORY_ROLE_TAGS,
+          keywordNameById,
+        )
+      )
+        continue;
       counts.set(trackedTag, (counts.get(trackedTag) ?? 0) + 1);
     }
   }
@@ -377,7 +407,7 @@ function recipePassesBaseFilters(
   if (recipe.rating != null && recipe.rating <= MIN_ACCEPTABLE_RATING) return false;
   if (!recipe.image) return false;
   if (recentRecipeIds.has(recipe.id)) return false;
-  return !recipeHasKeywordFragment(recipe, UNSUITABLE_DINNER_TAG_FRAGMENTS, keywordNameById);
+  return !recipeHasFragment(recipe, UNSUITABLE_DINNER_TAG_FRAGMENTS, keywordNameById);
 }
 
 function recipeMatchesRole(
@@ -388,24 +418,21 @@ function recipeMatchesRole(
   if (role === 'general-dinner') return true;
   if (role === 'busy-day') {
     return (
-      recipeHasKeywordFragment(recipe, ['busy', 'quickies'], keywordNameById) ||
+      recipeHasFragment(recipe, ['busy', 'quick', 'quickies'], keywordNameById) ||
       isTakeawayRecipe(recipe, keywordNameById)
     );
   }
   if (role === 'good-weather') {
-    return recipeHasKeywordFragment(recipe, ['outdoors'], keywordNameById);
+    return recipeHasFragment(recipe, ['outdoors'], keywordNameById);
   }
   if (role === 'takeaway') {
     return isTakeawayRecipe(recipe, keywordNameById);
   }
-  return recipeHasKeywordFragment(recipe, CATEGORY_ROLE_TAGS[role], keywordNameById);
+  return recipeMatchesCategoryRole(recipe, role, keywordNameById);
 }
 
 function isTakeawayRecipe(recipe: Recipe, keywordNameById: Record<number, string>): boolean {
-  return (
-    normalizeKeyword(recipe.name).includes('takeaway') ||
-    recipeHasKeywordFragment(recipe, ['takeaway', 'placeholder'], keywordNameById)
-  );
+  return recipeHasFragment(recipe, ['takeaway', 'placeholder'], keywordNameById);
 }
 
 function scoreRecipe(
@@ -421,7 +448,7 @@ function scoreRecipe(
   const recipeKeywords = recipeKeywordSet(recipe, keywordNameById);
 
   if (context.role === 'busy-day') {
-    const busyMatched = recipeHasKeywordFragment(recipe, ['busy', 'quickies'], keywordNameById);
+    const busyMatched = recipeHasFragment(recipe, ['busy', 'quick', 'quickies'], keywordNameById);
     const takeawayMatched = isTakeawayRecipe(recipe, keywordNameById);
     if (busyMatched || takeawayMatched) {
       components.push({
@@ -435,26 +462,38 @@ function scoreRecipe(
       });
     }
   } else if (context.role === 'good-weather') {
-    components.push({
-      key: 'role-fit',
-      label: 'Fits the day',
-      score: 16,
-      detail: 'Tagged for outdoor or warm-weather eating.',
-    });
+    if (recipeHasFragment(recipe, ['outdoors'], keywordNameById)) {
+      components.push({
+        key: 'role-fit',
+        label: 'Fits the day',
+        score: 16,
+        detail: 'Tagged for outdoor or warm-weather eating.',
+      });
+    }
   } else if (context.role === 'takeaway') {
-    components.push({
-      key: 'role-fit',
-      label: 'Takeaway slot',
-      score: 18,
-      detail: `Takeaway has been out of rotation for roughly ${TAKEAWAY_LOOKBACK_DAYS} days.`,
-    });
+    if (isTakeawayRecipe(recipe, keywordNameById)) {
+      components.push({
+        key: 'role-fit',
+        label: 'Takeaway slot',
+        score: 18,
+        detail: `Takeaway has been out of rotation for roughly ${TAKEAWAY_LOOKBACK_DAYS} days.`,
+      });
+    }
   } else if (context.role !== 'general-dinner') {
-    components.push({
-      key: 'role-fit',
-      label: 'Flavour role match',
-      score: 12,
-      detail: `Matches the ${roleLabel(context.role).toLowerCase()} slot.`,
-    });
+    if (
+      recipeMatchesCategoryRole(
+        recipe,
+        context.role as keyof typeof CATEGORY_ROLE_TAGS,
+        keywordNameById,
+      )
+    ) {
+      components.push({
+        key: 'role-fit',
+        label: 'Flavour role match',
+        score: 12,
+        detail: `Matches the ${roleLabel(context.role).toLowerCase()} slot.`,
+      });
+    }
   }
 
   if (context.upSoonRecipeIds.has(recipe.id)) {
@@ -566,9 +605,15 @@ function updateWeekTagCounts(
   keywordNameById: Record<number, string>,
 ): Map<string, number> {
   const next = new Map(counts);
-  const keywords = recipeKeywordSet(recipe, keywordNameById);
   for (const trackedTag of Object.keys(CATEGORY_ROLE_TAGS)) {
-    if (!keywords.has(trackedTag)) continue;
+    if (
+      !recipeMatchesCategoryRole(
+        recipe,
+        trackedTag as keyof typeof CATEGORY_ROLE_TAGS,
+        keywordNameById,
+      )
+    )
+      continue;
     next.set(trackedTag, (next.get(trackedTag) ?? 0) + 1);
   }
   return next;
@@ -674,6 +719,9 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
       (recipe) =>
         !usedRecipeIds.has(recipe.id) && recipeMatchesRole(recipe, slot.role, keywordNameById),
     );
+    const shouldSilentlyFallbackToGeneralDinner =
+      slot.role in CATEGORY_ROLE_TAGS && exactCandidates.length === 0;
+    const effectiveRole = shouldSilentlyFallbackToGeneralDinner ? 'general-dinner' : slot.role;
     const fallbackCandidates =
       exactCandidates.length > 0
         ? exactCandidates
@@ -688,7 +736,7 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
       fallbackCandidates.map((recipe) =>
         scoreRecipe(recipe, keywordNameById, {
           date: slot.date,
-          role: slot.role,
+          role: effectiveRole,
           upSoonRecipeIds,
           recentAddedRecipeIds,
           regularRecipeIds,
@@ -700,7 +748,7 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
     );
 
     const selected = scoredCandidates[0];
-    if (exactCandidates.length === 0) {
+    if (exactCandidates.length === 0 && !shouldSilentlyFallbackToGeneralDinner) {
       selected.warnings = [
         ...selected.warnings,
         `No ${roleLabel(slot.role).toLowerCase()} recipes matched, so this slot fell back to the broader dinner pool.`,
@@ -709,8 +757,8 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
 
     slots.push({
       date: slot.date,
-      role: slot.role,
-      roleLabel: roleLabel(slot.role),
+      role: effectiveRole,
+      roleLabel: roleLabel(effectiveRole),
       selected,
       alternatives: scoredCandidates.slice(1, 6),
     });

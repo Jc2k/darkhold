@@ -34,6 +34,59 @@ function RecipePreview({ recipe, title }: { recipe: Recipe; title?: string }) {
   );
 }
 
+function AlternativeRecipePreview({
+  recipe,
+  score,
+  reasons,
+  warnings,
+  isSwitching,
+  onSelect,
+}: {
+  recipe: Recipe;
+  score: number;
+  reasons: string;
+  warnings: string[];
+  isSwitching?: boolean;
+  onSelect?: (recipe: Recipe) => void;
+}) {
+  return (
+    <div className="d-flex align-items-start gap-3">
+      <img
+        src={recipe.image ? proxyMediaUrl(recipe.image) : undefined}
+        alt=""
+        width={72}
+        height={72}
+        className="rounded border flex-shrink-0"
+        style={{ objectFit: 'cover' }}
+      />
+      <div className="d-flex justify-content-between align-items-start gap-3 flex-grow-1 min-w-0">
+        <div className="min-w-0">
+          <div className="fw-semibold">{recipe.name}</div>
+          <div className="text-muted small">{reasons}</div>
+          {warnings.length > 0 && (
+            <div className="text-warning-emphasis small mt-1">{warnings.join(' · ')}</div>
+          )}
+        </div>
+        <div className="d-flex flex-column align-items-end gap-2 flex-shrink-0">
+          <Badge bg="light" text="dark" pill>
+            {score}
+          </Badge>
+          {onSelect && (
+            <Button
+              variant="outline-secondary"
+              size="sm"
+              disabled={isSwitching}
+              onClick={() => onSelect(recipe)}
+            >
+              {isSwitching ? 'Switching…' : 'Use this meal'}
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function MealPlanAssistantModal({
   analysis,
   currentEntry,
@@ -124,36 +177,18 @@ export function MealPlanAssistantModal({
                   .slice(0, 3);
                 return (
                   <ListGroup.Item key={alternative.recipe.id}>
-                    <div className="d-flex justify-content-between align-items-start gap-3 flex-wrap">
-                      <div>
-                        <RecipePreview recipe={alternative.recipe} />
-                        <div className="text-muted small">
-                          {topReasons.length > 0
-                            ? topReasons.map((reason) => reason.detail).join(' · ')
-                            : 'Viable fallback with fewer positive signals.'}
-                        </div>
-                        {alternative.warnings.length > 0 && (
-                          <div className="text-warning-emphasis small mt-1">
-                            {alternative.warnings.join(' · ')}
-                          </div>
-                        )}
-                      </div>
-                      <div className="d-flex flex-column align-items-end gap-2 ms-auto">
-                        <Badge bg="light" text="dark" pill>
-                          {alternative.score}
-                        </Badge>
-                        {onSelectAlternative && (
-                          <Button
-                            variant="outline-secondary"
-                            size="sm"
-                            disabled={isSwitching}
-                            onClick={() => onSelectAlternative(alternative.recipe)}
-                          >
-                            {isSwitching ? 'Switching…' : 'Use this meal'}
-                          </Button>
-                        )}
-                      </div>
-                    </div>
+                    <AlternativeRecipePreview
+                      recipe={alternative.recipe}
+                      score={alternative.score}
+                      reasons={
+                        topReasons.length > 0
+                          ? topReasons.map((reason) => reason.detail).join(' · ')
+                          : 'Viable fallback with fewer positive signals.'
+                      }
+                      warnings={alternative.warnings}
+                      isSwitching={isSwitching}
+                      onSelect={onSelectAlternative}
+                    />
                   </ListGroup.Item>
                 );
               })}

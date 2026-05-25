@@ -232,6 +232,65 @@ describe('mealPlanningAssistant', () => {
     expect(plan.slots[0]?.alternatives).toHaveLength(0);
   });
 
+  it('filters unsuitable dinner recipes by recipe name as well as tags', () => {
+    const dinnerRecipe = makeRecipe(1, 'Quick Pasta', []);
+    const breakfastByName = makeRecipe(2, 'Breakfast for Dinner', []);
+
+    const plan = buildMealAssistantPlan({
+      weekStart: new Date('2026-05-30T00:00:00'),
+      weekEnd: new Date('2026-06-05T00:00:00'),
+      emptyDinnerDates: ['2026-05-30'],
+      existingWeekMeals: [],
+      historicalMeals: [],
+      recipes: [dinnerRecipe, breakfastByName],
+      dinnerTime: '18:00',
+    });
+
+    expect(plan.slots[0]?.selected.recipe.name).toBe('Quick Pasta');
+    expect(
+      plan.slots.flatMap((slot) => [
+        slot.selected.recipe.name,
+        ...slot.alternatives.map((candidate) => candidate.recipe.name),
+      ]),
+    ).not.toContain('Breakfast for Dinner');
+  });
+
+  it('matches flavour roles from recipe names and silently falls back to general dinner', () => {
+    const pastaByName = makeRecipe(1, 'Quick Pasta', []);
+    const riceByName = makeRecipe(2, 'Rice Bowl', []);
+    const noodlesByName = makeRecipe(3, 'Noodle Stir Fry', []);
+    const generalDinnerCandidate = makeRecipe(4, 'Roast Vegetables', []);
+
+    const pastaPlan = buildMealAssistantPlan({
+      weekStart: new Date('2026-05-30T00:00:00'),
+      weekEnd: new Date('2026-06-05T00:00:00'),
+      emptyDinnerDates: ['2026-06-01'],
+      existingWeekMeals: [],
+      historicalMeals: [],
+      recipes: [pastaByName],
+      dinnerTime: '18:00',
+    });
+
+    expect(pastaPlan.slots.some((slot) => slot.role === 'pasta')).toBe(true);
+    expect(pastaPlan.slots.find((slot) => slot.role === 'pasta')?.selected.recipe.name).toBe(
+      'Quick Pasta',
+    );
+
+    const soyFreePlan = buildMealAssistantPlan({
+      weekStart: new Date('2026-05-30T00:00:00'),
+      weekEnd: new Date('2026-06-05T00:00:00'),
+      emptyDinnerDates: ['2026-06-03', '2026-06-04', '2026-06-05', '2026-06-06'],
+      existingWeekMeals: [],
+      historicalMeals: [],
+      recipes: [pastaByName, riceByName, noodlesByName, generalDinnerCandidate],
+      dinnerTime: '18:00',
+    });
+
+    const generalDinnerSlot = soyFreePlan.slots.find((slot) => slot.selected.recipe.id === 4);
+    expect(generalDinnerSlot?.role).toBe('general-dinner');
+    expect(generalDinnerSlot?.selected.warnings).toEqual([]);
+  });
+
   it('can swap the selected meal with one of the ranked alternatives', () => {
     const slot = {
       date: '2026-05-30',

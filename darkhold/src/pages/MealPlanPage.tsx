@@ -1,6 +1,16 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Card, Table, Button, InputGroup, Modal, Form, Spinner, Alert } from 'react-bootstrap';
+import {
+  Card,
+  Table,
+  Button,
+  InputGroup,
+  Modal,
+  Form,
+  Spinner,
+  Alert,
+  Badge,
+} from 'react-bootstrap';
 import { AsyncTypeahead } from 'react-bootstrap-typeahead';
 import 'react-bootstrap-typeahead/css/Typeahead.css';
 import {
@@ -363,6 +373,7 @@ interface EntryCardProps {
   isCooked?: boolean;
   onLogCook?: (entry: MealPlan) => void;
   assistantEnabled?: boolean;
+  assistantPlan?: MealAssistantSlotPlan;
   onShowAssistant?: (entry: MealPlan) => void;
 }
 
@@ -457,6 +468,7 @@ function EntryCard({
   isCooked,
   onLogCook,
   assistantEnabled,
+  assistantPlan,
   onShowAssistant,
 }: EntryCardProps) {
   const recipe = typeof entry.recipe === 'object' ? entry.recipe : null;
@@ -502,6 +514,7 @@ function EntryCard({
             )}
           </div>
           <div className="meal-plan-entry-details">
+            {assistantPlan && <AssistedMealSummary plan={assistantPlan} />}
             {entry.note && (
               <span className="text-muted meal-plan-note-preview" title={entry.note}>
                 {entry.note}
@@ -523,7 +536,21 @@ interface SortableEntryProps {
   isCooked?: boolean;
   onLogCook?: (entry: MealPlan) => void;
   assistantEnabled?: boolean;
+  assistantPlan?: MealAssistantSlotPlan;
   onShowAssistant?: (entry: MealPlan) => void;
+}
+
+function AssistedMealSummary({ plan }: { plan: MealAssistantSlotPlan }) {
+  return (
+    <div className="meal-plan-assistant-summary">
+      <span className="text-muted">Flavour</span>
+      <Badge bg="light" text="dark">
+        {plan.roleLabel}
+      </Badge>
+      <span className="text-muted">Score</span>
+      <Badge bg="secondary">{plan.selected.score}</Badge>
+    </div>
+  );
 }
 
 function SortableEntry({
@@ -535,6 +562,7 @@ function SortableEntry({
   isCooked,
   onLogCook,
   assistantEnabled,
+  assistantPlan,
   onShowAssistant,
 }: SortableEntryProps) {
   const {
@@ -607,6 +635,7 @@ function SortableEntry({
                 )}
               </div>
               <div className="meal-plan-entry-details">
+                {assistantPlan && <AssistedMealSummary plan={assistantPlan} />}
                 {entry.note && (
                   <span className="text-muted meal-plan-note-preview" title={entry.note}>
                     {entry.note}
@@ -1088,6 +1117,7 @@ interface MealPlanTableViewProps {
   weatherByDate?: WeatherByDate;
   assistantMode: boolean;
   assistedEntryIds: Set<number>;
+  assistantEntryPlans: Record<number, MealAssistantSlotPlan>;
   onShowAssistant: (entry: MealPlan) => void;
 }
 
@@ -1108,6 +1138,7 @@ function MealPlanTableView({
   weatherByDate,
   assistantMode,
   assistedEntryIds,
+  assistantEntryPlans,
   onShowAssistant,
 }: MealPlanTableViewProps) {
   return (
@@ -1196,6 +1227,7 @@ function MealPlanTableView({
                                   isCooked={cooked}
                                   onLogCook={isPastOrToday ? onLogCook : undefined}
                                   assistantEnabled={assistantMode && assistedEntryIds.has(entry.id)}
+                                  assistantPlan={assistantEntryPlans[entry.id]}
                                   onShowAssistant={onShowAssistant}
                                 />
                               );
@@ -1481,8 +1513,8 @@ export function MealPlanPage() {
         ...current,
         [assistantModalEntry.id]: nextPlan,
       }));
-      setAssistantModalPlan(nextPlan);
-      setAssistantModalEntry(updatedEntry);
+      setAssistantModalEntry(null);
+      setAssistantModalPlan(null);
     } finally {
       setIsAssistantSwitching(false);
     }
@@ -1715,6 +1747,7 @@ export function MealPlanPage() {
             weatherByDate={weatherByDate}
             assistantMode={assistantMode}
             assistedEntryIds={assistedEntryIds}
+            assistantEntryPlans={assistantEntryPlans}
             onShowAssistant={handleShowAssistant}
           />
         </div>
@@ -1727,6 +1760,7 @@ export function MealPlanPage() {
               onClick={noop}
               dragging
               assistantEnabled={assistantMode && assistedEntryIds.has(activeEntry.id)}
+              assistantPlan={assistantEntryPlans[activeEntry.id]}
               onShowAssistant={handleShowAssistant}
             />
           )}
