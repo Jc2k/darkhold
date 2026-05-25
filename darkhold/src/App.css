@@ -34,6 +34,29 @@
   z-index: 10;
 }
 
+.meal-plan-assistant-modal {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+}
+
+.meal-plan-assistant-modal-content {
+  overflow: hidden;
+}
+
+.meal-plan-assistant-modal-header {
+  padding-top: calc(var(--bs-modal-header-padding-y) + env(safe-area-inset-top, 0px));
+  padding-right: calc(var(--bs-modal-header-padding-x) + env(safe-area-inset-right, 0px));
+  padding-left: calc(var(--bs-modal-header-padding-x) + env(safe-area-inset-left, 0px));
+}
+
+.meal-plan-assistant-modal-body {
+  padding-right: calc(var(--bs-modal-padding) + env(safe-area-inset-right, 0px));
+  padding-bottom: calc(var(--bs-modal-padding) + env(safe-area-inset-bottom, 0px));
+  padding-left: calc(var(--bs-modal-padding) + env(safe-area-inset-left, 0px));
+}
+
 @media (min-width: 768px) {
   .page-content {
     padding-bottom: 1rem !important;

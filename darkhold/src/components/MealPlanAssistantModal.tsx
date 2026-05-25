@@ -116,8 +116,16 @@ export function MealPlanAssistantModal({
   const modalDate = formatMealPlannerDate(currentDate);
 
   return (
-    <Modal show={!!analysis} onHide={onHide} centered size="lg">
-      <Modal.Header closeButton>
+    <Modal
+      show={!!analysis}
+      onHide={onHide}
+      centered
+      size="lg"
+      scrollable
+      dialogClassName="meal-plan-assistant-modal"
+      contentClassName="meal-plan-assistant-modal-content"
+    >
+      <Modal.Header closeButton className="meal-plan-assistant-modal-header">
         <Modal.Title className="fs-6 d-flex align-items-center gap-2 flex-wrap">
           <span>{modalDate}</span>
           <Badge bg="secondary">{analysis.roleLabel}</Badge>
@@ -126,7 +134,7 @@ export function MealPlanAssistantModal({
           </Badge>
         </Modal.Title>
       </Modal.Header>
-      <Modal.Body>
+      <Modal.Body className="meal-plan-assistant-modal-body">
         <section className="mb-4">
           <RecipePreview recipe={analysis.selected.recipe} title="Current meal" />
         </section>
