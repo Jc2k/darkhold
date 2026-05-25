@@ -191,4 +191,133 @@ describe('Dashboard', () => {
     expect(dinnerIndex).toBeGreaterThanOrEqual(0);
     expect(breakfastIndex).toBeLessThan(dinnerIndex);
   });
+
+  it('sorts upcoming meals by date, time, order, then id', () => {
+    useUpSoonDataMock.mockReturnValue({
+      data: null,
+      isLoading: false,
+      isError: false,
+    });
+
+    const todayDate = new Date();
+    const tomorrowDate = new Date(todayDate);
+    tomorrowDate.setDate(todayDate.getDate() + 1);
+    const today = formatDate(todayDate);
+    const tomorrow = formatDate(tomorrowDate);
+
+    useMealPlanMock
+      .mockReturnValueOnce({
+        data: {
+          results: [
+            {
+              id: 200,
+              from_date: tomorrow,
+              recipe: {
+                id: 200,
+                name: 'Tomorrow Breakfast',
+                created_by: 1,
+                keywords: [],
+                image: null,
+                rating: null,
+              },
+              meal_type: { id: 1, name: 'Breakfast', time: '07:00' },
+            },
+            {
+              id: 103,
+              from_date: today,
+              recipe: {
+                id: 103,
+                name: 'Today Dinner',
+                created_by: 1,
+                keywords: [],
+                image: null,
+                rating: null,
+              },
+              meal_type: { id: 2, name: 'Dinner', time: '18:00:00', order: 5 },
+            },
+            {
+              id: 102,
+              from_date: today,
+              recipe: {
+                id: 102,
+                name: 'Today Breakfast',
+                created_by: 1,
+                keywords: [],
+                image: null,
+                rating: null,
+              },
+              meal_type: { id: 3, name: 'Breakfast', time: '08:00', order: 9 },
+            },
+            {
+              id: 101,
+              from_date: today,
+              recipe: {
+                id: 101,
+                name: 'Today Invalid Time Order One',
+                created_by: 1,
+                keywords: [],
+                image: null,
+                rating: null,
+              },
+              meal_type: { id: 4, name: 'Snack', time: 'invalid', order: 1 },
+            },
+            {
+              id: 99,
+              from_date: today,
+              recipe: {
+                id: 99,
+                name: 'Today Order Three Low Id',
+                created_by: 1,
+                keywords: [],
+                image: null,
+                rating: null,
+              },
+              meal_type: { id: 5, name: 'Snack', order: 3 },
+            },
+            {
+              id: 100,
+              from_date: today,
+              recipe: {
+                id: 100,
+                name: 'Today Order Three High Id',
+                created_by: 1,
+                keywords: [],
+                image: null,
+                rating: null,
+              },
+              meal_type: { id: 6, name: 'Snack', order: 3 },
+            },
+          ],
+        },
+        isLoading: false,
+        isError: false,
+      })
+      .mockReturnValueOnce({ data: { results: [] }, isLoading: false, isError: false });
+
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <Dashboard />
+        </MemoryRouter>,
+      );
+    });
+
+    const pageText = container.textContent ?? '';
+    const expectedOrder = [
+      'Today Breakfast',
+      'Today Dinner',
+      'Today Invalid Time Order One',
+      'Today Order Three Low Id',
+      'Today Order Three High Id',
+      'Tomorrow Breakfast',
+    ];
+
+    let lastIndex = -1;
+    for (const recipeName of expectedOrder) {
+      const index = pageText.indexOf(recipeName);
+      expect(index).toBeGreaterThanOrEqual(0);
+      expect(index).toBeGreaterThan(lastIndex);
+      lastIndex = index;
+    }
+  });
 });
