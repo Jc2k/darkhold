@@ -172,6 +172,15 @@
   overflow: hidden;
 }
 
+.meal-plan-page .meal-plan-assistant-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 0.25rem;
+  font-size: 0.7rem;
+}
+
 .meal-plan-page .meal-plan-entry-actions {
   display: flex;
   align-items: center;
