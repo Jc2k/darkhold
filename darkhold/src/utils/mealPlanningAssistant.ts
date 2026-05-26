@@ -39,6 +39,9 @@ const CATEGORY_ROLE_TAGS = {
   'soy-free': ['soy-free', 'soy free'],
 } as const;
 
+const PRODUCE_FREE_OCCURRENCES_PER_WEEK = 1;
+const PRODUCE_REPEAT_PENALTY_BASE = 10;
+
 const GENERAL_DINNER_ROLE_LABEL = 'General dinner';
 
 export type MealAssistantRole =
@@ -98,6 +101,7 @@ export interface MealAssistantInput {
     date: string;
     reason: string;
   }>;
+  produceFoodNames?: readonly string[];
 }
 
 interface ScoringContext {
@@ -109,6 +113,8 @@ interface ScoringContext {
   recipeDayCounts: Map<number, Map<number, number>>;
   recipeSeasonCounts: Map<number, Map<string, number>>;
   weekTagCounts: Map<string, number>;
+  weekProduceCounts: Map<string, number>;
+  produceFoodNames: readonly string[];
 }
 
 interface SlotRole {
@@ -363,6 +369,44 @@ function buildWeekTagCounts(
     }
   }
   return counts;
+}
+
+export function getRecipeProduceTags(
+  recipe: Recipe,
+  keywordNameById: Record<number, string>,
+  produceFoodNames: readonly string[],
+): string[] {
+  return produceFoodNames.filter((foodName) =>
+    recipeHasFragment(recipe, [foodName], keywordNameById),
+  );
+}
+
+function buildWeekProduceCounts(
+  entries: MealPlan[],
+  keywordNameById: Record<number, string>,
+  produceFoodNames: readonly string[],
+): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const entry of entries) {
+    if (typeof entry.recipe !== 'object' || !entry.recipe) continue;
+    for (const produce of getRecipeProduceTags(entry.recipe, keywordNameById, produceFoodNames)) {
+      counts.set(produce, (counts.get(produce) ?? 0) + 1);
+    }
+  }
+  return counts;
+}
+
+function updateWeekProduceCounts(
+  counts: Map<string, number>,
+  recipe: Recipe,
+  keywordNameById: Record<number, string>,
+  produceFoodNames: readonly string[],
+): Map<string, number> {
+  const next = new Map(counts);
+  for (const produce of getRecipeProduceTags(recipe, keywordNameById, produceFoodNames)) {
+    next.set(produce, (next.get(produce) ?? 0) + 1);
+  }
+  return next;
 }
 
 function toTitleCase(value: string): string {
@@ -725,6 +769,18 @@ function scoreRecipe(
     }
   }
 
+  for (const foodName of context.produceFoodNames) {
+    const existingCount = context.weekProduceCounts.get(foodName) ?? 0;
+    if (existingCount < PRODUCE_FREE_OCCURRENCES_PER_WEEK) continue;
+    if (!recipeHasFragment(recipe, [foodName], keywordNameById)) continue;
+    components.push({
+      key: `produce-repeat-${foodName}`,
+      label: 'Produce repetition',
+      score: -existingCount * PRODUCE_REPEAT_PENALTY_BASE,
+      detail: `Would be the ${existingCount + 1}${ordinalSuffix(existingCount + 1)} ${foodName} dish this week.`,
+    });
+  }
+
   if (isTakeawayRecipe(recipe, keywordNameById)) {
     warnings.push('This is a placeholder recipe entry rather than a cookable recipe.');
   }
@@ -875,6 +931,12 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
   const recipeDayCounts = buildHistoricalDayCounts(historicalPastMeals);
   const recipeSeasonCounts = buildHistoricalSeasonCounts(historicalPastMeals);
   let weekTagCounts = buildWeekTagCounts(input.existingWeekMeals, keywordNameById);
+  const produceFoodNames = input.produceFoodNames ?? [];
+  let weekProduceCounts = buildWeekProduceCounts(
+    input.existingWeekMeals,
+    keywordNameById,
+    produceFoodNames,
+  );
   const usedRecipeIds = new Set(
     input.existingWeekMeals
       .map((entry) => recipeIdOf(entry))
@@ -915,6 +977,8 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
           recipeDayCounts,
           recipeSeasonCounts,
           weekTagCounts,
+          weekProduceCounts,
+          produceFoodNames,
         }),
       ),
     );
@@ -946,6 +1010,12 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
 
     usedRecipeIds.add(selected.recipe.id);
     weekTagCounts = updateWeekTagCounts(weekTagCounts, selected.recipe, keywordNameById);
+    weekProduceCounts = updateWeekProduceCounts(
+      weekProduceCounts,
+      selected.recipe,
+      keywordNameById,
+      produceFoodNames,
+    );
   }
 
   return { slots, issues };

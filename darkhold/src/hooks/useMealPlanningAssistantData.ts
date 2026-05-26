@@ -1,6 +1,13 @@
 import { queryOptions } from '@tanstack/react-query';
 import { apiGet } from '../api/client';
-import type { Keyword, MealPlan, PaginatedResponse, Recipe } from '../api/tandoor-types';
+import type {
+  Food,
+  Keyword,
+  MealPlan,
+  PaginatedResponse,
+  Recipe,
+  SupermarketCategory,
+} from '../api/tandoor-types';
 import { fetchUpSoonData } from './useUpSoon';
 import { formatDate } from '../utils/dateUtils';
 
@@ -15,6 +22,7 @@ export interface MealPlanningAssistantData {
   historicalMeals: MealPlan[];
   upSoonRecipeIds: number[];
   recentAddedRecipeIds: number[];
+  produceFoodNames: string[];
 }
 
 async function fetchAllPages<T>(
@@ -47,9 +55,24 @@ async function fetchKeywordNameById(): Promise<Record<number, string>> {
   }, {});
 }
 
+export async function fetchProduceFoodNames(categoryName: string): Promise<string[]> {
+  const normalizedCategoryName = categoryName.trim().toLowerCase();
+  if (!normalizedCategoryName) return [];
+
+  const categories = await fetchAllPages<SupermarketCategory>('/supermarket-category/');
+  const category = categories.find(
+    (cat) => cat.name.trim().toLowerCase() === normalizedCategoryName,
+  );
+  if (!category) return [];
+
+  const foods = await fetchAllPages<Food>('/food/', { supermarket_category: category.id });
+  return foods.map((food) => food.name.trim().toLowerCase()).filter(Boolean);
+}
+
 export async function fetchMealPlanningAssistantData(
   weekStart: Date,
   weekEnd: Date,
+  produceCategoryName?: string,
 ): Promise<MealPlanningAssistantData> {
   const historyStart = new Date(weekStart);
   historyStart.setDate(historyStart.getDate() - HISTORY_LOOKBACK_DAYS);
@@ -57,16 +80,18 @@ export async function fetchMealPlanningAssistantData(
   const historyEnd = new Date(weekEnd);
   historyEnd.setDate(historyEnd.getDate() + HISTORY_LOOKAHEAD_DAYS);
 
-  const [recipes, keywordNameById, historicalMeals, upSoonData, recentRecipes] = await Promise.all([
-    fetchAllPages<Recipe>('/recipe/'),
-    fetchKeywordNameById(),
-    fetchAllPages<MealPlan>('/meal-plan/', {
-      from_date: formatDate(historyStart),
-      to_date: formatDate(historyEnd),
-    }),
-    fetchUpSoonData(),
-    fetchAllPages<Recipe>('/recipe/', { new: true, sort_order: '-id' }),
-  ]);
+  const [recipes, keywordNameById, historicalMeals, upSoonData, recentRecipes, produceFoodNames] =
+    await Promise.all([
+      fetchAllPages<Recipe>('/recipe/'),
+      fetchKeywordNameById(),
+      fetchAllPages<MealPlan>('/meal-plan/', {
+        from_date: formatDate(historyStart),
+        to_date: formatDate(historyEnd),
+      }),
+      fetchUpSoonData(),
+      fetchAllPages<Recipe>('/recipe/', { new: true, sort_order: '-id' }),
+      produceCategoryName ? fetchProduceFoodNames(produceCategoryName) : Promise.resolve([]),
+    ]);
 
   return {
     recipes,
@@ -74,13 +99,23 @@ export async function fetchMealPlanningAssistantData(
     historicalMeals,
     upSoonRecipeIds: upSoonData?.entries.map((entry) => entry.recipeId) ?? [],
     recentAddedRecipeIds: recentRecipes.map((recipe) => recipe.id),
+    produceFoodNames,
   };
 }
 
-export function getMealPlanningAssistantDataQueryOptions(weekStart: Date, weekEnd: Date) {
+export function getMealPlanningAssistantDataQueryOptions(
+  weekStart: Date,
+  weekEnd: Date,
+  produceCategoryName?: string,
+) {
   return queryOptions({
-    queryKey: ['meal-plan-assistant', formatDate(weekStart), formatDate(weekEnd)],
-    queryFn: () => fetchMealPlanningAssistantData(weekStart, weekEnd),
+    queryKey: [
+      'meal-plan-assistant',
+      formatDate(weekStart),
+      formatDate(weekEnd),
+      produceCategoryName ?? '',
+    ],
+    queryFn: () => fetchMealPlanningAssistantData(weekStart, weekEnd, produceCategoryName),
     staleTime: MEAL_PLANNING_ASSISTANT_STALE_TIME_MS,
     gcTime: MEAL_PLANNING_ASSISTANT_GC_TIME_MS,
   });
