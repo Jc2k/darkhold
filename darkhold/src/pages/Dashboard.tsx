@@ -527,8 +527,11 @@ export function Dashboard() {
   }, []);
   const activeSeasons = getActiveSeasons(today);
   const todayStr = formatDate(today);
-  const recentlyAddedQueryParams = buildRecentlyAddedRecipeParams();
-  const recentlyAddedSearchLink = `/search?${new URLSearchParams(recentlyAddedQueryParams).toString()}`;
+  const recentlyAddedQueryParams = useMemo(() => buildRecentlyAddedRecipeParams(today), [today]);
+  const recentlyAddedSearchLink = useMemo(
+    () => `/search?${new URLSearchParams(recentlyAddedQueryParams).toString()}`,
+    [recentlyAddedQueryParams],
+  );
 
   const currentWeekStart = useMemo(() => getMealPlanWeekStartSaturday(today), [today]);
   const nextWeekStart = useMemo(() => addDays(currentWeekStart, 7), [currentWeekStart]);

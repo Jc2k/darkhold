@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Form, Row, Col, Spinner, Alert, Button, Collapse } from 'react-bootstrap';
 import { useSearchParams } from 'react-router-dom';
 import { useRecipeSearch } from '../hooks/useRecipeSearch';
@@ -92,8 +92,11 @@ export function Search() {
   const cookingTimeLte = cookingTimeLteParam !== null ? Number(cookingTimeLteParam) : undefined;
   const createdAtGteParam = searchParams.get('created_at_gte') || undefined;
   const newOnly = searchParams.get('new') === 'true';
-  const createdAtGte =
-    createdAtGteParam || (newOnly ? buildRecentlyAddedRecipeParams().created_at_gte : undefined);
+  const createdAtGte = useMemo(
+    () =>
+      createdAtGteParam || (newOnly ? buildRecentlyAddedRecipeParams().created_at_gte : undefined),
+    [createdAtGteParam, newOnly],
+  );
   const sortOrder = searchParams.get('sort_order') || (createdAtGte ? '-created_at' : undefined);
 
   useEffect(() => {
