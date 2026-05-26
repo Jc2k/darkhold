@@ -342,6 +342,10 @@ export function getDateMealTypeCollisionId(
   );
 }
 
+function getSortableContainerId(dataCurrent: unknown): string | null {
+  return (dataCurrent as WithSortable)?.sortable?.containerId ?? null;
+}
+
 interface ResolveDropTargetContainerIdArgs {
   overId: string | number;
   activeContainerId: string;
@@ -1481,10 +1485,7 @@ export function MealPlanPage() {
     if (!over) return;
     lastOverSnapshotRef.current = {
       id: over.id,
-      sortableContainerId:
-        typeof over.id === 'number'
-          ? ((over.data.current as WithSortable)?.sortable?.containerId ?? null)
-          : null,
+      sortableContainerId: getSortableContainerId(over.data.current),
     };
   };
 
@@ -1506,7 +1507,7 @@ export function MealPlanPage() {
       overId,
       activeContainerId,
       collisions: event.collisions,
-      overSortableContainerId: (over?.data.current as WithSortable)?.sortable?.containerId,
+      overSortableContainerId: getSortableContainerId(over?.data.current),
       fallbackSortableContainerId: fallbackOverSnapshot?.sortableContainerId,
     });
     if (!targetContainerId) return;
