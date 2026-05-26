@@ -5,6 +5,7 @@ export interface AppConfig {
     date: string;
     reason: string;
   }>;
+  meal_assistant_produce_category?: string;
   tandoor_external_url?: string;
   /** True when the server has a default token configured and nginx will inject
    *  it for requests that carry no personal token.  The SPA uses this to skip

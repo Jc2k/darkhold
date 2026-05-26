@@ -1371,7 +1371,10 @@ export function MealPlanPage() {
   // Maps entry id -> optimistic target date for in-flight cross-day moves
   const [pendingMoves, setPendingMoves] = useState<Map<number, string>>(new Map());
   const hasPersonalToken = Boolean(localStorage.getItem('tandoor_token'));
-  const { meal_assistant_special_dates: configuredSpecialDates } = useAppConfig();
+  const {
+    meal_assistant_special_dates: configuredSpecialDates,
+    meal_assistant_produce_category: produceCategoryName,
+  } = useAppConfig();
 
   const today = new Date();
   const currentWeekStart = getMealPlanWeekStartSaturday(today);
@@ -1693,7 +1696,7 @@ export function MealPlanPage() {
 
     try {
       const assistantData = await queryClient.fetchQuery(
-        getMealPlanningAssistantDataQueryOptions(weekStartDate, endDate),
+        getMealPlanningAssistantDataQueryOptions(weekStartDate, endDate, produceCategoryName),
       );
       const dinnerPlan = dinnerMealTypeId
         ? buildMealAssistantPlan({
@@ -1712,6 +1715,7 @@ export function MealPlanPage() {
             publicHolidayDates: [...bankHolidayDates],
             dinnerTime: dinnerMealType?.time,
             specialDates: configuredSpecialDates,
+            produceFoodNames: assistantData.produceFoodNames,
           })
         : { slots: [], issues: [] };
       const lunchPlan = lunchMealTypeId
@@ -1731,6 +1735,7 @@ export function MealPlanPage() {
             publicHolidayDates: [...bankHolidayDates],
             dinnerTime: lunchMealType?.time,
             specialDates: configuredSpecialDates,
+            produceFoodNames: assistantData.produceFoodNames,
           })
         : { slots: [], issues: [] };
       const plansToCreate = [

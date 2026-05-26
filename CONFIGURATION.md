@@ -91,6 +91,22 @@ On matching dates, the assistant uses a **Special day** flavour and context like
 
 Special dates are matched by month/day and recur yearly. The year in `date` is ignored for matching.
 
+## Meal Assistant Produce Repetition Penalty
+
+The meal planning assistant can penalise recipes that feature a produce ingredient already used earlier in the same week — for example, to avoid scheduling aubergine dishes on multiple evenings in a row.
+
+To enable this feature, set `meal_assistant_produce_category` to the exact name of the **Supermarket Category** in your Tandoor database that contains your fresh produce items (e.g. "Produce", "Fruit & Veg", or "Vegetables").
+
+```yaml
+meal_assistant_produce_category: "Produce"
+```
+
+When configured, the assistant fetches all food items from that category and uses their names to detect repetition within the week.  The first occurrence of any produce item is free; each additional occurrence carries an escalating score penalty so that diverse recipes are preferred.
+
+> **Tip:** Check which supermarket category name you use in Tandoor by going to **Shopping** → **Supermarket** → **Categories**. The value you enter here must match exactly (case-insensitive).
+
+If `meal_assistant_produce_category` is not set, no produce repetition penalty is applied.
+
 ### Finding your iCloud calendar URL
 
 iCloud can be connected in two ways:

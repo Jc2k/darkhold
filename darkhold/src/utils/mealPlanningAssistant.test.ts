@@ -636,18 +636,24 @@ describe('mealPlanningAssistant', () => {
     ]);
   });
 
-  it('identifies produce tags from recipe name and keywords including synonym grouping', () => {
+  it('identifies produce tags from recipe name and keywords using a provided food name list', () => {
     const aubergineByName = makeRecipe(1, 'Aubergine Parmigiana', []);
     const eggplantByKeyword = makeRecipe(2, 'Stir Fry', [{ id: 50, name: 'Eggplant' }]);
     const courgetteSoup = makeRecipe(3, 'Courgette Soup', []);
-    const zucchiniByName = makeRecipe(4, 'Zucchini Fritters', []);
-    const generalDinner = makeRecipe(5, 'Pasta Bake', []);
+    const generalDinner = makeRecipe(4, 'Pasta Bake', []);
 
-    expect(getRecipeProduceTags(aubergineByName, {})).toEqual(['aubergine']);
-    expect(getRecipeProduceTags(eggplantByKeyword, { 50: 'Eggplant' })).toEqual(['aubergine']);
-    expect(getRecipeProduceTags(courgetteSoup, {})).toEqual(['courgette']);
-    expect(getRecipeProduceTags(zucchiniByName, {})).toEqual(['courgette']);
-    expect(getRecipeProduceTags(generalDinner, {})).toEqual([]);
+    expect(getRecipeProduceTags(aubergineByName, {}, ['aubergine', 'courgette'])).toEqual([
+      'aubergine',
+    ]);
+    expect(
+      getRecipeProduceTags(eggplantByKeyword, { 50: 'Eggplant' }, ['aubergine', 'eggplant']),
+    ).toEqual(['eggplant']);
+    expect(getRecipeProduceTags(courgetteSoup, {}, ['aubergine', 'courgette'])).toEqual([
+      'courgette',
+    ]);
+    expect(getRecipeProduceTags(generalDinner, {}, ['aubergine', 'courgette'])).toEqual([]);
+    // Returns empty when produceFoodNames is empty (feature disabled)
+    expect(getRecipeProduceTags(aubergineByName, {}, [])).toEqual([]);
   });
 
   it('penalises a recipe when the same produce ingredient would appear a second time this week', () => {
@@ -663,6 +669,7 @@ describe('mealPlanningAssistant', () => {
       existingWeekMeals: [makeMealPlan(100, aubergineRecipe1, '2026-05-25')],
       historicalMeals: [],
       recipes: [aubergineRecipe2, generalRecipe],
+      produceFoodNames: ['aubergine'],
       dinnerTime: '18:00',
     });
 
@@ -695,6 +702,7 @@ describe('mealPlanningAssistant', () => {
       ],
       historicalMeals: [],
       recipes: [aubergineRecipe3, generalRecipe],
+      produceFoodNames: ['aubergine'],
       dinnerTime: '18:00',
     });
 
@@ -708,12 +716,13 @@ describe('mealPlanningAssistant', () => {
     expect(penaltyComponent?.score).toBeLessThanOrEqual(-20);
   });
 
-  it('treats eggplant dishes as the same produce group as aubergine when counting', () => {
+  it('tracks aubergine and eggplant as independent produce names (no synonym grouping)', () => {
     const aubergineRecipe = makeRecipe(1, 'Aubergine Parmigiana', []);
     const eggplantRecipe = makeRecipe(2, 'Eggplant Stir Fry', []);
     const generalRecipe = makeRecipe(3, 'Rice Bowl', [{ id: 13, name: 'Rice' }]);
 
-    // One aubergine dish already in the week; an eggplant dish (synonym) should also be penalised
+    // Both names in the list but only aubergine has been used this week.
+    // 'eggplant' count is still 0, so Eggplant Stir Fry is NOT penalised.
     const plan = buildMealAssistantPlan({
       weekStart: new Date('2026-05-25T00:00:00'),
       weekEnd: new Date('2026-05-31T00:00:00'),
@@ -721,13 +730,16 @@ describe('mealPlanningAssistant', () => {
       existingWeekMeals: [makeMealPlan(100, aubergineRecipe, '2026-05-25')],
       historicalMeals: [],
       recipes: [eggplantRecipe, generalRecipe],
+      produceFoodNames: ['aubergine', 'eggplant'],
       dinnerTime: '18:00',
     });
 
     const slot = plan.slots[0];
-    expect(slot?.selected.recipe.name).toBe('Rice Bowl');
-    const eggplantCand = slot?.alternatives.find((a) => a.recipe.name === 'Eggplant Stir Fry');
-    expect(eggplantCand?.components.some((c) => c.key === 'produce-repeat-aubergine')).toBe(true);
+    const eggplantCand =
+      slot?.selected.recipe.name === 'Eggplant Stir Fry'
+        ? slot.selected
+        : slot?.alternatives.find((a) => a.recipe.name === 'Eggplant Stir Fry');
+    expect(eggplantCand?.components.some((c) => c.key.startsWith('produce-repeat-'))).toBe(false);
   });
 
   it('does not penalise the first occurrence of a produce ingredient in the week', () => {
@@ -741,6 +753,7 @@ describe('mealPlanningAssistant', () => {
       existingWeekMeals: [],
       historicalMeals: [],
       recipes: [aubergineRecipe, generalRecipe],
+      produceFoodNames: ['aubergine'],
       dinnerTime: '18:00',
     });
 
@@ -750,5 +763,24 @@ describe('mealPlanningAssistant', () => {
         ? slot.selected
         : slot?.alternatives.find((a) => a.recipe.name === 'Aubergine Parmigiana');
     expect(aubergineCand?.components.some((c) => c.key.startsWith('produce-repeat-'))).toBe(false);
+  });
+
+  it('skips produce penalty entirely when produceFoodNames is not provided', () => {
+    const aubergineRecipe1 = makeRecipe(1, 'Aubergine Parmigiana', []);
+    const aubergineRecipe2 = makeRecipe(2, 'Stuffed Aubergine', []);
+
+    // No produceFoodNames supplied → no penalty regardless of repetition
+    const plan = buildMealAssistantPlan({
+      weekStart: new Date('2026-05-25T00:00:00'),
+      weekEnd: new Date('2026-05-31T00:00:00'),
+      emptyDinnerDates: ['2026-05-27'],
+      existingWeekMeals: [makeMealPlan(100, aubergineRecipe1, '2026-05-25')],
+      historicalMeals: [],
+      recipes: [aubergineRecipe2],
+      dinnerTime: '18:00',
+    });
+
+    const slot = plan.slots[0];
+    expect(slot?.selected.components.some((c) => c.key.startsWith('produce-repeat-'))).toBe(false);
   });
 });

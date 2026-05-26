@@ -33,6 +33,7 @@ options:
   weather_longitude: -0.1276
   weather_timezone: 'Europe/London'
   meal_assistant_special_dates: []
+  meal_assistant_produce_category: ''
 
 schema:
   tandoor_url: 'str'
@@ -51,3 +52,4 @@ schema:
   meal_assistant_special_dates:
     - date: 'str'
       reason: 'str'
+  meal_assistant_produce_category: 'str?'

@@ -39,26 +39,6 @@ const CATEGORY_ROLE_TAGS = {
   'soy-free': ['soy-free', 'soy free'],
 } as const;
 
-// Produce ingredients that are distinctive enough to be noticeable if repeated
-// across multiple dinners in the same week.  Each tuple is [canonical name, search
-// fragments].  Synonyms (aubergine/eggplant, courgette/zucchini, …) are grouped
-// under one canonical key so they share a combined weekly count.
-const PRODUCE_TAG_GROUPS: ReadonlyArray<readonly [string, readonly string[]]> = [
-  ['aubergine', ['aubergine', 'eggplant']],
-  ['courgette', ['courgette', 'zucchini']],
-  ['asparagus', ['asparagus']],
-  ['cauliflower', ['cauliflower']],
-  ['broccoli', ['broccoli']],
-  ['fennel', ['fennel']],
-  ['leek', ['leek']],
-  ['beetroot', ['beetroot']],
-  ['artichoke', ['artichoke']],
-  ['celeriac', ['celeriac']],
-  ['parsnip', ['parsnip']],
-  ['squash', ['squash', 'butternut', 'pumpkin']],
-  ['kale', ['kale']],
-];
-
 const PRODUCE_FREE_OCCURRENCES_PER_WEEK = 1;
 const PRODUCE_REPEAT_PENALTY_BASE = 10;
 
@@ -121,6 +101,7 @@ export interface MealAssistantInput {
     date: string;
     reason: string;
   }>;
+  produceFoodNames?: readonly string[];
 }
 
 interface ScoringContext {
@@ -133,6 +114,7 @@ interface ScoringContext {
   recipeSeasonCounts: Map<number, Map<string, number>>;
   weekTagCounts: Map<string, number>;
   weekProduceCounts: Map<string, number>;
+  produceFoodNames: readonly string[];
 }
 
 interface SlotRole {
@@ -392,20 +374,22 @@ function buildWeekTagCounts(
 export function getRecipeProduceTags(
   recipe: Recipe,
   keywordNameById: Record<number, string>,
+  produceFoodNames: readonly string[],
 ): string[] {
-  return PRODUCE_TAG_GROUPS.filter(([, fragments]) =>
-    recipeHasFragment(recipe, fragments, keywordNameById),
-  ).map(([canonical]) => canonical);
+  return produceFoodNames.filter((foodName) =>
+    recipeHasFragment(recipe, [foodName], keywordNameById),
+  );
 }
 
 function buildWeekProduceCounts(
   entries: MealPlan[],
   keywordNameById: Record<number, string>,
+  produceFoodNames: readonly string[],
 ): Map<string, number> {
   const counts = new Map<string, number>();
   for (const entry of entries) {
     if (typeof entry.recipe !== 'object' || !entry.recipe) continue;
-    for (const produce of getRecipeProduceTags(entry.recipe, keywordNameById)) {
+    for (const produce of getRecipeProduceTags(entry.recipe, keywordNameById, produceFoodNames)) {
       counts.set(produce, (counts.get(produce) ?? 0) + 1);
     }
   }
@@ -416,9 +400,10 @@ function updateWeekProduceCounts(
   counts: Map<string, number>,
   recipe: Recipe,
   keywordNameById: Record<number, string>,
+  produceFoodNames: readonly string[],
 ): Map<string, number> {
   const next = new Map(counts);
-  for (const produce of getRecipeProduceTags(recipe, keywordNameById)) {
+  for (const produce of getRecipeProduceTags(recipe, keywordNameById, produceFoodNames)) {
     next.set(produce, (next.get(produce) ?? 0) + 1);
   }
   return next;
@@ -784,15 +769,15 @@ function scoreRecipe(
     }
   }
 
-  for (const [produce, fragments] of PRODUCE_TAG_GROUPS) {
-    const existingCount = context.weekProduceCounts.get(produce) ?? 0;
+  for (const foodName of context.produceFoodNames) {
+    const existingCount = context.weekProduceCounts.get(foodName) ?? 0;
     if (existingCount < PRODUCE_FREE_OCCURRENCES_PER_WEEK) continue;
-    if (!recipeHasFragment(recipe, fragments, keywordNameById)) continue;
+    if (!recipeHasFragment(recipe, [foodName], keywordNameById)) continue;
     components.push({
-      key: `produce-repeat-${produce}`,
+      key: `produce-repeat-${foodName}`,
       label: 'Produce repetition',
       score: -existingCount * PRODUCE_REPEAT_PENALTY_BASE,
-      detail: `Would be the ${existingCount + 1}${ordinalSuffix(existingCount + 1)} ${produce} dish this week.`,
+      detail: `Would be the ${existingCount + 1}${ordinalSuffix(existingCount + 1)} ${foodName} dish this week.`,
     });
   }
 
@@ -946,7 +931,12 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
   const recipeDayCounts = buildHistoricalDayCounts(historicalPastMeals);
   const recipeSeasonCounts = buildHistoricalSeasonCounts(historicalPastMeals);
   let weekTagCounts = buildWeekTagCounts(input.existingWeekMeals, keywordNameById);
-  let weekProduceCounts = buildWeekProduceCounts(input.existingWeekMeals, keywordNameById);
+  const produceFoodNames = input.produceFoodNames ?? [];
+  let weekProduceCounts = buildWeekProduceCounts(
+    input.existingWeekMeals,
+    keywordNameById,
+    produceFoodNames,
+  );
   const usedRecipeIds = new Set(
     input.existingWeekMeals
       .map((entry) => recipeIdOf(entry))
@@ -988,6 +978,7 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
           recipeSeasonCounts,
           weekTagCounts,
           weekProduceCounts,
+          produceFoodNames,
         }),
       ),
     );
@@ -1023,6 +1014,7 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
       weekProduceCounts,
       selected.recipe,
       keywordNameById,
+      produceFoodNames,
     );
   }
 
