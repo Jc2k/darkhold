@@ -543,7 +543,7 @@ describe('mealPlanningAssistant', () => {
     expect(plan.slots[0]?.roleFlavourDetail).toContain('21 days');
   });
 
-  it('uses special-day flavour on configured dates and prefers recipes tagged special', () => {
+  it('uses special-day flavour on configured recurring dates and prefers recipes tagged special', () => {
     const specialRecipe = makeRecipe(1, 'Birthday Roast', [{ id: 100, name: 'Special' }]);
     const busyRecipe = makeRecipe(2, 'Quick Pasta', [{ id: 10, name: 'Busy' }]);
 
@@ -564,7 +564,7 @@ describe('mealPlanningAssistant', () => {
           },
         ],
       },
-      specialDates: [{ date: '2026-05-26', reason: "John's birthday" }],
+      specialDates: [{ date: '2025-05-26', reason: "John's birthday" }],
       dinnerTime: '18:00',
     });
 

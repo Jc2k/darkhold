@@ -89,6 +89,8 @@ meal_assistant_special_dates:
 On matching dates, the assistant uses a **Special day** flavour and context like:
 `Picked a special meal for John's birthday.`
 
+Special dates are matched by month/day and recur yearly. The year in `date` is ignored for matching.
+
 ### Finding your iCloud calendar URL
 
 iCloud can be connected in two ways:

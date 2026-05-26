@@ -196,6 +196,24 @@ function addDays(date: Date, days: number): Date {
   return next;
 }
 
+function toMonthDayKey(date: Date): string {
+  return `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function parseMonthDayKey(value: string): string | null {
+  const parsed = parseLocalDate(value);
+  if (!parsed) return null;
+  return toMonthDayKey(parsed);
+}
+
+function getSpecialDateReasonForDate(
+  date: string,
+  specialDateReasonsByMonthDay: ReadonlyMap<string, string>,
+): string | undefined {
+  const monthDayKey = parseMonthDayKey(date);
+  return monthDayKey ? specialDateReasonsByMonthDay.get(monthDayKey) : undefined;
+}
+
 function parseTimeToMinutes(value: string | null | undefined): number {
   if (!value) return DEFAULT_DINNER_TIME_MINUTES;
   const [hoursRaw, minutesRaw] = value.split(':');
@@ -475,7 +493,8 @@ function buildSlotRoles(
   const remainingDates = emptyDinnerDates.slice();
 
   for (const date of emptyDinnerDates) {
-    if (specialDateReasonsByDate.has(date)) {
+    const monthDayKey = parseMonthDayKey(date);
+    if (monthDayKey && specialDateReasonsByDate.has(monthDayKey)) {
       rolesByDate.set(date, 'special-day');
     }
   }
@@ -784,12 +803,13 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
   const calendarEventsByDate = input.calendarEventsByDate ?? {};
   const weatherByDate = input.weatherByDate ?? {};
   const publicHolidayDates = new Set(input.publicHolidayDates ?? []);
-  const specialDateReasonsByDate = new Map(
-    (input.specialDates ?? [])
-      .map((entry) => [entry.date.trim(), entry.reason.trim()] as const)
-      .filter(
-        ([date, reason]) => date.length > 0 && reason.length > 0 && parseLocalDate(date) !== null,
-      ),
+  const specialDateReasonsByDate = new Map<string, string>(
+    (input.specialDates ?? []).flatMap((entry) => {
+      const monthDayKey = parseMonthDayKey(entry.date.trim());
+      const reason = entry.reason.trim();
+      if (!monthDayKey || reason.length === 0) return [];
+      return [[monthDayKey, reason] as const];
+    }),
   );
   for (const date of getCalendarEventDatesByCategory(calendarEventsByDate, 'bank-holiday')) {
     publicHolidayDates.add(date);
@@ -916,7 +936,7 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
         weatherByDate[slot.date],
         publicHolidayDates,
         input.dinnerTime,
-        specialDateReasonsByDate.get(slot.date),
+        getSpecialDateReasonForDate(slot.date, specialDateReasonsByDate),
       ),
       selected,
       alternatives: scoredCandidates.slice(1, 6),
