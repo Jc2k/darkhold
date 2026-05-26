@@ -403,9 +403,13 @@ function buildRoleFlavourDetail(
       if (duration >= LONG_EVENT_THRESHOLD_MINUTES) return true;
       return range.start < dinnerWindowEnd && range.end > dinnerWindowStart;
     });
-    const names = [...new Set(triggeringEvents.map((e) => e.name).filter(Boolean))].slice(0, 2);
-    if (names.length === 1) return `Busy because of: ${names[0]}.`;
-    if (names.length > 1) return `Busy because of: ${names.join(' and ')}.`;
+    const allNames = [...new Set(triggeringEvents.map((e) => e.name).filter(Boolean))];
+    const names = allNames.slice(0, 2);
+    const remainder = allNames.length - names.length;
+    if (names.length === 1 && remainder === 0) return `Busy because of: ${names[0]}.`;
+    if (names.length > 1 && remainder === 0) return `Busy because of: ${names.join(' and ')}.`;
+    if (names.length > 0 && remainder > 0)
+      return `Busy because of: ${names.join(', ')} and ${remainder} more.`;
     return 'Appointments make this a busy evening.';
   }
 
@@ -421,7 +425,7 @@ function buildRoleFlavourDetail(
     } else {
       dayType = 'Saturday';
     }
-    const tempStr = weather ? `${Math.round(weather.tempMaxC)}°` : 'warm';
+    const tempStr = weather ? `${Math.round(weather.tempMaxC)}°` : 'pleasant';
     return `Good weather on a ${dayType} – ${tempStr} and low chance of rain.`;
   }
 
