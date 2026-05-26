@@ -376,6 +376,21 @@ export function resolveDropTargetContainerId({
   return overSortableContainerId ?? fallbackSortableContainerId ?? null;
 }
 
+export function getEmptyWeekendLunchDates(
+  days: Date[],
+  byDayAndMealType: Record<string, Record<number, MealPlan[]>>,
+  lunchMealTypeId: number | undefined,
+): string[] {
+  if (!lunchMealTypeId) return [];
+  return days
+    .filter((day) => {
+      const dayNumber = day.getDay();
+      return dayNumber === 0 || dayNumber === 6;
+    })
+    .map((day) => formatDate(day))
+    .filter((date) => (byDayAndMealType[date]?.[lunchMealTypeId] ?? []).length === 0);
+}
+
 interface PersistedMealAssistantSession {
   assistantMode: boolean;
   assistantEntryPlans: Record<number, MealAssistantSlotPlan>;
@@ -1432,6 +1447,10 @@ export function MealPlanPage() {
     sortedMealTypes.find((mealType) => mealType.name.toLowerCase().includes('dinner')) ??
     sortedMealTypes[0];
   const dinnerMealTypeId = dinnerMealType?.id;
+  const lunchMealType = sortedMealTypes.find((mealType) =>
+    mealType.name.toLowerCase().includes('lunch'),
+  );
+  const lunchMealTypeId = lunchMealType?.id;
 
   useEffect(() => {
     if (skipAssistantSessionPersist.current) {
@@ -1609,19 +1628,26 @@ export function MealPlanPage() {
       return;
     }
 
-    if (!dinnerMealTypeId || isAssistantPlanning) return;
+    if ((!dinnerMealTypeId && !lunchMealTypeId) || isAssistantPlanning) return;
 
-    const emptyDinnerDates = days
-      .map((day) => formatDate(day))
-      .filter((date) => (byDayAndMealType[date]?.[dinnerMealTypeId] ?? []).length === 0);
+    const emptyDinnerDates = dinnerMealTypeId
+      ? days
+          .map((day) => formatDate(day))
+          .filter((date) => (byDayAndMealType[date]?.[dinnerMealTypeId] ?? []).length === 0)
+      : [];
+    const emptyWeekendLunchDates = getEmptyWeekendLunchDates(
+      days,
+      byDayAndMealType,
+      lunchMealTypeId,
+    );
 
     setAssistantMode(true);
     setAssistantFeedback(null);
 
-    if (emptyDinnerDates.length === 0) {
+    if (emptyDinnerDates.length === 0 && emptyWeekendLunchDates.length === 0) {
       setAssistantFeedback({
         variant: 'info',
-        message: 'There are no empty dinner slots to fill in this week.',
+        message: 'There are no empty dinner or weekend lunch slots to fill in this week.',
       });
       return;
     }
@@ -1632,34 +1658,62 @@ export function MealPlanPage() {
       const assistantData = await queryClient.fetchQuery(
         getMealPlanningAssistantDataQueryOptions(weekStartDate, endDate),
       );
-      const plan = buildMealAssistantPlan({
-        weekStart: weekStartDate,
-        weekEnd: endDate,
-        emptyDinnerDates,
-        existingWeekMeals: allEntries,
-        historicalMeals: assistantData.historicalMeals,
-        recipes: assistantData.recipes,
-        keywordNameById: assistantData.keywordNameById,
-        upSoonRecipeIds: assistantData.upSoonRecipeIds,
-        recentAddedRecipeIds: assistantData.recentAddedRecipeIds,
-        calendarEventsByDate,
-        weatherByDate,
-        dinnerTime: dinnerMealType?.time,
-      });
+      const dinnerPlan = dinnerMealTypeId
+        ? buildMealAssistantPlan({
+            weekStart: weekStartDate,
+            weekEnd: endDate,
+            planType: 'dinner',
+            emptyDinnerDates,
+            existingWeekMeals: allEntries,
+            historicalMeals: assistantData.historicalMeals,
+            recipes: assistantData.recipes,
+            keywordNameById: assistantData.keywordNameById,
+            upSoonRecipeIds: assistantData.upSoonRecipeIds,
+            recentAddedRecipeIds: assistantData.recentAddedRecipeIds,
+            calendarEventsByDate,
+            weatherByDate,
+            dinnerTime: dinnerMealType?.time,
+          })
+        : { slots: [], issues: [] };
+      const lunchPlan = lunchMealTypeId
+        ? buildMealAssistantPlan({
+            weekStart: weekStartDate,
+            weekEnd: endDate,
+            planType: 'lunch',
+            emptyDinnerDates: emptyWeekendLunchDates,
+            existingWeekMeals: allEntries,
+            historicalMeals: assistantData.historicalMeals,
+            recipes: assistantData.recipes,
+            keywordNameById: assistantData.keywordNameById,
+            upSoonRecipeIds: assistantData.upSoonRecipeIds,
+            recentAddedRecipeIds: assistantData.recentAddedRecipeIds,
+            calendarEventsByDate,
+            weatherByDate,
+            dinnerTime: lunchMealType?.time,
+          })
+        : { slots: [], issues: [] };
+      const plansToCreate = [
+        ...dinnerPlan.slots.map((slot) => ({ slot, mealTypeId: dinnerMealTypeId })),
+        ...lunchPlan.slots.map((slot) => ({ slot, mealTypeId: lunchMealTypeId })),
+      ].filter((planned): planned is { slot: MealAssistantSlotPlan; mealTypeId: number } =>
+        Boolean(planned.mealTypeId),
+      );
+      const allIssues = [...dinnerPlan.issues, ...lunchPlan.issues];
 
-      if (plan.slots.length === 0) {
+      if (plansToCreate.length === 0) {
         setAssistantFeedback({
           variant: 'warning',
-          message: plan.issues[0] ?? 'No suitable assisted meals were available for this week.',
+          message: allIssues[0] ?? 'No suitable assisted meals were available for this week.',
         });
         return;
       }
 
       const nextPlans: Record<number, MealAssistantSlotPlan> = {};
-      for (const slotPlan of plan.slots) {
+      for (const planned of plansToCreate) {
+        const { slot: slotPlan, mealTypeId } = planned;
         const created = await createMealPlan.mutateAsync({
           recipe: slotPlan.selected.recipe.id,
-          meal_type: dinnerMealTypeId,
+          meal_type: mealTypeId,
           from_date: slotPlan.date,
           servings: slotPlan.selected.recipe.servings ?? 1,
           addshopping: true,
@@ -1674,12 +1728,22 @@ export function MealPlanPage() {
       });
 
       setAssistantEntryPlans((current) => ({ ...current, ...nextPlans }));
+      const dinnerCount = dinnerPlan.slots.length;
+      const lunchCount = lunchPlan.slots.length;
+      const slotSummaryParts: string[] = [];
+      if (dinnerCount > 0) {
+        slotSummaryParts.push(`${dinnerCount} dinner slot${dinnerCount === 1 ? '' : 's'}`);
+      }
+      if (lunchCount > 0) {
+        slotSummaryParts.push(`${lunchCount} weekend lunch slot${lunchCount === 1 ? '' : 's'}`);
+      }
+      const slotSummary = slotSummaryParts.join(' and ');
       setAssistantFeedback({
-        variant: plan.issues.length > 0 ? 'warning' : 'success',
+        variant: allIssues.length > 0 ? 'warning' : 'success',
         message:
-          plan.issues.length > 0
-            ? `Filled ${plan.slots.length} dinner slot${plan.slots.length === 1 ? '' : 's'}. ${plan.issues.join(' ')}`
-            : `Filled ${plan.slots.length} dinner slot${plan.slots.length === 1 ? '' : 's'}.`,
+          allIssues.length > 0
+            ? `Filled ${slotSummary}. ${allIssues.join(' ')}`
+            : `Filled ${slotSummary}.`,
       });
     } catch (error) {
       setAssistantMode(false);
@@ -1765,7 +1829,12 @@ export function MealPlanPage() {
               onClick={() => {
                 void handleAssistantToggle();
               }}
-              disabled={!hasPersonalToken || !dinnerMealTypeId || isAssistantPlanning || isLoading}
+              disabled={
+                !hasPersonalToken ||
+                (!dinnerMealTypeId && !lunchMealTypeId) ||
+                isAssistantPlanning ||
+                isLoading
+              }
               aria-label={
                 assistantMode
                   ? 'Turn off meal planning assistance'

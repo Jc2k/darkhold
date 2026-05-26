@@ -262,6 +262,35 @@ describe('mealPlanningAssistant', () => {
     expect(plan.slots[0]?.alternatives).toHaveLength(0);
   });
 
+  it('plans lunch slots only from recipes tagged with lunch in lunch mode', () => {
+    const lunchRecipe = makeRecipe(1, 'Sandwich', [{ id: 30, name: 'Lunch' }]);
+    const dinnerRecipe = makeRecipe(2, 'Pasta Bake', [{ id: 31, name: 'Pasta' }]);
+    const idOnlyLunchRecipe = makeRecipe(3, 'Wrap', [
+      { id: 32 } as unknown as { id: number; name: string },
+    ]);
+
+    const plan = buildMealAssistantPlan({
+      weekStart: new Date('2026-05-30T00:00:00'),
+      weekEnd: new Date('2026-06-05T00:00:00'),
+      planType: 'lunch',
+      emptyDinnerDates: ['2026-05-30', '2026-05-31'],
+      existingWeekMeals: [],
+      historicalMeals: [],
+      recipes: [lunchRecipe, dinnerRecipe, idOnlyLunchRecipe],
+      keywordNameById: { 32: 'Lunch' },
+      dinnerTime: '12:00',
+    });
+
+    expect(plan.slots).toHaveLength(2);
+    expect(plan.slots.every((slot) => slot.role === 'general-lunch')).toBe(true);
+    expect(
+      plan.slots.flatMap((slot) => [
+        slot.selected.recipe.id,
+        ...slot.alternatives.map((candidate) => candidate.recipe.id),
+      ]),
+    ).not.toContain(2);
+  });
+
   it('filters unsuitable dinner recipes by recipe name as well as tags', () => {
     const dinnerRecipe = makeRecipe(1, 'Quick Pasta', []);
     const breakfastByName = makeRecipe(2, 'Breakfast for Dinner', []);
