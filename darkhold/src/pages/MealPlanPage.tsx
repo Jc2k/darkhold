@@ -381,7 +381,7 @@ export function getEmptyWeekendLunchDates(
   days: Date[],
   byDayAndMealType: Record<string, Record<number, MealPlan[]>>,
   lunchMealTypeId: number | undefined,
-  publicHolidayDates: Iterable<string> = [],
+  publicHolidayDates: readonly string[] = [],
 ): string[] {
   if (!lunchMealTypeId) return [];
   const holidaySet = new Set(publicHolidayDates);
@@ -1673,7 +1673,7 @@ export function MealPlanPage() {
       days,
       byDayAndMealType,
       lunchMealTypeId,
-      bankHolidayDates,
+      [...bankHolidayDates],
     );
 
     setAssistantMode(true);

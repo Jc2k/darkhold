@@ -216,15 +216,15 @@ export function isBusyDinnerDay(
   events: CalendarEvent[],
   dinnerTime: string | null | undefined,
 ): boolean {
-  const busyRelevantEvents = events.filter(
+  const appointmentEvents = events.filter(
     (event) => (event.category ?? DEFAULT_EVENT_CATEGORY) === DEFAULT_EVENT_CATEGORY,
   );
-  if (busyRelevantEvents.length === 0) return false;
+  if (appointmentEvents.length === 0) return false;
   const dinnerMinutes = parseTimeToMinutes(dinnerTime);
   const dinnerWindowStart = dinnerMinutes - DINNER_WINDOW_MINUTES;
   const dinnerWindowEnd = dinnerMinutes + DINNER_WINDOW_MINUTES;
 
-  return busyRelevantEvents.some((event) => {
+  return appointmentEvents.some((event) => {
     if (event.allDay) return true;
     const range = timedEventRangeInMinutes(event);
     if (!range) return false;
