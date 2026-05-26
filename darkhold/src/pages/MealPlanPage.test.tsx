@@ -224,4 +224,20 @@ describe('getEmptyWeekendLunchDates', () => {
       ),
     ).toEqual(['2026-05-30']);
   });
+
+  it('includes configured public holidays even when they are weekdays', () => {
+    const days = [new Date('2026-06-02T00:00:00Z')];
+    const byDayAndMealType = {
+      '2026-06-02': { 2: [] },
+    } as unknown as Record<string, Record<number, unknown[]>>;
+
+    expect(
+      getEmptyWeekendLunchDates(
+        days,
+        byDayAndMealType as unknown as Record<string, Record<number, never[]>>,
+        2,
+        ['2026-06-02'],
+      ),
+    ).toEqual(['2026-06-02']);
+  });
 });

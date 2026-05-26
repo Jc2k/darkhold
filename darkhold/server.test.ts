@@ -301,6 +301,7 @@ Deno.test(
           name: 'CalDAV',
           url: 'https://caldav.icloud.com/calendar/',
           type: 'caldav',
+          category: 'appointment',
           username: 'user@example.com',
           password: 'app-password',
         },
@@ -327,6 +328,8 @@ Deno.test(
         throw new Error('expected VEVENT comp-filter');
       if (events.length !== 1) throw new Error(`expected 1 event, got ${events.length}`);
       if (events[0].name !== 'Private') throw new Error(`unexpected event: ${events[0].name}`);
+      if (events[0].category !== 'appointment')
+        throw new Error(`expected appointment category, got ${events[0].category}`);
     } finally {
       globalThis.fetch = originalFetch;
     }
@@ -602,6 +605,24 @@ Deno.test('parseICalFeeds treats null type as absent (no type)', () => {
   );
   if (feeds.length !== 1) throw new Error(`expected 1 feed, got ${feeds.length}`);
   if (feeds[0].type !== undefined) throw new Error(`expected no type, got ${feeds[0].type}`);
+});
+
+Deno.test('parseICalFeeds normalises category to lowercase and hyphenated form', () => {
+  const feeds = parseICalFeeds(
+    JSON.stringify([
+      { name: 'Bank', url: 'https://example.com/bank.ics', category: 'Bank Holiday' },
+    ]),
+  );
+  if (feeds.length !== 1) throw new Error(`expected 1 feed, got ${feeds.length}`);
+  if (feeds[0].category !== 'bank-holiday')
+    throw new Error(`expected bank-holiday category, got ${feeds[0].category}`);
+});
+
+Deno.test('parseICalFeeds rejects feed with unknown category string', () => {
+  const feeds = parseICalFeeds(
+    JSON.stringify([{ name: 'Bad', url: 'https://example.com/', category: 'work' }]),
+  );
+  if (feeds.length !== 0) throw new Error(`expected 0 feeds, got ${feeds.length}`);
 });
 
 Deno.test('parseICalFeeds treats null username as absent', () => {

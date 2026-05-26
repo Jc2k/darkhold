@@ -41,6 +41,7 @@ schema:
     - name: 'str'
       url: 'str'
       type: 'str?'
+      category: 'str?'
       username: 'str?'
       password: 'str?'
   weather_latitude: 'float?'

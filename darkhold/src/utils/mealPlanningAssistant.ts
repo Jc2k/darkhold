@@ -1,5 +1,9 @@
 import type { MealPlan, Recipe } from '../api/tandoor-types';
-import type { CalendarEventsByDate, CalendarEvent } from '../hooks/useCalendarEvents';
+import type {
+  CalendarEventsByDate,
+  CalendarEvent,
+  CalendarEventCategory,
+} from '../hooks/useCalendarEvents';
 import type { WeatherByDate, WeatherDayForecast } from '../hooks/useWeatherForecast';
 import { formatDate, parseLocalDate } from './dateUtils';
 
@@ -211,12 +215,15 @@ export function isBusyDinnerDay(
   events: CalendarEvent[],
   dinnerTime: string | null | undefined,
 ): boolean {
-  if (events.length === 0) return false;
+  const busyRelevantEvents = events.filter(
+    (event) => (event.category ?? 'appointment') === 'appointment',
+  );
+  if (busyRelevantEvents.length === 0) return false;
   const dinnerMinutes = parseTimeToMinutes(dinnerTime);
   const dinnerWindowStart = dinnerMinutes - DINNER_WINDOW_MINUTES;
   const dinnerWindowEnd = dinnerMinutes + DINNER_WINDOW_MINUTES;
 
-  return events.some((event) => {
+  return busyRelevantEvents.some((event) => {
     if (event.allDay) return true;
     const range = timedEventRangeInMinutes(event);
     if (!range) return false;
@@ -224,6 +231,19 @@ export function isBusyDinnerDay(
     if (duration >= LONG_EVENT_THRESHOLD_MINUTES) return true;
     return range.start < dinnerWindowEnd && range.end > dinnerWindowStart;
   });
+}
+
+export function getCalendarEventDatesByCategory(
+  calendarEventsByDate: CalendarEventsByDate,
+  category: CalendarEventCategory,
+): Set<string> {
+  const dates = new Set<string>();
+  for (const [date, events] of Object.entries(calendarEventsByDate)) {
+    if (events.some((event) => event.category === category)) {
+      dates.add(date);
+    }
+  }
+  return dates;
 }
 
 export function isGoodWeatherDay(
@@ -662,6 +682,9 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
   const calendarEventsByDate = input.calendarEventsByDate ?? {};
   const weatherByDate = input.weatherByDate ?? {};
   const publicHolidayDates = new Set(input.publicHolidayDates ?? []);
+  for (const date of getCalendarEventDatesByCategory(calendarEventsByDate, 'bank-holiday')) {
+    publicHolidayDates.add(date);
+  }
 
   const recentWindowStart = addDays(input.weekStart, -RECENT_WINDOW_DAYS);
   const recentWindowEnd = addDays(input.weekEnd, RECENT_WINDOW_DAYS);

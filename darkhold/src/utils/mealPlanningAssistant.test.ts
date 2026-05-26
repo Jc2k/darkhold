@@ -100,6 +100,28 @@ describe('mealPlanningAssistant', () => {
     ).toBe(false);
   });
 
+  it('ignores context and bank-holiday events when detecting busy dinner days', () => {
+    expect(
+      isBusyDinnerDay(
+        [
+          {
+            name: 'All day context',
+            start: '2026-05-30',
+            allDay: true,
+            category: 'context',
+          },
+          {
+            name: 'Bank holiday',
+            start: '2026-05-30',
+            allDay: true,
+            category: 'bank-holiday',
+          },
+        ],
+        '18:00',
+      ),
+    ).toBe(false);
+  });
+
   it('detects good weather weekends and holidays only when conditions are dry and warm', () => {
     expect(
       isGoodWeatherDay(
@@ -134,6 +156,39 @@ describe('mealPlanningAssistant', () => {
         new Set<string>(),
       ),
     ).toBe(false);
+  });
+
+  it('treats bank-holiday calendar categories as public holidays for good-weather slots', () => {
+    const outdoorsRecipe = makeRecipe(1, 'Garden Skewers', [{ id: 12, name: 'Outdoors' }]);
+    const fallbackRecipe = makeRecipe(2, 'Pasta Bake', [{ id: 20, name: 'Pasta' }]);
+
+    const plan = buildMealAssistantPlan({
+      weekStart: new Date('2026-06-01T00:00:00'),
+      weekEnd: new Date('2026-06-07T00:00:00'),
+      emptyDinnerDates: ['2026-06-02'],
+      existingWeekMeals: [],
+      historicalMeals: [],
+      recipes: [outdoorsRecipe, fallbackRecipe],
+      calendarEventsByDate: {
+        '2026-06-02': [{ name: 'Bank holiday', start: '2026-06-02', allDay: true, category: 'bank-holiday' }],
+      },
+      weatherByDate: {
+        '2026-06-02': {
+          date: '2026-06-02',
+          weatherCode: 1,
+          tempMinC: 12,
+          tempMaxC: 24,
+          sunrise: '2026-06-02T05:00:00Z',
+          sunset: '2026-06-02T20:00:00Z',
+          precipitationSumMm: 0,
+          precipitationProbabilityMax: 10,
+        },
+      },
+      dinnerTime: '18:00',
+    });
+
+    expect(plan.slots[0]?.role).toBe('good-weather');
+    expect(plan.slots[0]?.selected.recipe.name).toBe('Garden Skewers');
   });
 
   it('fills empty slots with ranked meals and ranked alternatives', () => {
