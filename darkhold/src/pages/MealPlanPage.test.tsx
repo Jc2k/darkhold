@@ -24,7 +24,11 @@ vi.mock('@dnd-kit/core', async () => {
 
 import { MouseSensor, TouchSensor, type Collision } from '@dnd-kit/core';
 import { DroppableTableRow } from './DroppableTableRow';
-import { getDateMealTypeCollisionId, useMealPlanSensors } from './MealPlanPage';
+import {
+  getDateMealTypeCollisionId,
+  resolveDropTargetContainerId,
+  useMealPlanSensors,
+} from './MealPlanPage';
 
 function SensorHarness() {
   useMealPlanSensors();
@@ -162,5 +166,38 @@ describe('getDateMealTypeCollisionId', () => {
     const collisions = [{ id: '2026-05-25' }, { id: '2026-05-26__1' }] as Collision[];
 
     expect(getDateMealTypeCollisionId('2026-05-25', '2026-05-25__1', collisions)).toBeNull();
+  });
+});
+
+describe('resolveDropTargetContainerId', () => {
+  it('uses fallback sortable container when drag end has no over data container', () => {
+    expect(
+      resolveDropTargetContainerId({
+        overId: 123,
+        activeContainerId: '2026-05-25__1',
+        overSortableContainerId: null,
+        fallbackSortableContainerId: '2026-05-26__2',
+      }),
+    ).toBe('2026-05-26__2');
+  });
+
+  it('prefers meal-type collision when over id is day-only container id', () => {
+    const collisions = [{ id: '2026-05-26' }, { id: '2026-05-26__2' }] as Collision[];
+    expect(
+      resolveDropTargetContainerId({
+        overId: '2026-05-26',
+        activeContainerId: '2026-05-25__1',
+        collisions,
+      }),
+    ).toBe('2026-05-26__2');
+  });
+
+  it('returns null for entry-id over target without sortable container data', () => {
+    expect(
+      resolveDropTargetContainerId({
+        overId: 456,
+        activeContainerId: '2026-05-25__1',
+      }),
+    ).toBeNull();
   });
 });

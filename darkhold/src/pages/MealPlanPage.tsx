@@ -39,6 +39,7 @@ import {
   useDroppable,
   type Collision,
   type DragEndEvent,
+  type DragOverEvent,
   type DragStartEvent,
 } from '@dnd-kit/core';
 import { SortableContext, useSortable } from '@dnd-kit/sortable';
@@ -99,6 +100,10 @@ import { getMealPlanningAssistantDataQueryOptions } from '../hooks/useMealPlanni
 import { MealPlanAssistantModal } from '../components/MealPlanAssistantModal';
 
 type WithSortable = { sortable?: { containerId: string } } | undefined;
+type LastOverSnapshot = {
+  id: string | number;
+  sortableContainerId: string | null;
+};
 
 const noop = () => {};
 
@@ -335,6 +340,36 @@ export function getDateMealTypeCollisionId(
   return (
     collisions.map((collision) => String(collision.id)).find((id) => id.startsWith(prefix)) ?? null
   );
+}
+
+interface ResolveDropTargetContainerIdArgs {
+  overId: string | number;
+  activeContainerId: string;
+  collisions?: Collision[] | null;
+  overSortableContainerId?: string | null;
+  fallbackSortableContainerId?: string | null;
+}
+
+export function resolveDropTargetContainerId({
+  overId,
+  activeContainerId,
+  collisions,
+  overSortableContainerId,
+  fallbackSortableContainerId,
+}: ResolveDropTargetContainerIdArgs): string | null {
+  if (typeof overId === 'string') {
+    let targetContainerId = overId;
+    const { date, mealTypeId } = parseContainerId(targetContainerId);
+    if (mealTypeId == null) {
+      const collisionTargetId = getDateMealTypeCollisionId(date, activeContainerId, collisions);
+      if (collisionTargetId) {
+        targetContainerId = collisionTargetId;
+      }
+    }
+    return targetContainerId;
+  }
+
+  return overSortableContainerId ?? fallbackSortableContainerId ?? null;
 }
 
 interface PersistedMealAssistantSession {
@@ -1306,6 +1341,7 @@ export function MealPlanPage() {
   } | null>(null);
   const [isAssistantPlanning, setIsAssistantPlanning] = useState(false);
   const skipAssistantSessionPersist = useRef(false);
+  const lastOverSnapshotRef = useRef<LastOverSnapshot | null>(null);
   // Maps entry id -> optimistic target date for in-flight cross-day moves
   const [pendingMoves, setPendingMoves] = useState<Map<number, string>>(new Map());
   const hasPersonalToken = Boolean(localStorage.getItem('tandoor_token'));
@@ -1436,13 +1472,29 @@ export function MealPlanPage() {
   const activeEntry = activeId != null ? (allEntries.find((e) => e.id === activeId) ?? null) : null;
 
   const handleDragStart = (event: DragStartEvent) => {
+    lastOverSnapshotRef.current = null;
     setActiveId(event.active.id as number);
+  };
+
+  const handleDragOver = (event: DragOverEvent) => {
+    const over = event.over;
+    if (!over) return;
+    lastOverSnapshotRef.current = {
+      id: over.id as string | number,
+      sortableContainerId:
+        typeof over.id === 'number'
+          ? ((over.data.current as WithSortable)?.sortable?.containerId ?? null)
+          : null,
+    };
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveId(null);
-    if (!over) return;
+    const fallbackOverSnapshot = lastOverSnapshotRef.current;
+    lastOverSnapshotRef.current = null;
+    const overId = (over?.id as string | number | undefined) ?? fallbackOverSnapshot?.id;
+    if (overId == null) return;
     if (!hasPersonalToken) return;
 
     const activeEntryId = active.id as number;
@@ -1450,27 +1502,14 @@ export function MealPlanPage() {
 
     if (!activeContainerId) return;
 
-    // over.id is a string (dateKey) when dropped on a DroppableDay container,
-    // or a number (entry id) when dropped on a SortableEntry.
-    let targetContainerId: string;
-    if (typeof over.id === 'string') {
-      targetContainerId = over.id;
-      const { date, mealTypeId } = parseContainerId(targetContainerId);
-      if (mealTypeId == null) {
-        const collisionTargetId = getDateMealTypeCollisionId(
-          date,
-          activeContainerId,
-          event.collisions,
-        );
-        if (collisionTargetId) {
-          targetContainerId = collisionTargetId;
-        }
-      }
-    } else {
-      const overContainerId = (over.data.current as WithSortable)?.sortable?.containerId;
-      if (!overContainerId) return;
-      targetContainerId = overContainerId;
-    }
+    const targetContainerId = resolveDropTargetContainerId({
+      overId,
+      activeContainerId,
+      collisions: event.collisions,
+      overSortableContainerId: (over?.data.current as WithSortable)?.sortable?.containerId,
+      fallbackSortableContainerId: fallbackOverSnapshot?.sortableContainerId,
+    });
+    if (!targetContainerId) return;
 
     if (activeContainerId === targetContainerId) return;
 
@@ -1511,6 +1550,7 @@ export function MealPlanPage() {
   };
 
   const handleDragCancel = () => {
+    lastOverSnapshotRef.current = null;
     setActiveId(null);
   };
 
@@ -1756,6 +1796,7 @@ export function MealPlanPage() {
         sensors={sensors}
         collisionDetection={closestCenter}
         onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
         onDragCancel={handleDragCancel}
       >
