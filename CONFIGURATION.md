@@ -74,6 +74,21 @@ Times are displayed in the browser's local timezone. Recurring events (weekly st
 
 > **Privacy note**: Feed credentials and feed URLs (which may contain authentication tokens) are stored only in Home Assistant add-on options and are never exposed to the browser.
 
+## Meal Assistant Special Dates
+
+You can configure date-specific occasions in Home Assistant so the meal planning assistant prefers recipes tagged `special` on those dates and adds contextual messaging.
+
+```yaml
+meal_assistant_special_dates:
+  - date: "2026-05-30"
+    reason: "John's birthday"
+  - date: "2026-12-25"
+    reason: "Christmas Day"
+```
+
+On matching dates, the assistant uses a **Special day** flavour and context like:
+`Picked a special meal for John's birthday.`
+
 ### Finding your iCloud calendar URL
 
 iCloud can be connected in two ways:

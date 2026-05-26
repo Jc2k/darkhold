@@ -543,6 +543,38 @@ describe('mealPlanningAssistant', () => {
     expect(plan.slots[0]?.roleFlavourDetail).toContain('21 days');
   });
 
+  it('uses special-day flavour on configured dates and prefers recipes tagged special', () => {
+    const specialRecipe = makeRecipe(1, 'Birthday Roast', [{ id: 100, name: 'Special' }]);
+    const busyRecipe = makeRecipe(2, 'Quick Pasta', [{ id: 10, name: 'Busy' }]);
+
+    const plan = buildMealAssistantPlan({
+      weekStart: new Date('2026-05-25T00:00:00'),
+      weekEnd: new Date('2026-05-31T00:00:00'),
+      emptyDinnerDates: ['2026-05-26'],
+      existingWeekMeals: [],
+      historicalMeals: [],
+      recipes: [specialRecipe, busyRecipe],
+      calendarEventsByDate: {
+        '2026-05-26': [
+          {
+            name: 'Late appointment',
+            start: '2026-05-26T17:30:00',
+            end: '2026-05-26T19:30:00',
+            allDay: false,
+          },
+        ],
+      },
+      specialDateReasonsByDate: {
+        '2026-05-26': "John's birthday",
+      },
+      dinnerTime: '18:00',
+    });
+
+    expect(plan.slots[0]?.role).toBe('special-day');
+    expect(plan.slots[0]?.selected.recipe.name).toBe('Birthday Roast');
+    expect(plan.slots[0]?.roleFlavourDetail).toBe("Picked a special meal for John's birthday.");
+  });
+
   it('can swap the selected meal with one of the ranked alternatives', () => {
     const slot = {
       date: '2026-05-30',

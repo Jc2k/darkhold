@@ -42,6 +42,7 @@ const CATEGORY_ROLE_TAGS = {
 const GENERAL_DINNER_ROLE_LABEL = 'General dinner';
 
 export type MealAssistantRole =
+  | 'special-day'
   | 'busy-day'
   | 'good-weather'
   | 'takeaway'
@@ -93,6 +94,7 @@ export interface MealAssistantInput {
   weatherByDate?: WeatherByDate;
   publicHolidayDates?: string[];
   dinnerTime?: string | null;
+  specialDateReasonsByDate?: Record<string, string>;
 }
 
 interface ScoringContext {
@@ -372,6 +374,7 @@ function shuffleDeterministically<T>(values: T[], seedValue: string): T[] {
 }
 
 function roleLabel(role: MealAssistantRole): string {
+  if (role === 'special-day') return 'Special day';
   if (role === 'busy-day') return 'Busy day';
   if (role === 'good-weather') return 'Good weather day';
   if (role === 'takeaway') return 'Takeaway night';
@@ -387,7 +390,13 @@ function buildRoleFlavourDetail(
   weather: WeatherDayForecast | undefined,
   publicHolidayDates: Set<string>,
   dinnerTime: string | null | undefined,
+  specialDateReason: string | undefined,
 ): string {
+  if (role === 'special-day') {
+    if (specialDateReason) return `Picked a special meal for ${specialDateReason}.`;
+    return 'Picked a special meal for this special day.';
+  }
+
   if (role === 'busy-day') {
     const appointmentEvents = events.filter(
       (event) => (event.category ?? DEFAULT_EVENT_CATEGORY) === DEFAULT_EVENT_CATEGORY,
@@ -457,17 +466,25 @@ function buildSlotRoles(
   dinnerTime: string | null | undefined,
   shouldSuggestTakeaway: boolean,
   weekSeed: string,
+  specialDateReasonsByDate: ReadonlyMap<string, string>,
 ): SlotRole[] {
-  if (planType === 'lunch') {
-    return emptyDinnerDates
-      .map((date) => ({ date, role: 'general-lunch' as const }))
-      .sort((a, b) => a.date.localeCompare(b.date));
-  }
-
   const rolesByDate = new Map<string, MealAssistantRole>();
   const remainingDates = emptyDinnerDates.slice();
 
   for (const date of emptyDinnerDates) {
+    if (specialDateReasonsByDate.has(date)) {
+      rolesByDate.set(date, 'special-day');
+    }
+  }
+
+  if (planType === 'lunch') {
+    return emptyDinnerDates
+      .map((date) => ({ date, role: rolesByDate.get(date) ?? ('general-lunch' as const) }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }
+
+  for (const date of emptyDinnerDates) {
+    if (rolesByDate.has(date)) continue;
     const events = calendarEventsByDate[date] ?? [];
     if (isBusyDinnerDay(events, dinnerTime)) {
       rolesByDate.set(date, 'busy-day');
@@ -526,6 +543,9 @@ function recipeMatchesRole(
   keywordNameById: Record<number, string>,
 ): boolean {
   if (role === 'general-dinner' || role === 'general-lunch') return true;
+  if (role === 'special-day') {
+    return recipeHasFragment(recipe, ['special'], keywordNameById);
+  }
   if (role === 'busy-day') {
     return (
       recipeHasFragment(recipe, ['busy', 'quick', 'quickies'], keywordNameById) ||
@@ -557,7 +577,16 @@ function scoreRecipe(
   const season = parsedDate ? getSeasonKey(parsedDate) : '';
   const recipeKeywords = recipeKeywordSet(recipe, keywordNameById);
 
-  if (context.role === 'busy-day') {
+  if (context.role === 'special-day') {
+    if (recipeHasFragment(recipe, ['special'], keywordNameById)) {
+      components.push({
+        key: 'role-fit',
+        label: 'Special day pick',
+        score: 20,
+        detail: 'Tagged as a special recipe for a configured occasion.',
+      });
+    }
+  } else if (context.role === 'busy-day') {
     const busyMatched = recipeHasFragment(recipe, ['busy', 'quick', 'quickies'], keywordNameById);
     const takeawayMatched = isTakeawayRecipe(recipe, keywordNameById);
     if (busyMatched || takeawayMatched) {
@@ -752,6 +781,13 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
   const calendarEventsByDate = input.calendarEventsByDate ?? {};
   const weatherByDate = input.weatherByDate ?? {};
   const publicHolidayDates = new Set(input.publicHolidayDates ?? []);
+  const specialDateReasonsByDate = new Map(
+    Object.entries(input.specialDateReasonsByDate ?? {})
+      .map(([date, reason]) => [date.trim(), reason.trim()] as const)
+      .filter(
+        ([date, reason]) => date.length > 0 && reason.length > 0 && parseLocalDate(date) !== null,
+      ),
+  );
   for (const date of getCalendarEventDatesByCategory(calendarEventsByDate, 'bank-holiday')) {
     publicHolidayDates.add(date);
   }
@@ -810,6 +846,7 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
     input.dinnerTime,
     shouldSuggestTakeaway,
     formatDate(input.weekStart),
+    specialDateReasonsByDate,
   );
 
   const recipeDayCounts = buildHistoricalDayCounts(historicalPastMeals);
@@ -876,6 +913,7 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
         weatherByDate[slot.date],
         publicHolidayDates,
         input.dinnerTime,
+        specialDateReasonsByDate.get(slot.date),
       ),
       selected,
       alternatives: scoredCandidates.slice(1, 6),
