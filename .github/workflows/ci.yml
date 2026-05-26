@@ -71,7 +71,7 @@ jobs:
         run: docker run -d --name darkhold-test -p 8099:8099 darkhold-test
       - name: Wait for container and Deno backend to be ready
         run: |
-          for i in $(seq 1 60); do
+          for i in $(seq 1 180); do
             if curl -sf http://localhost:8099/ > /dev/null 2>&1 \
               && curl -sf 'http://localhost:8099/calendar-events?from=2025-01-01&to=2025-01-01' > /dev/null 2>&1; then
               echo "Container ready after ${i}s"
@@ -79,7 +79,7 @@ jobs:
             fi
             sleep 1
           done
-          echo "Container failed to start in time"
+          echo "Container failed to start in 180s"
           docker logs darkhold-test
           exit 1
       - name: Test SPA is served
