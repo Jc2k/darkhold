@@ -6,6 +6,7 @@ import type {
 } from '../hooks/useCalendarEvents';
 import type { WeatherByDate, WeatherDayForecast } from '../hooks/useWeatherForecast';
 import { formatDate, parseLocalDate } from './dateUtils';
+import { RECENTLY_ADDED_DAYS } from './recentRecipes';
 
 export const UNSUITABLE_DINNER_TAG_FRAGMENTS = [
   'drink',
@@ -25,7 +26,6 @@ const GOOD_WEATHER_MAX_PRECIP_MM = 0.5;
 const RECENT_WINDOW_DAYS = 14;
 const REGULAR_WINDOW_DAYS = 42;
 const TAKEAWAY_LOOKBACK_DAYS = 21;
-const RECENTLY_ADDED_DAYS = 30;
 const DEFAULT_EVENT_CATEGORY: CalendarEventCategory = 'appointment';
 const MIN_ACCEPTABLE_RATING = 1;
 const MIN_REGULAR_RECIPE_COUNT = 2;

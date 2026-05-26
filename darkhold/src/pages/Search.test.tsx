@@ -168,4 +168,27 @@ describe('Search', () => {
       }),
     );
   });
+
+  it('passes created_at_gte search params through with newest-first sorting', async () => {
+    act(() => {
+      root.render(
+        <MemoryRouter initialEntries={['/search?created_at_gte=2026-04-26']}>
+          <Routes>
+            <Route path="/search" element={<Search />} />
+          </Routes>
+        </MemoryRouter>,
+      );
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(useRecipeSearchMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        created_at_gte: '2026-04-26',
+        sort_order: '-created_at',
+      }),
+    );
+  });
 });

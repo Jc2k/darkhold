@@ -527,6 +527,8 @@ export function Dashboard() {
   }, []);
   const activeSeasons = getActiveSeasons(today);
   const todayStr = formatDate(today);
+  const recentlyAddedQueryParams = buildRecentlyAddedRecipeParams();
+  const recentlyAddedSearchLink = `/search?${new URLSearchParams(recentlyAddedQueryParams).toString()}`;
 
   const currentWeekStart = useMemo(() => getMealPlanWeekStartSaturday(today), [today]);
   const nextWeekStart = useMemo(() => addDays(currentWeekStart, 7), [currentWeekStart]);
@@ -571,7 +573,7 @@ export function Dashboard() {
 
   const recentlyAdded = useDashboardShelf(['recipes', 'recent'], () =>
     apiGet<PaginatedResponse<Recipe>>('/recipe/', {
-      ...buildRecentlyAddedRecipeParams(),
+      ...recentlyAddedQueryParams,
       page_size: 10,
     }),
   );
@@ -617,7 +619,7 @@ export function Dashboard() {
 
       <RecipeShelf
         title="🆕 Recently Added"
-        searchLink="/search?new=true&sort_order=-created_at"
+        searchLink={recentlyAddedSearchLink}
         recipes={recentlyAdded.data?.results ?? []}
         loading={recentlyAdded.isLoading}
         error={recentlyAdded.isError}

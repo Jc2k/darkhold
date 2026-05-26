@@ -172,7 +172,7 @@ describe('Dashboard', () => {
 
     const recentlyAddedLink = [...container.querySelectorAll('a')].find((link) => {
       const href = link.getAttribute('href');
-      return href?.includes('/search?new=true') && href.includes('sort_order=-created_at');
+      return href?.includes('/search?created_at_gte=') && href.includes('sort_order=-created_at');
     });
 
     expect(recentlyAddedLink?.textContent).toContain('See all');

@@ -10,6 +10,7 @@ interface SearchParams {
   page_size?: number;
   rating?: number;
   cooking_time__lte?: number;
+  created_at_gte?: string;
   new?: boolean;
   sort_order?: string;
 }
@@ -28,6 +29,7 @@ export function useRecipeSearch(params: SearchParams) {
           ? { cooking_time__lte: params.cooking_time__lte }
           : {}),
         ...(params.new ? buildRecentlyAddedRecipeParams() : {}),
+        ...(params.created_at_gte ? { created_at_gte: params.created_at_gte } : {}),
         ...(params.sort_order ? { sort_order: params.sort_order } : {}),
         page: pageParam as number,
       }),
