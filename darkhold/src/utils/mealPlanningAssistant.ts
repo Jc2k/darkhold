@@ -507,6 +507,10 @@ function buildRoleFlavourDetail(
     return `Takeaway hasn't come up in the last ${TAKEAWAY_LOOKBACK_DAYS} days.`;
   }
 
+  if (isCategoryRole(role)) {
+    return `Try to have at least one ${role} dish this week.`;
+  }
+
   if (role === 'general-lunch') {
     const isPublicHoliday = publicHolidayDates.has(date);
     if (isPublicHoliday) {

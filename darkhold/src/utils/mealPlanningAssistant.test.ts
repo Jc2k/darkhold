@@ -415,6 +415,9 @@ describe('mealPlanningAssistant', () => {
     expect(pastaPlan.slots.find((slot) => slot.role === 'pasta')?.selected.recipe.name).toBe(
       'Quick Pasta',
     );
+    expect(pastaPlan.slots.find((slot) => slot.role === 'pasta')?.roleFlavourDetail).toBe(
+      'Try to have at least one pasta dish this week.',
+    );
 
     const soyFreePlan = buildMealAssistantPlan({
       weekStart: new Date('2026-05-30T00:00:00'),
