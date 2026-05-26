@@ -124,6 +124,22 @@ describe('mealPlanningAssistant', () => {
     ).toBe(false);
   });
 
+  it('does not treat all-day appointments without times as busy dinner days', () => {
+    expect(
+      isBusyDinnerDay(
+        [
+          {
+            name: 'General reminder',
+            start: '2026-05-30',
+            allDay: true,
+            category: 'appointment',
+          },
+        ],
+        '18:00',
+      ),
+    ).toBe(false);
+  });
+
   it('detects good weather weekends and holidays only when conditions are dry and warm', () => {
     expect(
       isGoodWeatherDay(

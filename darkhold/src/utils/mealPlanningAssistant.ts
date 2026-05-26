@@ -255,7 +255,6 @@ export function isBusyDinnerDay(
   const dinnerWindowEnd = dinnerMinutes + DINNER_WINDOW_MINUTES;
 
   return appointmentEvents.some((event) => {
-    if (event.allDay) return true;
     const range = timedEventRangeInMinutes(event);
     if (!range) return false;
     const duration = Math.max(0, range.end - range.start);
@@ -470,7 +469,6 @@ function buildRoleFlavourDetail(
     const dinnerWindowStart = dinnerMinutes - DINNER_WINDOW_MINUTES;
     const dinnerWindowEnd = dinnerMinutes + DINNER_WINDOW_MINUTES;
     const triggeringEvents = appointmentEvents.filter((event) => {
-      if (event.allDay) return true;
       const range = timedEventRangeInMinutes(event);
       if (!range) return false;
       const duration = Math.max(0, range.end - range.start);
