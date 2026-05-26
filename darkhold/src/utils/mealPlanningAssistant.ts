@@ -94,7 +94,10 @@ export interface MealAssistantInput {
   weatherByDate?: WeatherByDate;
   publicHolidayDates?: string[];
   dinnerTime?: string | null;
-  specialDateReasonsByDate?: Record<string, string>;
+  specialDates?: Array<{
+    date: string;
+    reason: string;
+  }>;
 }
 
 interface ScoringContext {
@@ -782,8 +785,8 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
   const weatherByDate = input.weatherByDate ?? {};
   const publicHolidayDates = new Set(input.publicHolidayDates ?? []);
   const specialDateReasonsByDate = new Map(
-    Object.entries(input.specialDateReasonsByDate ?? {})
-      .map(([date, reason]) => [date.trim(), reason.trim()] as const)
+    (input.specialDates ?? [])
+      .map((entry) => [entry.date.trim(), entry.reason.trim()] as const)
       .filter(
         ([date, reason]) => date.length > 0 && reason.length > 0 && parseLocalDate(date) !== null,
       ),

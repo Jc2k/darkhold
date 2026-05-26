@@ -564,9 +564,7 @@ describe('mealPlanningAssistant', () => {
           },
         ],
       },
-      specialDateReasonsByDate: {
-        '2026-05-26': "John's birthday",
-      },
+      specialDates: [{ date: '2026-05-26', reason: "John's birthday" }],
       dinnerTime: '18:00',
     });
 
