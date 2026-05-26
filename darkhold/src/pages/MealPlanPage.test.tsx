@@ -25,6 +25,7 @@ vi.mock('@dnd-kit/core', async () => {
 import { MouseSensor, TouchSensor, type Collision } from '@dnd-kit/core';
 import { DroppableTableRow } from './DroppableTableRow';
 import {
+  getEmptyWeekendLunchDates,
   getDateMealTypeCollisionId,
   resolveDropTargetContainerId,
   useMealPlanSensors,
@@ -199,5 +200,28 @@ describe('resolveDropTargetContainerId', () => {
         activeContainerId: '2026-05-25__1',
       }),
     ).toBeNull();
+  });
+});
+
+describe('getEmptyWeekendLunchDates', () => {
+  it('returns empty lunch slots only for saturday and sunday', () => {
+    const days = [
+      new Date('2026-05-30T00:00:00Z'),
+      new Date('2026-05-31T00:00:00Z'),
+      new Date('2026-06-01T00:00:00Z'),
+    ];
+    const byDayAndMealType = {
+      '2026-05-30': { 2: [] },
+      '2026-05-31': { 2: [{ id: 1 }] },
+      '2026-06-01': { 2: [] },
+    } as unknown as Record<string, Record<number, unknown[]>>;
+
+    expect(
+      getEmptyWeekendLunchDates(
+        days,
+        byDayAndMealType as unknown as Record<string, Record<number, never[]>>,
+        2,
+      ),
+    ).toEqual(['2026-05-30']);
   });
 });

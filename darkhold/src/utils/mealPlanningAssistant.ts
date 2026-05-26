@@ -40,6 +40,7 @@ export type MealAssistantRole =
   | 'busy-day'
   | 'good-weather'
   | 'takeaway'
+  | 'general-lunch'
   | keyof typeof CATEGORY_ROLE_TAGS
   | 'general-dinner';
 
@@ -75,6 +76,7 @@ export interface MealAssistantInput {
   weekStart: Date;
   weekEnd: Date;
   emptyDinnerDates: string[];
+  planType?: 'dinner' | 'lunch';
   existingWeekMeals: MealPlan[];
   historicalMeals: MealPlan[];
   recipes: Recipe[];
@@ -166,6 +168,10 @@ function recipeMatchesCategoryRole(
   keywordNameById: Record<number, string>,
 ): boolean {
   return recipeHasFragment(recipe, CATEGORY_ROLE_TAGS[role], keywordNameById);
+}
+
+function isCategoryRole(role: MealAssistantRole): role is keyof typeof CATEGORY_ROLE_TAGS {
+  return role in CATEGORY_ROLE_TAGS;
 }
 
 function parseMealDate(entry: Pick<MealPlan, 'from_date'>): Date | null {
@@ -347,12 +353,14 @@ function roleLabel(role: MealAssistantRole): string {
   if (role === 'busy-day') return 'Busy day';
   if (role === 'good-weather') return 'Good weather day';
   if (role === 'takeaway') return 'Takeaway night';
+  if (role === 'general-lunch') return 'General lunch';
   if (role === 'general-dinner') return GENERAL_DINNER_ROLE_LABEL;
   return toTitleCase(role);
 }
 
 function buildSlotRoles(
   emptyDinnerDates: string[],
+  planType: 'dinner' | 'lunch',
   calendarEventsByDate: CalendarEventsByDate,
   weatherByDate: WeatherByDate,
   publicHolidayDates: Set<string>,
@@ -360,6 +368,12 @@ function buildSlotRoles(
   shouldSuggestTakeaway: boolean,
   weekSeed: string,
 ): SlotRole[] {
+  if (planType === 'lunch') {
+    return emptyDinnerDates
+      .map((date) => ({ date, role: 'general-lunch' as const }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }
+
   const rolesByDate = new Map<string, MealAssistantRole>();
   const remainingDates = emptyDinnerDates.slice();
 
@@ -405,10 +419,14 @@ function recipePassesBaseFilters(
   recipe: Recipe,
   keywordNameById: Record<number, string>,
   recentRecipeIds: Set<number>,
+  planType: 'dinner' | 'lunch',
 ): boolean {
   if (recipe.rating != null && recipe.rating <= MIN_ACCEPTABLE_RATING) return false;
   if (!recipe.image) return false;
   if (recentRecipeIds.has(recipe.id)) return false;
+  if (planType === 'lunch') {
+    return recipeHasKeywordFragment(recipe, ['lunch'], keywordNameById);
+  }
   return !recipeHasFragment(recipe, UNSUITABLE_DINNER_TAG_FRAGMENTS, keywordNameById);
 }
 
@@ -417,7 +435,7 @@ function recipeMatchesRole(
   role: MealAssistantRole,
   keywordNameById: Record<number, string>,
 ): boolean {
-  if (role === 'general-dinner') return true;
+  if (role === 'general-dinner' || role === 'general-lunch') return true;
   if (role === 'busy-day') {
     return (
       recipeHasFragment(recipe, ['busy', 'quick', 'quickies'], keywordNameById) ||
@@ -481,14 +499,8 @@ function scoreRecipe(
         detail: `Takeaway has been out of rotation for roughly ${TAKEAWAY_LOOKBACK_DAYS} days.`,
       });
     }
-  } else if (context.role !== 'general-dinner') {
-    if (
-      recipeMatchesCategoryRole(
-        recipe,
-        context.role as keyof typeof CATEGORY_ROLE_TAGS,
-        keywordNameById,
-      )
-    ) {
+  } else if (isCategoryRole(context.role)) {
+    if (recipeMatchesCategoryRole(recipe, context.role, keywordNameById)) {
       components.push({
         key: 'role-fit',
         label: 'Flavour role match',
@@ -643,6 +655,7 @@ export function swapMealAssistantSelection(
 }
 
 export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistantPlan {
+  const planType = input.planType ?? 'dinner';
   const keywordNameById = input.keywordNameById ?? {};
   const upSoonRecipeIds = new Set(input.upSoonRecipeIds ?? []);
   const recentAddedRecipeIds = new Set(input.recentAddedRecipeIds ?? []);
@@ -680,7 +693,7 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
   });
 
   const baseRecipes = input.recipes.filter((recipe) =>
-    recipePassesBaseFilters(recipe, keywordNameById, recentRecipeIds),
+    recipePassesBaseFilters(recipe, keywordNameById, recentRecipeIds, planType),
   );
   const recentTakeawayMeals = countRecipesWithinWindow(
     input.historicalMeals,
@@ -688,6 +701,7 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
     input.weekEnd,
   );
   const shouldSuggestTakeaway =
+    planType === 'dinner' &&
     baseRecipes.some((recipe) => isTakeawayRecipe(recipe, keywordNameById)) &&
     ![...recentTakeawayMeals.keys()].some((recipeId) => {
       const recipe = input.recipes.find((candidate) => candidate.id === recipeId);
@@ -696,6 +710,7 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
 
   const slotRoles = buildSlotRoles(
     input.emptyDinnerDates,
+    planType,
     calendarEventsByDate,
     weatherByDate,
     publicHolidayDates,
@@ -753,7 +768,7 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
     if (exactCandidates.length === 0 && !shouldSilentlyFallbackToGeneralDinner) {
       selected.warnings = [
         ...selected.warnings,
-        `No ${roleLabel(slot.role).toLowerCase()} recipes matched, so this slot fell back to the broader dinner pool.`,
+        `No ${roleLabel(slot.role).toLowerCase()} recipes matched, so this slot fell back to the broader ${planType} pool.`,
       ];
     }
 
