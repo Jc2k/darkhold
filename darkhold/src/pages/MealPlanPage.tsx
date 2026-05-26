@@ -67,7 +67,8 @@ import type {
   WeatherDisruptionBand,
 } from '../hooks/useWeatherForecast';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiGet } from '../api/client';
+import { apiGet, apiDelete } from '../api/client';
+import { broadcastInvalidation } from '../hooks/useInvalidationSocket';
 import type {
   MealPlan,
   Recipe,
@@ -1365,6 +1366,8 @@ export function MealPlanPage() {
     message: string;
   } | null>(null);
   const [isAssistantPlanning, setIsAssistantPlanning] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [isClearingWeek, setIsClearingWeek] = useState(false);
   const skipAssistantSessionPersist = useRef(false);
   const lastOverSnapshotRef = useRef<LastOverSnapshot | null>(null);
   const lastActiveContainerIdRef = useRef<string | null>(null);
@@ -1445,6 +1448,21 @@ export function MealPlanPage() {
   const handleDelete = (id: number) => {
     if (!hasPersonalToken) return;
     deleteMeal.mutate(id);
+  };
+
+  const handleClearWeek = async () => {
+    if (!hasPersonalToken || !data) return;
+    setIsClearingWeek(true);
+    try {
+      await Promise.all(data.results.map((entry) => apiDelete(`/meal-plan/${entry.id}/`)));
+      queryClient.invalidateQueries({ queryKey: ['meal-plan'] });
+      queryClient.invalidateQueries({ queryKey: ['shopping-list'] });
+      broadcastInvalidation('meal-plan');
+      broadcastInvalidation('shopping-list');
+    } finally {
+      setIsClearingWeek(false);
+      setShowClearConfirm(false);
+    }
   };
 
   const { data: mealTypesData } = useQuery({
@@ -1894,6 +1912,20 @@ export function MealPlanPage() {
               )}
               Assist
             </Button>
+            <Button
+              variant="danger"
+              style={{ minHeight: 44, padding: '0 1rem' }}
+              onClick={() => setShowClearConfirm(true)}
+              disabled={
+                !hasPersonalToken ||
+                isClearingWeek ||
+                isLoading ||
+                (data?.results.length ?? 0) === 0
+              }
+              aria-label="Clear week"
+            >
+              <Trash3 size={16} />
+            </Button>
           </div>
         </div>
         <Button
@@ -1990,6 +2022,27 @@ export function MealPlanPage() {
           setAssistantModalPlan(null);
         }}
       />
+      <Modal show={showClearConfirm} onHide={() => setShowClearConfirm(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title className="fs-6">Clear week?</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>This will permanently delete all meal plan entries for this week.</Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowClearConfirm(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            onClick={() => {
+              void handleClearWeek();
+            }}
+            disabled={isClearingWeek}
+          >
+            {isClearingWeek ? <Spinner size="sm" className="me-2" /> : null}
+            Clear week
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 }
