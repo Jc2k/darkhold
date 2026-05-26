@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { MealPlan, Recipe } from '../api/tandoor-types';
 import {
   buildMealAssistantPlan,
+  getCalendarEventDatesByCategory,
   getRecipeKeywordNames,
   isBusyDinnerDay,
   isGoodWeatherDay,
@@ -156,6 +157,28 @@ describe('mealPlanningAssistant', () => {
         new Set<string>(),
       ),
     ).toBe(false);
+  });
+
+  it('extracts dates by calendar event category', () => {
+    const byCategory = getCalendarEventDatesByCategory(
+      {
+        '2026-06-01': [
+          {
+            name: 'Meeting',
+            start: '2026-06-01T09:00:00Z',
+            allDay: false,
+            category: 'appointment',
+          },
+        ],
+        '2026-06-02': [
+          { name: 'Holiday', start: '2026-06-02', allDay: true, category: 'bank-holiday' },
+        ],
+        '2026-06-03': [{ name: 'Info', start: '2026-06-03', allDay: true, category: 'context' }],
+      },
+      'bank-holiday',
+    );
+    expect([...byCategory]).toEqual(['2026-06-02']);
+    expect(getCalendarEventDatesByCategory({}, 'appointment')).toEqual(new Set<string>());
   });
 
   it('treats bank-holiday calendar categories as public holidays for good-weather slots', () => {

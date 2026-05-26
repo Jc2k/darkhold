@@ -381,10 +381,10 @@ export function getEmptyWeekendLunchDates(
   days: Date[],
   byDayAndMealType: Record<string, Record<number, MealPlan[]>>,
   lunchMealTypeId: number | undefined,
-  publicHolidayDates: readonly string[] = [],
+  holidayDates: readonly string[] = [],
 ): string[] {
   if (!lunchMealTypeId) return [];
-  const holidaySet = new Set(publicHolidayDates);
+  const holidaySet = new Set(holidayDates);
   return days
     .filter((day) => {
       const dayNumber = day.getDay();
