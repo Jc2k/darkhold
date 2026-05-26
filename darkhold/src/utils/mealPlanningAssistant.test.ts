@@ -430,6 +430,119 @@ describe('mealPlanningAssistant', () => {
     expect(generalDinnerSlot?.selected.warnings).toEqual([]);
   });
 
+  it('attaches roleFlavourDetail describing the triggering appointment for busy-day slots', () => {
+    const quickRecipe = makeRecipe(1, 'Quick Noodles', [{ id: 10, name: 'Busy' }]);
+
+    const plan = buildMealAssistantPlan({
+      weekStart: new Date('2026-05-25T00:00:00'),
+      weekEnd: new Date('2026-05-31T00:00:00'),
+      emptyDinnerDates: ['2026-05-26'],
+      existingWeekMeals: [],
+      historicalMeals: [],
+      recipes: [quickRecipe],
+      calendarEventsByDate: {
+        '2026-05-26': [
+          {
+            name: 'Dentist appointment',
+            start: '2026-05-26T16:00:00',
+            end: '2026-05-26T18:30:00',
+            allDay: false,
+          },
+        ],
+      },
+      dinnerTime: '18:00',
+    });
+
+    expect(plan.slots[0]?.role).toBe('busy-day');
+    expect(plan.slots[0]?.roleFlavourDetail).toContain('Dentist appointment');
+  });
+
+  it('attaches roleFlavourDetail describing the weather and day type for good-weather slots', () => {
+    const outdoorsRecipe = makeRecipe(1, 'Garden Skewers', [{ id: 12, name: 'Outdoors' }]);
+
+    const plan = buildMealAssistantPlan({
+      weekStart: new Date('2026-05-25T00:00:00'),
+      weekEnd: new Date('2026-05-31T00:00:00'),
+      emptyDinnerDates: ['2026-05-30'],
+      existingWeekMeals: [],
+      historicalMeals: [],
+      recipes: [outdoorsRecipe],
+      weatherByDate: {
+        '2026-05-30': {
+          date: '2026-05-30',
+          weatherCode: 1,
+          tempMinC: 14,
+          tempMaxC: 26,
+          sunrise: '2026-05-30T05:00:00Z',
+          sunset: '2026-05-30T20:00:00Z',
+          precipitationSumMm: 0,
+          precipitationProbabilityMax: 5,
+        },
+      },
+      dinnerTime: '18:00',
+    });
+
+    expect(plan.slots[0]?.role).toBe('good-weather');
+    expect(plan.slots[0]?.roleFlavourDetail).toContain('26°');
+    expect(plan.slots[0]?.roleFlavourDetail).toContain('Saturday');
+  });
+
+  it('attaches roleFlavourDetail with bank holiday name for good-weather bank holiday slots', () => {
+    const outdoorsRecipe = makeRecipe(1, 'Garden Skewers', [{ id: 12, name: 'Outdoors' }]);
+
+    const plan = buildMealAssistantPlan({
+      weekStart: new Date('2026-05-25T00:00:00'),
+      weekEnd: new Date('2026-05-31T00:00:00'),
+      emptyDinnerDates: ['2026-05-26'],
+      existingWeekMeals: [],
+      historicalMeals: [],
+      recipes: [outdoorsRecipe],
+      calendarEventsByDate: {
+        '2026-05-26': [
+          {
+            name: 'Spring Bank Holiday',
+            start: '2026-05-26',
+            allDay: true,
+            category: 'bank-holiday',
+          },
+        ],
+      },
+      weatherByDate: {
+        '2026-05-26': {
+          date: '2026-05-26',
+          weatherCode: 1,
+          tempMinC: 14,
+          tempMaxC: 22,
+          sunrise: '2026-05-26T05:00:00Z',
+          sunset: '2026-05-26T20:00:00Z',
+          precipitationSumMm: 0,
+          precipitationProbabilityMax: 5,
+        },
+      },
+      dinnerTime: '18:00',
+    });
+
+    expect(plan.slots[0]?.role).toBe('good-weather');
+    expect(plan.slots[0]?.roleFlavourDetail).toContain('Spring Bank Holiday');
+  });
+
+  it('attaches roleFlavourDetail for takeaway slots', () => {
+    const takeawayRecipe = makeRecipe(1, 'Takeaway', [{ id: 15, name: 'Takeaway' }]);
+
+    const plan = buildMealAssistantPlan({
+      weekStart: new Date('2026-05-25T00:00:00'),
+      weekEnd: new Date('2026-05-31T00:00:00'),
+      emptyDinnerDates: ['2026-05-26'],
+      existingWeekMeals: [],
+      historicalMeals: [],
+      recipes: [takeawayRecipe],
+      dinnerTime: '18:00',
+    });
+
+    expect(plan.slots[0]?.role).toBe('takeaway');
+    expect(plan.slots[0]?.roleFlavourDetail).toContain('21 days');
+  });
+
   it('can swap the selected meal with one of the ranked alternatives', () => {
     const slot = {
       date: '2026-05-30',

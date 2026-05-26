@@ -39,6 +39,7 @@ describe('MealPlanAssistantModal', () => {
               date: '2026-05-30',
               role: 'busy-day',
               roleLabel: 'Busy day',
+              roleFlavourDetail: 'Busy because of: Long dentist appointment.',
               selected: {
                 recipe: { id: 1, name: 'Quick Noodles', created_by: 1, image: '/image.jpg' },
                 role: 'busy-day',
@@ -84,6 +85,7 @@ describe('MealPlanAssistantModal', () => {
     expect(document.body.textContent).not.toContain('2026-05-30');
     expect(document.body.textContent).toContain('Current meal');
     expect(document.body.textContent).toContain('Why it was selected');
+    expect(document.body.textContent).toContain('Busy because of: Long dentist appointment.');
     expect(document.body.textContent).toContain('Tagged for busy or quick dinners.');
     expect(document.body.textContent).toContain(
       'No busy-day recipes matched, so this slot fell back to the broader dinner pool.',
