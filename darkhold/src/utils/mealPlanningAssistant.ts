@@ -715,7 +715,10 @@ function scoreRecipe(
   }
 
   if (recipe.created_at) {
-    const createdDate = parseLocalDate(recipe.created_at.split('T')[0]);
+    const rawCreated = recipe.created_at.includes('T')
+      ? recipe.created_at.split('T')[0]
+      : recipe.created_at;
+    const createdDate = parseLocalDate(rawCreated);
     const slotDate = parseLocalDate(context.date);
     if (createdDate && slotDate) {
       const daysSinceAdded = Math.floor(
