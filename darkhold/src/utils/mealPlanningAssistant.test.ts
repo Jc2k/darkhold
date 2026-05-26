@@ -170,7 +170,9 @@ describe('mealPlanningAssistant', () => {
       historicalMeals: [],
       recipes: [outdoorsRecipe, fallbackRecipe],
       calendarEventsByDate: {
-        '2026-06-02': [{ name: 'Bank holiday', start: '2026-06-02', allDay: true, category: 'bank-holiday' }],
+        '2026-06-02': [
+          { name: 'Bank holiday', start: '2026-06-02', allDay: true, category: 'bank-holiday' },
+        ],
       },
       weatherByDate: {
         '2026-06-02': {

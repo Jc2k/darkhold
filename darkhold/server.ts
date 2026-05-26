@@ -55,7 +55,10 @@ export function parseICalFeeds(raw: string): ICalFeed[] {
       let category: 'appointment' | 'bank-holiday' | 'context' | undefined;
       if (rawCategory !== undefined) {
         if (typeof rawCategory !== 'string') return [];
-        const normalizedCategory = rawCategory.toLowerCase().trim().replaceAll(/[\s_]+/g, '-');
+        const normalizedCategory = rawCategory
+          .toLowerCase()
+          .trim()
+          .replaceAll(/[\s_]+/g, '-');
         if (
           normalizedCategory !== 'appointment' &&
           normalizedCategory !== 'bank-holiday' &&
@@ -272,7 +275,9 @@ export async function fetchFeedEvents(
   rangeEnd: Date,
 ): Promise<ParsedEvent[]> {
   const attachCategory = (events: ParsedEvent[]): ParsedEvent[] =>
-    feed.category === undefined ? events : events.map((event) => ({ ...event, category: feed.category }));
+    feed.category === undefined
+      ? events
+      : events.map((event) => ({ ...event, category: feed.category }));
   const auth = getBasicAuthHeader(feed);
 
   if (feed.type === 'caldav') {
