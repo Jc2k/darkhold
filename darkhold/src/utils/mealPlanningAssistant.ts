@@ -6,6 +6,7 @@ import type {
 } from '../hooks/useCalendarEvents';
 import type { WeatherByDate, WeatherDayForecast } from '../hooks/useWeatherForecast';
 import { formatDate, parseLocalDate } from './dateUtils';
+import { RECENTLY_ADDED_DAYS } from './recentRecipes';
 
 export const UNSUITABLE_DINNER_TAG_FRAGMENTS = [
   'drink',
@@ -92,7 +93,6 @@ export interface MealAssistantInput {
   recipes: Recipe[];
   keywordNameById?: Record<number, string>;
   upSoonRecipeIds?: Iterable<number>;
-  recentAddedRecipeIds?: Iterable<number>;
   calendarEventsByDate?: CalendarEventsByDate;
   weatherByDate?: WeatherByDate;
   publicHolidayDates?: string[];
@@ -108,7 +108,6 @@ interface ScoringContext {
   date: string;
   role: MealAssistantRole;
   upSoonRecipeIds: Set<number>;
-  recentAddedRecipeIds: Set<number>;
   regularRecipeIds: Set<number>;
   recipeDayCounts: Map<number, Map<number, number>>;
   recipeSeasonCounts: Map<number, Map<string, number>>;
@@ -715,13 +714,25 @@ function scoreRecipe(
     });
   }
 
-  if (context.recentAddedRecipeIds.has(recipe.id)) {
-    components.push({
-      key: 'recently-added',
-      label: 'Recently added',
-      score: 6,
-      detail: 'Still fresh enough to be worth trying soon.',
-    });
+  if (recipe.created_at) {
+    const rawCreated = recipe.created_at.includes('T')
+      ? recipe.created_at.split('T')[0]
+      : recipe.created_at;
+    const createdDate = parseLocalDate(rawCreated);
+    const slotDate = parseLocalDate(context.date);
+    if (createdDate && slotDate) {
+      const daysSinceAdded = Math.floor(
+        (slotDate.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24),
+      );
+      if (daysSinceAdded >= 0 && daysSinceAdded <= RECENTLY_ADDED_DAYS) {
+        components.push({
+          key: 'recently-added',
+          label: 'Recently added',
+          score: 6,
+          detail: 'Still fresh enough to be worth trying soon.',
+        });
+      }
+    }
   }
 
   const dayCount = context.recipeDayCounts.get(recipe.id)?.get(dateDay) ?? 0;
@@ -857,7 +868,6 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
   const planType = input.planType ?? 'dinner';
   const keywordNameById = input.keywordNameById ?? {};
   const upSoonRecipeIds = new Set(input.upSoonRecipeIds ?? []);
-  const recentAddedRecipeIds = new Set(input.recentAddedRecipeIds ?? []);
   const calendarEventsByDate = input.calendarEventsByDate ?? {};
   const weatherByDate = input.weatherByDate ?? {};
   const publicHolidayDates = new Set(input.publicHolidayDates ?? []);
@@ -974,7 +984,6 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
           date: slot.date,
           role: effectiveRole,
           upSoonRecipeIds,
-          recentAddedRecipeIds,
           regularRecipeIds,
           recipeDayCounts,
           recipeSeasonCounts,

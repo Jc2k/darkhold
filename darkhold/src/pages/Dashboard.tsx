@@ -16,6 +16,7 @@ import { useCookLog } from '../hooks/useCookLog';
 import { useMealPlan } from '../hooks/useMealPlan';
 import { smallCircleButtonStyle } from '../utils/buttonStyles';
 import { formatDate, getMealPlanWeekStartSaturday } from '../utils/dateUtils';
+import { buildRecentlyAddedRecipeParams } from '../utils/recentRecipes';
 
 function addDays(date: Date, numDays: number): Date {
   const result = new Date(date);
@@ -526,6 +527,11 @@ export function Dashboard() {
   }, []);
   const activeSeasons = getActiveSeasons(today);
   const todayStr = formatDate(today);
+  const recentlyAddedQueryParams = useMemo(() => buildRecentlyAddedRecipeParams(today), [today]);
+  const recentlyAddedSearchLink = useMemo(
+    () => `/search?${new URLSearchParams(recentlyAddedQueryParams).toString()}`,
+    [recentlyAddedQueryParams],
+  );
 
   const currentWeekStart = useMemo(() => getMealPlanWeekStartSaturday(today), [today]);
   const nextWeekStart = useMemo(() => addDays(currentWeekStart, 7), [currentWeekStart]);
@@ -569,7 +575,10 @@ export function Dashboard() {
   }
 
   const recentlyAdded = useDashboardShelf(['recipes', 'recent'], () =>
-    apiGet<PaginatedResponse<Recipe>>('/recipe/', { new: true, sort_order: '-id', page_size: 10 }),
+    apiGet<PaginatedResponse<Recipe>>('/recipe/', {
+      ...recentlyAddedQueryParams,
+      page_size: 10,
+    }),
   );
 
   const regulars = useRegularsShelf();
@@ -613,7 +622,7 @@ export function Dashboard() {
 
       <RecipeShelf
         title="🆕 Recently Added"
-        searchLink="/search?new=true&sort_order=-id"
+        searchLink={recentlyAddedSearchLink}
         recipes={recentlyAdded.data?.results ?? []}
         loading={recentlyAdded.isLoading}
         error={recentlyAdded.isError}

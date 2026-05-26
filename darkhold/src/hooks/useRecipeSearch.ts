@@ -1,6 +1,7 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { apiGet } from '../api/client';
 import type { Recipe, PaginatedResponse } from '../api/tandoor-types';
+import { buildRecentlyAddedRecipeParams } from '../utils/recentRecipes';
 
 interface SearchParams {
   query?: string;
@@ -9,6 +10,7 @@ interface SearchParams {
   page_size?: number;
   rating?: number;
   cooking_time__lte?: number;
+  created_at_gte?: string;
   new?: boolean;
   sort_order?: string;
 }
@@ -26,7 +28,8 @@ export function useRecipeSearch(params: SearchParams) {
         ...(params.cooking_time__lte !== undefined
           ? { cooking_time__lte: params.cooking_time__lte }
           : {}),
-        ...(params.new ? { new: true } : {}),
+        ...(params.new ? buildRecentlyAddedRecipeParams() : {}),
+        ...(params.created_at_gte ? { created_at_gte: params.created_at_gte } : {}),
         ...(params.sort_order ? { sort_order: params.sort_order } : {}),
         page: pageParam as number,
       }),

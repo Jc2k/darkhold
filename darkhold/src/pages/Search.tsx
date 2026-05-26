@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Form, Row, Col, Spinner, Alert, Button, Collapse } from 'react-bootstrap';
 import { useSearchParams } from 'react-router-dom';
 import { useRecipeSearch } from '../hooks/useRecipeSearch';
@@ -8,6 +8,7 @@ import { LoadingMascot } from '../components/LoadingMascot';
 import { AsyncTypeaheadFilter, type FilterOption } from '../components/AsyncTypeaheadFilter';
 import { apiGet, searchKeywords, searchFoods } from '../api/client';
 import type { Recipe } from '../api/tandoor-types';
+import { buildRecentlyAddedRecipeParams } from '../utils/recentRecipes';
 
 type ActiveFilter = 'tags' | 'ingredients';
 
@@ -89,8 +90,14 @@ export function Search() {
   const rating = ratingParam !== null ? Number(ratingParam) : undefined;
   const cookingTimeLteParam = searchParams.get('cooking_time__lte');
   const cookingTimeLte = cookingTimeLteParam !== null ? Number(cookingTimeLteParam) : undefined;
+  const createdAtGteParam = searchParams.get('created_at_gte') || undefined;
   const newOnly = searchParams.get('new') === 'true';
-  const sortOrder = searchParams.get('sort_order') || undefined;
+  const createdAtGte = useMemo(
+    () =>
+      createdAtGteParam || (newOnly ? buildRecentlyAddedRecipeParams().created_at_gte : undefined),
+    [createdAtGteParam, newOnly],
+  );
+  const sortOrder = searchParams.get('sort_order') || (createdAtGte ? '-created_at' : undefined);
 
   useEffect(() => {
     let cancelled = false;
@@ -156,7 +163,7 @@ export function Search() {
       foods: foodIds,
       rating,
       cooking_time__lte: cookingTimeLte,
-      new: newOnly,
+      created_at_gte: createdAtGte,
       sort_order: sortOrder,
     });
 
@@ -188,7 +195,7 @@ export function Search() {
     foodIds.length ||
     rating !== undefined ||
     cookingTimeLte !== undefined ||
-    newOnly
+    createdAtGte !== undefined
   );
 
   return (

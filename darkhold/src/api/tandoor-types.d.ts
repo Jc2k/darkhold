@@ -109,6 +109,7 @@ export interface Recipe {
   rating?: number | null;
   source_url?: string | null;
   created_by: number;
+  created_at?: string; // ISO 8601 datetime
 }
 
 /** Recipe step/instruction */
