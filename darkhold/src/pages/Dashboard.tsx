@@ -16,6 +16,7 @@ import { useCookLog } from '../hooks/useCookLog';
 import { useMealPlan } from '../hooks/useMealPlan';
 import { smallCircleButtonStyle } from '../utils/buttonStyles';
 import { formatDate, getMealPlanWeekStartSaturday } from '../utils/dateUtils';
+import { buildRecentlyAddedRecipeParams } from '../utils/recentRecipes';
 
 function addDays(date: Date, numDays: number): Date {
   const result = new Date(date);
@@ -569,7 +570,10 @@ export function Dashboard() {
   }
 
   const recentlyAdded = useDashboardShelf(['recipes', 'recent'], () =>
-    apiGet<PaginatedResponse<Recipe>>('/recipe/', { new: true, sort_order: '-id', page_size: 10 }),
+    apiGet<PaginatedResponse<Recipe>>('/recipe/', {
+      ...buildRecentlyAddedRecipeParams(),
+      page_size: 10,
+    }),
   );
 
   const regulars = useRegularsShelf();
@@ -613,7 +617,7 @@ export function Dashboard() {
 
       <RecipeShelf
         title="🆕 Recently Added"
-        searchLink="/search?new=true&sort_order=-id"
+        searchLink="/search?new=true&sort_order=-created_at"
         recipes={recentlyAdded.data?.results ?? []}
         loading={recentlyAdded.isLoading}
         error={recentlyAdded.isError}

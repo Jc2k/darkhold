@@ -130,6 +130,26 @@ describe('Dashboard', () => {
     expect(container.querySelector('a[href="/books/42"]')?.textContent).toContain('See all');
   });
 
+  it('links the Recently Added shelf to the created_at-based search', () => {
+    useUpSoonDataMock.mockReturnValue({
+      data: null,
+      isLoading: false,
+      isError: false,
+    });
+
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <Dashboard />
+        </MemoryRouter>,
+      );
+    });
+
+    expect(
+      container.querySelector('a[href="/search?new=true&sort_order=-created_at"]')?.textContent,
+    ).toContain('See all');
+  });
+
   it('sorts upcoming meals by meal type time for the same day', () => {
     useUpSoonDataMock.mockReturnValue({
       data: null,
