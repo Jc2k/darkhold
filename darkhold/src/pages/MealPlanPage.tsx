@@ -93,6 +93,7 @@ import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import { DroppableTableRow } from './DroppableTableRow';
 import {
   buildMealAssistantPlan,
+  getCalendarEventDatesByCategory,
   type MealAssistantSlotPlan,
   swapMealAssistantSelection,
 } from '../utils/mealPlanningAssistant';
@@ -380,12 +381,16 @@ export function getEmptyWeekendLunchDates(
   days: Date[],
   byDayAndMealType: Record<string, Record<number, MealPlan[]>>,
   lunchMealTypeId: number | undefined,
+  holidayDates: readonly string[] = [],
 ): string[] {
   if (!lunchMealTypeId) return [];
+  const holidaySet = new Set(holidayDates);
   return days
     .filter((day) => {
       const dayNumber = day.getDay();
-      return dayNumber === 0 || dayNumber === 6;
+      if (dayNumber === 0 || dayNumber === 6) return true;
+      const date = formatDate(day);
+      return holidaySet.has(date);
     })
     .map((day) => formatDate(day))
     .filter((date) => (byDayAndMealType[date]?.[lunchMealTypeId] ?? []).length === 0);
@@ -1660,10 +1665,15 @@ export function MealPlanPage() {
           .map((day) => formatDate(day))
           .filter((date) => (byDayAndMealType[date]?.[dinnerMealTypeId] ?? []).length === 0)
       : [];
+    const bankHolidayDates = getCalendarEventDatesByCategory(
+      calendarEventsByDate ?? {},
+      'bank-holiday',
+    );
     const emptyWeekendLunchDates = getEmptyWeekendLunchDates(
       days,
       byDayAndMealType,
       lunchMealTypeId,
+      [...bankHolidayDates],
     );
 
     setAssistantMode(true);
@@ -1697,6 +1707,7 @@ export function MealPlanPage() {
             recentAddedRecipeIds: assistantData.recentAddedRecipeIds,
             calendarEventsByDate,
             weatherByDate,
+            publicHolidayDates: [...bankHolidayDates],
             dinnerTime: dinnerMealType?.time,
           })
         : { slots: [], issues: [] };
@@ -1714,6 +1725,7 @@ export function MealPlanPage() {
             recentAddedRecipeIds: assistantData.recentAddedRecipeIds,
             calendarEventsByDate,
             weatherByDate,
+            publicHolidayDates: [...bankHolidayDates],
             dinnerTime: lunchMealType?.time,
           })
         : { slots: [], issues: [] };

@@ -13,6 +13,7 @@ interface ICalFeed {
   name: string;
   url: string;
   type?: 'ics' | 'caldav';
+  category?: 'appointment' | 'bank-holiday' | 'context';
   username?: string;
   password?: string;
 }
@@ -50,6 +51,24 @@ export function parseICalFeeds(raw: string): ICalFeed[] {
         type = normalizedType === 'caldav' ? 'caldav' : 'ics';
       }
 
+      const rawCategory = record.category == null ? undefined : record.category;
+      let category: 'appointment' | 'bank-holiday' | 'context' | undefined;
+      if (rawCategory !== undefined) {
+        if (typeof rawCategory !== 'string') return [];
+        const normalizedCategory = rawCategory
+          .toLowerCase()
+          .trim()
+          .replaceAll(/[\s_]+/g, '-');
+        if (
+          normalizedCategory !== 'appointment' &&
+          normalizedCategory !== 'bank-holiday' &&
+          normalizedCategory !== 'context'
+        ) {
+          return [];
+        }
+        category = normalizedCategory;
+      }
+
       const username = record.username == null ? undefined : record.username;
       if (username !== undefined && typeof username !== 'string') return [];
 
@@ -66,6 +85,7 @@ export function parseICalFeeds(raw: string): ICalFeed[] {
         url: record.url,
       };
       if (type !== undefined) feed.type = type;
+      if (category !== undefined) feed.category = category;
       if (username !== undefined) feed.username = username;
       if (password !== undefined) feed.password = password;
       return [feed];
@@ -100,6 +120,7 @@ export interface ParsedEvent {
   /** ISO 8601 UTC timestamp, or YYYY-MM-DD for all-day events; undefined when same as start */
   end?: string;
   allDay: boolean;
+  category?: 'appointment' | 'bank-holiday' | 'context';
 }
 
 function formatCalDavTimestamp(date: Date): string {
@@ -253,6 +274,10 @@ export async function fetchFeedEvents(
   rangeStart: Date,
   rangeEnd: Date,
 ): Promise<ParsedEvent[]> {
+  const attachCategory = (events: ParsedEvent[]): ParsedEvent[] =>
+    feed.category === undefined
+      ? events
+      : events.map((event) => ({ ...event, category: feed.category }));
   const auth = getBasicAuthHeader(feed);
 
   if (feed.type === 'caldav') {
@@ -269,7 +294,7 @@ export async function fetchFeedEvents(
       true,
     );
     let events = rangeFilteredCalendars.flatMap((cal) => parseIcal(cal, rangeStart, rangeEnd));
-    if (events.length > 0) return events;
+    if (events.length > 0) return attachCategory(events);
 
     // Some CalDAV servers omit recurring masters when filtering by time-range.
     // Fall back to an unbounded query and rely on local date filtering.
@@ -281,7 +306,7 @@ export async function fetchFeedEvents(
       false,
     );
     events = unfilteredCalendars.flatMap((cal) => parseIcal(cal, rangeStart, rangeEnd));
-    return events;
+    return attachCategory(events);
   }
 
   const headers: HeadersInit = {};
@@ -291,7 +316,7 @@ export async function fetchFeedEvents(
     throw formatFetchError('ICS fetch failed', res.status, await res.text());
   }
   const text = await res.text();
-  return parseIcal(text, rangeStart, rangeEnd);
+  return attachCategory(parseIcal(text, rangeStart, rangeEnd));
 }
 
 /** Maximum RRULE expansion iterations — prevents infinite loops on malformed data. */

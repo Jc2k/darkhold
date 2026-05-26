@@ -1,6 +1,8 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatDate } from '../utils/dateUtils';
 
+export type CalendarEventCategory = 'appointment' | 'bank-holiday' | 'context';
+
 export interface CalendarEvent {
   name: string;
   /** ISO 8601 UTC timestamp for timed events, or YYYY-MM-DD for all-day events */
@@ -8,6 +10,7 @@ export interface CalendarEvent {
   /** ISO 8601 UTC timestamp for timed events, or YYYY-MM-DD for all-day events */
   end?: string;
   allDay: boolean;
+  category?: CalendarEventCategory;
 }
 
 export interface CalendarFeedError {

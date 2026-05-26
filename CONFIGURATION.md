@@ -42,12 +42,19 @@ ical_feeds:
   - name: "Family"
     url: "https://p123-caldav.icloud.com/published/2/MTY..."
     type: "ics"
+    category: "bank-holiday"
   - name: "Work"
     url: "https://..."
     type: "ics"
+    category: "appointment"
+  - name: "School reminders"
+    url: "https://..."
+    type: "ics"
+    category: "context"
   - name: "iCloud private"
     url: "https://caldav.icloud.com/<dav-id>/calendars/<calendar-id>/"
     type: "caldav"
+    category: "appointment"
     username: "your-apple-id@example.com"
     password: "your-app-specific-password"
 ```
@@ -59,6 +66,11 @@ Events from all configured feeds appear in the meal plan view:
 Times are displayed in the browser's local timezone. Recurring events (weekly standups, anniversaries, etc.) are fully supported. Historical event data is cached indefinitely; present and future events are refreshed every 15 minutes or when you pull-to-refresh.
 
 `type` is optional and defaults to `"ics"`. `username` and `password` are optional and only used for authenticated ICS or CalDAV feeds.
+
+`category` is optional and defaults to appointment-like behavior when omitted. Supported values:
+- `"appointment"`: affects busy-day logic in the meal planning assistant.
+- `"bank-holiday"`: treated like weekend days by the meal planning assistant (good-weather and weekend lunch behavior).
+- `"context"`: shown in the planner UI but ignored by busy-day and holiday logic.
 
 > **Privacy note**: Feed credentials and feed URLs (which may contain authentication tokens) are stored only in Home Assistant add-on options and are never exposed to the browser.
 
