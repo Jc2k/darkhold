@@ -32,6 +32,24 @@ describe('fetchAppConfig', () => {
     expect(config).toEqual({ has_default_token: true });
   });
 
+  it('returns meal_assistant_special_dates when present in the response', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            meal_assistant_special_dates: [{ date: '2026-05-30', reason: "John's birthday" }],
+          }),
+      }),
+    );
+
+    const config = await fetchAppConfig();
+    expect(config).toEqual({
+      meal_assistant_special_dates: [{ date: '2026-05-30', reason: "John's birthday" }],
+    });
+  });
+
   it('returns empty object when the response is not ok', async () => {
     vi.stubGlobal(
       'fetch',

@@ -99,6 +99,7 @@ import {
 } from '../utils/mealPlanningAssistant';
 import { getMealPlanningAssistantDataQueryOptions } from '../hooks/useMealPlanningAssistantData';
 import { MealPlanAssistantModal } from '../components/MealPlanAssistantModal';
+import { useAppConfig } from '../hooks/useAppConfig';
 
 type WithSortable = { sortable?: { containerId: string } } | undefined;
 type LastOverSnapshot = {
@@ -1370,6 +1371,7 @@ export function MealPlanPage() {
   // Maps entry id -> optimistic target date for in-flight cross-day moves
   const [pendingMoves, setPendingMoves] = useState<Map<number, string>>(new Map());
   const hasPersonalToken = Boolean(localStorage.getItem('tandoor_token'));
+  const { meal_assistant_special_dates: configuredSpecialDates } = useAppConfig();
 
   const today = new Date();
   const currentWeekStart = getMealPlanWeekStartSaturday(today);
@@ -1709,6 +1711,7 @@ export function MealPlanPage() {
             weatherByDate,
             publicHolidayDates: [...bankHolidayDates],
             dinnerTime: dinnerMealType?.time,
+            specialDates: configuredSpecialDates,
           })
         : { slots: [], issues: [] };
       const lunchPlan = lunchMealTypeId
@@ -1727,6 +1730,7 @@ export function MealPlanPage() {
             weatherByDate,
             publicHolidayDates: [...bankHolidayDates],
             dinnerTime: lunchMealType?.time,
+            specialDates: configuredSpecialDates,
           })
         : { slots: [], issues: [] };
       const plansToCreate = [

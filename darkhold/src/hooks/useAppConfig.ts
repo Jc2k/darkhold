@@ -1,6 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 
 export interface AppConfig {
+  meal_assistant_special_dates?: Array<{
+    date: string;
+    reason: string;
+  }>;
   tandoor_external_url?: string;
   /** True when the server has a default token configured and nginx will inject
    *  it for requests that carry no personal token.  The SPA uses this to skip

@@ -32,6 +32,7 @@ options:
   weather_latitude: 51.5072
   weather_longitude: -0.1276
   weather_timezone: 'Europe/London'
+  meal_assistant_special_dates: []
 
 schema:
   tandoor_url: 'str'
@@ -47,3 +48,6 @@ schema:
   weather_latitude: 'float?'
   weather_longitude: 'float?'
   weather_timezone: 'str?'
+  meal_assistant_special_dates:
+    - date: 'str'
+      reason: 'str'

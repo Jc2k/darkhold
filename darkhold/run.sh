@@ -9,6 +9,7 @@ ICAL_FEEDS="[]"
 WEATHER_LATITUDE=""
 WEATHER_LONGITUDE=""
 WEATHER_TIMEZONE="Europe/London"
+MEAL_ASSISTANT_SPECIAL_DATES="[]"
 
 if [ -f "$OPTIONS_FILE" ]; then
     TANDOOR_URL=$(jq -r '.tandoor_url // empty' "$OPTIONS_FILE")
@@ -18,6 +19,7 @@ if [ -f "$OPTIONS_FILE" ]; then
     WEATHER_LATITUDE=$(jq -r '.weather_latitude // empty' "$OPTIONS_FILE")
     WEATHER_LONGITUDE=$(jq -r '.weather_longitude // empty' "$OPTIONS_FILE")
     WEATHER_TIMEZONE=$(jq -r '.weather_timezone // "Europe/London"' "$OPTIONS_FILE")
+    MEAL_ASSISTANT_SPECIAL_DATES=$(jq -c '.meal_assistant_special_dates // []' "$OPTIONS_FILE")
 fi
 
 if [ -z "$TANDOOR_URL" ]; then
@@ -41,9 +43,11 @@ envsubst '${TANDOOR_URL} ${TANDOOR_DEFAULT_TOKEN}' \
 jq -n \
     --arg url "$TANDOOR_EXTERNAL_URL" \
     --argjson has_default "$([ -n "$TANDOOR_DEFAULT_TOKEN" ] && echo 'true' || echo 'false')" \
+    --argjson special_dates "$MEAL_ASSISTANT_SPECIAL_DATES" \
     '{} |
      if $url != "" then . + {"tandoor_external_url": $url} else . end |
-     if $has_default then . + {"has_default_token": true} else . end' \
+     if $has_default then . + {"has_default_token": true} else . end |
+     if ($special_dates | length) > 0 then . + {"meal_assistant_special_dates": $special_dates} else . end' \
     > /usr/share/nginx/html/app-config.json
 
 # Start WebSocket broadcast server in background
