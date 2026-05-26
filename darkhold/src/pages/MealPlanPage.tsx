@@ -1480,7 +1480,7 @@ export function MealPlanPage() {
     const over = event.over;
     if (!over) return;
     lastOverSnapshotRef.current = {
-      id: over.id as string | number,
+      id: over.id,
       sortableContainerId:
         typeof over.id === 'number'
           ? ((over.data.current as WithSortable)?.sortable?.containerId ?? null)
@@ -1493,7 +1493,7 @@ export function MealPlanPage() {
     setActiveId(null);
     const fallbackOverSnapshot = lastOverSnapshotRef.current;
     lastOverSnapshotRef.current = null;
-    const overId = (over?.id as string | number | undefined) ?? fallbackOverSnapshot?.id;
+    const overId = over?.id ?? fallbackOverSnapshot?.id;
     if (overId == null) return;
     if (!hasPersonalToken) return;
 
