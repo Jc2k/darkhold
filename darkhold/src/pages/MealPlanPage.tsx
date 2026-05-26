@@ -386,12 +386,13 @@ export function getEmptyWeekendLunchDates(
   if (!lunchMealTypeId) return [];
   const holidaySet = new Set(publicHolidayDates);
   return days
-    .map((day) => ({ day, date: formatDate(day) }))
-    .filter(({ day, date }) => {
+    .filter((day) => {
       const dayNumber = day.getDay();
-      return dayNumber === 0 || dayNumber === 6 || holidaySet.has(date);
+      if (dayNumber === 0 || dayNumber === 6) return true;
+      const date = formatDate(day);
+      return holidaySet.has(date);
     })
-    .map(({ date }) => date)
+    .map((day) => formatDate(day))
     .filter((date) => (byDayAndMealType[date]?.[lunchMealTypeId] ?? []).length === 0);
 }
 

@@ -25,6 +25,7 @@ const GOOD_WEATHER_MAX_PRECIP_MM = 0.5;
 const RECENT_WINDOW_DAYS = 14;
 const REGULAR_WINDOW_DAYS = 42;
 const TAKEAWAY_LOOKBACK_DAYS = 21;
+const DEFAULT_EVENT_CATEGORY: CalendarEventCategory = 'appointment';
 const MIN_ACCEPTABLE_RATING = 1;
 const MIN_REGULAR_RECIPE_COUNT = 2;
 const SAME_CATEGORY_PENALTY_THRESHOLD = 2;
@@ -216,7 +217,7 @@ export function isBusyDinnerDay(
   dinnerTime: string | null | undefined,
 ): boolean {
   const busyRelevantEvents = events.filter(
-    (event) => (event.category ?? 'appointment') === 'appointment',
+    (event) => (event.category ?? DEFAULT_EVENT_CATEGORY) === DEFAULT_EVENT_CATEGORY,
   );
   if (busyRelevantEvents.length === 0) return false;
   const dinnerMinutes = parseTimeToMinutes(dinnerTime);
