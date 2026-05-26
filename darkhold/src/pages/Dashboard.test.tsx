@@ -136,6 +136,31 @@ describe('Dashboard', () => {
       isLoading: false,
       isError: false,
     });
+    useQueryMock.mockImplementation(({ queryKey }: { queryKey: string[] }) => {
+      if (queryKey[0] === 'recipes' && queryKey[1] === 'recent') {
+        return {
+          data: {
+            results: [{ id: 50, name: 'Fresh Soup', created_by: 1, keywords: [], image: null }],
+          },
+          isLoading: false,
+          isError: false,
+        };
+      }
+
+      if (
+        queryKey[0] === 'recipes' ||
+        queryKey[0] === 'meal-plan' ||
+        queryKey[0] === 'recently-viewed'
+      ) {
+        return { data: { results: [] }, isLoading: false, isError: false };
+      }
+
+      if (queryKey[0] === 'keywords') {
+        return { data: null, isLoading: false, isError: false };
+      }
+
+      return { data: undefined, isLoading: false, isError: false };
+    });
 
     act(() => {
       root.render(
@@ -145,9 +170,12 @@ describe('Dashboard', () => {
       );
     });
 
-    expect(
-      container.querySelector('a[href="/search?new=true&sort_order=-created_at"]')?.textContent,
-    ).toContain('See all');
+    const recentlyAddedLink = [...container.querySelectorAll('a')].find((link) => {
+      const href = link.getAttribute('href');
+      return href?.includes('/search?new=true') && href.includes('sort_order=-created_at');
+    });
+
+    expect(recentlyAddedLink?.textContent).toContain('See all');
   });
 
   it('sorts upcoming meals by meal type time for the same day', () => {

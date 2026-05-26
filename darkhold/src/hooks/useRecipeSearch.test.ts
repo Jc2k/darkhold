@@ -19,7 +19,6 @@ describe('useRecipeSearch', () => {
   beforeEach(() => {
     apiGetMock.mockReset();
     useInfiniteQueryMock.mockReset();
-    useInfiniteQueryMock.mockImplementation((options) => options);
   });
 
   afterEach(() => {
@@ -30,9 +29,15 @@ describe('useRecipeSearch', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-05-26T14:15:00Z'));
 
-    const query = useRecipeSearch({ new: true });
+    let capturedOptions: { queryFn: ({ pageParam }: { pageParam?: unknown }) => Promise<unknown> };
+    useInfiniteQueryMock.mockImplementation((options) => {
+      capturedOptions = options;
+      return { data: undefined };
+    });
 
-    await query.queryFn({ pageParam: 2 });
+    useRecipeSearch({ new: true });
+
+    await capturedOptions!.queryFn({ pageParam: 2 });
 
     expect(apiGetMock).toHaveBeenCalledWith('/recipe/', {
       created_at_gte: '2026-04-26',
@@ -45,9 +50,15 @@ describe('useRecipeSearch', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-05-26T14:15:00Z'));
 
-    const query = useRecipeSearch({ new: true, sort_order: '-id' });
+    let capturedOptions: { queryFn: ({ pageParam }: { pageParam?: unknown }) => Promise<unknown> };
+    useInfiniteQueryMock.mockImplementation((options) => {
+      capturedOptions = options;
+      return { data: undefined };
+    });
 
-    await query.queryFn({ pageParam: 1 });
+    useRecipeSearch({ new: true, sort_order: '-id' });
+
+    await capturedOptions!.queryFn({ pageParam: 1 });
 
     expect(apiGetMock).toHaveBeenCalledWith('/recipe/', {
       created_at_gte: '2026-04-26',
