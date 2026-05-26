@@ -68,6 +68,7 @@ export interface MealAssistantSlotPlan {
   date: string;
   role: MealAssistantRole;
   roleLabel: string;
+  roleFlavourDetail?: string;
   selected: MealAssistantCandidateAnalysis;
   alternatives: MealAssistantCandidateAnalysis[];
 }
@@ -377,6 +378,74 @@ function roleLabel(role: MealAssistantRole): string {
   if (role === 'general-lunch') return 'General lunch';
   if (role === 'general-dinner') return GENERAL_DINNER_ROLE_LABEL;
   return toTitleCase(role);
+}
+
+function buildRoleFlavourDetail(
+  date: string,
+  role: MealAssistantRole,
+  events: CalendarEvent[],
+  weather: WeatherDayForecast | undefined,
+  publicHolidayDates: Set<string>,
+  dinnerTime: string | null | undefined,
+): string {
+  if (role === 'busy-day') {
+    const appointmentEvents = events.filter(
+      (event) => (event.category ?? DEFAULT_EVENT_CATEGORY) === DEFAULT_EVENT_CATEGORY,
+    );
+    const dinnerMinutes = parseTimeToMinutes(dinnerTime);
+    const dinnerWindowStart = dinnerMinutes - DINNER_WINDOW_MINUTES;
+    const dinnerWindowEnd = dinnerMinutes + DINNER_WINDOW_MINUTES;
+    const triggeringEvents = appointmentEvents.filter((event) => {
+      if (event.allDay) return true;
+      const range = timedEventRangeInMinutes(event);
+      if (!range) return false;
+      const duration = Math.max(0, range.end - range.start);
+      if (duration >= LONG_EVENT_THRESHOLD_MINUTES) return true;
+      return range.start < dinnerWindowEnd && range.end > dinnerWindowStart;
+    });
+    const allNames = [...new Set(triggeringEvents.map((e) => e.name).filter(Boolean))];
+    const names = allNames.slice(0, 2);
+    const remainder = allNames.length - names.length;
+    if (names.length === 1 && remainder === 0) return `Busy because of: ${names[0]}.`;
+    if (names.length > 1 && remainder === 0) return `Busy because of: ${names.join(' and ')}.`;
+    if (names.length > 0 && remainder > 0)
+      return `Busy because of: ${names.join(', ')} and ${remainder} more.`;
+    return 'Appointments make this a busy evening.';
+  }
+
+  if (role === 'good-weather') {
+    const isPublicHoliday = publicHolidayDates.has(date);
+    const parsed = parseLocalDate(date);
+    let dayType: string;
+    if (isPublicHoliday) {
+      const bankHolidayName = events.find((e) => e.category === 'bank-holiday')?.name;
+      dayType = bankHolidayName ?? 'bank holiday';
+    } else if (parsed?.getDay() === 0) {
+      dayType = 'Sunday';
+    } else {
+      dayType = 'Saturday';
+    }
+    const tempStr = weather ? `${Math.round(weather.tempMaxC)}°` : 'pleasant';
+    return `Good weather on a ${dayType} – ${tempStr} and low chance of rain.`;
+  }
+
+  if (role === 'takeaway') {
+    return `Takeaway hasn't come up in the last ${TAKEAWAY_LOOKBACK_DAYS} days.`;
+  }
+
+  if (role === 'general-lunch') {
+    const isPublicHoliday = publicHolidayDates.has(date);
+    if (isPublicHoliday) {
+      const bankHolidayName = events.find((e) => e.category === 'bank-holiday')?.name;
+      return bankHolidayName ? `It's ${bankHolidayName}.` : "It's a bank holiday.";
+    }
+    const parsed = parseLocalDate(date);
+    const day = parsed?.getDay();
+    if (day === 0 || day === 6) return "It's the weekend.";
+    return '';
+  }
+
+  return '';
 }
 
 function buildSlotRoles(
@@ -800,6 +869,14 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
       date: slot.date,
       role: effectiveRole,
       roleLabel: roleLabel(effectiveRole),
+      roleFlavourDetail: buildRoleFlavourDetail(
+        slot.date,
+        effectiveRole,
+        calendarEventsByDate[slot.date] ?? [],
+        weatherByDate[slot.date],
+        publicHolidayDates,
+        input.dinnerTime,
+      ),
       selected,
       alternatives: scoredCandidates.slice(1, 6),
     });

@@ -141,6 +141,9 @@ export function MealPlanAssistantModal({
 
         <section className="mb-4">
           <h6 className="mb-2">Why it was selected</h6>
+          {analysis.roleFlavourDetail && (
+            <p className="text-muted small mb-2">{analysis.roleFlavourDetail}</p>
+          )}
           {selectedReasons.length === 0 ? (
             <p className="text-muted small mb-0">
               This meal won mainly because other candidates scored lower.
