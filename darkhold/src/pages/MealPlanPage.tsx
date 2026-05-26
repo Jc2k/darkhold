@@ -1361,6 +1361,7 @@ export function MealPlanPage() {
   const [isAssistantPlanning, setIsAssistantPlanning] = useState(false);
   const skipAssistantSessionPersist = useRef(false);
   const lastOverSnapshotRef = useRef<LastOverSnapshot | null>(null);
+  const lastActiveContainerIdRef = useRef<string | null>(null);
   // Maps entry id -> optimistic target date for in-flight cross-day moves
   const [pendingMoves, setPendingMoves] = useState<Map<number, string>>(new Map());
   const hasPersonalToken = Boolean(localStorage.getItem('tandoor_token'));
@@ -1496,6 +1497,8 @@ export function MealPlanPage() {
 
   const handleDragStart = (event: DragStartEvent) => {
     lastOverSnapshotRef.current = null;
+    lastActiveContainerIdRef.current =
+      (event.active.data.current as WithSortable)?.sortable?.containerId ?? null;
     setActiveId(event.active.id as number);
   };
 
@@ -1518,11 +1521,16 @@ export function MealPlanPage() {
     if (!hasPersonalToken) return;
 
     const activeEntryId = active.id as number;
-    const activeContainerId = (active.data.current as WithSortable)?.sortable?.containerId;
+    // active.data.current may be empty if the node unmounted during the drag
+    // (dnd-kit falls back to defaultData in that case), so use the value cached
+    // at drag-start as a reliable fallback.
+    const activeContainerId =
+      (active.data.current as WithSortable)?.sortable?.containerId ??
+      lastActiveContainerIdRef.current;
 
     if (!activeContainerId) return;
 
-    const targetContainerId = resolveDropTargetContainerId({
+    let targetContainerId = resolveDropTargetContainerId({
       overId,
       activeContainerId,
       collisions: event.collisions,
@@ -1530,6 +1538,23 @@ export function MealPlanPage() {
       fallbackSortableContainerId: fallbackOverSnapshot?.sortableContainerId,
     });
     if (!targetContainerId) return;
+
+    // On touch devices (e.g. iPad), dragEnd can fire with `over` drifted back
+    // to the source container because the touchend coordinates differ from the
+    // last touchmove. If the primary resolution resolves to the source, retry
+    // using the snapshot captured during the last valid dragOver event.
+    if (targetContainerId === activeContainerId && fallbackOverSnapshot != null) {
+      const snapshotContainerId = resolveDropTargetContainerId({
+        overId: fallbackOverSnapshot.id,
+        activeContainerId,
+        collisions: event.collisions,
+        overSortableContainerId: null,
+        fallbackSortableContainerId: fallbackOverSnapshot.sortableContainerId,
+      });
+      if (snapshotContainerId != null && snapshotContainerId !== activeContainerId) {
+        targetContainerId = snapshotContainerId;
+      }
+    }
 
     if (activeContainerId === targetContainerId) return;
 
