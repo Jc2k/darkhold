@@ -1454,11 +1454,25 @@ export function MealPlanPage() {
     if (!hasPersonalToken || !data) return;
     setIsClearingWeek(true);
     try {
-      await Promise.all(data.results.map((entry) => apiDelete(`/meal-plan/${entry.id}/`)));
+      const results = await Promise.allSettled(
+        data.results.map((entry) => apiDelete(`/meal-plan/${entry.id}/`)),
+      );
+      const failed = results.filter((r) => r.status === 'rejected').length;
       queryClient.invalidateQueries({ queryKey: ['meal-plan'] });
       queryClient.invalidateQueries({ queryKey: ['shopping-list'] });
       broadcastInvalidation('meal-plan');
       broadcastInvalidation('shopping-list');
+      if (failed > 0) {
+        setAssistantFeedback({
+          variant: 'danger',
+          message: `Failed to delete ${failed} meal plan entr${failed === 1 ? 'y' : 'ies'}. Please try again.`,
+        });
+      }
+    } catch {
+      setAssistantFeedback({
+        variant: 'danger',
+        message: 'Failed to clear the week. Please try again.',
+      });
     } finally {
       setIsClearingWeek(false);
       setShowClearConfirm(false);
@@ -2038,8 +2052,14 @@ export function MealPlanPage() {
             }}
             disabled={isClearingWeek}
           >
-            {isClearingWeek ? <Spinner size="sm" className="me-2" /> : null}
-            Clear week
+            {isClearingWeek ? (
+              <>
+                <Spinner size="sm" className="me-2" />
+                Clearing…
+              </>
+            ) : (
+              'Clear week'
+            )}
           </Button>
         </Modal.Footer>
       </Modal>
