@@ -31,6 +31,7 @@ interface WeatherConfig {
 
 const MAX_ERROR_RESPONSE_LENGTH = 200;
 const DEFAULT_WEATHER_TIMEZONE = 'Europe/London';
+const OPEN_METEO_MAX_FORECAST_DAYS = 16;
 const CALDAV_NAMESPACE_PREFIX = 'c';
 export function parseICalFeeds(raw: string): ICalFeed[] {
   try {
@@ -481,17 +482,43 @@ export function parseOpenMeteoDaily(daily: OpenMeteoDaily): WeatherDayForecast[]
   });
 }
 
+function formatUtcDate(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+export function clampWeatherForecastRange(
+  fromDate: string,
+  toDate: string,
+  today = new Date(),
+): { fromDate: string; toDate: string } | null {
+  const maxForecastDate = new Date(
+    Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()),
+  );
+  maxForecastDate.setUTCDate(maxForecastDate.getUTCDate() + OPEN_METEO_MAX_FORECAST_DAYS - 1);
+  const maxForecastDateStr = formatUtcDate(maxForecastDate);
+
+  if (fromDate > maxForecastDateStr) return null;
+
+  return {
+    fromDate,
+    toDate: toDate > maxForecastDateStr ? maxForecastDateStr : toDate,
+  };
+}
+
 async function fetchWeatherForecast(
   config: WeatherConfig,
   fromDate: string,
   toDate: string,
 ): Promise<WeatherDayForecast[]> {
+  const clampedRange = clampWeatherForecastRange(fromDate, toDate);
+  if (!clampedRange) return [];
+
   const url = new URL('https://api.open-meteo.com/v1/forecast');
   url.searchParams.set('latitude', String(config.latitude));
   url.searchParams.set('longitude', String(config.longitude));
   url.searchParams.set('timezone', config.timezone);
-  url.searchParams.set('start_date', fromDate);
-  url.searchParams.set('end_date', toDate);
+  url.searchParams.set('start_date', clampedRange.fromDate);
+  url.searchParams.set('end_date', clampedRange.toDate);
   url.searchParams.set(
     'daily',
     [

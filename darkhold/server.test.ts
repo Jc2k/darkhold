@@ -5,7 +5,13 @@
  * spinning up a full HTTP server, keeping them fast and dependency-free.
  */
 
-import { fetchFeedEvents, parseOpenMeteoDaily, parseIcal, parseICalFeeds } from './server.ts';
+import {
+  clampWeatherForecastRange,
+  fetchFeedEvents,
+  parseOpenMeteoDaily,
+  parseIcal,
+  parseICalFeeds,
+} from './server.ts';
 
 // ---------------------------------------------------------------------------
 // Minimal WebSocket stub used by the broadcast tests
@@ -752,3 +758,40 @@ Deno.test('parseOpenMeteoDaily skips entries with incomplete data', () => {
 
   if (days.length !== 0) throw new Error(`expected 0 days, got ${days.length}`);
 });
+
+Deno.test('clampWeatherForecastRange leaves in-range weather requests unchanged', () => {
+  const range = clampWeatherForecastRange(
+    '2026-05-01',
+    '2026-05-07',
+    new Date('2026-05-01T12:00:00Z'),
+  );
+
+  if (!range) throw new Error('expected range');
+  if (range.fromDate !== '2026-05-01') throw new Error(`unexpected start date: ${range.fromDate}`);
+  if (range.toDate !== '2026-05-07') throw new Error(`unexpected end date: ${range.toDate}`);
+});
+
+Deno.test('clampWeatherForecastRange trims weather requests to the Open-Meteo horizon', () => {
+  const range = clampWeatherForecastRange(
+    '2026-05-10',
+    '2026-05-25',
+    new Date('2026-05-01T12:00:00Z'),
+  );
+
+  if (!range) throw new Error('expected range');
+  if (range.fromDate !== '2026-05-10') throw new Error(`unexpected start date: ${range.fromDate}`);
+  if (range.toDate !== '2026-05-16') throw new Error(`unexpected end date: ${range.toDate}`);
+});
+
+Deno.test(
+  'clampWeatherForecastRange skips weather requests entirely beyond the Open-Meteo horizon',
+  () => {
+    const range = clampWeatherForecastRange(
+      '2026-05-17',
+      '2026-05-25',
+      new Date('2026-05-01T12:00:00Z'),
+    );
+
+    if (range !== null) throw new Error(`expected null, got ${JSON.stringify(range)}`);
+  },
+);
