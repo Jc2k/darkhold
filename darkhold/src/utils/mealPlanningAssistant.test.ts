@@ -430,6 +430,29 @@ describe('mealPlanningAssistant', () => {
     expect(generalDinnerSlot?.selected.warnings).toEqual([]);
   });
 
+  it('silently falls back to general dinner when the category is already covered by an existing week meal', () => {
+    const noodleRecipe = makeRecipe(1, 'Noodle Stir Fry', []);
+    const busyNoodleRecipe = makeRecipe(2, 'Quick Noodles', [{ id: 10, name: 'Busy' }]);
+    const generalRecipe = makeRecipe(3, 'Roast Vegetables', []);
+
+    // The busy-day planner already added a noodle dish earlier in the week.
+    // The noodle flavour slot should silently skip and pick a general dinner recipe instead.
+    const plan = buildMealAssistantPlan({
+      weekStart: new Date('2026-06-02T00:00:00'),
+      weekEnd: new Date('2026-06-08T00:00:00'),
+      emptyDinnerDates: ['2026-06-04'],
+      existingWeekMeals: [makeMealPlan(100, busyNoodleRecipe, '2026-06-02')],
+      historicalMeals: [],
+      recipes: [noodleRecipe, generalRecipe],
+      dinnerTime: '18:00',
+    });
+
+    const slot = plan.slots[0];
+    expect(slot?.role).toBe('general-dinner');
+    expect(slot?.roleLabel).toBe('General dinner');
+    expect(slot?.selected.warnings).toEqual([]);
+  });
+
   it('attaches roleFlavourDetail describing the triggering appointment for busy-day slots', () => {
     const quickRecipe = makeRecipe(1, 'Quick Noodles', [{ id: 10, name: 'Busy' }]);
 

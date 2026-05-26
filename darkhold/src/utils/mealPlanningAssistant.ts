@@ -889,11 +889,13 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
       (recipe) =>
         !usedRecipeIds.has(recipe.id) && recipeMatchesRole(recipe, slot.role, keywordNameById),
     );
+    const categoryAlreadyPresent =
+      isCategoryRole(slot.role) && (weekTagCounts.get(slot.role) ?? 0) >= 1;
     const shouldSilentlyFallbackToGeneralDinner =
-      slot.role in CATEGORY_ROLE_TAGS && exactCandidates.length === 0;
+      slot.role in CATEGORY_ROLE_TAGS && (exactCandidates.length === 0 || categoryAlreadyPresent);
     const effectiveRole = shouldSilentlyFallbackToGeneralDinner ? 'general-dinner' : slot.role;
     const fallbackCandidates =
-      exactCandidates.length > 0
+      !shouldSilentlyFallbackToGeneralDinner && exactCandidates.length > 0
         ? exactCandidates
         : baseRecipes.filter((recipe) => !usedRecipeIds.has(recipe.id));
 
