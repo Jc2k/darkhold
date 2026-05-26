@@ -21,7 +21,6 @@ export interface MealPlanningAssistantData {
   keywordNameById: Record<number, string>;
   historicalMeals: MealPlan[];
   upSoonRecipeIds: number[];
-  recentAddedRecipeIds: number[];
   produceFoodNames: string[];
 }
 
@@ -80,7 +79,7 @@ export async function fetchMealPlanningAssistantData(
   const historyEnd = new Date(weekEnd);
   historyEnd.setDate(historyEnd.getDate() + HISTORY_LOOKAHEAD_DAYS);
 
-  const [recipes, keywordNameById, historicalMeals, upSoonData, recentRecipes, produceFoodNames] =
+  const [recipes, keywordNameById, historicalMeals, upSoonData, produceFoodNames] =
     await Promise.all([
       fetchAllPages<Recipe>('/recipe/'),
       fetchKeywordNameById(),
@@ -89,7 +88,6 @@ export async function fetchMealPlanningAssistantData(
         to_date: formatDate(historyEnd),
       }),
       fetchUpSoonData(),
-      fetchAllPages<Recipe>('/recipe/', { new: true, sort_order: '-id' }),
       produceCategoryName ? fetchProduceFoodNames(produceCategoryName) : Promise.resolve([]),
     ]);
 
@@ -98,7 +96,6 @@ export async function fetchMealPlanningAssistantData(
     keywordNameById,
     historicalMeals,
     upSoonRecipeIds: upSoonData?.entries.map((entry) => entry.recipeId) ?? [],
-    recentAddedRecipeIds: recentRecipes.map((recipe) => recipe.id),
     produceFoodNames,
   };
 }

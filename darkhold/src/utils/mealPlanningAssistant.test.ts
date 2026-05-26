@@ -238,7 +238,9 @@ describe('mealPlanningAssistant', () => {
       { id: 10, name: 'Busy' },
       { id: 11, name: 'Pasta' },
     ]);
-    const goodWeatherRecipe = makeRecipe(2, 'Garden Skewers', [{ id: 12, name: 'Outdoors' }]);
+    const goodWeatherRecipe = makeRecipe(2, 'Garden Skewers', [{ id: 12, name: 'Outdoors' }], {
+      created_at: '2026-05-15T10:00:00Z',
+    });
     const fallbackRecipe = makeRecipe(3, 'Rice Bowl', [{ id: 13, name: 'Rice' }]);
     const alternativeRecipe = makeRecipe(6, 'Noodle Stir Fry', [{ id: 14, name: 'Noodles' }]);
     const outdoorsAlternative = makeRecipe(7, 'Picnic Salad', [{ id: 12, name: 'Outdoors' }]);
@@ -266,7 +268,6 @@ describe('mealPlanningAssistant', () => {
         poorRecipe,
       ],
       upSoonRecipeIds: [1],
-      recentAddedRecipeIds: [2],
       calendarEventsByDate: {
         '2026-05-30': [
           {
