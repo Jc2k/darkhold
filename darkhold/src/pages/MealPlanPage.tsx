@@ -960,13 +960,9 @@ export function AddMealModal({ date, onHide, mealTypes, initialMealTypeId }: Add
 
     setIsSubmitting(true);
     try {
-      const resolvedSelection =
-        isResolvingRecipeSelection || !selectedMealTypeIdRef.current
-          ? await waitForLatestRecipeSelection()
-          : null;
-      if (isResolvingRecipeSelection || !selectedMealTypeIdRef.current) {
-        if (!resolvedSelection) return;
-      }
+      const needsResolution = isResolvingRecipeSelection || !selectedMealTypeIdRef.current;
+      const resolvedSelection = needsResolution ? await waitForLatestRecipeSelection() : null;
+      if (needsResolution && !resolvedSelection) return;
 
       const resolvedRecipe = selectedRecipeRef.current;
       const resolvedMealTypeId = selectedMealTypeIdRef.current ?? resolvedSelection?.mealTypeId;
