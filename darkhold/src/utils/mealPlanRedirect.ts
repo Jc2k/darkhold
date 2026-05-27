@@ -38,7 +38,7 @@ export async function getLockedMealPlanWeekPath(
     );
 
     const latestWithMealPlan = shoppingList.results.find((entry) => entry.recipe_mealplan != null);
-    if (!latestWithMealPlan?.recipe_mealplan) return fallback;
+    if (!latestWithMealPlan) return fallback;
 
     const mealPlan = await apiGet<RedirectMealPlanEntry>(
       `/meal-plan/${latestWithMealPlan.recipe_mealplan}/`,

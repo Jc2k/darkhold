@@ -34,6 +34,7 @@ function MealPlanCurrentWeekRedirect() {
   const { data } = useQuery({
     queryKey: ['meal-plan', 'redirect-week-path'],
     queryFn: () => getLockedMealPlanWeekPath(apiGet),
+    staleTime: 60_000,
   });
 
   if (!data) return <LoadingMascot />;
