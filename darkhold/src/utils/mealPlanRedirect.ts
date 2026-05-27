@@ -43,7 +43,10 @@ export async function getLockedMealPlanWeekPath(
     const mealPlan = await apiGet<RedirectMealPlanEntry>(
       `/meal-plan/${latestWithMealPlan.recipe_mealplan}/`,
     );
-    const mealPlanDate = parseLocalDate(mealPlan.from_date.split('T')[0]);
+    const rawDate = mealPlan.from_date.includes('T')
+      ? mealPlan.from_date.split('T')[0]
+      : mealPlan.from_date;
+    const mealPlanDate = parseLocalDate(rawDate);
     if (!mealPlanDate) return fallback;
 
     return `/meal-plan/${formatDate(getMealPlanWeekStartSaturday(mealPlanDate))}`;
