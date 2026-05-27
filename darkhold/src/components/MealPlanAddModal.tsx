@@ -100,7 +100,11 @@ export function MealPlanAddModal({ recipe, keywordNameById, onHide }: Props) {
     });
   }, [subRecipeLinks]);
 
-  const { data: mealTypesData } = useQuery({
+  const {
+    data: mealTypesData,
+    isPending: isMealTypesPending,
+    isFetching: isMealTypesFetching,
+  } = useQuery({
     queryKey: ['meal-types'],
     queryFn: () => apiGet<{ results: MealType[] }>('/meal-type/'),
   });
@@ -111,7 +115,11 @@ export function MealPlanAddModal({ recipe, keywordNameById, onHide }: Props) {
       recipe.keywords.some((k) => typeof k === 'number' && !keywordNameById?.[k]),
     [recipe?.keywords, keywordNameById],
   );
-  const { data: fetchedKeywordNameById } = useQuery({
+  const {
+    data: fetchedKeywordNameById,
+    isPending: isKeywordMapPending,
+    isFetching: isKeywordMapFetching,
+  } = useQuery({
     queryKey: ['keyword-name-by-id'],
     queryFn: fetchKeywordNameById,
     enabled: hasUnresolvedKeywordIds,
@@ -129,11 +137,17 @@ export function MealPlanAddModal({ recipe, keywordNameById, onHide }: Props) {
 
   if (!recipe) return null;
 
-  const effectiveMealTypeId = deriveMealType(recipe, mealTypes, effectiveKeywordNameById);
-  const mealTypeId = (effectiveMealTypeId ?? mealTypes[0]?.id) as unknown as MealType;
+  const isMealTypeDataPending =
+    isMealTypesPending ||
+    isMealTypesFetching ||
+    (hasUnresolvedKeywordIds && (isKeywordMapPending || isKeywordMapFetching));
+  const effectiveMealTypeId = isMealTypeDataPending
+    ? undefined
+    : deriveMealType(recipe, mealTypes, effectiveKeywordNameById);
+  const mealTypeId = (effectiveMealTypeId ?? mealTypes[0]?.id) as MealType | undefined;
 
   const handleSubmit = async () => {
-    if (!hasPersonalToken) return;
+    if (!hasPersonalToken || isMealTypeDataPending || !mealTypeId) return;
     const date = formatDate(selectedDate);
     await createMealPlan.mutateAsync({
       recipe: recipe.id as unknown as Recipe,
@@ -295,7 +309,11 @@ export function MealPlanAddModal({ recipe, keywordNameById, onHide }: Props) {
             </Alert.Link>
           </Alert>
         ) : (
-          <Button variant="success" onClick={handleSubmit} disabled={createMealPlan.isPending}>
+          <Button
+            variant="success"
+            onClick={handleSubmit}
+            disabled={createMealPlan.isPending || isMealTypeDataPending || !mealTypeId}
+          >
             {createMealPlan.isPending ? <Spinner size="sm" /> : 'Add to Plan'}
           </Button>
         )}

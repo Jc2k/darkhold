@@ -121,4 +121,55 @@ describe('MealPlanAddModal', () => {
     expect(apiGetMock).toHaveBeenNthCalledWith(2, '/keyword/', { page_size: 100, page: 2 });
     expect(result).toEqual({ 10: 'Breakfast', 11: 'Lunch' });
   });
+
+  it('keeps add-to-plan disabled until unresolved keyword lookup is ready', async () => {
+    useQueryMock.mockImplementation(({ queryKey }: { queryKey: unknown[] }) => {
+      if (queryKey[0] === 'recipe') {
+        return { data: { id: 1, steps: [] } };
+      }
+      if (queryKey[0] === 'meal-types') {
+        return {
+          data: {
+            results: [
+              { id: 1, name: 'Breakfast' },
+              { id: 2, name: 'Dinner' },
+            ],
+          },
+          isPending: false,
+          isFetching: false,
+        };
+      }
+      if (queryKey[0] === 'keyword-name-by-id') {
+        return {
+          data: undefined,
+          isPending: true,
+          isFetching: true,
+        };
+      }
+      return { data: undefined };
+    });
+
+    const recipe = { id: 1, name: 'Eggs', servings: 2, keywords: [10] } as unknown as Recipe;
+
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <MealPlanAddModal recipe={recipe} onHide={vi.fn()} />
+        </MemoryRouter>,
+      );
+    });
+
+    const addButton = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Add to Plan',
+    ) as HTMLButtonElement;
+
+    expect(addButton).toBeTruthy();
+    expect(addButton.disabled).toBe(true);
+
+    await act(async () => {
+      addButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(createMealPlanMock.mutateAsync).not.toHaveBeenCalled();
+  });
 });
