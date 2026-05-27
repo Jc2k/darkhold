@@ -29,6 +29,17 @@ interface Props {
 
 const KEYWORD_NAME_BY_ID_STALE_TIME = 5 * 60 * 1000;
 
+async function fetchMealTypes() {
+  return apiGet<{ results: MealType[] }>('/meal-type/');
+}
+
+function hasUnresolvedKeywordIdsForMap(
+  keywords: Recipe['keywords'] | undefined,
+  keywordMap: Record<number, string> | undefined,
+) {
+  return Array.isArray(keywords) && keywords.some((k) => typeof k === 'number' && !keywordMap?.[k]);
+}
+
 export async function fetchKeywordNameById(): Promise<Record<number, string>> {
   const map: Record<number, string> = {};
   let page = 1;
@@ -109,15 +120,12 @@ export function MealPlanAddModal({ recipe, keywordNameById, onHide }: Props) {
     isFetching: isMealTypesFetching,
   } = useQuery({
     queryKey: ['meal-types'],
-    queryFn: () => apiGet<{ results: MealType[] }>('/meal-type/'),
+    queryFn: fetchMealTypes,
   });
   const mealTypes = mealTypesData?.results ?? [];
-  const hasUnresolvedKeywordIds = useMemo(
-    () =>
-      Array.isArray(recipe?.keywords) &&
-      recipe.keywords.some((k) => typeof k === 'number' && !keywordNameById?.[k]),
-    [recipe?.keywords, keywordNameById],
-  );
+  const hasUnresolvedKeywordIds = useMemo(() => {
+    return hasUnresolvedKeywordIdsForMap(recipe?.keywords, keywordNameById);
+  }, [recipe?.keywords, keywordNameById]);
   const {
     data: fetchedKeywordNameById,
     isPending: isKeywordMapPending,
@@ -154,15 +162,16 @@ export function MealPlanAddModal({ recipe, keywordNameById, onHide }: Props) {
     if (isMealTypesPending || isMealTypesFetching) {
       const fetchedMealTypes = await queryClient.fetchQuery({
         queryKey: ['meal-types'],
-        queryFn: () => apiGet<{ results: MealType[] }>('/meal-type/'),
+        queryFn: fetchMealTypes,
       });
       resolvedMealTypes = fetchedMealTypes.results ?? [];
     }
 
     let resolvedKeywordNameById = effectiveKeywordNameById;
-    const hasStillUnresolvedKeywordIds =
-      Array.isArray(recipe.keywords) &&
-      recipe.keywords.some((k) => typeof k === 'number' && !resolvedKeywordNameById[k]);
+    const hasStillUnresolvedKeywordIds = hasUnresolvedKeywordIdsForMap(
+      recipe.keywords,
+      resolvedKeywordNameById,
+    );
     if (hasStillUnresolvedKeywordIds) {
       const fetchedKeywordMap = await queryClient.fetchQuery({
         queryKey: ['keyword-name-by-id'],
