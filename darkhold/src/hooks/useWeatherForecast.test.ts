@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   getWeatherDisruptionBand,
   groupWeatherByDate,
+  isWeatherRangeTooOld,
   parseWeatherForecastPayload,
 } from './useWeatherForecast';
 import type { WeatherDayForecast } from './useWeatherForecast';
@@ -99,5 +100,19 @@ describe('getWeatherDisruptionBand', () => {
       precipitationProbabilityMax: 15,
     };
     expect(getWeatherDisruptionBand(day)).toBe('ok');
+  });
+});
+
+describe('isWeatherRangeTooOld', () => {
+  it('returns true when range end is more than two months old', () => {
+    expect(isWeatherRangeTooOld(new Date('2026-03-14T00:00:00Z'), new Date('2026-05-15T12:00:00Z'))).toBe(
+      true,
+    );
+  });
+
+  it('returns false when range end is within the two-month cutoff', () => {
+    expect(isWeatherRangeTooOld(new Date('2026-03-15T00:00:00Z'), new Date('2026-05-15T12:00:00Z'))).toBe(
+      false,
+    );
   });
 });
