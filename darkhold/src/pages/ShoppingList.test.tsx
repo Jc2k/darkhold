@@ -128,6 +128,17 @@ describe('ShoppingList', () => {
     });
   });
 
+  it('propagates errors while fetching shopping list pages', async () => {
+    const apiGetMock = vi.mocked(apiGet);
+    apiGetMock.mockRejectedValueOnce(new Error('API error 500'));
+
+    await expect(fetchAllShoppingListEntries()).rejects.toThrow('API error 500');
+    expect(apiGetMock).toHaveBeenCalledWith('/shopping-list-entry/', {
+      page_size: 100,
+      page: 1,
+    });
+  });
+
   it('shows partial grouped state with struck-through checked quantity and recipe button', () => {
     act(() => {
       root.render(
