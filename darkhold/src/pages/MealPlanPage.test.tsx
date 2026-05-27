@@ -25,15 +25,12 @@ vi.mock('@dnd-kit/core', async () => {
 import { MouseSensor, TouchSensor, type Collision } from '@dnd-kit/core';
 import { DroppableTableRow } from './DroppableTableRow';
 import {
-  formatIsoWeekValue,
-  getMealPlanRouteFromIsoWeekValue,
+  getMealPlanRouteFromDate,
   getEmptyWeekendLunchDates,
   getDateMealTypeCollisionId,
-  parseIsoWeekValue,
   resolveDropTargetContainerId,
   useMealPlanSensors,
 } from './MealPlanPage';
-import { formatDate } from '../utils/dateUtils';
 
 function SensorHarness() {
   useMealPlanSensors();
@@ -246,37 +243,14 @@ describe('getEmptyWeekendLunchDates', () => {
   });
 });
 
-describe('iso week helpers', () => {
-  it('formats dates into expected iso week input values', () => {
-    expect(formatIsoWeekValue(new Date(2026, 0, 3))).toBe('2026-W01');
-    expect(formatIsoWeekValue(new Date(2026, 11, 31))).toBe('2026-W53');
+describe('date jump helper', () => {
+  it('builds a meal-plan route for valid date input values', () => {
+    expect(getMealPlanRouteFromDate('2026-01-01')).toBe('/meal-plan/2025-12-27');
+    expect(getMealPlanRouteFromDate('2026-12-31')).toBe('/meal-plan/2026-12-26');
   });
 
-  it('parses iso week input values to monday dates', () => {
-    const parsed = parseIsoWeekValue('2026-W01');
-    expect(parsed).not.toBeNull();
-    expect(formatDate(parsed as Date)).toBe('2025-12-29');
-  });
-
-  it('parses week 53 values at year-end boundaries', () => {
-    const parsed = parseIsoWeekValue('2026-W53');
-    expect(parsed).not.toBeNull();
-    expect(formatDate(parsed as Date)).toBe('2026-12-28');
-  });
-
-  it('returns null for malformed or out-of-range week values', () => {
-    expect(parseIsoWeekValue('2026-W00')).toBeNull();
-    expect(parseIsoWeekValue('2026-W54')).toBeNull();
-    expect(parseIsoWeekValue('2026-01')).toBeNull();
-  });
-
-  it('builds a meal-plan route for valid iso week input values', () => {
-    expect(getMealPlanRouteFromIsoWeekValue('2026-W01')).toBe('/meal-plan/2025-12-27');
-    expect(getMealPlanRouteFromIsoWeekValue('2026-W53')).toBe('/meal-plan/2026-12-26');
-  });
-
-  it('returns null route for invalid iso week input values', () => {
-    expect(getMealPlanRouteFromIsoWeekValue('2026-W00')).toBeNull();
-    expect(getMealPlanRouteFromIsoWeekValue('2026-01')).toBeNull();
+  it('returns null route for invalid date input values', () => {
+    expect(getMealPlanRouteFromDate('2026-13-40')).toBeNull();
+    expect(getMealPlanRouteFromDate('2026/01/01')).toBeNull();
   });
 });
