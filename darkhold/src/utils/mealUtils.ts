@@ -33,15 +33,20 @@ function pickFallbackMealTypeId(mealTypes: MealType[]): number | undefined {
     .filter(
       (
         candidate,
-      ): candidate is { id: number; timeMinutes: number; order: number | undefined; index: number } =>
-        candidate.timeMinutes !== undefined,
+      ): candidate is {
+        id: number;
+        timeMinutes: number;
+        order: number | undefined;
+        index: number;
+      } => candidate.timeMinutes !== undefined,
     );
   if (withTimes.length > 0) {
     return withTimes.reduce((best, candidate) => {
       if (candidate.timeMinutes > best.timeMinutes) return candidate;
       const candidateOrder = candidate.order ?? -1;
       const bestOrder = best.order ?? -1;
-      if (candidate.timeMinutes === best.timeMinutes && candidateOrder > bestOrder) return candidate;
+      if (candidate.timeMinutes === best.timeMinutes && candidateOrder > bestOrder)
+        return candidate;
       if (
         candidate.timeMinutes === best.timeMinutes &&
         candidateOrder === bestOrder &&
