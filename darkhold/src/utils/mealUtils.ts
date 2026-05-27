@@ -4,6 +4,76 @@ function isValidKeyword(k: Keyword | number): k is Keyword {
   return typeof k === 'object' && k !== null && typeof (k as Keyword).name === 'string';
 }
 
+function parseMealTypeTimeToMinutes(value: string | null | undefined): number | undefined {
+  if (!value) return undefined;
+  const [hoursRaw, minutesRaw] = value.split(':');
+  if (minutesRaw === undefined) return undefined;
+  const hours = Number(hoursRaw);
+  const minutes = Number(minutesRaw);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return undefined;
+  return hours * 60 + minutes;
+}
+
+function pickFallbackMealTypeId(mealTypes: MealType[]): number | undefined {
+  if (mealTypes.length === 0) return undefined;
+  if (mealTypes.length === 1) return mealTypes[0].id;
+
+  const nonBreakfastMealTypes = mealTypes.filter(
+    (mealType) => !mealType.name.toLowerCase().includes('breakfast'),
+  );
+  const candidates = nonBreakfastMealTypes.length > 0 ? nonBreakfastMealTypes : mealTypes;
+
+  const withTimes = candidates
+    .map((mealType, index) => ({
+      id: mealType.id,
+      timeMinutes: parseMealTypeTimeToMinutes(mealType.time),
+      order: mealType.order,
+      index,
+    }))
+    .filter(
+      (
+        candidate,
+      ): candidate is {
+        id: number;
+        timeMinutes: number;
+        order: number | undefined;
+        index: number;
+      } => candidate.timeMinutes !== undefined,
+    );
+  if (withTimes.length > 0) {
+    return withTimes.reduce((best, candidate) => {
+      if (candidate.timeMinutes > best.timeMinutes) return candidate;
+      const candidateOrder = candidate.order ?? -1;
+      const bestOrder = best.order ?? -1;
+      if (candidate.timeMinutes === best.timeMinutes && candidateOrder > bestOrder)
+        return candidate;
+      if (
+        candidate.timeMinutes === best.timeMinutes &&
+        candidateOrder === bestOrder &&
+        candidate.index > best.index
+      )
+        return candidate;
+      return best;
+    }).id;
+  }
+
+  const withOrder = candidates
+    .map((mealType, index) => ({ id: mealType.id, order: mealType.order, index }))
+    .filter(
+      (candidate): candidate is { id: number; order: number; index: number } =>
+        candidate.order !== undefined,
+    );
+  if (withOrder.length > 0) {
+    return withOrder.reduce((best, candidate) => {
+      if (candidate.order > best.order) return candidate;
+      if (candidate.order === best.order && candidate.index > best.index) return candidate;
+      return best;
+    }).id;
+  }
+
+  return candidates[candidates.length - 1]?.id;
+}
+
 /**
  * Derives the appropriate meal type from a recipe's keywords.
  *
@@ -35,5 +105,5 @@ export function deriveMealType(
   if (keywords.some((k) => k.includes('lunch'))) return find('lunch')?.id;
   if (keywords.some((k) => k.includes('dessert') || k.includes('snack')))
     return find('snack')?.id ?? find('dessert')?.id;
-  return find('dinner')?.id ?? mealTypes[0]?.id;
+  return find('dinner')?.id ?? pickFallbackMealTypeId(mealTypes);
 }
