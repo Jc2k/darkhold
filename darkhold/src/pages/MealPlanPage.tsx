@@ -191,38 +191,10 @@ function addDays(d: Date, n: number): Date {
   return r;
 }
 
-export function formatIsoWeekValue(date: Date): string {
-  const local = new Date(date);
-  local.setHours(0, 0, 0, 0);
-  // ISO week-year is based on the week containing Thursday.
-  const day = local.getDay() || 7;
-  local.setDate(local.getDate() + 4 - day);
-  const yearStart = new Date(local.getFullYear(), 0, 1);
-  const weekNumber = Math.ceil(
-    ((((local.getTime() - yearStart.getTime()) / 86400000) | 0) + 1) / 7,
-  );
-  return `${local.getFullYear()}-W${String(weekNumber).padStart(2, '0')}`;
-}
-
-export function parseIsoWeekValue(value: string): Date | null {
-  const match = /^(\d{4})-W(\d{2})$/.exec(value);
-  if (!match) return null;
-  const isoYear = Number(match[1]);
-  const isoWeek = Number(match[2]);
-  if (isoWeek < 1 || isoWeek > 53) return null;
-  const jan4 = new Date(isoYear, 0, 4);
-  const jan4Day = jan4.getDay() || 7;
-  const week1Monday = new Date(jan4);
-  week1Monday.setDate(jan4.getDate() - jan4Day + 1);
-  const selectedMonday = addDays(week1Monday, (isoWeek - 1) * 7);
-  selectedMonday.setHours(0, 0, 0, 0);
-  return selectedMonday;
-}
-
-export function getMealPlanRouteFromIsoWeekValue(value: string): string | null {
-  const selectedWeek = parseIsoWeekValue(value);
-  if (!selectedWeek) return null;
-  return `/meal-plan/${formatDate(getMealPlanWeekStartSaturday(selectedWeek))}`;
+export function getMealPlanRouteFromDate(value: string): string | null {
+  const selectedDate = parseLocalDate(value);
+  if (!selectedDate) return null;
+  return `/meal-plan/${formatDate(getMealPlanWeekStartSaturday(selectedDate))}`;
 }
 
 function shortDay(d: Date): string {
@@ -2112,16 +2084,16 @@ export function MealPlanPage() {
       >
         <Modal.Header closeButton>
           <Modal.Title id="jump-to-week-title" className="fs-6">
-            Jump to week
+            Pick any date in the target week
           </Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Form.Control
-            type="week"
-            value={formatIsoWeekValue(weekStartDate)}
-            aria-label="Jump to week"
+            type="date"
+            value={formatDate(weekStartDate)}
+            aria-label="Pick any date in the target week"
             onChange={(event) => {
-              const route = getMealPlanRouteFromIsoWeekValue(event.target.value);
+              const route = getMealPlanRouteFromDate(event.target.value);
               if (!route) return;
               setShowWeekPickerModal(false);
               navigate(route);
