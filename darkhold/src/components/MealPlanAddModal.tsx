@@ -156,6 +156,7 @@ export function MealPlanAddModal({ recipe, keywordNameById, onHide }: Props) {
     ? undefined
     : deriveMealType(recipe, mealTypes, effectiveKeywordNameById);
   const mealTypeId = effectiveMealTypeId;
+  const isSubmitDisabled = createMealPlan.isPending || (!isMealTypeDataPending && !mealTypeId);
 
   const resolveMealTypeId = async () => {
     let resolvedMealTypes = mealTypes;
@@ -352,11 +353,7 @@ export function MealPlanAddModal({ recipe, keywordNameById, onHide }: Props) {
             </Alert.Link>
           </Alert>
         ) : (
-          <Button
-            variant="success"
-            onClick={handleSubmit}
-            disabled={createMealPlan.isPending || (!isMealTypeDataPending && !mealTypeId)}
-          >
+          <Button variant="success" onClick={handleSubmit} disabled={isSubmitDisabled}>
             {createMealPlan.isPending ? <Spinner size="sm" /> : 'Add to Plan'}
           </Button>
         )}
