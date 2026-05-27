@@ -4,18 +4,17 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Recipe } from '../api/tandoor-types';
 
-const { useQueryMock, useQueryClientMock, fetchQueryMock, createMealPlanMock, apiGetMock } = vi.hoisted(
-  () => ({
-  useQueryMock: vi.fn(),
-  useQueryClientMock: vi.fn(),
-  fetchQueryMock: vi.fn(),
-  createMealPlanMock: {
-    mutateAsync: vi.fn().mockResolvedValue({}),
-    isPending: false,
-  },
-  apiGetMock: vi.fn(),
-}),
-);
+const { useQueryMock, useQueryClientMock, fetchQueryMock, createMealPlanMock, apiGetMock } =
+  vi.hoisted(() => ({
+    useQueryMock: vi.fn(),
+    useQueryClientMock: vi.fn(),
+    fetchQueryMock: vi.fn(),
+    createMealPlanMock: {
+      mutateAsync: vi.fn().mockResolvedValue({}),
+      isPending: false,
+    },
+    apiGetMock: vi.fn(),
+  }));
 
 vi.mock('@tanstack/react-query', () => ({
   useQuery: useQueryMock,
