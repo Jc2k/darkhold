@@ -416,10 +416,12 @@ describe('AddMealModal', () => {
         <AddMealModal
           date="2026-05-30"
           onHide={vi.fn()}
-          mealTypes={[
-            { id: 1, name: 'Breakfast' },
-            { id: 2, name: 'Dinner' },
-          ] as MealType[]}
+          mealTypes={
+            [
+              { id: 1, name: 'Breakfast' },
+              { id: 2, name: 'Dinner' },
+            ] as MealType[]
+          }
         />,
       );
     });
