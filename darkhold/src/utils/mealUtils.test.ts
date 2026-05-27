@@ -59,6 +59,30 @@ describe('deriveMealType', () => {
     expect(deriveMealType(recipe, limited)).toBe(2);
   });
 
+  it('returns undefined when no meal types are available', () => {
+    const recipe = { id: 1, name: 'Pasta', keywords: [] };
+    expect(deriveMealType(recipe, [])).toBeUndefined();
+  });
+
+  it('falls back to the last non-breakfast meal type when no time/order hints exist', () => {
+    const limited: MealType[] = [
+      { id: 1, name: 'Breakfast' },
+      { id: 2, name: 'Brunch' },
+      { id: 3, name: 'Lunch' },
+    ];
+    const recipe = { id: 1, name: 'Pasta', keywords: [] };
+    expect(deriveMealType(recipe, limited)).toBe(3);
+  });
+
+  it('ignores invalid meal type time values and uses order fallback', () => {
+    const limited: MealType[] = [
+      { id: 1, name: 'Breakfast', time: '08', order: 1 },
+      { id: 2, name: 'Lunch', time: 'abc:00', order: 2 },
+    ];
+    const recipe = { id: 1, name: 'Pasta', keywords: [] };
+    expect(deriveMealType(recipe, limited)).toBe(2);
+  });
+
   it('handles numeric keywords (ids only) without crashing', () => {
     const recipe = { id: 1, name: 'Pasta', keywords: [1, 2, 3] };
     expect(deriveMealType(recipe, mealTypes)).toBe(3);

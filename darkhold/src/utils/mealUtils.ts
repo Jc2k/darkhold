@@ -33,9 +33,13 @@ function pickFallbackMealTypeId(mealTypes: MealType[]): number | undefined {
     .filter((candidate) => candidate.timeMinutes !== undefined);
   if (withTimes.length > 0) {
     return withTimes.reduce((best, candidate) => {
-      if ((candidate.timeMinutes ?? Number.NEGATIVE_INFINITY) > (best.timeMinutes ?? Number.NEGATIVE_INFINITY))
+      if (
+        (candidate.timeMinutes ?? Number.NEGATIVE_INFINITY) >
+        (best.timeMinutes ?? Number.NEGATIVE_INFINITY)
+      )
         return candidate;
-      if (candidate.timeMinutes === best.timeMinutes && candidate.order > best.order) return candidate;
+      if (candidate.timeMinutes === best.timeMinutes && candidate.order > best.order)
+        return candidate;
       if (
         candidate.timeMinutes === best.timeMinutes &&
         candidate.order === best.order &&
