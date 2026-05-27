@@ -118,6 +118,14 @@ describe('apiPatch', () => {
     expect(opts.body).toBe(JSON.stringify({ name: 'Updated' }));
   });
 
+  it('appends query parameters to the URL', async () => {
+    const fn = mockFetch(okJson({}));
+    await apiPatch('/recipe/1/', { name: 'Updated' }, { from_date: '1900-01-01', page: 2 });
+    const [url] = fn.mock.calls[0] as [string];
+    expect(url).toContain('from_date=1900-01-01');
+    expect(url).toContain('page=2');
+  });
+
   it('throws on non-OK response', async () => {
     mockFetch({ ok: false, status: 403 } as Response);
     await expect(apiPatch('/recipe/1/', {})).rejects.toThrow('API error 403');
@@ -135,6 +143,14 @@ describe('apiDelete', () => {
     const [url, opts] = fn.mock.calls[0] as [string, RequestInit];
     expect(url).toContain('/api/recipe/1/');
     expect(opts.method).toBe('DELETE');
+  });
+
+  it('appends query parameters to the URL', async () => {
+    const fn = mockFetch({ ok: true } as Response);
+    await apiDelete('/recipe/1/', { from_date: '1900-01-01', page: 2 });
+    const [url] = fn.mock.calls[0] as [string];
+    expect(url).toContain('from_date=1900-01-01');
+    expect(url).toContain('page=2');
   });
 
   it('resolves without a return value on success', async () => {

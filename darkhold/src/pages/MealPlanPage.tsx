@@ -48,6 +48,7 @@ import {
 import { SortableContext, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
+  MEAL_PLAN_ITEM_QUERY_PARAMS,
   useMealPlan,
   useDeleteMealPlan,
   useCreateMealPlan,
@@ -1465,7 +1466,7 @@ export function MealPlanPage() {
     setIsClearingWeek(true);
     try {
       const results = await Promise.allSettled(
-        data.results.map((entry) => apiDelete(`/meal-plan/${entry.id}/`)),
+        data.results.map((entry) => apiDelete(`/meal-plan/${entry.id}/`, MEAL_PLAN_ITEM_QUERY_PARAMS)),
       );
       const failed = results.filter((r) => r.status === 'rejected').length;
       queryClient.invalidateQueries({ queryKey: ['meal-plan'] });
