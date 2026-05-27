@@ -25,11 +25,14 @@ vi.mock('@dnd-kit/core', async () => {
 import { MouseSensor, TouchSensor, type Collision } from '@dnd-kit/core';
 import { DroppableTableRow } from './DroppableTableRow';
 import {
+  formatIsoWeekValue,
   getEmptyWeekendLunchDates,
   getDateMealTypeCollisionId,
+  parseIsoWeekValue,
   resolveDropTargetContainerId,
   useMealPlanSensors,
 } from './MealPlanPage';
+import { formatDate } from '../utils/dateUtils';
 
 function SensorHarness() {
   useMealPlanSensors();
@@ -239,5 +242,30 @@ describe('getEmptyWeekendLunchDates', () => {
         ['2026-06-02'],
       ),
     ).toEqual(['2026-06-02']);
+  });
+});
+
+describe('iso week helpers', () => {
+  it('formats dates into expected iso week input values', () => {
+    expect(formatIsoWeekValue(new Date(2026, 0, 3))).toBe('2026-W01');
+    expect(formatIsoWeekValue(new Date(2026, 11, 31))).toBe('2026-W53');
+  });
+
+  it('parses iso week input values to monday dates', () => {
+    const parsed = parseIsoWeekValue('2026-W01');
+    expect(parsed).not.toBeNull();
+    expect(formatDate(parsed as Date)).toBe('2025-12-29');
+  });
+
+  it('parses week 53 values at year-end boundaries', () => {
+    const parsed = parseIsoWeekValue('2026-W53');
+    expect(parsed).not.toBeNull();
+    expect(formatDate(parsed as Date)).toBe('2026-12-28');
+  });
+
+  it('returns null for malformed or out-of-range week values', () => {
+    expect(parseIsoWeekValue('2026-W00')).toBeNull();
+    expect(parseIsoWeekValue('2026-W54')).toBeNull();
+    expect(parseIsoWeekValue('2026-01')).toBeNull();
   });
 });

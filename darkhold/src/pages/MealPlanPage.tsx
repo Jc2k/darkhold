@@ -4,6 +4,7 @@ import {
   Card,
   Table,
   Button,
+  ButtonGroup,
   InputGroup,
   Modal,
   Form,
@@ -26,6 +27,8 @@ import {
   CloudLightningRainFill,
   CloudFog2Fill,
   Stars,
+  Magic,
+  CalendarDate,
 } from 'react-bootstrap-icons';
 import { proxyMediaUrl } from '../utils/mediaUrl';
 import {
@@ -186,6 +189,34 @@ function addDays(d: Date, n: number): Date {
   const r = new Date(d);
   r.setDate(r.getDate() + n);
   return r;
+}
+
+export function formatIsoWeekValue(date: Date): string {
+  const local = new Date(date);
+  local.setHours(0, 0, 0, 0);
+  // ISO week-year is based on the week containing Thursday.
+  const day = local.getDay() || 7;
+  local.setDate(local.getDate() + 4 - day);
+  const yearStart = new Date(local.getFullYear(), 0, 1);
+  const weekNumber = Math.ceil(
+    ((((local.getTime() - yearStart.getTime()) / 86400000) | 0) + 1) / 7,
+  );
+  return `${local.getFullYear()}-W${String(weekNumber).padStart(2, '0')}`;
+}
+
+export function parseIsoWeekValue(value: string): Date | null {
+  const match = /^(\d{4})-W(\d{2})$/.exec(value);
+  if (!match) return null;
+  const isoYear = Number(match[1]);
+  const isoWeek = Number(match[2]);
+  if (isoWeek < 1 || isoWeek > 53) return null;
+  const jan4 = new Date(isoYear, 0, 4);
+  const jan4Day = jan4.getDay() || 7;
+  const week1Monday = new Date(jan4);
+  week1Monday.setDate(jan4.getDate() - jan4Day + 1);
+  const selectedMonday = addDays(week1Monday, (isoWeek - 1) * 7);
+  selectedMonday.setHours(0, 0, 0, 0);
+  return selectedMonday;
 }
 
 function shortDay(d: Date): string {
@@ -1371,6 +1402,7 @@ export function MealPlanPage() {
   const skipAssistantSessionPersist = useRef(false);
   const lastOverSnapshotRef = useRef<LastOverSnapshot | null>(null);
   const lastActiveContainerIdRef = useRef<string | null>(null);
+  const weekPickerRef = useRef<HTMLInputElement | null>(null);
   // Maps entry id -> optimistic target date for in-flight cross-day moves
   const [pendingMoves, setPendingMoves] = useState<Map<number, string>>(new Map());
   const hasPersonalToken = Boolean(localStorage.getItem('tandoor_token'));
@@ -1891,17 +1923,43 @@ export function MealPlanPage() {
         </Button>
         <div className="flex-grow-1 text-center">
           <div className="d-inline-flex align-items-center gap-2">
-            <Button
-              variant="outline-secondary"
-              style={{ minHeight: 44, padding: '0 1rem' }}
-              onClick={() => navigate(`/meal-plan/${formatDate(currentWeekStart)}`)}
-              aria-label="Go to current week"
-            >
-              Today
-            </Button>
+            <ButtonGroup aria-label="Current week controls">
+              <Button
+                variant="outline-secondary"
+                style={{ minHeight: 44, padding: '0 1rem' }}
+                onClick={() => navigate(`/meal-plan/${formatDate(currentWeekStart)}`)}
+                aria-label="Go to current week"
+              >
+                Today
+              </Button>
+              <Button
+                variant="outline-secondary"
+                style={{ minHeight: 44, padding: '0 0.75rem' }}
+                onClick={() => {
+                  const weekPicker = weekPickerRef.current;
+                  if (!weekPicker) return;
+                  weekPicker.click();
+                }}
+                aria-label="Pick week to jump to"
+              >
+                <CalendarDate size={16} />
+              </Button>
+            </ButtonGroup>
+            <Form.Control
+              ref={weekPickerRef}
+              type="week"
+              value={formatIsoWeekValue(weekStartDate)}
+              className="visually-hidden"
+              aria-label="Jump to week"
+              onChange={(event) => {
+                const selectedWeek = parseIsoWeekValue(event.target.value);
+                if (!selectedWeek) return;
+                navigate(`/meal-plan/${formatDate(getMealPlanWeekStartSaturday(selectedWeek))}`);
+              }}
+            />
             <Button
               variant={assistantMode ? 'secondary' : 'outline-secondary'}
-              style={{ minHeight: 44, padding: '0 1rem' }}
+              style={{ minHeight: 44, padding: '0 0.75rem' }}
               onClick={() => {
                 void handleAssistantToggle();
               }}
@@ -1917,12 +1975,7 @@ export function MealPlanPage() {
                   : 'Turn on meal planning assistance'
               }
             >
-              {isAssistantPlanning ? (
-                <Spinner size="sm" className="me-2" />
-              ) : (
-                <Stars size={16} className="me-2" />
-              )}
-              Assist
+              {isAssistantPlanning ? <Spinner size="sm" /> : <Magic size={16} />}
             </Button>
             <Button
               variant="danger"
