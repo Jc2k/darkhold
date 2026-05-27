@@ -1409,7 +1409,7 @@ export function MealPlanPage() {
     if (showWeekPickerModal) {
       setWeekPickerMonth(weekStartDate);
     }
-  }, [showWeekPickerModal, weekStartDate]);
+  }, [showWeekPickerModal]);
   useEffect(() => {
     skipAssistantSessionPersist.current = true;
     const savedSession = loadMealAssistantSession(canonicalWeekStart);
@@ -2109,12 +2109,13 @@ export function MealPlanPage() {
             showOutsideDays
             fixedWeeks
             aria-label="Pick any date in the target week"
+            aria-describedby="jump-to-week-help"
             onDayClick={(day) => {
               setShowWeekPickerModal(false);
               navigate(`/meal-plan/${formatDate(getMealPlanWeekStartSaturday(day))}`);
             }}
           />
-          <p className="text-body-secondary small mb-0 mt-3 text-center">
+          <p id="jump-to-week-help" className="text-body-secondary small mb-0 mt-3 text-center">
             Tap or click any day to open that Saturday-starting week.
           </p>
         </Modal.Body>
