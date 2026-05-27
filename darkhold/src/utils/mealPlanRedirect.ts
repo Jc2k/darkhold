@@ -18,8 +18,18 @@ interface PaginatedResults<T> {
   results: T[];
 }
 
+export const MEAL_PLAN_REDIRECT_WEEK_QUERY_KEY = ['meal-plan', 'redirect-week-path'] as const;
+export const MEAL_PLAN_REDIRECT_WEEK_BROADCAST_KEY = 'meal-plan-redirect-week-path';
+
 export function getCurrentMealPlanWeekPath(now: Date = new Date()): string {
   return `/meal-plan/${formatDate(getMealPlanWeekStartSaturday(now))}`;
+}
+
+export function getMealPlanWeekPathFromDateString(fromDate: string): string | null {
+  const rawDate = fromDate.includes('T') ? fromDate.split('T')[0] : fromDate;
+  const mealPlanDate = parseLocalDate(rawDate);
+  if (!mealPlanDate) return null;
+  return `/meal-plan/${formatDate(getMealPlanWeekStartSaturday(mealPlanDate))}`;
 }
 
 export async function getLockedMealPlanWeekPath(
@@ -43,13 +53,7 @@ export async function getLockedMealPlanWeekPath(
     const mealPlan = await apiGet<RedirectMealPlanEntry>(
       `/meal-plan/${latestWithMealPlan.recipe_mealplan}/`,
     );
-    const rawDate = mealPlan.from_date.includes('T')
-      ? mealPlan.from_date.split('T')[0]
-      : mealPlan.from_date;
-    const mealPlanDate = parseLocalDate(rawDate);
-    if (!mealPlanDate) return fallback;
-
-    return `/meal-plan/${formatDate(getMealPlanWeekStartSaturday(mealPlanDate))}`;
+    return getMealPlanWeekPathFromDateString(mealPlan.from_date) ?? fallback;
   } catch {
     return fallback;
   }

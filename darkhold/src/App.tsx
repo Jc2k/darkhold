@@ -21,7 +21,11 @@ import { RiceCooking } from './pages/RiceCooking';
 import { LoadingMascot } from './components/LoadingMascot';
 import { useAppConfig } from './hooks/useAppConfig';
 import { apiGet } from './api/client';
-import { getCurrentMealPlanWeekPath, getLockedMealPlanWeekPath } from './utils/mealPlanRedirect';
+import {
+  getCurrentMealPlanWeekPath,
+  getLockedMealPlanWeekPath,
+  MEAL_PLAN_REDIRECT_WEEK_QUERY_KEY,
+} from './utils/mealPlanRedirect';
 
 function getHomepage(): string {
   const pref = localStorage.getItem('homepage_pref') || 'dashboard';
@@ -32,7 +36,7 @@ function getHomepage(): string {
 
 function MealPlanCurrentWeekRedirect() {
   const { data } = useQuery({
-    queryKey: ['meal-plan', 'redirect-week-path'],
+    queryKey: MEAL_PLAN_REDIRECT_WEEK_QUERY_KEY,
     queryFn: () => getLockedMealPlanWeekPath(apiGet),
     staleTime: 60_000,
     retry: false,

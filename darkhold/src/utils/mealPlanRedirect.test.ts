@@ -1,11 +1,30 @@
 import { describe, expect, it, vi } from 'vitest';
-import { getCurrentMealPlanWeekPath, getLockedMealPlanWeekPath } from './mealPlanRedirect';
+import {
+  getCurrentMealPlanWeekPath,
+  getLockedMealPlanWeekPath,
+  getMealPlanWeekPathFromDateString,
+  MEAL_PLAN_REDIRECT_WEEK_QUERY_KEY,
+} from './mealPlanRedirect';
 
 describe('getCurrentMealPlanWeekPath', () => {
   it('returns the current Saturday-based meal-plan week path', () => {
     expect(getCurrentMealPlanWeekPath(new Date('2026-05-27T10:30:00Z'))).toBe(
       '/meal-plan/2026-05-23',
     );
+  });
+});
+
+describe('getMealPlanWeekPathFromDateString', () => {
+  it('normalises date-only meal-plan values to week path', () => {
+    expect(getMealPlanWeekPathFromDateString('2026-06-03')).toBe('/meal-plan/2026-05-30');
+  });
+
+  it('normalises datetime meal-plan values to week path', () => {
+    expect(getMealPlanWeekPathFromDateString('2026-06-03T18:30:00Z')).toBe('/meal-plan/2026-05-30');
+  });
+
+  it('returns null for invalid date values', () => {
+    expect(getMealPlanWeekPathFromDateString('not-a-date')).toBeNull();
   });
 });
 
@@ -69,5 +88,11 @@ describe('getLockedMealPlanWeekPath', () => {
     await expect(getLockedMealPlanWeekPath(apiGet, new Date('2026-05-27T10:30:00Z'))).resolves.toBe(
       '/meal-plan/2026-05-23',
     );
+  });
+});
+
+describe('MEAL_PLAN_REDIRECT_WEEK_QUERY_KEY', () => {
+  it('uses a stable query key for redirect week caching', () => {
+    expect(MEAL_PLAN_REDIRECT_WEEK_QUERY_KEY).toEqual(['meal-plan', 'redirect-week-path']);
   });
 });

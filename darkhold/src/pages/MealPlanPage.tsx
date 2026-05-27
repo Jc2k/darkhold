@@ -107,6 +107,10 @@ import {
 import { getMealPlanningAssistantDataQueryOptions } from '../hooks/useMealPlanningAssistantData';
 import { MealPlanAssistantModal } from '../components/MealPlanAssistantModal';
 import { useAppConfig } from '../hooks/useAppConfig';
+import {
+  MEAL_PLAN_REDIRECT_WEEK_BROADCAST_KEY,
+  MEAL_PLAN_REDIRECT_WEEK_QUERY_KEY,
+} from '../utils/mealPlanRedirect';
 
 type WithSortable = { sortable?: { containerId: string } } | undefined;
 type LastOverSnapshot = {
@@ -1570,8 +1574,10 @@ export function MealPlanPage() {
       const failed = results.filter((r) => r.status === 'rejected').length;
       queryClient.invalidateQueries({ queryKey: ['meal-plan'] });
       queryClient.invalidateQueries({ queryKey: ['shopping-list'] });
+      queryClient.invalidateQueries({ queryKey: MEAL_PLAN_REDIRECT_WEEK_QUERY_KEY });
       broadcastInvalidation('meal-plan');
       broadcastInvalidation('shopping-list');
+      broadcastInvalidation(MEAL_PLAN_REDIRECT_WEEK_BROADCAST_KEY);
       if (failed > 0) {
         setAssistantFeedback({
           variant: 'danger',
