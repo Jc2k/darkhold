@@ -46,8 +46,12 @@ export async function apiPost<T>(path: string, body: unknown): Promise<T> {
   return res.json();
 }
 
-export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
-  const res = await fetch(buildUrl(path), {
+export async function apiPatch<T>(
+  path: string,
+  body: unknown,
+  params?: Record<string, string | number | boolean | undefined | null>,
+): Promise<T> {
+  const res = await fetch(buildUrl(path, params), {
     method: 'PATCH',
     headers: authHeaders(),
     body: JSON.stringify(body),
@@ -56,8 +60,11 @@ export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
   return res.json();
 }
 
-export async function apiDelete(path: string): Promise<void> {
-  const res = await fetch(buildUrl(path), {
+export async function apiDelete(
+  path: string,
+  params?: Record<string, string | number | boolean | undefined | null>,
+): Promise<void> {
+  const res = await fetch(buildUrl(path, params), {
     method: 'DELETE',
     headers: authHeaders(),
   });

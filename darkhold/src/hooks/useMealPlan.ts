@@ -6,6 +6,11 @@ import type { UpSoonData } from './useUpSoon';
 import { formatDate } from '../utils/dateUtils';
 import { MEAL_PLAN_GC_TIME, MEAL_PLAN_STALE_TIME } from '../utils/cacheConfig';
 
+export const MEAL_PLAN_ITEM_QUERY_PARAMS = {
+  from_date: '1900-01-01',
+  to_date: '2100-01-01',
+} as const;
+
 export function useMealPlan(fromDate: Date, toDate: Date) {
   return useQuery({
     queryKey: ['meal-plan', formatDate(fromDate), formatDate(toDate)],
@@ -23,7 +28,7 @@ export function useMealPlan(fromDate: Date, toDate: Date) {
 export function useDeleteMealPlan() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => apiDelete(`/meal-plan/${id}/`),
+    mutationFn: (id: number) => apiDelete(`/meal-plan/${id}/`, MEAL_PLAN_ITEM_QUERY_PARAMS),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['meal-plan'] });
       qc.invalidateQueries({ queryKey: ['shopping-list'] });
@@ -37,7 +42,7 @@ export function useUpdateMealPlan() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, data }: { id: number; data: Partial<MealPlan> }) =>
-      apiPatch<MealPlan>(`/meal-plan/${id}/`, data),
+      apiPatch<MealPlan>(`/meal-plan/${id}/`, data, MEAL_PLAN_ITEM_QUERY_PARAMS),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['meal-plan'] });
       qc.invalidateQueries({ queryKey: ['shopping-list'] });

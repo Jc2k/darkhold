@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Alert } from 'react-bootstrap';
 import { apiGet } from '../api/client';
 import type { MealPlan, Recipe } from '../api/tandoor-types';
+import { MEAL_PLAN_ITEM_QUERY_PARAMS } from '../hooks/useMealPlan';
 import { LoadingMascot } from '../components/LoadingMascot';
 import { RecipeDetailContent, useRecipeJsonLd } from './RecipeDetail';
 
@@ -15,7 +16,7 @@ export function MealPlanEntryDetail() {
     isError: entryError,
   } = useQuery({
     queryKey: ['meal-plan-entry', entryId],
-    queryFn: () => apiGet<MealPlan>(`/meal-plan/${entryId}/`),
+    queryFn: () => apiGet<MealPlan>(`/meal-plan/${entryId}/`, MEAL_PLAN_ITEM_QUERY_PARAMS),
     enabled: !!entryId,
   });
 
