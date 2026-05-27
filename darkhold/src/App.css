@@ -85,6 +85,23 @@
   margin: 0 auto;
 }
 
+.meal-plan-week-picker {
+  --rdp-accent-color: var(--bs-primary);
+  --rdp-range_middle-background-color: rgba(var(--bs-primary-rgb), 0.15);
+  --rdp-range_middle-color: var(--bs-body-color);
+  --rdp-day_button-border-radius: var(--bs-border-radius);
+  display: flex;
+  justify-content: center;
+}
+
+.meal-plan-week-picker .rdp-months {
+  justify-content: center;
+}
+
+.meal-plan-week-picker .rdp-root {
+  margin: 0 auto;
+}
+
 @media (max-width: 1023.98px) {
   .meal-plan-page .meal-plan-table {
     display: block;

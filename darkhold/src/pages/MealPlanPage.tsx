@@ -14,6 +14,8 @@ import {
 } from 'react-bootstrap';
 import { AsyncTypeahead } from 'react-bootstrap-typeahead';
 import 'react-bootstrap-typeahead/css/Typeahead.css';
+import { DayPicker } from 'react-day-picker';
+import 'react-day-picker/style.css';
 import {
   Trash3,
   Plus,
@@ -1378,6 +1380,7 @@ export function MealPlanPage() {
   const [isAssistantPlanning, setIsAssistantPlanning] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showWeekPickerModal, setShowWeekPickerModal] = useState(false);
+  const [weekPickerMonth, setWeekPickerMonth] = useState<Date | undefined>(undefined);
   const [isClearingWeek, setIsClearingWeek] = useState(false);
   const skipAssistantSessionPersist = useRef(false);
   const lastOverSnapshotRef = useRef<LastOverSnapshot | null>(null);
@@ -1402,6 +1405,11 @@ export function MealPlanPage() {
       navigate(`/meal-plan/${canonicalWeekStart}`, { replace: true });
     }
   }, [canonicalWeekStart, navigate, weekStart]);
+  useEffect(() => {
+    if (showWeekPickerModal) {
+      setWeekPickerMonth(weekStartDate);
+    }
+  }, [showWeekPickerModal, weekStartDate]);
   useEffect(() => {
     skipAssistantSessionPersist.current = true;
     const savedSession = loadMealAssistantSession(canonicalWeekStart);
@@ -2091,17 +2099,24 @@ export function MealPlanPage() {
           </Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <Form.Control
-            type="date"
-            value={formatDate(weekStartDate)}
+          <DayPicker
+            className="meal-plan-week-picker"
+            mode="range"
+            month={weekPickerMonth}
+            onMonthChange={setWeekPickerMonth}
+            selected={{ from: weekStartDate, to: endDate }}
+            weekStartsOn={6}
+            showOutsideDays
+            fixedWeeks
             aria-label="Pick any date in the target week"
-            onChange={(event) => {
-              const route = getMealPlanRouteFromDate(event.target.value);
-              if (!route) return;
+            onDayClick={(day) => {
               setShowWeekPickerModal(false);
-              navigate(route);
+              navigate(`/meal-plan/${formatDate(getMealPlanWeekStartSaturday(day))}`);
             }}
           />
+          <p className="text-body-secondary small mb-0 mt-3 text-center">
+            Tap or click any day to open that Saturday-starting week.
+          </p>
         </Modal.Body>
       </Modal>
     </div>
