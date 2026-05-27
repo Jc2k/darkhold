@@ -102,6 +102,28 @@
   margin: 0 auto;
 }
 
+.meal-plan-week-picker .rdp-dropdowns {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.meal-plan-week-picker .rdp-dropdown {
+  appearance: auto;
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+  background: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  padding: 0.15rem 0.35rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.meal-plan-week-picker .rdp-dropdown:focus {
+  outline: 2px solid var(--bs-primary);
+  outline-offset: 1px;
+}
+
 @media (max-width: 1023.98px) {
   .meal-plan-page .meal-plan-table {
     display: block;

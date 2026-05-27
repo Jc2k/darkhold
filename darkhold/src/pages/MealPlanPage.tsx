@@ -194,6 +194,9 @@ function addDays(d: Date, n: number): Date {
   return r;
 }
 
+const PICKER_YEARS_PAST = 5;
+const PICKER_YEARS_FUTURE = 3;
+
 export function getMealPlanRouteFromDate(value: string): string | null {
   const selectedDate = parseLocalDate(value);
   if (!selectedDate) return null;
@@ -1380,6 +1383,7 @@ export function MealPlanPage() {
   const [isAssistantPlanning, setIsAssistantPlanning] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showWeekPickerModal, setShowWeekPickerModal] = useState(false);
+  const [pendingPickerDate, setPendingPickerDate] = useState<Date | null>(null);
   const [isClearingWeek, setIsClearingWeek] = useState(false);
   const skipAssistantSessionPersist = useRef(false);
   const lastOverSnapshotRef = useRef<LastOverSnapshot | null>(null);
@@ -1414,6 +1418,18 @@ export function MealPlanPage() {
   }, [canonicalWeekStart]);
   const todayStr = formatDate(today);
   const endDate = addDays(weekStartDate, 6);
+
+  // Week picker derived values — computed here to avoid IIFE in JSX.
+  const pendingWeekStart = pendingPickerDate
+    ? getMealPlanWeekStartSaturday(pendingPickerDate)
+    : null;
+  const pendingWeekEnd = pendingWeekStart ? addDays(pendingWeekStart, 6) : null;
+  const pickerSelected = pendingWeekStart
+    ? { from: pendingWeekStart, to: pendingWeekEnd ?? undefined }
+    : { from: weekStartDate, to: endDate };
+  const pickerDefaultMonth = pendingPickerDate ?? weekStartDate;
+  const pickerStartMonth = new Date(today.getFullYear() - PICKER_YEARS_PAST, 0, 1);
+  const pickerEndMonth = new Date(today.getFullYear() + PICKER_YEARS_FUTURE, 11, 31);
 
   const { data, isLoading, isError } = useMealPlan(weekStartDate, endDate);
 
@@ -2083,7 +2099,10 @@ export function MealPlanPage() {
       </Modal>
       <Modal
         show={showWeekPickerModal}
-        onHide={() => setShowWeekPickerModal(false)}
+        onHide={() => {
+          setShowWeekPickerModal(false);
+          setPendingPickerDate(null);
+        }}
         centered
         aria-labelledby="jump-to-week-title"
       >
@@ -2097,22 +2116,50 @@ export function MealPlanPage() {
             key={`${canonicalWeekStart}-${showWeekPickerModal ? 'open' : 'closed'}`}
             className="meal-plan-week-picker"
             mode="range"
-            defaultMonth={weekStartDate}
-            selected={{ from: weekStartDate, to: endDate }}
+            defaultMonth={pickerDefaultMonth}
+            selected={pickerSelected}
             weekStartsOn={6}
             showOutsideDays
             fixedWeeks
+            captionLayout="dropdown"
+            startMonth={pickerStartMonth}
+            endMonth={pickerEndMonth}
             aria-label="Pick any date in the target week"
             aria-describedby="jump-to-week-help"
             onDayClick={(day) => {
-              setShowWeekPickerModal(false);
-              navigate(`/meal-plan/${formatDate(getMealPlanWeekStartSaturday(day))}`);
+              setPendingPickerDate(day);
             }}
           />
-          <p id="jump-to-week-help" className="text-body-secondary small mb-0 mt-3 text-center">
-            Tap or click any day to open that Saturday-starting week.
+          <p id="jump-to-week-help" className="text-body-secondary small mb-0 mt-2 text-center">
+            Select a day then press Apply to jump to that week.
           </p>
         </Modal.Body>
+        <Modal.Footer>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setShowWeekPickerModal(false);
+              setPendingPickerDate(null);
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            disabled={pendingPickerDate === null}
+            onClick={() => {
+              if (pendingPickerDate) {
+                setShowWeekPickerModal(false);
+                setPendingPickerDate(null);
+                navigate(
+                  `/meal-plan/${formatDate(getMealPlanWeekStartSaturday(pendingPickerDate))}`,
+                );
+              }
+            }}
+          >
+            Apply
+          </Button>
+        </Modal.Footer>
       </Modal>
     </div>
   );
