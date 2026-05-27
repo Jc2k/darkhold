@@ -1,6 +1,7 @@
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
 import { createBrowserRouter, RouterProvider, Navigate, useLocation } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { Layout } from './components/Layout';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Dashboard } from './pages/Dashboard';
@@ -19,11 +20,8 @@ import { UnitConverter } from './pages/UnitConverter';
 import { RiceCooking } from './pages/RiceCooking';
 import { LoadingMascot } from './components/LoadingMascot';
 import { useAppConfig } from './hooks/useAppConfig';
-import { formatDate, getMealPlanWeekStartSaturday } from './utils/dateUtils';
-
-function getCurrentMealPlanWeekPath(now: Date = new Date()): string {
-  return `/meal-plan/${formatDate(getMealPlanWeekStartSaturday(now))}`;
-}
+import { apiGet } from './api/client';
+import { getCurrentMealPlanWeekPath, getLockedMealPlanWeekPath } from './utils/mealPlanRedirect';
 
 function getHomepage(): string {
   const pref = localStorage.getItem('homepage_pref') || 'dashboard';
@@ -33,7 +31,14 @@ function getHomepage(): string {
 }
 
 function MealPlanCurrentWeekRedirect() {
-  return <Navigate to={getCurrentMealPlanWeekPath()} replace />;
+  const { data } = useQuery({
+    queryKey: ['meal-plan', 'redirect-week-path'],
+    queryFn: () => getLockedMealPlanWeekPath(apiGet),
+  });
+
+  if (!data) return <LoadingMascot />;
+
+  return <Navigate to={data} replace />;
 }
 
 /** Guards a route behind authentication.
