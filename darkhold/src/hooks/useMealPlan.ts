@@ -5,6 +5,11 @@ import { broadcastInvalidation } from './useInvalidationSocket';
 import type { UpSoonData } from './useUpSoon';
 import { formatDate } from '../utils/dateUtils';
 import { MEAL_PLAN_GC_TIME, MEAL_PLAN_STALE_TIME } from '../utils/cacheConfig';
+import {
+  getMealPlanWeekPathFromDateString,
+  MEAL_PLAN_REDIRECT_WEEK_BROADCAST_KEY,
+  MEAL_PLAN_REDIRECT_WEEK_QUERY_KEY,
+} from '../utils/mealPlanRedirect';
 
 export const MEAL_PLAN_ITEM_QUERY_PARAMS = {
   from_date: '1900-01-01',
@@ -32,8 +37,10 @@ export function useDeleteMealPlan() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['meal-plan'] });
       qc.invalidateQueries({ queryKey: ['shopping-list'] });
+      qc.invalidateQueries({ queryKey: MEAL_PLAN_REDIRECT_WEEK_QUERY_KEY });
       broadcastInvalidation('meal-plan');
       broadcastInvalidation('shopping-list');
+      broadcastInvalidation(MEAL_PLAN_REDIRECT_WEEK_BROADCAST_KEY);
     },
   });
 }
@@ -46,8 +53,10 @@ export function useUpdateMealPlan() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['meal-plan'] });
       qc.invalidateQueries({ queryKey: ['shopping-list'] });
+      qc.invalidateQueries({ queryKey: MEAL_PLAN_REDIRECT_WEEK_QUERY_KEY });
       broadcastInvalidation('meal-plan');
       broadcastInvalidation('shopping-list');
+      broadcastInvalidation(MEAL_PLAN_REDIRECT_WEEK_BROADCAST_KEY);
     },
   });
 }
@@ -56,11 +65,17 @@ export function useCreateMealPlan() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: Partial<MealPlan>) => apiPost<MealPlan>('/meal-plan/', data),
-    onSuccess: async (_result, variables) => {
+    onSuccess: async (result, variables) => {
+      const redirectWeekPath = getMealPlanWeekPathFromDateString(result.from_date);
+      if (redirectWeekPath) {
+        qc.setQueryData(MEAL_PLAN_REDIRECT_WEEK_QUERY_KEY, redirectWeekPath);
+      }
       qc.invalidateQueries({ queryKey: ['meal-plan'] });
       qc.invalidateQueries({ queryKey: ['shopping-list'] });
+      qc.invalidateQueries({ queryKey: MEAL_PLAN_REDIRECT_WEEK_QUERY_KEY });
       broadcastInvalidation('meal-plan');
       broadcastInvalidation('shopping-list');
+      broadcastInvalidation(MEAL_PLAN_REDIRECT_WEEK_BROADCAST_KEY);
 
       // Remove from Up Soon if this recipe is in the list
       const recipeId =
