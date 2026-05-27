@@ -807,6 +807,11 @@ interface SubRecipeLink {
   foodName: string;
 }
 
+interface ResolvedRecipeSelection {
+  mealTypeId: number | undefined;
+  subRecipeLinks: SubRecipeLink[];
+}
+
 export function AddMealModal({ date, onHide, mealTypes, initialMealTypeId }: AddMealModalProps) {
   const [isSearching, setIsSearching] = useState(false);
   const [recipeOptions, setRecipeOptions] = useState<Recipe[]>([]);
@@ -814,6 +819,7 @@ export function AddMealModal({ date, onHide, mealTypes, initialMealTypeId }: Add
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [selectedMealTypeId, setSelectedMealTypeId] = useState<number | undefined>(undefined);
   const [isResolvingRecipeSelection, setIsResolvingRecipeSelection] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [servings, setServings] = useState(1);
   const [note, setNote] = useState('');
   const createMeal = useCreateMealPlan();
@@ -821,9 +827,26 @@ export function AddMealModal({ date, onHide, mealTypes, initialMealTypeId }: Add
   const [subRecipeLinks, setSubRecipeLinks] = useState<SubRecipeLink[] | null>(null);
   const [subRecipeToggles, setSubRecipeToggles] = useState<Record<number, boolean>>({});
   const recipeSelectionRequestIdRef = useRef(0);
+  const recipeSelectionPromiseRef = useRef<Promise<ResolvedRecipeSelection> | null>(null);
+  const selectedRecipeRef = useRef<Recipe | null>(null);
+  const selectedMealTypeIdRef = useRef<number | undefined>(undefined);
+  const subRecipeLinksRef = useRef<SubRecipeLink[] | null>(null);
+  const subRecipeTogglesRef = useRef<Record<number, boolean>>({});
   useEffect(() => {
     setSelectedMealTypeId((prev) => prev ?? defaultMealTypeId);
   }, [defaultMealTypeId]);
+  useEffect(() => {
+    selectedRecipeRef.current = selectedRecipe;
+  }, [selectedRecipe]);
+  useEffect(() => {
+    selectedMealTypeIdRef.current = selectedMealTypeId;
+  }, [selectedMealTypeId]);
+  useEffect(() => {
+    subRecipeLinksRef.current = subRecipeLinks;
+  }, [subRecipeLinks]);
+  useEffect(() => {
+    subRecipeTogglesRef.current = subRecipeToggles;
+  }, [subRecipeToggles]);
 
   const handleRecipeSearch = async (query: string) => {
     setIsSearching(true);
@@ -848,6 +871,7 @@ export function AddMealModal({ date, onHide, mealTypes, initialMealTypeId }: Add
     setSelectedRecipe(r);
 
     if (!r) {
+      recipeSelectionPromiseRef.current = null;
       setIsResolvingRecipeSelection(false);
       setSubRecipeLinks([]);
       setSelectedMealTypeId(initialMealTypeId ?? mealTypes[0]?.id);
@@ -859,41 +883,62 @@ export function AddMealModal({ date, onHide, mealTypes, initialMealTypeId }: Add
     setSubRecipeLinks(null);
     setSelectedMealTypeId(undefined);
 
-    if (initialMealTypeId) {
-      setSubRecipeLinks([]);
-      setSelectedMealTypeId(initialMealTypeId);
-      setIsResolvingRecipeSelection(false);
-      return;
-    }
-
-    try {
-      const fullRecipe = await apiGet<Recipe>(`/recipe/${r.id}/`);
-      if (recipeSelectionRequestIdRef.current !== requestId) return;
-
-      const seen = new Set<number>();
-      const links: SubRecipeLink[] = [];
-      if (fullRecipe?.steps) {
-        for (const step of fullRecipe.steps) {
-          for (const ing of (step.ingredients ?? []) as RecipeIngredient[]) {
-            const food = ing.food && typeof ing.food === 'object' ? (ing.food as Food) : null;
-            if (food?.recipe && !seen.has(food.recipe.id)) {
-              seen.add(food.recipe.id);
-              links.push({
-                recipeId: food.recipe.id,
-                recipeName: food.recipe.name,
-                foodName: food.name,
-              });
+    const resolutionPromise: Promise<ResolvedRecipeSelection> = initialMealTypeId
+      ? Promise.resolve({
+          mealTypeId: initialMealTypeId,
+          subRecipeLinks: [],
+        })
+      : (async () => {
+          const fullRecipe = await apiGet<Recipe>(`/recipe/${r.id}/`);
+          const seen = new Set<number>();
+          const links: SubRecipeLink[] = [];
+          if (fullRecipe?.steps) {
+            for (const step of fullRecipe.steps) {
+              for (const ing of (step.ingredients ?? []) as RecipeIngredient[]) {
+                const food = ing.food && typeof ing.food === 'object' ? (ing.food as Food) : null;
+                if (food?.recipe && !seen.has(food.recipe.id)) {
+                  seen.add(food.recipe.id);
+                  links.push({
+                    recipeId: food.recipe.id,
+                    recipeName: food.recipe.name,
+                    foodName: food.name,
+                  });
+                }
+              }
             }
           }
-        }
-      }
-      setSubRecipeLinks(links);
-      setSelectedMealTypeId(deriveMealType(fullRecipe, mealTypes) ?? mealTypes[0]?.id);
+          return {
+            subRecipeLinks: links,
+            mealTypeId: deriveMealType(fullRecipe, mealTypes) ?? mealTypes[0]?.id,
+          };
+        })();
+    recipeSelectionPromiseRef.current = resolutionPromise;
+
+    try {
+      const resolution = await resolutionPromise;
+      if (recipeSelectionRequestIdRef.current !== requestId) return;
+      setSubRecipeLinks(resolution.subRecipeLinks);
+      setSelectedMealTypeId(resolution.mealTypeId);
     } finally {
       if (recipeSelectionRequestIdRef.current === requestId) {
         setIsResolvingRecipeSelection(false);
       }
     }
+  };
+
+  const waitForLatestRecipeSelection = async () => {
+    let requestId = recipeSelectionRequestIdRef.current;
+    let selectionPromise = recipeSelectionPromiseRef.current;
+    if (!selectionPromise) return null;
+
+    let resolution = await selectionPromise;
+    while (recipeSelectionRequestIdRef.current !== requestId) {
+      requestId = recipeSelectionRequestIdRef.current;
+      selectionPromise = recipeSelectionPromiseRef.current;
+      if (!selectionPromise) return null;
+      resolution = await selectionPromise;
+    }
+    return resolution;
   };
 
   // Initialise toggles (all on by default) when sub-recipe list becomes available
@@ -911,33 +956,47 @@ export function AddMealModal({ date, onHide, mealTypes, initialMealTypeId }: Add
   }, [subRecipeLinks]);
 
   const handleSubmit = async () => {
-    if (!selectedRecipe) return;
-    if (isResolvingRecipeSelection) return;
-    if (!selectedMealTypeId) return;
-    await createMeal.mutateAsync({
-      recipe: selectedRecipe.id as unknown as Recipe,
-      meal_type: selectedMealTypeId as unknown as MealType,
-      from_date: date,
-      servings,
-      ...(note ? { note } : {}),
-      addshopping: true,
-    });
-    if (subRecipeLinks) {
-      await Promise.all(
-        subRecipeLinks
-          .filter((link) => subRecipeToggles[link.recipeId])
-          .map((link) =>
-            createMeal.mutateAsync({
-              recipe: link.recipeId as unknown as Recipe,
-              meal_type: selectedMealTypeId as unknown as MealType,
-              from_date: date,
-              servings: 1,
-              addshopping: true,
-            }),
-          ),
-      );
+    if (isSubmitting || !selectedRecipeRef.current) return;
+
+    setIsSubmitting(true);
+    try {
+      if (isResolvingRecipeSelection || !selectedMealTypeIdRef.current) {
+        await waitForLatestRecipeSelection();
+      }
+
+      const resolvedRecipe = selectedRecipeRef.current;
+      const resolvedMealTypeId = selectedMealTypeIdRef.current;
+      const resolvedSubRecipeLinks = subRecipeLinksRef.current ?? [];
+      if (!resolvedRecipe || !resolvedMealTypeId) return;
+
+      await createMeal.mutateAsync({
+        recipe: resolvedRecipe.id as unknown as Recipe,
+        meal_type: resolvedMealTypeId as unknown as MealType,
+        from_date: date,
+        servings,
+        ...(note ? { note } : {}),
+        addshopping: true,
+      });
+      if (resolvedSubRecipeLinks.length > 0) {
+        const toggles = subRecipeTogglesRef.current;
+        await Promise.all(
+          resolvedSubRecipeLinks
+            .filter((link) => toggles[link.recipeId])
+            .map((link) =>
+              createMeal.mutateAsync({
+                recipe: link.recipeId as unknown as Recipe,
+                meal_type: resolvedMealTypeId as unknown as MealType,
+                from_date: date,
+                servings: 1,
+                addshopping: true,
+              }),
+            ),
+        );
+      }
+      onHide();
+    } finally {
+      setIsSubmitting(false);
     }
-    onHide();
   };
 
   return (
@@ -1043,14 +1102,11 @@ export function AddMealModal({ date, onHide, mealTypes, initialMealTypeId }: Add
         <Button
           variant="success"
           disabled={
-            !selectedRecipe ||
-            createMeal.isPending ||
-            isResolvingRecipeSelection ||
-            !selectedMealTypeId
+            !selectedRecipe || isSubmitting || createMeal.isPending || (!isResolvingRecipeSelection && !selectedMealTypeId)
           }
           onClick={handleSubmit}
         >
-          {createMeal.isPending ? <Spinner size="sm" /> : 'Add'}
+          {isSubmitting || createMeal.isPending ? <Spinner size="sm" /> : 'Add'}
         </Button>
       </Modal.Footer>
     </Modal>

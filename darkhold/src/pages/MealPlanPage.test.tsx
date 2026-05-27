@@ -338,9 +338,12 @@ describe('AddMealModal', () => {
     delete actGlobal.IS_REACT_ACT_ENVIRONMENT;
   });
 
-  it('keeps submit disabled until recipe details finish loading', async () => {
+  it('awaits in-flight recipe details on submit without refetching', async () => {
     const deferredRecipe = createDeferred<Recipe>();
-    apiGetMock.mockReturnValue(deferredRecipe.promise);
+    apiGetMock.mockImplementation((path: string) => {
+      if (path === '/recipe/1/') return deferredRecipe.promise;
+      return Promise.reject(new Error(`Unexpected path ${path}`));
+    });
 
     act(() => {
       root.render(
@@ -364,13 +367,15 @@ describe('AddMealModal', () => {
       (button) => button.textContent?.trim() === 'Add',
     ) as HTMLButtonElement;
 
-    expect(addButton.disabled).toBe(true);
+    expect(addButton.disabled).toBe(false);
 
     await act(async () => {
       addButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 
     expect(createMealPlanMock.mutateAsync).not.toHaveBeenCalled();
+    expect(apiGetMock).toHaveBeenCalledTimes(1);
+    expect(addButton.disabled).toBe(true);
 
     await act(async () => {
       deferredRecipe.resolve({
@@ -380,14 +385,11 @@ describe('AddMealModal', () => {
         steps: [],
       } as unknown as Recipe);
       await deferredRecipe.promise;
+      await Promise.resolve();
     });
 
-    expect(addButton.disabled).toBe(false);
-
-    await act(async () => {
-      addButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    });
-
+    expect(apiGetMock).toHaveBeenCalledTimes(1);
+    expect(createMealPlanMock.mutateAsync).toHaveBeenCalledTimes(1);
     expect(createMealPlanMock.mutateAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         recipe: 1,
@@ -462,6 +464,81 @@ describe('AddMealModal', () => {
       addButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 
+    expect(createMealPlanMock.mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recipe: 2,
+        meal_type: 1,
+      }),
+    );
+  });
+
+  it('submits the latest selection if the recipe changes while submit is waiting', async () => {
+    const firstDeferred = createDeferred<Recipe>();
+    apiGetMock.mockImplementation((path: string) => {
+      if (path === '/recipe/1/') return firstDeferred.promise;
+      if (path === '/recipe/2/')
+        return Promise.resolve({
+          id: 2,
+          name: 'Porridge',
+          servings: 2,
+          keywords: [{ name: 'Breakfast' }],
+          steps: [],
+        } as unknown as Recipe);
+      return Promise.reject(new Error(`Unexpected path ${path}`));
+    });
+
+    act(() => {
+      root.render(
+        <AddMealModal
+          date="2026-05-30"
+          onHide={vi.fn()}
+          mealTypes={
+            [
+              { id: 1, name: 'Breakfast' },
+              { id: 2, name: 'Dinner' },
+            ] as MealType[]
+          }
+        />,
+      );
+    });
+
+    const selectRecipeButton = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Select recipe',
+    ) as HTMLButtonElement;
+    const addButton = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Add',
+    ) as HTMLButtonElement;
+
+    asyncTypeaheadState.selected = [{ id: 1, name: 'Curry', servings: 4 } as Recipe];
+    await act(async () => {
+      selectRecipeButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    await act(async () => {
+      addButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(createMealPlanMock.mutateAsync).not.toHaveBeenCalled();
+
+    asyncTypeaheadState.selected = [{ id: 2, name: 'Porridge', servings: 2 } as Recipe];
+    await act(async () => {
+      selectRecipeButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      firstDeferred.resolve({
+        id: 1,
+        name: 'Curry',
+        servings: 4,
+        keywords: [{ name: 'Dinner' }],
+        steps: [],
+      } as unknown as Recipe);
+      await firstDeferred.promise;
+      await Promise.resolve();
+    });
+
+    expect(createMealPlanMock.mutateAsync).toHaveBeenCalledTimes(1);
     expect(createMealPlanMock.mutateAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         recipe: 2,
