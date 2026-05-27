@@ -85,16 +85,27 @@ const FUTURE_WEATHER_STALE_TIME_MS = 1000 * 60 * 30;
 const PAST_WEATHER_GC_TIME_MS = 1000 * 60 * 60 * 24;
 /** gcTime for future/current weather: 1 hour */
 const FUTURE_WEATHER_GC_TIME_MS = 1000 * 60 * 60;
+/** Do not request weather for ranges ending more than 2 months ago. */
+const WEATHER_HISTORY_LIMIT_MONTHS = 2;
+
+export function isWeatherRangeTooOld(toDate: Date, today = new Date()): boolean {
+  const cutoff = new Date(today);
+  cutoff.setHours(0, 0, 0, 0);
+  cutoff.setMonth(cutoff.getMonth() - WEATHER_HISTORY_LIMIT_MONTHS);
+  return toDate < cutoff;
+}
 
 export function useWeatherForecast(fromDate: Date, toDate: Date) {
   const fromStr = formatDate(fromDate);
   const toStr = formatDate(toDate);
   const todayStr = formatDate(new Date());
   const isPast = toStr < todayStr;
+  const isTooOld = isWeatherRangeTooOld(toDate);
 
   const query = useQuery({
     queryKey: ['weather-forecast', fromStr, toStr],
     queryFn: () => fetchWeatherForecast(fromStr, toStr),
+    enabled: !isTooOld,
     staleTime: isPast ? Infinity : FUTURE_WEATHER_STALE_TIME_MS,
     gcTime: isPast ? PAST_WEATHER_GC_TIME_MS : FUTURE_WEATHER_GC_TIME_MS,
     retry: 1,

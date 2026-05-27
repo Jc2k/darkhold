@@ -491,16 +491,24 @@ export function clampWeatherForecastRange(
   toDate: string,
   today = new Date(),
 ): { fromDate: string; toDate: string } | null {
+  const minForecastDate = new Date(
+    Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()),
+  );
+  minForecastDate.setUTCMonth(minForecastDate.getUTCMonth() - 2);
+  const minForecastDateStr = formatUtcDate(minForecastDate);
+
   const maxForecastDate = new Date(
     Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()),
   );
   maxForecastDate.setUTCDate(maxForecastDate.getUTCDate() + OPEN_METEO_MAX_FORECAST_DAYS - 1);
   const maxForecastDateStr = formatUtcDate(maxForecastDate);
 
-  if (fromDate > maxForecastDateStr) return null;
+  if (toDate < minForecastDateStr || fromDate > maxForecastDateStr) return null;
+
+  const clampedFromDate = fromDate < minForecastDateStr ? minForecastDateStr : fromDate;
 
   return {
-    fromDate,
+    fromDate: clampedFromDate,
     toDate: toDate > maxForecastDateStr ? maxForecastDateStr : toDate,
   };
 }

@@ -795,3 +795,25 @@ Deno.test(
     if (range !== null) throw new Error(`expected null, got ${JSON.stringify(range)}`);
   },
 );
+
+Deno.test('clampWeatherForecastRange skips weather requests older than two months', () => {
+  const range = clampWeatherForecastRange(
+    '2026-02-01',
+    '2026-03-14',
+    new Date('2026-05-15T12:00:00Z'),
+  );
+
+  if (range !== null) throw new Error(`expected null, got ${JSON.stringify(range)}`);
+});
+
+Deno.test('clampWeatherForecastRange trims old weather requests to two months of history', () => {
+  const range = clampWeatherForecastRange(
+    '2026-03-01',
+    '2026-03-20',
+    new Date('2026-05-15T12:00:00Z'),
+  );
+
+  if (!range) throw new Error('expected range');
+  if (range.fromDate !== '2026-03-15') throw new Error(`unexpected start date: ${range.fromDate}`);
+  if (range.toDate !== '2026-03-20') throw new Error(`unexpected end date: ${range.toDate}`);
+});
