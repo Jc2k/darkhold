@@ -35,10 +35,28 @@ describe('deriveMealType', () => {
     expect(deriveMealType(recipe, mealTypes)).toBe(3);
   });
 
-  it('falls back to first meal type when no dinner meal type exists', () => {
+  it('falls back to only meal type when no dinner meal type exists', () => {
     const limited: MealType[] = [{ id: 5, name: 'Brunch' }];
     const recipe = { id: 1, name: 'Pasta', keywords: [] };
     expect(deriveMealType(recipe, limited)).toBe(5);
+  });
+
+  it('avoids breakfast fallback when a later meal type exists', () => {
+    const limited: MealType[] = [
+      { id: 1, name: 'Breakfast', time: '08:00' },
+      { id: 2, name: 'Brunch', time: '11:30' },
+    ];
+    const recipe = { id: 1, name: 'Pasta', keywords: [] };
+    expect(deriveMealType(recipe, limited)).toBe(2);
+  });
+
+  it('uses meal type order when no meal type times exist', () => {
+    const limited: MealType[] = [
+      { id: 1, name: 'Breakfast', order: 1 },
+      { id: 2, name: 'Lunch', order: 2 },
+    ];
+    const recipe = { id: 1, name: 'Pasta', keywords: [] };
+    expect(deriveMealType(recipe, limited)).toBe(2);
   });
 
   it('handles numeric keywords (ids only) without crashing', () => {
