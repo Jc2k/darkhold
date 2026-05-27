@@ -27,6 +27,8 @@ interface Props {
   onHide: () => void;
 }
 
+const KEYWORD_NAME_BY_ID_STALE_TIME = 5 * 60 * 1000;
+
 export async function fetchKeywordNameById(): Promise<Record<number, string>> {
   const map: Record<number, string> = {};
   let page = 1;
@@ -124,7 +126,7 @@ export function MealPlanAddModal({ recipe, keywordNameById, onHide }: Props) {
     queryKey: ['keyword-name-by-id'],
     queryFn: fetchKeywordNameById,
     enabled: hasUnresolvedKeywordIds,
-    staleTime: 5 * 60 * 1000,
+    staleTime: KEYWORD_NAME_BY_ID_STALE_TIME,
   });
   const effectiveKeywordNameById = useMemo(
     () => ({
@@ -165,7 +167,7 @@ export function MealPlanAddModal({ recipe, keywordNameById, onHide }: Props) {
       const fetchedKeywordMap = await queryClient.fetchQuery({
         queryKey: ['keyword-name-by-id'],
         queryFn: fetchKeywordNameById,
-        staleTime: 5 * 60 * 1000,
+        staleTime: KEYWORD_NAME_BY_ID_STALE_TIME,
       });
       resolvedKeywordNameById = {
         ...fetchedKeywordMap,

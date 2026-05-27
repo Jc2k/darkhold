@@ -34,6 +34,7 @@ import { MealPlanAddModal, fetchKeywordNameById } from './MealPlanAddModal';
 type ReactActGlobal = typeof globalThis & {
   IS_REACT_ACT_ENVIRONMENT?: boolean;
 };
+type QueryOptionsLike = { queryKey: readonly unknown[] };
 
 describe('MealPlanAddModal', () => {
   let container: HTMLDivElement;
@@ -47,7 +48,7 @@ describe('MealPlanAddModal', () => {
     root = createRoot(container);
     localStorage.setItem('tandoor_token', 'test-token');
 
-    useQueryMock.mockImplementation(({ queryKey }: { queryKey: unknown[] }) => {
+    useQueryMock.mockImplementation(({ queryKey }: QueryOptionsLike) => {
       if (queryKey[0] === 'recipe') {
         return { data: { id: 1, steps: [] } };
       }
@@ -69,7 +70,7 @@ describe('MealPlanAddModal', () => {
     useQueryClientMock.mockReturnValue({
       fetchQuery: fetchQueryMock,
     });
-    fetchQueryMock.mockImplementation(({ queryKey }: { queryKey: unknown[] }) => {
+    fetchQueryMock.mockImplementation(({ queryKey }: QueryOptionsLike) => {
       if (queryKey[0] === 'meal-types') {
         return Promise.resolve({
           results: [
@@ -144,7 +145,7 @@ describe('MealPlanAddModal', () => {
   });
 
   it('waits for unresolved keyword lookup on submit and then adds to plan', async () => {
-    useQueryMock.mockImplementation(({ queryKey }: { queryKey: unknown[] }) => {
+    useQueryMock.mockImplementation(({ queryKey }: QueryOptionsLike) => {
       if (queryKey[0] === 'recipe') {
         return { data: { id: 1, steps: [] } };
       }
