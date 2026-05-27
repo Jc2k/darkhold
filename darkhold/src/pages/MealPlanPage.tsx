@@ -219,6 +219,12 @@ export function parseIsoWeekValue(value: string): Date | null {
   return selectedMonday;
 }
 
+export function getMealPlanRouteFromIsoWeekValue(value: string): string | null {
+  const selectedWeek = parseIsoWeekValue(value);
+  if (!selectedWeek) return null;
+  return `/meal-plan/${formatDate(getMealPlanWeekStartSaturday(selectedWeek))}`;
+}
+
 function shortDay(d: Date): string {
   return d.toLocaleDateString('en-GB', {
     weekday: 'short',
@@ -1398,11 +1404,11 @@ export function MealPlanPage() {
   } | null>(null);
   const [isAssistantPlanning, setIsAssistantPlanning] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [showWeekPickerModal, setShowWeekPickerModal] = useState(false);
   const [isClearingWeek, setIsClearingWeek] = useState(false);
   const skipAssistantSessionPersist = useRef(false);
   const lastOverSnapshotRef = useRef<LastOverSnapshot | null>(null);
   const lastActiveContainerIdRef = useRef<string | null>(null);
-  const weekPickerRef = useRef<HTMLInputElement | null>(null);
   // Maps entry id -> optimistic target date for in-flight cross-day moves
   const [pendingMoves, setPendingMoves] = useState<Map<number, string>>(new Map());
   const hasPersonalToken = Boolean(localStorage.getItem('tandoor_token'));
@@ -1935,28 +1941,12 @@ export function MealPlanPage() {
               <Button
                 variant="outline-secondary"
                 style={{ minHeight: 44, padding: '0 0.75rem' }}
-                onClick={() => {
-                  const weekPicker = weekPickerRef.current;
-                  if (!weekPicker) return;
-                  weekPicker.click();
-                }}
+                onClick={() => setShowWeekPickerModal(true)}
                 aria-label="Pick week to jump to"
               >
                 <CalendarDate size={16} />
               </Button>
             </ButtonGroup>
-            <Form.Control
-              ref={weekPickerRef}
-              type="week"
-              value={formatIsoWeekValue(weekStartDate)}
-              className="visually-hidden"
-              aria-label="Jump to week"
-              onChange={(event) => {
-                const selectedWeek = parseIsoWeekValue(event.target.value);
-                if (!selectedWeek) return;
-                navigate(`/meal-plan/${formatDate(getMealPlanWeekStartSaturday(selectedWeek))}`);
-              }}
-            />
             <Button
               variant={assistantMode ? 'secondary' : 'outline-secondary'}
               style={{ minHeight: 44, padding: '0 0.75rem' }}
@@ -2113,6 +2103,31 @@ export function MealPlanPage() {
             )}
           </Button>
         </Modal.Footer>
+      </Modal>
+      <Modal
+        show={showWeekPickerModal}
+        onHide={() => setShowWeekPickerModal(false)}
+        centered
+        aria-labelledby="jump-to-week-title"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title id="jump-to-week-title" className="fs-6">
+            Jump to week
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form.Control
+            type="week"
+            value={formatIsoWeekValue(weekStartDate)}
+            aria-label="Jump to week"
+            onChange={(event) => {
+              const route = getMealPlanRouteFromIsoWeekValue(event.target.value);
+              if (!route) return;
+              setShowWeekPickerModal(false);
+              navigate(route);
+            }}
+          />
+        </Modal.Body>
       </Modal>
     </div>
   );
