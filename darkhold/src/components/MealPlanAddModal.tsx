@@ -144,7 +144,7 @@ export function MealPlanAddModal({ recipe, keywordNameById, onHide }: Props) {
   const effectiveMealTypeId = isMealTypeDataPending
     ? undefined
     : deriveMealType(recipe, mealTypes, effectiveKeywordNameById);
-  const mealTypeId = (effectiveMealTypeId ?? mealTypes[0]?.id) as MealType | undefined;
+  const mealTypeId = (effectiveMealTypeId ?? mealTypes[0]?.id) as unknown as MealType | undefined;
 
   const handleSubmit = async () => {
     if (!hasPersonalToken || isMealTypeDataPending || !mealTypeId) return;
