@@ -169,7 +169,7 @@ export function MealPlanAddModal({ recipe, keywordNameById, onHide }: Props) {
 
     let resolvedKeywordNameById = effectiveKeywordNameById;
     const hasStillUnresolvedKeywordIds = hasUnresolvedKeywordIdsForMap(
-      recipe.keywords,
+      recipe?.keywords,
       resolvedKeywordNameById,
     );
     if (hasStillUnresolvedKeywordIds) {
