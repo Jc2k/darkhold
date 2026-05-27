@@ -144,13 +144,13 @@ export function MealPlanAddModal({ recipe, keywordNameById, onHide }: Props) {
   const effectiveMealTypeId = isMealTypeDataPending
     ? undefined
     : deriveMealType(recipe, mealTypes, effectiveKeywordNameById);
-  const mealTypeId = (effectiveMealTypeId ?? mealTypes[0]?.id) as unknown as MealType | undefined;
+  const mealTypeId = effectiveMealTypeId ?? mealTypes[0]?.id;
 
   const handleSubmit = async () => {
     if (!hasPersonalToken || isMealTypeDataPending || !mealTypeId) return;
     const date = formatDate(selectedDate);
     await createMealPlan.mutateAsync({
-      recipe: recipe.id as unknown as Recipe,
+      recipe: recipe.id,
       meal_type: mealTypeId,
       from_date: date,
       servings,
@@ -162,7 +162,7 @@ export function MealPlanAddModal({ recipe, keywordNameById, onHide }: Props) {
         .filter((link) => subRecipeToggles[link.recipeId])
         .map((link) =>
           createMealPlan.mutateAsync({
-            recipe: link.recipeId as unknown as Recipe,
+            recipe: link.recipeId,
             meal_type: mealTypeId,
             from_date: date,
             servings: 1,
