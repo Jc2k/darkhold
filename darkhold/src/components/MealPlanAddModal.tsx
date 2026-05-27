@@ -10,7 +10,7 @@ import type {
   PaginatedResponse,
 } from '../api/tandoor-types';
 import { useCreateMealPlan } from '../hooks/useMealPlan';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiGet } from '../api/client';
 import { deriveMealType } from '../utils/mealUtils';
 import { formatDate, formatMonthYear, getWeekStartingSaturday } from '../utils/dateUtils';
@@ -42,6 +42,7 @@ export async function fetchKeywordNameById(): Promise<Record<number, string>> {
 }
 
 export function MealPlanAddModal({ recipe, keywordNameById, onHide }: Props) {
+  const queryClient = useQueryClient();
   const [weekOffset, setWeekOffset] = useState(0);
   const days = getWeekStartingSaturday(weekOffset);
   const [selectedDate, setSelectedDate] = useState<Date>(() => getWeekStartingSaturday(0)[0]);
@@ -146,12 +147,43 @@ export function MealPlanAddModal({ recipe, keywordNameById, onHide }: Props) {
     : deriveMealType(recipe, mealTypes, effectiveKeywordNameById);
   const mealTypeId = effectiveMealTypeId;
 
+  const resolveMealTypeId = async () => {
+    let resolvedMealTypes = mealTypes;
+    if (isMealTypesPending || isMealTypesFetching) {
+      const fetchedMealTypes = await queryClient.fetchQuery({
+        queryKey: ['meal-types'],
+        queryFn: () => apiGet<{ results: MealType[] }>('/meal-type/'),
+      });
+      resolvedMealTypes = fetchedMealTypes.results ?? [];
+    }
+
+    let resolvedKeywordNameById = effectiveKeywordNameById;
+    const hasStillUnresolvedKeywordIds =
+      Array.isArray(recipe.keywords) &&
+      recipe.keywords.some((k) => typeof k === 'number' && !resolvedKeywordNameById[k]);
+    if (hasStillUnresolvedKeywordIds) {
+      const fetchedKeywordMap = await queryClient.fetchQuery({
+        queryKey: ['keyword-name-by-id'],
+        queryFn: fetchKeywordNameById,
+        staleTime: 5 * 60 * 1000,
+      });
+      resolvedKeywordNameById = {
+        ...fetchedKeywordMap,
+        ...(keywordNameById ?? {}),
+      };
+    }
+
+    return deriveMealType(recipe, resolvedMealTypes, resolvedKeywordNameById);
+  };
+
   const handleSubmit = async () => {
-    if (!hasPersonalToken || isMealTypeDataPending || !mealTypeId) return;
+    if (!hasPersonalToken) return;
+    const resolvedMealTypeId = mealTypeId ?? (await resolveMealTypeId());
+    if (!resolvedMealTypeId) return;
     const date = formatDate(selectedDate);
     await createMealPlan.mutateAsync({
       recipe: recipe.id,
-      meal_type: mealTypeId,
+      meal_type: resolvedMealTypeId,
       from_date: date,
       servings,
       ...(note ? { note } : {}),
@@ -163,7 +195,7 @@ export function MealPlanAddModal({ recipe, keywordNameById, onHide }: Props) {
         .map((link) =>
           createMealPlan.mutateAsync({
             recipe: link.recipeId,
-            meal_type: mealTypeId,
+            meal_type: resolvedMealTypeId,
             from_date: date,
             servings: 1,
             addshopping: true,
@@ -312,7 +344,7 @@ export function MealPlanAddModal({ recipe, keywordNameById, onHide }: Props) {
           <Button
             variant="success"
             onClick={handleSubmit}
-            disabled={createMealPlan.isPending || isMealTypeDataPending || !mealTypeId}
+            disabled={createMealPlan.isPending || (!isMealTypeDataPending && !mealTypeId)}
           >
             {createMealPlan.isPending ? <Spinner size="sm" /> : 'Add to Plan'}
           </Button>
