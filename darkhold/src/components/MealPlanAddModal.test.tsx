@@ -4,17 +4,21 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Recipe } from '../api/tandoor-types';
 
-const { useQueryMock, createMealPlanMock, apiGetMock } = vi.hoisted(() => ({
-  useQueryMock: vi.fn(),
-  createMealPlanMock: {
-    mutateAsync: vi.fn().mockResolvedValue({}),
-    isPending: false,
-  },
-  apiGetMock: vi.fn(),
-}));
+const { useQueryMock, useQueryClientMock, fetchQueryMock, createMealPlanMock, apiGetMock } =
+  vi.hoisted(() => ({
+    useQueryMock: vi.fn(),
+    useQueryClientMock: vi.fn(),
+    fetchQueryMock: vi.fn(),
+    createMealPlanMock: {
+      mutateAsync: vi.fn().mockResolvedValue({}),
+      isPending: false,
+    },
+    apiGetMock: vi.fn(),
+  }));
 
 vi.mock('@tanstack/react-query', () => ({
   useQuery: useQueryMock,
+  useQueryClient: useQueryClientMock,
 }));
 
 vi.mock('../hooks/useMealPlan', () => ({
@@ -30,6 +34,7 @@ import { MealPlanAddModal, fetchKeywordNameById } from './MealPlanAddModal';
 type ReactActGlobal = typeof globalThis & {
   IS_REACT_ACT_ENVIRONMENT?: boolean;
 };
+type MockQueryOptions = { queryKey: readonly unknown[] };
 
 describe('MealPlanAddModal', () => {
   let container: HTMLDivElement;
@@ -43,7 +48,7 @@ describe('MealPlanAddModal', () => {
     root = createRoot(container);
     localStorage.setItem('tandoor_token', 'test-token');
 
-    useQueryMock.mockImplementation(({ queryKey }: { queryKey: unknown[] }) => {
+    useQueryMock.mockImplementation(({ queryKey }: MockQueryOptions) => {
       if (queryKey[0] === 'recipe') {
         return { data: { id: 1, steps: [] } };
       }
@@ -61,6 +66,23 @@ describe('MealPlanAddModal', () => {
         return { data: { 10: 'Breakfast' } };
       }
       return { data: undefined };
+    });
+    useQueryClientMock.mockReturnValue({
+      fetchQuery: fetchQueryMock,
+    });
+    fetchQueryMock.mockImplementation(({ queryKey }: MockQueryOptions) => {
+      if (queryKey[0] === 'meal-types') {
+        return Promise.resolve({
+          results: [
+            { id: 1, name: 'Breakfast' },
+            { id: 2, name: 'Dinner' },
+          ],
+        });
+      }
+      if (queryKey[0] === 'keyword-name-by-id') {
+        return Promise.resolve({ 10: 'Breakfast' });
+      }
+      return Promise.resolve(undefined);
     });
   });
 
@@ -122,21 +144,16 @@ describe('MealPlanAddModal', () => {
     expect(result).toEqual({ 10: 'Breakfast', 11: 'Lunch' });
   });
 
-  it('keeps add-to-plan disabled until unresolved keyword lookup is ready', async () => {
-    useQueryMock.mockImplementation(({ queryKey }: { queryKey: unknown[] }) => {
+  it('waits for unresolved keyword lookup on submit and then adds to plan', async () => {
+    useQueryMock.mockImplementation(({ queryKey }: MockQueryOptions) => {
       if (queryKey[0] === 'recipe') {
         return { data: { id: 1, steps: [] } };
       }
       if (queryKey[0] === 'meal-types') {
         return {
-          data: {
-            results: [
-              { id: 1, name: 'Breakfast' },
-              { id: 2, name: 'Dinner' },
-            ],
-          },
-          isPending: false,
-          isFetching: false,
+          data: undefined,
+          isPending: true,
+          isFetching: true,
         };
       }
       if (queryKey[0] === 'keyword-name-by-id') {
@@ -164,12 +181,27 @@ describe('MealPlanAddModal', () => {
     ) as HTMLButtonElement;
 
     expect(addButton).toBeTruthy();
-    expect(addButton.disabled).toBe(true);
+    expect(addButton.disabled).toBe(false);
 
     await act(async () => {
       addButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 
-    expect(createMealPlanMock.mutateAsync).not.toHaveBeenCalled();
+    expect(fetchQueryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        queryKey: ['meal-types'],
+      }),
+    );
+    expect(fetchQueryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        queryKey: ['keyword-name-by-id'],
+      }),
+    );
+    expect(createMealPlanMock.mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recipe: 1,
+        meal_type: 1,
+      }),
+    );
   });
 });
