@@ -1,11 +1,28 @@
 import { act, type RefCallback } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MealType, Recipe } from '../api/tandoor-types';
 
-const { useDroppableMock, useSensorMock, useSensorsMock } = vi.hoisted(() => ({
+const {
+  useDroppableMock,
+  useSensorMock,
+  useSensorsMock,
+  createMealPlanMock,
+  apiGetMock,
+  asyncTypeaheadState,
+} = vi.hoisted(() => ({
   useDroppableMock: vi.fn(),
   useSensorMock: vi.fn(),
   useSensorsMock: vi.fn(),
+  createMealPlanMock: {
+    mutateAsync: vi.fn().mockResolvedValue({}),
+    isPending: false,
+  },
+  apiGetMock: vi.fn(),
+  asyncTypeaheadState: {
+    selected: [] as Recipe[],
+    latestProps: null as null | { onChange?: (selected: Recipe[]) => void },
+  },
 }));
 
 type ReactActGlobal = typeof globalThis & {
@@ -22,9 +39,42 @@ vi.mock('@dnd-kit/core', async () => {
   };
 });
 
+vi.mock('../hooks/useMealPlan', () => ({
+  MEAL_PLAN_ITEM_QUERY_PARAMS: {
+    from_date: '1900-01-01',
+    to_date: '2100-01-01',
+  },
+  useMealPlan: vi.fn(),
+  useDeleteMealPlan: vi.fn(),
+  useCreateMealPlan: () => createMealPlanMock,
+  useUpdateMealPlan: vi.fn(),
+}));
+
+vi.mock('../api/client', () => ({
+  apiGet: apiGetMock,
+  apiDelete: vi.fn(),
+}));
+
+vi.mock('react-bootstrap-typeahead', () => ({
+  AsyncTypeahead: (props: { onChange?: (selected: Recipe[]) => void }) => {
+    asyncTypeaheadState.latestProps = props;
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          props.onChange?.(asyncTypeaheadState.selected);
+        }}
+      >
+        Select recipe
+      </button>
+    );
+  },
+}));
+
 import { MouseSensor, TouchSensor, type Collision } from '@dnd-kit/core';
 import { DroppableTableRow } from './DroppableTableRow';
 import {
+  AddMealModal,
   getMealPlanRouteFromDate,
   getEmptyWeekendLunchDates,
   getDateMealTypeCollisionId,
@@ -35,6 +85,14 @@ import {
 function SensorHarness() {
   useMealPlanSensors();
   return null;
+}
+
+function createDeferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
 }
 
 describe('DroppableTableRow', () => {
@@ -252,5 +310,240 @@ describe('date jump helper', () => {
   it('returns null route for invalid date input values', () => {
     expect(getMealPlanRouteFromDate('2026-13-40')).toBeNull();
     expect(getMealPlanRouteFromDate('2026/01/01')).toBeNull();
+  });
+});
+
+describe('AddMealModal', () => {
+  let container: HTMLDivElement;
+  let root: ReturnType<typeof createRoot>;
+  const actGlobal = globalThis as ReactActGlobal;
+
+  beforeEach(() => {
+    actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+    createMealPlanMock.mutateAsync.mockClear();
+    createMealPlanMock.isPending = false;
+    apiGetMock.mockReset();
+    asyncTypeaheadState.selected = [];
+    asyncTypeaheadState.latestProps = null;
+  });
+
+  afterEach(() => {
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+    delete actGlobal.IS_REACT_ACT_ENVIRONMENT;
+  });
+
+  it('awaits in-flight recipe details on submit without refetching', async () => {
+    const deferredRecipe = createDeferred<Recipe>();
+    apiGetMock.mockImplementation((path: string) => {
+      if (path === '/recipe/1/') return deferredRecipe.promise;
+      return Promise.reject(new Error(`Unexpected path ${path}`));
+    });
+
+    act(() => {
+      root.render(
+        <AddMealModal
+          date="2026-05-30"
+          onHide={vi.fn()}
+          mealTypes={[{ id: 2, name: 'Dinner' } as MealType]}
+        />,
+      );
+    });
+
+    asyncTypeaheadState.selected = [{ id: 1, name: 'Lasagne', servings: 4 } as Recipe];
+
+    await act(async () => {
+      Array.from(document.querySelectorAll('button'))
+        .find((button) => button.textContent?.trim() === 'Select recipe')
+        ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    const addButton = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Add',
+    ) as HTMLButtonElement;
+
+    expect(addButton.disabled).toBe(false);
+
+    await act(async () => {
+      addButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(createMealPlanMock.mutateAsync).not.toHaveBeenCalled();
+    expect(apiGetMock).toHaveBeenCalledTimes(1);
+    expect(addButton.disabled).toBe(true);
+
+    await act(async () => {
+      deferredRecipe.resolve({
+        id: 1,
+        name: 'Lasagne',
+        servings: 4,
+        steps: [],
+      } as unknown as Recipe);
+      await deferredRecipe.promise;
+      await Promise.resolve();
+    });
+
+    expect(apiGetMock).toHaveBeenCalledTimes(1);
+    expect(createMealPlanMock.mutateAsync).toHaveBeenCalledTimes(1);
+    expect(createMealPlanMock.mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recipe: 1,
+        meal_type: 2,
+      }),
+    );
+  });
+
+  it('ignores stale recipe detail responses from older selections', async () => {
+    const firstDeferred = createDeferred<Recipe>();
+    apiGetMock.mockImplementation((path: string) => {
+      if (path === '/recipe/1/') return firstDeferred.promise;
+      if (path === '/recipe/2/')
+        return Promise.resolve({
+          id: 2,
+          name: 'Porridge',
+          servings: 2,
+          keywords: [{ name: 'Breakfast' }],
+          steps: [],
+        } as unknown as Recipe);
+      return Promise.reject(new Error(`Unexpected path ${path}`));
+    });
+
+    act(() => {
+      root.render(
+        <AddMealModal
+          date="2026-05-30"
+          onHide={vi.fn()}
+          mealTypes={
+            [
+              { id: 1, name: 'Breakfast' },
+              { id: 2, name: 'Dinner' },
+            ] as MealType[]
+          }
+        />,
+      );
+    });
+
+    const selectRecipeButton = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Select recipe',
+    ) as HTMLButtonElement;
+
+    asyncTypeaheadState.selected = [{ id: 1, name: 'Curry', servings: 4 } as Recipe];
+    await act(async () => {
+      selectRecipeButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    asyncTypeaheadState.selected = [{ id: 2, name: 'Porridge', servings: 2 } as Recipe];
+    await act(async () => {
+      selectRecipeButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      firstDeferred.resolve({
+        id: 1,
+        name: 'Curry',
+        servings: 4,
+        keywords: [{ name: 'Dinner' }],
+        steps: [],
+      } as unknown as Recipe);
+      await firstDeferred.promise;
+    });
+
+    const addButton = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Add',
+    ) as HTMLButtonElement;
+
+    expect(addButton.disabled).toBe(false);
+
+    await act(async () => {
+      addButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(createMealPlanMock.mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recipe: 2,
+        meal_type: 1,
+      }),
+    );
+  });
+
+  it('submits the latest selection if the recipe changes while submit is waiting', async () => {
+    const firstDeferred = createDeferred<Recipe>();
+    apiGetMock.mockImplementation((path: string) => {
+      if (path === '/recipe/1/') return firstDeferred.promise;
+      if (path === '/recipe/2/')
+        return Promise.resolve({
+          id: 2,
+          name: 'Porridge',
+          servings: 2,
+          keywords: [{ name: 'Breakfast' }],
+          steps: [],
+        } as unknown as Recipe);
+      return Promise.reject(new Error(`Unexpected path ${path}`));
+    });
+
+    act(() => {
+      root.render(
+        <AddMealModal
+          date="2026-05-30"
+          onHide={vi.fn()}
+          mealTypes={
+            [
+              { id: 1, name: 'Breakfast' },
+              { id: 2, name: 'Dinner' },
+            ] as MealType[]
+          }
+        />,
+      );
+    });
+
+    const selectRecipeButton = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Select recipe',
+    ) as HTMLButtonElement;
+    const addButton = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Add',
+    ) as HTMLButtonElement;
+
+    asyncTypeaheadState.selected = [{ id: 1, name: 'Curry', servings: 4 } as Recipe];
+    await act(async () => {
+      selectRecipeButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    await act(async () => {
+      addButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(createMealPlanMock.mutateAsync).not.toHaveBeenCalled();
+
+    asyncTypeaheadState.selected = [{ id: 2, name: 'Porridge', servings: 2 } as Recipe];
+    await act(async () => {
+      selectRecipeButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      firstDeferred.resolve({
+        id: 1,
+        name: 'Curry',
+        servings: 4,
+        keywords: [{ name: 'Dinner' }],
+        steps: [],
+      } as unknown as Recipe);
+      await firstDeferred.promise;
+      await Promise.resolve();
+    });
+
+    expect(createMealPlanMock.mutateAsync).toHaveBeenCalledTimes(1);
+    expect(createMealPlanMock.mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recipe: 2,
+        meal_type: 1,
+      }),
+    );
   });
 });
