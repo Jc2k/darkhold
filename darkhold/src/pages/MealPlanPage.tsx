@@ -1380,7 +1380,6 @@ export function MealPlanPage() {
   const [isAssistantPlanning, setIsAssistantPlanning] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showWeekPickerModal, setShowWeekPickerModal] = useState(false);
-  const [weekPickerMonth, setWeekPickerMonth] = useState<Date | undefined>(undefined);
   const [isClearingWeek, setIsClearingWeek] = useState(false);
   const skipAssistantSessionPersist = useRef(false);
   const lastOverSnapshotRef = useRef<LastOverSnapshot | null>(null);
@@ -1405,11 +1404,6 @@ export function MealPlanPage() {
       navigate(`/meal-plan/${canonicalWeekStart}`, { replace: true });
     }
   }, [canonicalWeekStart, navigate, weekStart]);
-  useEffect(() => {
-    if (showWeekPickerModal) {
-      setWeekPickerMonth(weekStartDate);
-    }
-  }, [showWeekPickerModal]);
   useEffect(() => {
     skipAssistantSessionPersist.current = true;
     const savedSession = loadMealAssistantSession(canonicalWeekStart);
@@ -2100,10 +2094,10 @@ export function MealPlanPage() {
         </Modal.Header>
         <Modal.Body>
           <DayPicker
+            key={`${canonicalWeekStart}-${showWeekPickerModal ? 'open' : 'closed'}`}
             className="meal-plan-week-picker"
             mode="range"
-            month={weekPickerMonth}
-            onMonthChange={setWeekPickerMonth}
+            defaultMonth={weekStartDate}
             selected={{ from: weekStartDate, to: endDate }}
             weekStartsOn={6}
             showOutsideDays
