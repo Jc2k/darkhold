@@ -219,6 +219,12 @@ export function parseIsoWeekValue(value: string): Date | null {
   return selectedMonday;
 }
 
+export function getMealPlanRouteFromIsoWeekValue(value: string): string | null {
+  const selectedWeek = parseIsoWeekValue(value);
+  if (!selectedWeek) return null;
+  return `/meal-plan/${formatDate(getMealPlanWeekStartSaturday(selectedWeek))}`;
+}
+
 function shortDay(d: Date): string {
   return d.toLocaleDateString('en-GB', {
     weekday: 'short',
@@ -2115,10 +2121,10 @@ export function MealPlanPage() {
             value={formatIsoWeekValue(weekStartDate)}
             aria-label="Jump to week"
             onChange={(event) => {
-              const selectedWeek = parseIsoWeekValue(event.target.value);
-              if (!selectedWeek) return;
+              const route = getMealPlanRouteFromIsoWeekValue(event.target.value);
+              if (!route) return;
               setShowWeekPickerModal(false);
-              navigate(`/meal-plan/${formatDate(getMealPlanWeekStartSaturday(selectedWeek))}`);
+              navigate(route);
             }}
           />
         </Modal.Body>

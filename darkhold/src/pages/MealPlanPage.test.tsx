@@ -26,6 +26,7 @@ import { MouseSensor, TouchSensor, type Collision } from '@dnd-kit/core';
 import { DroppableTableRow } from './DroppableTableRow';
 import {
   formatIsoWeekValue,
+  getMealPlanRouteFromIsoWeekValue,
   getEmptyWeekendLunchDates,
   getDateMealTypeCollisionId,
   parseIsoWeekValue,
@@ -267,5 +268,15 @@ describe('iso week helpers', () => {
     expect(parseIsoWeekValue('2026-W00')).toBeNull();
     expect(parseIsoWeekValue('2026-W54')).toBeNull();
     expect(parseIsoWeekValue('2026-01')).toBeNull();
+  });
+
+  it('builds a meal-plan route for valid iso week input values', () => {
+    expect(getMealPlanRouteFromIsoWeekValue('2026-W01')).toBe('/meal-plan/2025-12-27');
+    expect(getMealPlanRouteFromIsoWeekValue('2026-W53')).toBe('/meal-plan/2026-12-26');
+  });
+
+  it('returns null route for invalid iso week input values', () => {
+    expect(getMealPlanRouteFromIsoWeekValue('2026-W00')).toBeNull();
+    expect(getMealPlanRouteFromIsoWeekValue('2026-01')).toBeNull();
   });
 });
