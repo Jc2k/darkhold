@@ -14,6 +14,8 @@ import {
 } from 'react-bootstrap';
 import { AsyncTypeahead } from 'react-bootstrap-typeahead';
 import 'react-bootstrap-typeahead/css/Typeahead.css';
+import { DayPicker } from 'react-day-picker';
+import 'react-day-picker/style.css';
 import {
   Trash3,
   Plus,
@@ -2091,17 +2093,25 @@ export function MealPlanPage() {
           </Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <Form.Control
-            type="date"
-            value={formatDate(weekStartDate)}
+          <DayPicker
+            key={`${canonicalWeekStart}-${showWeekPickerModal ? 'open' : 'closed'}`}
+            className="meal-plan-week-picker"
+            mode="range"
+            defaultMonth={weekStartDate}
+            selected={{ from: weekStartDate, to: endDate }}
+            weekStartsOn={6}
+            showOutsideDays
+            fixedWeeks
             aria-label="Pick any date in the target week"
-            onChange={(event) => {
-              const route = getMealPlanRouteFromDate(event.target.value);
-              if (!route) return;
+            aria-describedby="jump-to-week-help"
+            onDayClick={(day) => {
               setShowWeekPickerModal(false);
-              navigate(route);
+              navigate(`/meal-plan/${formatDate(getMealPlanWeekStartSaturday(day))}`);
             }}
           />
+          <p id="jump-to-week-help" className="text-body-secondary small mb-0 mt-3 text-center">
+            Tap or click any day to open that Saturday-starting week.
+          </p>
         </Modal.Body>
       </Modal>
     </div>
