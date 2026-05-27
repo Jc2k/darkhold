@@ -1107,7 +1107,10 @@ export function AddMealModal({ date, onHide, mealTypes, initialMealTypeId }: Add
         <Button
           variant="success"
           disabled={
-            !selectedRecipe || isSubmitting || createMeal.isPending || (!isResolvingRecipeSelection && !selectedMealTypeId)
+            !selectedRecipe ||
+            isSubmitting ||
+            createMeal.isPending ||
+            (!isResolvingRecipeSelection && !selectedMealTypeId)
           }
           onClick={handleSubmit}
         >
