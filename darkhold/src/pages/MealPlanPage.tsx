@@ -26,6 +26,7 @@ import {
   CloudSnowFill,
   CloudLightningRainFill,
   CloudFog2Fill,
+  Stars,
   Magic,
   CalendarDate,
 } from 'react-bootstrap-icons';
@@ -196,7 +197,9 @@ function formatIsoWeekValue(date: Date): string {
   const day = local.getDay() || 7;
   local.setDate(local.getDate() + 4 - day);
   const yearStart = new Date(local.getFullYear(), 0, 1);
-  const weekNumber = Math.ceil(((((local.getTime() - yearStart.getTime()) / 86400000) | 0) + 1) / 7);
+  const weekNumber = Math.ceil(
+    ((((local.getTime() - yearStart.getTime()) / 86400000) | 0) + 1) / 7,
+  );
   return `${local.getFullYear()}-W${String(weekNumber).padStart(2, '0')}`;
 }
 
@@ -205,7 +208,8 @@ function parseIsoWeekValue(value: string): Date | null {
   if (!match) return null;
   const isoYear = Number(match[1]);
   const isoWeek = Number(match[2]);
-  if (!Number.isInteger(isoYear) || !Number.isInteger(isoWeek) || isoWeek < 1 || isoWeek > 53) return null;
+  if (!Number.isInteger(isoYear) || !Number.isInteger(isoWeek) || isoWeek < 1 || isoWeek > 53)
+    return null;
   const jan4 = new Date(isoYear, 0, 4);
   const jan4Day = jan4.getDay() || 7;
   const week1Monday = new Date(jan4);
@@ -1976,11 +1980,7 @@ export function MealPlanPage() {
                   : 'Turn on meal planning assistance'
               }
             >
-              {isAssistantPlanning ? (
-                <Spinner size="sm" />
-              ) : (
-                <Magic size={16} />
-              )}
+              {isAssistantPlanning ? <Spinner size="sm" /> : <Magic size={16} />}
             </Button>
             <Button
               variant="danger"
