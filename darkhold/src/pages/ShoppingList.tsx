@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPatch, apiDelete } from '../api/client';
 import { broadcastInvalidation } from '../hooks/useInvalidationSocket';
-import type { Food, SupermarketCategory } from '../api/tandoor-types';
+import type { Food, PaginatedResponse, SupermarketCategory } from '../api/tandoor-types';
 import { LoadingMascot } from '../components/LoadingMascot';
 import { NoTokenAlert } from '../components/NoTokenAlert';
 import { formatFraction } from '../utils/fractions';
@@ -165,6 +165,24 @@ function groupByRecipe(entries: ShoppingEntry[]): Record<string, ShoppingEntry[]
   );
 }
 
+export async function fetchAllShoppingListEntries(): Promise<ShoppingEntry[]> {
+  const all: ShoppingEntry[] = [];
+  let page = 1;
+  let hasNext = true;
+
+  while (hasNext) {
+    const data = await apiGet<PaginatedResponse<ShoppingEntry>>('/shopping-list-entry/', {
+      page_size: 100,
+      page,
+    });
+    all.push(...data.results);
+    hasNext = !!data.next;
+    page += 1;
+  }
+
+  return all;
+}
+
 export function ShoppingList() {
   const qc = useQueryClient();
   const [pendingIds, setPendingIds] = useState<Set<number>>(new Set());
@@ -176,7 +194,7 @@ export function ShoppingList() {
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['shopping-list'],
-    queryFn: () => apiGet<{ results: ShoppingEntry[] }>('/shopping-list-entry/'),
+    queryFn: fetchAllShoppingListEntries,
   });
 
   const toggle = useMutation({
@@ -238,7 +256,7 @@ export function ShoppingList() {
     return <Alert variant="danger">Failed to load shopping list. Check your API token.</Alert>;
   }
 
-  const entries = data?.results ?? [];
+  const entries = data ?? [];
   const visibleEntries = hideChecked ? entries.filter((entry) => !entry.checked) : entries;
   if (entries.length === 0) {
     return (

@@ -38,7 +38,8 @@ vi.mock('../components/NoTokenAlert', () => ({
   NoTokenAlert: () => <div>no-token</div>,
 }));
 
-import { ShoppingList } from './ShoppingList';
+import { apiGet } from '../api/client';
+import { ShoppingList, fetchAllShoppingListEntries } from './ShoppingList';
 
 function makeFood(): Food {
   return {
@@ -106,6 +107,36 @@ describe('ShoppingList', () => {
           <ShoppingList />
         </MemoryRouter>,
       );
+    });
+
+    it('fetches all shopping list pages', async () => {
+      const apiGetMock = vi.mocked(apiGet);
+      apiGetMock
+        .mockResolvedValueOnce({
+          count: 2,
+          next: '/api/shopping-list-entry/?page=2',
+          results: [{ id: 1, food: makeFood(), checked: false }],
+        })
+        .mockResolvedValueOnce({
+          count: 2,
+          next: null,
+          results: [{ id: 2, food: { ...makeFood(), id: 2, name: 'Milk' }, checked: true }],
+        });
+
+      const result = await fetchAllShoppingListEntries();
+
+      expect(result).toEqual([
+        { id: 1, food: makeFood(), checked: false },
+        { id: 2, food: { ...makeFood(), id: 2, name: 'Milk' }, checked: true },
+      ]);
+      expect(apiGetMock).toHaveBeenNthCalledWith(1, '/shopping-list-entry/', {
+        page_size: 100,
+        page: 1,
+      });
+      expect(apiGetMock).toHaveBeenNthCalledWith(2, '/shopping-list-entry/', {
+        page_size: 100,
+        page: 2,
+      });
     });
 
     const struckQuantity = Array.from(container.querySelectorAll('span')).find(
