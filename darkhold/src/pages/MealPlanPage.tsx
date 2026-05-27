@@ -191,9 +191,10 @@ function addDays(d: Date, n: number): Date {
   return r;
 }
 
-function formatIsoWeekValue(date: Date): string {
+export function formatIsoWeekValue(date: Date): string {
   const local = new Date(date);
   local.setHours(0, 0, 0, 0);
+  // ISO week-year is based on the week containing Thursday.
   const day = local.getDay() || 7;
   local.setDate(local.getDate() + 4 - day);
   const yearStart = new Date(local.getFullYear(), 0, 1);
@@ -203,13 +204,12 @@ function formatIsoWeekValue(date: Date): string {
   return `${local.getFullYear()}-W${String(weekNumber).padStart(2, '0')}`;
 }
 
-function parseIsoWeekValue(value: string): Date | null {
+export function parseIsoWeekValue(value: string): Date | null {
   const match = /^(\d{4})-W(\d{2})$/.exec(value);
   if (!match) return null;
   const isoYear = Number(match[1]);
   const isoWeek = Number(match[2]);
-  if (!Number.isInteger(isoYear) || !Number.isInteger(isoWeek) || isoWeek < 1 || isoWeek > 53)
-    return null;
+  if (isoWeek < 1 || isoWeek > 53) return null;
   const jan4 = new Date(isoYear, 0, 4);
   const jan4Day = jan4.getDay() || 7;
   const week1Monday = new Date(jan4);
@@ -1938,10 +1938,6 @@ export function MealPlanPage() {
                 onClick={() => {
                   const weekPicker = weekPickerRef.current;
                   if (!weekPicker) return;
-                  if ('showPicker' in weekPicker && typeof weekPicker.showPicker === 'function') {
-                    weekPicker.showPicker();
-                    return;
-                  }
                   weekPicker.click();
                 }}
                 aria-label="Pick week to jump to"
@@ -1954,8 +1950,7 @@ export function MealPlanPage() {
               type="week"
               value={formatIsoWeekValue(weekStartDate)}
               className="visually-hidden"
-              tabIndex={-1}
-              aria-hidden="true"
+              aria-label="Jump to week"
               onChange={(event) => {
                 const selectedWeek = parseIsoWeekValue(event.target.value);
                 if (!selectedWeek) return;
@@ -1964,7 +1959,7 @@ export function MealPlanPage() {
             />
             <Button
               variant={assistantMode ? 'secondary' : 'outline-secondary'}
-              style={{ minHeight: 44, padding: '0 1rem' }}
+              style={{ minHeight: 44, padding: '0 0.75rem' }}
               onClick={() => {
                 void handleAssistantToggle();
               }}
