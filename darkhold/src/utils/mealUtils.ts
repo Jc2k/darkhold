@@ -27,22 +27,24 @@ function pickFallbackMealTypeId(mealTypes: MealType[]): number | undefined {
     .map((mealType, index) => ({
       id: mealType.id,
       timeMinutes: parseMealTypeTimeToMinutes(mealType.time),
-      order: mealType.order ?? Number.NEGATIVE_INFINITY,
+      order: mealType.order,
       index,
     }))
-    .filter((candidate) => candidate.timeMinutes !== undefined);
+    .filter(
+      (
+        candidate,
+      ): candidate is { id: number; timeMinutes: number; order: number | undefined; index: number } =>
+        candidate.timeMinutes !== undefined,
+    );
   if (withTimes.length > 0) {
     return withTimes.reduce((best, candidate) => {
-      if (
-        (candidate.timeMinutes ?? Number.NEGATIVE_INFINITY) >
-        (best.timeMinutes ?? Number.NEGATIVE_INFINITY)
-      )
-        return candidate;
-      if (candidate.timeMinutes === best.timeMinutes && candidate.order > best.order)
-        return candidate;
+      if (candidate.timeMinutes > best.timeMinutes) return candidate;
+      const candidateOrder = candidate.order ?? -1;
+      const bestOrder = best.order ?? -1;
+      if (candidate.timeMinutes === best.timeMinutes && candidateOrder > bestOrder) return candidate;
       if (
         candidate.timeMinutes === best.timeMinutes &&
-        candidate.order === best.order &&
+        candidateOrder === bestOrder &&
         candidate.index > best.index
       )
         return candidate;
@@ -52,11 +54,13 @@ function pickFallbackMealTypeId(mealTypes: MealType[]): number | undefined {
 
   const withOrder = candidates
     .map((mealType, index) => ({ id: mealType.id, order: mealType.order, index }))
-    .filter((candidate) => candidate.order !== undefined);
+    .filter(
+      (candidate): candidate is { id: number; order: number; index: number } =>
+        candidate.order !== undefined,
+    );
   if (withOrder.length > 0) {
     return withOrder.reduce((best, candidate) => {
-      if ((candidate.order ?? Number.NEGATIVE_INFINITY) > (best.order ?? Number.NEGATIVE_INFINITY))
-        return candidate;
+      if (candidate.order > best.order) return candidate;
       if (candidate.order === best.order && candidate.index > best.index) return candidate;
       return best;
     }).id;
