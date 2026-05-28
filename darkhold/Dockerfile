@@ -31,7 +31,8 @@ COPY --from=builder /app/node_modules/tsdav /app/node_modules/tsdav
 RUN set -e; \
     case "$TARGETPLATFORM" in \
       linux/arm64) DENO_TARGET="aarch64-unknown-linux-gnu" ;; \
-      *)           DENO_TARGET="x86_64-unknown-linux-gnu" ;; \
+      linux/amd64) DENO_TARGET="x86_64-unknown-linux-gnu" ;; \
+      *) echo "Unsupported TARGETPLATFORM: $TARGETPLATFORM" >&2; exit 1 ;; \
     esac; \
     deno compile \
       --no-config \
