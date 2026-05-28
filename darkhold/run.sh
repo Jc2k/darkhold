@@ -54,7 +54,10 @@ jq -n \
      if $produce_category != "" then . + {"meal_assistant_produce_category": $produce_category} else . end' \
     > /usr/share/nginx/html/app-config.json
 
-# Start WebSocket broadcast server in background
-/server &
+# Start WebSocket broadcast server in background.
+# LD_LIBRARY_PATH points the glibc dynamic linker to the glibc shared libraries
+# bundled from denoland/deno:alpine, avoiding the need for patchelf (which
+# corrupts the Deno standalone binary's embedded JavaScript section).
+LD_LIBRARY_PATH=/usr/local/lib/glibc /server &
 
 exec nginx -g "daemon off;"

@@ -15,9 +15,11 @@ FROM --platform=$TARGETPLATFORM denoland/deno:alpine AS glibc-source
 # Stage 3: Cross-compile the Deno server for the target platform, running natively.
 # deno compile downloads the denort runtime for $TARGETPLATFORM from dl.deno.land
 # and bundles the compiled application into it.  That denort binary is a standard
-# glibc-linked release binary with no RPATH set, so we patch RPATH to point at
-# /usr/local/lib/glibc (where the glibc-source stage keeps glibc) so it resolves
-# its shared libraries inside the musl-based nginx:alpine final image.
+# glibc-linked release binary.  We do NOT patch the binary with patchelf because
+# patchelf corrupts the embedded JavaScript section that Deno appends to the ELF
+# file.  Instead, run.sh sets LD_LIBRARY_PATH=/usr/local/lib/glibc so the glibc
+# dynamic linker (invoked via the /lib64 or /lib symlink created in stage 4) can
+# find the bundled glibc shared libraries.
 FROM --platform=$BUILDPLATFORM denoland/deno:alpine AS deno-compiler
 ARG TARGETPLATFORM
 WORKDIR /app
@@ -26,8 +28,7 @@ COPY server.ts ./
 # Reuse the npm packages already downloaded in the builder stage.
 COPY --from=builder /app/node_modules/ical.js /app/node_modules/ical.js
 COPY --from=builder /app/node_modules/tsdav /app/node_modules/tsdav
-# Compile server.ts into a standalone binary for the target platform, then
-# patch its RPATH so it can find the glibc libraries at runtime.
+# Compile server.ts into a standalone binary for the target platform.
 RUN set -e; \
     case "$TARGETPLATFORM" in \
       linux/arm64) DENO_TARGET="aarch64-unknown-linux-gnu" ;; \
@@ -41,9 +42,7 @@ RUN set -e; \
       --allow-net \
       --allow-read=/package.json \
       --allow-env=ICAL_FEEDS,WEATHER_LATITUDE,WEATHER_LONGITUDE,WEATHER_TIMEZONE \
-      --output /app/server server.ts; \
-    apk add --no-cache patchelf; \
-    patchelf --set-rpath /usr/local/lib/glibc /app/server
+      --output /app/server server.ts
 
 # Stage 4: Serve with nginx
 FROM nginx:1.27-alpine
