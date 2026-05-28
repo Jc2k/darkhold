@@ -1,9 +1,8 @@
 ## [1.80.7](https://github.com/Jc2k/darkhold/compare/v1.80.6...v1.80.7) (2026-05-28)
 
-
 ### Bug Fixes
 
-* **meal-plan:** guard assistant clear during shopping refresh ([c080a6a](https://github.com/Jc2k/darkhold/commit/c080a6a5eca39d4cd9219e9a746f2d98ff88693a))
+- **meal-plan:** guard assistant clear during shopping refresh ([c080a6a](https://github.com/Jc2k/darkhold/commit/c080a6a5eca39d4cd9219e9a746f2d98ff88693a))
 
 ## [1.80.6](https://github.com/Jc2k/darkhold/compare/v1.80.5...v1.80.6) (2026-05-28)
 

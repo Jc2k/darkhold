@@ -187,7 +187,8 @@ describe('ShoppingList', () => {
           recipe_mealplan: {
             recipe_name: 'Dinner Recipe (Order 2)',
             from_date: '2026-01-01',
-            meal_type: { name: 'Dinner', order: 2 },
+            // order: 2 but time is earlier — order must win over time to match the meal plan
+            meal_type: { name: 'Dinner', order: 2, time: '06:00' },
           },
         },
         {
@@ -200,7 +201,8 @@ describe('ShoppingList', () => {
           recipe_mealplan: {
             recipe_name: 'Brunch Recipe (Order 1)',
             from_date: '2026-01-01',
-            meal_type: { name: 'Brunch', order: 1 },
+            // order: 1 but time is later — order must win over time to match the meal plan
+            meal_type: { name: 'Brunch', order: 1, time: '20:00' },
           },
         },
         {
