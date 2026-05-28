@@ -62,27 +62,33 @@ describe('ShoppingList', () => {
 
     useQueryClientMock.mockReturnValue({ invalidateQueries: vi.fn() });
     useMutationMock.mockReturnValue({ mutateAsync: vi.fn().mockResolvedValue({}) });
-    useQueryMock.mockReturnValue({
-      data: [
-        {
-          id: 11,
-          amount: 1,
-          unit_name: 'cup',
-          food: makeFood(),
-          checked: true,
-          list_recipe_data: { recipe_data: { name: 'Cake' } },
-        },
-        {
-          id: 22,
-          amount: 2,
-          unit_name: 'cup',
-          food: makeFood(),
-          checked: false,
-          list_recipe_data: { recipe_data: { name: 'Bread' } },
-        },
-      ],
-      isLoading: false,
-      isError: false,
+    useQueryMock.mockImplementation(({ queryKey }: { queryKey: string[] }) => {
+      if (queryKey[0] === 'shopping-list') {
+        return {
+          data: [
+            {
+              id: 11,
+              amount: 1,
+              unit_name: 'cup',
+              food: makeFood(),
+              checked: true,
+              list_recipe_data: { recipe_data: { name: 'Cake' } },
+            },
+            {
+              id: 22,
+              amount: 2,
+              unit_name: 'cup',
+              food: makeFood(),
+              checked: false,
+              list_recipe_data: { recipe_data: { name: 'Bread' } },
+            },
+          ],
+          isLoading: false,
+          isError: false,
+        };
+      }
+      // meal plan query
+      return { data: [], isLoading: false, isError: false };
     });
 
     localStorage.setItem('tandoor_token', 'test-token');
@@ -174,51 +180,53 @@ describe('ShoppingList', () => {
     expect(container.textContent).toContain('Bread');
   });
 
-  it('orders recipe groups by meal-plan date and meal-type API data', () => {
-    useQueryMock.mockReturnValue({
-      data: [
-        {
-          id: 1,
-          amount: 1,
-          unit_name: 'cup',
-          food: makeFood(),
-          checked: false,
-          list_recipe_data: { recipe_data: { name: 'Dinner Recipe (Order 2)' } },
-          recipe_mealplan: {
-            recipe_name: 'Dinner Recipe (Order 2)',
-            from_date: '2026-01-01',
-            meal_type: { name: 'Dinner', order: 2 },
-          },
-        },
-        {
-          id: 2,
-          amount: 1,
-          unit_name: 'cup',
-          food: { ...makeFood(), id: 2, name: 'Milk' },
-          checked: false,
-          list_recipe_data: { recipe_data: { name: 'Brunch Recipe (Order 1)' } },
-          recipe_mealplan: {
-            recipe_name: 'Brunch Recipe (Order 1)',
-            from_date: '2026-01-01',
-            meal_type: { name: 'Brunch', order: 1 },
-          },
-        },
-        {
-          id: 3,
-          amount: 1,
-          unit_name: 'cup',
-          food: { ...makeFood(), id: 3, name: 'Lettuce' },
-          checked: false,
-          list_recipe_data: { recipe_data: { name: 'Next Day Recipe' } },
-          recipe_mealplan: {
-            recipe_name: 'Next Day Recipe',
-            from_date: '2026-01-02',
-            meal_type: { name: 'Lunch', time: '12:00' },
-          },
-        },
-      ],
-      isLoading: false,
-      isError: false,
+  it('orders recipe groups by meal-plan from_date datetime', () => {
+    useQueryMock.mockImplementation(({ queryKey }: { queryKey: string[] }) => {
+      if (queryKey[0] === 'shopping-list') {
+        return {
+          data: [
+            {
+              id: 1,
+              amount: 1,
+              unit_name: 'cup',
+              food: makeFood(),
+              checked: false,
+              list_recipe_data: { recipe_data: { name: 'Dinner Recipe' } },
+              recipe_mealplan: {
+                recipe_name: 'Dinner Recipe',
+                from_date: '2026-01-01T18:00:00',
+              },
+            },
+            {
+              id: 2,
+              amount: 1,
+              unit_name: 'cup',
+              food: { ...makeFood(), id: 2, name: 'Milk' },
+              checked: false,
+              list_recipe_data: { recipe_data: { name: 'Brunch Recipe' } },
+              recipe_mealplan: {
+                recipe_name: 'Brunch Recipe',
+                from_date: '2026-01-01T10:00:00',
+              },
+            },
+            {
+              id: 3,
+              amount: 1,
+              unit_name: 'cup',
+              food: { ...makeFood(), id: 3, name: 'Lettuce' },
+              checked: false,
+              list_recipe_data: { recipe_data: { name: 'Next Day Recipe' } },
+              recipe_mealplan: {
+                recipe_name: 'Next Day Recipe',
+                from_date: '2026-01-02T12:00:00',
+              },
+            },
+          ],
+          isLoading: false,
+          isError: false,
+        };
+      }
+      return { data: [], isLoading: false, isError: false };
     });
 
     act(() => {
@@ -239,35 +247,36 @@ describe('ShoppingList', () => {
     const groupNames = Array.from(container.querySelectorAll('h6')).map((node) =>
       node.childNodes[0]?.textContent?.trim(),
     );
-    expect(groupNames).toEqual([
-      'Brunch Recipe (Order 1)',
-      'Dinner Recipe (Order 2)',
-      'Next Day Recipe',
-    ]);
+    expect(groupNames).toEqual(['Brunch Recipe', 'Dinner Recipe', 'Next Day Recipe']);
   });
 
   it('hides checked items when the hide toggle is enabled', () => {
-    useQueryMock.mockReturnValue({
-      data: [
-        {
-          id: 1,
-          amount: 1,
-          unit_name: 'cup',
-          food: makeFood(),
-          checked: true,
-          list_recipe_data: { recipe_data: { name: 'Cake' } },
-        },
-        {
-          id: 2,
-          amount: 1,
-          unit_name: 'cup',
-          food: { ...makeFood(), id: 2, name: 'Milk' },
-          checked: false,
-          list_recipe_data: { recipe_data: { name: 'Bread' } },
-        },
-      ],
-      isLoading: false,
-      isError: false,
+    useQueryMock.mockImplementation(({ queryKey }: { queryKey: string[] }) => {
+      if (queryKey[0] === 'shopping-list') {
+        return {
+          data: [
+            {
+              id: 1,
+              amount: 1,
+              unit_name: 'cup',
+              food: makeFood(),
+              checked: true,
+              list_recipe_data: { recipe_data: { name: 'Cake' } },
+            },
+            {
+              id: 2,
+              amount: 1,
+              unit_name: 'cup',
+              food: { ...makeFood(), id: 2, name: 'Milk' },
+              checked: false,
+              list_recipe_data: { recipe_data: { name: 'Bread' } },
+            },
+          ],
+          isLoading: false,
+          isError: false,
+        };
+      }
+      return { data: [], isLoading: false, isError: false };
     });
 
     act(() => {
