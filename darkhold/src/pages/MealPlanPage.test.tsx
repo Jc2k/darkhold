@@ -372,12 +372,8 @@ describe('getEmptyWeekendLunchDates', () => {
       ).toBe(false);
     });
 
-    it('keeps assistant session while assisted entries still exist', () => {
-      expect(
-        shouldClearAssistantSessionFromShoppingList([], weekStart, weekEnd, {
-          hasAssistedEntries: true,
-        }),
-      ).toBe(false);
+    it('clears assistant session when the shopping list is empty even if assisted entries exist', () => {
+      expect(shouldClearAssistantSessionFromShoppingList([], weekStart, weekEnd)).toBe(true);
     });
 
     it('keeps assistant session while assisted planning is in progress', () => {
