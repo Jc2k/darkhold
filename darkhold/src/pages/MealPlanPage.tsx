@@ -1564,6 +1564,14 @@ export function MealPlanPage() {
     enabled: assistantMode,
     refetchOnMount: 'always',
   });
+  const shoppingEntries = shoppingListEntries ?? [];
+  const shouldClearAssistantFromShoppingList =
+    hasFetchedShoppingListEntries &&
+    shouldClearAssistantSessionFromShoppingList(
+      shoppingEntries,
+      canonicalWeekStart,
+      weekEndDateKey,
+    );
 
   // Fetch cook logs for the past/today portion of the displayed week.
   // Only dates <= today can have cook logs; use the week start or today
@@ -1674,17 +1682,7 @@ export function MealPlanPage() {
 
   useEffect(() => {
     if (!assistantMode) return;
-    if (!hasFetchedShoppingListEntries) return;
-    const shoppingEntries = shoppingListEntries ?? [];
-    if (
-      !shouldClearAssistantSessionFromShoppingList(
-        shoppingEntries,
-        canonicalWeekStart,
-        weekEndDateKey,
-      )
-    ) {
-      return;
-    }
+    if (!shouldClearAssistantFromShoppingList) return;
     setAssistantMode(false);
     setAssistantEntryPlans({});
     setAssistantModalEntry(null);
@@ -1699,9 +1697,8 @@ export function MealPlanPage() {
   }, [
     assistantMode,
     canonicalWeekStart,
-    hasFetchedShoppingListEntries,
-    shoppingListEntries,
-    weekEndDateKey,
+    shoppingEntries.length,
+    shouldClearAssistantFromShoppingList,
   ]);
 
   const sensors = useMealPlanSensors();

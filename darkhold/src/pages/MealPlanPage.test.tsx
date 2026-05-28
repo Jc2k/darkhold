@@ -294,7 +294,12 @@ describe('getEmptyWeekendLunchDates', () => {
       expect(
         shoppingListHasCurrentWeekEntries(
           [
-            { id: 1, checked: false, food: null, recipe_mealplan: { recipe_name: 'Aubergine Bake' } },
+            {
+              id: 1,
+              checked: false,
+              food: null,
+              recipe_mealplan: { recipe_name: 'Aubergine Bake' },
+            },
             {
               id: 2,
               checked: false,
@@ -326,7 +331,10 @@ describe('getEmptyWeekendLunchDates', () => {
               id: 2,
               checked: true,
               food: null,
-              recipe_mealplan: { recipe_name: 'Future Week Pie', from_date: '2026-06-20T00:00:00Z' },
+              recipe_mealplan: {
+                recipe_name: 'Future Week Pie',
+                from_date: '2026-06-20T00:00:00Z',
+              },
             },
           ],
           weekStart,
@@ -343,13 +351,19 @@ describe('getEmptyWeekendLunchDates', () => {
               id: 1,
               checked: false,
               food: null,
-              recipe_mealplan: { recipe_name: 'Future Week Pie', from_date: '2026-06-20T00:00:00Z' },
+              recipe_mealplan: {
+                recipe_name: 'Future Week Pie',
+                from_date: '2026-06-20T00:00:00Z',
+              },
             },
             {
               id: 2,
               checked: false,
               food: null,
-              recipe_mealplan: { recipe_name: 'Current Week Pasta', from_date: '2026-06-12T12:00:00Z' },
+              recipe_mealplan: {
+                recipe_name: 'Current Week Pasta',
+                from_date: '2026-06-12T12:00:00Z',
+              },
             },
           ],
           weekStart,

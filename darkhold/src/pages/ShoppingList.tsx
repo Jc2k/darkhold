@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiPatch, apiDelete } from '../api/client';
 import { broadcastInvalidation } from '../hooks/useInvalidationSocket';
+import type { Food } from '../api/tandoor-types';
 import { LoadingMascot } from '../components/LoadingMascot';
 import { NoTokenAlert } from '../components/NoTokenAlert';
 import { formatFraction } from '../utils/fractions';
