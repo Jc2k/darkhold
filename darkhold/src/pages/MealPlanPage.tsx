@@ -1544,7 +1544,7 @@ export function MealPlanPage() {
   }, [canonicalWeekStart]);
   const todayStr = formatDate(today);
   const endDate = addDays(weekStartDate, 6);
-  const weekEndDateKey = formatDate(endDate);
+  const canonicalWeekEnd = formatDate(endDate);
 
   // Week picker derived values — computed here to avoid IIFE in JSX.
   const pendingWeekStart = pendingPickerDate
@@ -1570,7 +1570,7 @@ export function MealPlanPage() {
     shouldClearAssistantSessionFromShoppingList(
       shoppingEntries,
       canonicalWeekStart,
-      weekEndDateKey,
+      canonicalWeekEnd,
     );
 
   // Fetch cook logs for the past/today portion of the displayed week.
@@ -1697,7 +1697,6 @@ export function MealPlanPage() {
   }, [
     assistantMode,
     canonicalWeekStart,
-    shoppingEntries.length,
     shouldClearAssistantFromShoppingList,
   ]);
 
