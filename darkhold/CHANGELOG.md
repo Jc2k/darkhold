@@ -1,3 +1,10 @@
+## [1.80.4](https://github.com/Jc2k/darkhold/compare/v1.80.3...v1.80.4) (2026-05-28)
+
+
+### Bug Fixes
+
+* **meal-plan:** avoid premature assistant shutdown ([45d3ee2](https://github.com/Jc2k/darkhold/commit/45d3ee2e4d67b96a3377121614e2f6c73ff2045a))
+
 ## [1.80.3](https://github.com/Jc2k/darkhold/compare/v1.80.2...v1.80.3) (2026-05-28)
 
 ### Bug Fixes
