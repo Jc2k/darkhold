@@ -11,6 +11,7 @@ const RELOAD_VERSION_PARAM = 'darkhold_reload_version';
 let socket: WebSocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 const handlers = new Set<(msg: InvalidationMessage) => void>();
+const disconnectHandlers = new Set<() => void>();
 
 function getWsUrl(): string {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -64,6 +65,7 @@ function connect(): void {
   };
 
   socket.onclose = () => {
+    disconnectHandlers.forEach((handler) => handler());
     socket = null;
     if (handlers.size > 0) {
       reconnectTimer = setTimeout(connect, 5000);
@@ -91,10 +93,15 @@ export function useInvalidationSocket(): void {
     };
 
     handlers.add(handler);
+    const disconnectHandler = () => {
+      queryClient.invalidateQueries({ queryKey: ['shopping-list'] });
+    };
+    disconnectHandlers.add(disconnectHandler);
     connect();
 
     return () => {
       handlers.delete(handler);
+      disconnectHandlers.delete(disconnectHandler);
       if (handlers.size === 0) {
         if (reconnectTimer !== null) {
           clearTimeout(reconnectTimer);

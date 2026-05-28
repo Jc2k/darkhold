@@ -105,6 +105,10 @@ import {
   swapMealAssistantSelection,
 } from '../utils/mealPlanningAssistant';
 import { getMealPlanningAssistantDataQueryOptions } from '../hooks/useMealPlanningAssistantData';
+import {
+  getShoppingListEntriesQueryOptions,
+  type ShoppingListEntry,
+} from '../hooks/useShoppingListEntries';
 import { MealPlanAssistantModal } from '../components/MealPlanAssistantModal';
 import { useAppConfig } from '../hooks/useAppConfig';
 import {
@@ -422,13 +426,30 @@ interface PersistedMealAssistantSession {
   assistantEntryPlans: Record<number, MealAssistantSlotPlan>;
 }
 
+const MEAL_ASSISTANT_STORAGE_PREFIX = 'meal-plan-assistant:';
+
 function mealAssistantStorageKey(weekStart: string): string {
-  return `meal-plan-assistant:${weekStart}`;
+  return `${MEAL_ASSISTANT_STORAGE_PREFIX}${weekStart}`;
+}
+
+function clearMealAssistantSessionsExcept(weekStart: string): void {
+  const keyToKeep = mealAssistantStorageKey(weekStart);
+  const keysToDelete: string[] = [];
+  for (let index = 0; index < localStorage.length; index += 1) {
+    const key = localStorage.key(index);
+    if (!key || !key.startsWith(MEAL_ASSISTANT_STORAGE_PREFIX) || key === keyToKeep) continue;
+    keysToDelete.push(key);
+  }
+  keysToDelete.forEach((key) => localStorage.removeItem(key));
+}
+
+function clearMealAssistantSession(weekStart: string): void {
+  localStorage.removeItem(mealAssistantStorageKey(weekStart));
 }
 
 function loadMealAssistantSession(weekStart: string): PersistedMealAssistantSession | null {
   try {
-    const raw = sessionStorage.getItem(mealAssistantStorageKey(weekStart));
+    const raw = localStorage.getItem(mealAssistantStorageKey(weekStart));
     if (!raw) return null;
     return JSON.parse(raw) as PersistedMealAssistantSession;
   } catch {
@@ -442,10 +463,32 @@ function saveMealAssistantSession(
 ): void {
   const key = mealAssistantStorageKey(weekStart);
   if (!session || !session.assistantMode || Object.keys(session.assistantEntryPlans).length === 0) {
-    sessionStorage.removeItem(key);
+    clearMealAssistantSession(weekStart);
     return;
   }
-  sessionStorage.setItem(key, JSON.stringify(session));
+  clearMealAssistantSessionsExcept(weekStart);
+  localStorage.setItem(key, JSON.stringify(session));
+}
+
+export function shoppingListHasCurrentWeekEntries(
+  entries: ShoppingListEntry[],
+  weekStart: string,
+  weekEnd: string,
+): boolean {
+  return entries.some((entry) => {
+    const date = entry.recipe_mealplan?.from_date?.split('T')[0];
+    if (!date) return false;
+    return date >= weekStart && date <= weekEnd;
+  });
+}
+
+export function shouldClearAssistantSessionFromShoppingList(
+  entries: ShoppingListEntry[],
+  weekStart: string,
+  weekEnd: string,
+): boolean {
+  if (entries.length === 0) return true;
+  return !shoppingListHasCurrentWeekEntries(entries, weekStart, weekEnd);
 }
 
 function updateMealPlanWeekCache(
@@ -1501,6 +1544,7 @@ export function MealPlanPage() {
   }, [canonicalWeekStart]);
   const todayStr = formatDate(today);
   const endDate = addDays(weekStartDate, 6);
+  const weekEndDateKey = formatDate(endDate);
 
   // Week picker derived values — computed here to avoid IIFE in JSX.
   const pendingWeekStart = pendingPickerDate
@@ -1515,6 +1559,11 @@ export function MealPlanPage() {
   const pickerEndMonth = new Date(today.getFullYear() + PICKER_YEARS_FUTURE, 11, 31);
 
   const { data, isLoading, isError } = useMealPlan(weekStartDate, endDate);
+  const { data: shoppingListEntries, isFetched: hasFetchedShoppingListEntries } = useQuery({
+    ...getShoppingListEntriesQueryOptions(),
+    enabled: assistantMode,
+    refetchOnMount: 'always',
+  });
 
   // Fetch cook logs for the past/today portion of the displayed week.
   // Only dates <= today can have cook logs; use the week start or today
@@ -1622,6 +1671,38 @@ export function MealPlanPage() {
       assistantEntryPlans,
     });
   }, [assistantEntryPlans, assistantMode, canonicalWeekStart]);
+
+  useEffect(() => {
+    if (!assistantMode) return;
+    if (!hasFetchedShoppingListEntries) return;
+    const shoppingEntries = shoppingListEntries ?? [];
+    if (
+      !shouldClearAssistantSessionFromShoppingList(
+        shoppingEntries,
+        canonicalWeekStart,
+        weekEndDateKey,
+      )
+    ) {
+      return;
+    }
+    setAssistantMode(false);
+    setAssistantEntryPlans({});
+    setAssistantModalEntry(null);
+    setAssistantModalPlan(null);
+    setAssistantFeedback({
+      variant: 'info',
+      message:
+        shoppingEntries.length === 0
+          ? 'Meal planning assistance ended because the shopping list is now empty.'
+          : 'Meal planning assistance ended because the shopping list no longer contains items for this week.',
+    });
+  }, [
+    assistantMode,
+    canonicalWeekStart,
+    hasFetchedShoppingListEntries,
+    shoppingListEntries,
+    weekEndDateKey,
+  ]);
 
   const sensors = useMealPlanSensors();
 
