@@ -1694,7 +1694,12 @@ export function MealPlanPage() {
           ? 'Meal planning assistance ended because the shopping list is now empty.'
           : 'Meal planning assistance ended because the shopping list no longer contains items for this week.',
     });
-  }, [assistantMode, canonicalWeekStart, shouldClearAssistantFromShoppingList, shoppingEntries.length]);
+  }, [
+    assistantMode,
+    canonicalWeekStart,
+    shouldClearAssistantFromShoppingList,
+    shoppingEntries.length,
+  ]);
 
   const sensors = useMealPlanSensors();
 
