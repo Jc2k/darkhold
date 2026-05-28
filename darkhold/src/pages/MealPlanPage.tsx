@@ -486,10 +486,9 @@ export function shouldClearAssistantSessionFromShoppingList(
   entries: ShoppingListEntry[],
   weekStart: string,
   weekEnd: string,
-  options?: { hasAssistedEntries?: boolean; isPlanning?: boolean },
+  options?: { isPlanning?: boolean },
 ): boolean {
   if (options?.isPlanning) return false;
-  if (options?.hasAssistedEntries) return false;
   if (entries.length === 0) return true;
   return !shoppingListHasCurrentWeekEntries(entries, weekStart, weekEnd);
 }
@@ -1575,7 +1574,6 @@ export function MealPlanPage() {
       canonicalWeekStart,
       canonicalWeekEnd,
       {
-        hasAssistedEntries: Object.keys(assistantEntryPlans).length > 0,
         isPlanning: isAssistantPlanning,
       },
     );
