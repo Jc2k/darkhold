@@ -1,9 +1,8 @@
 ## [1.80.6](https://github.com/Jc2k/darkhold/compare/v1.80.5...v1.80.6) (2026-05-28)
 
-
 ### Bug Fixes
 
-* **cache:** invalidate redirect and shopping caches on socket connect ([4d9ebcd](https://github.com/Jc2k/darkhold/commit/4d9ebcd5a347f6e2a018f36c8fe9c756dbe9dcfc))
+- **cache:** invalidate redirect and shopping caches on socket connect ([4d9ebcd](https://github.com/Jc2k/darkhold/commit/4d9ebcd5a347f6e2a018f36c8fe9c756dbe9dcfc))
 
 ## [1.80.5](https://github.com/Jc2k/darkhold/compare/v1.80.4...v1.80.5) (2026-05-28)
 
