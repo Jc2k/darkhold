@@ -20,6 +20,8 @@ Examples:
 
 Breaking changes must include `BREAKING CHANGE:` in the commit footer, or append `!` after the type/scope (e.g. `feat!: remove legacy endpoint`).
 
+**Exception:** Commit messages that start with `Initial plan` are exempt from conventional-commits validation. These are generated automatically by the Copilot coding agent at the start of a task.
+
 ## Testing
 
 Tests are co-located next to source files as `*.test.ts` or `*.test.tsx` files.
