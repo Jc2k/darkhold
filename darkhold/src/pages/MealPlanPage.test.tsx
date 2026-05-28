@@ -371,6 +371,22 @@ describe('getEmptyWeekendLunchDates', () => {
         ),
       ).toBe(false);
     });
+
+    it('keeps assistant session while assisted entries still exist', () => {
+      expect(
+        shouldClearAssistantSessionFromShoppingList([], weekStart, weekEnd, {
+          hasAssistedEntries: true,
+        }),
+      ).toBe(false);
+    });
+
+    it('keeps assistant session while assisted planning is in progress', () => {
+      expect(
+        shouldClearAssistantSessionFromShoppingList([], weekStart, weekEnd, {
+          isPlanning: true,
+        }),
+      ).toBe(false);
+    });
   });
 
   it('includes configured public holidays even when they are weekdays', () => {

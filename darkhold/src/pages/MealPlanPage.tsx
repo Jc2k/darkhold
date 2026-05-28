@@ -486,7 +486,10 @@ export function shouldClearAssistantSessionFromShoppingList(
   entries: ShoppingListEntry[],
   weekStart: string,
   weekEnd: string,
+  options?: { hasAssistedEntries?: boolean; isPlanning?: boolean },
 ): boolean {
+  if (options?.isPlanning) return false;
+  if (options?.hasAssistedEntries) return false;
   if (entries.length === 0) return true;
   return !shoppingListHasCurrentWeekEntries(entries, weekStart, weekEnd);
 }
@@ -1571,6 +1574,10 @@ export function MealPlanPage() {
       shoppingEntries,
       canonicalWeekStart,
       canonicalWeekEnd,
+      {
+        hasAssistedEntries: Object.keys(assistantEntryPlans).length > 0,
+        isPlanning: isAssistantPlanning,
+      },
     );
 
   // Fetch cook logs for the past/today portion of the displayed week.
@@ -1907,7 +1914,6 @@ export function MealPlanPage() {
       [...bankHolidayDates],
     );
 
-    setAssistantMode(true);
     setAssistantFeedback(null);
 
     if (emptyDinnerDates.length === 0 && emptyWeekendLunchDates.length === 0) {
@@ -1997,6 +2003,7 @@ export function MealPlanPage() {
         type: 'active',
       });
 
+      setAssistantMode(true);
       setAssistantEntryPlans((current) => ({ ...current, ...nextPlans }));
       const dinnerCount = dinnerPlan.slots.length;
       const lunchCount = lunchPlan.slots.length;
