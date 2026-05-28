@@ -1,10 +1,9 @@
 ## [1.80.3](https://github.com/Jc2k/darkhold/compare/v1.80.2...v1.80.3) (2026-05-28)
 
-
 ### Bug Fixes
 
-* **meal-plan:** enforce assistant session lifecycle via shopping list ([f4223a6](https://github.com/Jc2k/darkhold/commit/f4223a6c9b16b440e8135855e2e29e9a253f9582))
-* **meal-plan:** refine shopping-list expiry effect dependencies ([5304e87](https://github.com/Jc2k/darkhold/commit/5304e87575f48d0c4c87d5791ef39d7d6fdb677a))
+- **meal-plan:** enforce assistant session lifecycle via shopping list ([f4223a6](https://github.com/Jc2k/darkhold/commit/f4223a6c9b16b440e8135855e2e29e9a253f9582))
+- **meal-plan:** refine shopping-list expiry effect dependencies ([5304e87](https://github.com/Jc2k/darkhold/commit/5304e87575f48d0c4c87d5791ef39d7d6fdb677a))
 
 # Changelog
 
