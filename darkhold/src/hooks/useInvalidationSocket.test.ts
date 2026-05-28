@@ -1,5 +1,41 @@
-import { describe, expect, it } from 'vitest';
-import { getVersionReloadUrl, shouldReloadForVersion } from './useInvalidationSocket';
+import React from 'react';
+import { act } from 'react';
+import { createRoot } from 'react-dom/client';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { MEAL_PLAN_REDIRECT_WEEK_QUERY_KEY } from '../utils/mealPlanRedirect';
+import {
+  getVersionReloadUrl,
+  shouldReloadForVersion,
+  useInvalidationSocket,
+} from './useInvalidationSocket';
+
+const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+
+class MockWebSocket {
+  static instances: MockWebSocket[] = [];
+  static OPEN = 1;
+  static CLOSED = 3;
+  readyState = MockWebSocket.OPEN;
+  onopen: (() => void) | null = null;
+  onclose: (() => void) | null = null;
+  onmessage: ((event: MessageEvent<string>) => void) | null = null;
+  constructor(_url: string) {
+    MockWebSocket.instances.push(this);
+  }
+  close() {
+    this.readyState = MockWebSocket.CLOSED;
+    this.onclose?.();
+  }
+  send() {
+    return undefined;
+  }
+}
+
+function HookHarness() {
+  useInvalidationSocket();
+  return null;
+}
 
 describe('shouldReloadForVersion', () => {
   it('reloads when the server version changes and has not already reloaded for it', () => {
@@ -35,5 +71,53 @@ describe('getVersionReloadUrl', () => {
         '1.2.4',
       ),
     ).toBe('https://darkhold.example.com/dashboard?darkhold_reload_version=1.2.4');
+  });
+});
+
+describe('useInvalidationSocket', () => {
+  let container: HTMLDivElement;
+  let root: ReturnType<typeof createRoot>;
+
+  beforeEach(() => {
+    actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+    MockWebSocket.instances = [];
+    vi.stubGlobal('WebSocket', MockWebSocket as unknown as typeof WebSocket);
+  });
+
+  afterEach(() => {
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+    vi.unstubAllGlobals();
+    delete actGlobal.IS_REACT_ACT_ENVIRONMENT;
+  });
+
+  it('invalidates shopping and redirect week caches when websocket connects', () => {
+    const queryClient = new QueryClient();
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+
+    act(() => {
+      root.render(
+        React.createElement(
+          QueryClientProvider,
+          { client: queryClient },
+          React.createElement(HookHarness),
+        ),
+      );
+    });
+
+    const socket = MockWebSocket.instances[0];
+    expect(socket).toBeDefined();
+
+    act(() => {
+      socket.onopen?.();
+    });
+
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['shopping-list'] });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: MEAL_PLAN_REDIRECT_WEEK_QUERY_KEY });
   });
 });

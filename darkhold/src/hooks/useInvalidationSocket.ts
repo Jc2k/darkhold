@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { MEAL_PLAN_REDIRECT_WEEK_QUERY_KEY } from '../utils/mealPlanRedirect';
 
 type InvalidationMessage = { type: 'invalidate'; queryKey: string };
 type VersionMessage = { type: 'version'; version: string };
@@ -11,7 +12,7 @@ const RELOAD_VERSION_PARAM = 'darkhold_reload_version';
 let socket: WebSocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 const handlers = new Set<(msg: InvalidationMessage) => void>();
-const disconnectHandlers = new Set<() => void>();
+const connectHandlers = new Set<() => void>();
 
 function getWsUrl(): string {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -51,6 +52,10 @@ function connect(): void {
 
   socket = new WebSocket(getWsUrl());
 
+  socket.onopen = () => {
+    connectHandlers.forEach((handler) => handler());
+  };
+
   socket.onmessage = (e) => {
     try {
       const msg: SocketMessage = JSON.parse(e.data);
@@ -65,7 +70,6 @@ function connect(): void {
   };
 
   socket.onclose = () => {
-    disconnectHandlers.forEach((handler) => handler());
     socket = null;
     if (handlers.size > 0) {
       reconnectTimer = setTimeout(connect, 5000);
@@ -93,15 +97,16 @@ export function useInvalidationSocket(): void {
     };
 
     handlers.add(handler);
-    const disconnectHandler = () => {
+    const connectHandler = () => {
       queryClient.invalidateQueries({ queryKey: ['shopping-list'] });
+      queryClient.invalidateQueries({ queryKey: MEAL_PLAN_REDIRECT_WEEK_QUERY_KEY });
     };
-    disconnectHandlers.add(disconnectHandler);
+    connectHandlers.add(connectHandler);
     connect();
 
     return () => {
       handlers.delete(handler);
-      disconnectHandlers.delete(disconnectHandler);
+      connectHandlers.delete(connectHandler);
       if (handlers.size === 0) {
         if (reconnectTimer !== null) {
           clearTimeout(reconnectTimer);
