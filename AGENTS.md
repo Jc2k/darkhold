@@ -41,15 +41,24 @@ Tests are co-located next to source files as `*.test.ts` or `*.test.tsx` files.
 
 ## Pre-Commit Checks
 
-Before every `git commit`, always run all of the following from the `darkhold/` directory and fix any failures:
+Before every `git commit`, always run **all** of the following from the `darkhold/` directory and fix any failures:
 
 1. `npm run format` — apply Prettier formatting
 2. `npm run format:check` — verify formatting is clean
 3. `npm test` — frontend unit tests (vitest)
 4. `npx tsc --noEmit` — TypeScript type checking
 5. `deno task test` — server unit tests
+6. `echo "<your commit message>" | npx commitlint` — validate the commit message against Conventional Commits rules (run from the `darkhold/` directory)
 
-Do not commit if any of these fail.
+Do not commit if any of these fail. **Skipping the commitlint check will cause semantic-release to produce broken or missing releases.**
+
+### Commit message checklist (verify before every commit)
+
+- [ ] Starts with an allowed type: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `chore`, `ci`, `build`, or `revert`
+- [ ] Follows the format `<type>(<optional scope>): <description>`
+- [ ] Description is lowercase, imperative, and has no trailing period
+- [ ] Breaking changes include `BREAKING CHANGE:` in the footer or `!` after the type/scope
+- [ ] `echo "<message>" | npx commitlint` exits with code 0
 
 ## Commands
 

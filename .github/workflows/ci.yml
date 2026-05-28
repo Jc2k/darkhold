@@ -22,6 +22,8 @@ jobs:
         with:
           fetch-depth: 0
       - uses: wagoid/commitlint-github-action@v6
+        with:
+          configFile: darkhold/commitlint.config.mjs
 
   unit-test:
     runs-on: ubuntu-latest
