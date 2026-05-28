@@ -486,9 +486,9 @@ export function shouldClearAssistantSessionFromShoppingList(
   entries: ShoppingListEntry[],
   weekStart: string,
   weekEnd: string,
-  options?: { isPlanning?: boolean },
+  options?: { isPlanning?: boolean; isRefreshing?: boolean },
 ): boolean {
-  if (options?.isPlanning) return false;
+  if (options?.isPlanning || options?.isRefreshing) return false;
   if (entries.length === 0) return true;
   return !shoppingListHasCurrentWeekEntries(entries, weekStart, weekEnd);
 }
@@ -1561,7 +1561,11 @@ export function MealPlanPage() {
   const pickerEndMonth = new Date(today.getFullYear() + PICKER_YEARS_FUTURE, 11, 31);
 
   const { data, isLoading, isError } = useMealPlan(weekStartDate, endDate);
-  const { data: shoppingListEntries, isFetched: hasFetchedShoppingListEntries } = useQuery({
+  const {
+    data: shoppingListEntries,
+    isFetchedAfterMount: hasFetchedShoppingListEntries,
+    isFetching: isFetchingShoppingListEntries,
+  } = useQuery({
     ...getShoppingListEntriesQueryOptions(),
     enabled: assistantMode,
     refetchOnMount: 'always',
@@ -1575,6 +1579,7 @@ export function MealPlanPage() {
       canonicalWeekEnd,
       {
         isPlanning: isAssistantPlanning,
+        isRefreshing: isFetchingShoppingListEntries,
       },
     );
 

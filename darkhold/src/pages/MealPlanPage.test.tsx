@@ -383,6 +383,14 @@ describe('getEmptyWeekendLunchDates', () => {
         }),
       ).toBe(false);
     });
+
+    it('keeps assistant session while shopping-list data is refreshing', () => {
+      expect(
+        shouldClearAssistantSessionFromShoppingList([], weekStart, weekEnd, {
+          isRefreshing: true,
+        }),
+      ).toBe(false);
+    });
   });
 
   it('includes configured public holidays even when they are weekdays', () => {
