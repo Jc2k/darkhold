@@ -6,6 +6,7 @@
   "scripts": {
     "build": "rsbuild build",
     "dev": "rsbuild --open",
+    "commitlint": "commitlint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "preview": "rsbuild preview",
@@ -32,6 +33,8 @@
     "tsdav": "^2.2.1"
   },
   "devDependencies": {
+    "@commitlint/cli": "^20.5.3",
+    "@commitlint/config-conventional": "^20.5.3",
     "@rsbuild/core": "^2.0.0",
     "@rsbuild/plugin-react": "^2.0.0",
     "@types/react": "^19.2.14",
