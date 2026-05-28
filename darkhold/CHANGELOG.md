@@ -1,3 +1,10 @@
+## [1.80.5](https://github.com/Jc2k/darkhold/compare/v1.80.4...v1.80.5) (2026-05-28)
+
+
+### Bug Fixes
+
+* clearing shopping list now ends meal planning assistance ([ea580f0](https://github.com/Jc2k/darkhold/commit/ea580f06fc2d1749db5994c504ce8b3a308ef676))
+
 ## [1.80.4](https://github.com/Jc2k/darkhold/compare/v1.80.3...v1.80.4) (2026-05-28)
 
 ### Bug Fixes
