@@ -137,6 +137,7 @@ function groupByRecipe(
 
   const comparePositions = (a: RecipeSortPosition, b: RecipeSortPosition): number => {
     if (a.date !== b.date) return a.date.localeCompare(b.date);
+    // mealOrder matches the meal plan page's sort order; mealTimeMinutes is a secondary tiebreaker only
     if (a.mealOrder !== b.mealOrder) return a.mealOrder - b.mealOrder;
     if (a.mealTimeMinutes !== b.mealTimeMinutes) return a.mealTimeMinutes - b.mealTimeMinutes;
     return a.index - b.index;
