@@ -180,7 +180,7 @@ describe('ShoppingList', () => {
     expect(container.textContent).toContain('Bread');
   });
 
-  it('orders recipe groups by meal-plan date and meal-type API data', () => {
+  it('orders recipe groups by meal-plan from_date datetime', () => {
     useQueryMock.mockImplementation(({ queryKey }: { queryKey: string[] }) => {
       if (queryKey[0] === 'shopping-list') {
         return {
@@ -191,12 +191,10 @@ describe('ShoppingList', () => {
               unit_name: 'cup',
               food: makeFood(),
               checked: false,
-              list_recipe_data: { recipe_data: { name: 'Dinner Recipe (Order 2)' } },
+              list_recipe_data: { recipe_data: { name: 'Dinner Recipe' } },
               recipe_mealplan: {
-                recipe_name: 'Dinner Recipe (Order 2)',
-                from_date: '2026-01-01',
-                // order: 2 but time is earlier — order must win over time to match the meal plan
-                meal_type: { name: 'Dinner', order: 2, time: '06:00' },
+                recipe_name: 'Dinner Recipe',
+                from_date: '2026-01-01T18:00:00',
               },
             },
             {
@@ -205,12 +203,10 @@ describe('ShoppingList', () => {
               unit_name: 'cup',
               food: { ...makeFood(), id: 2, name: 'Milk' },
               checked: false,
-              list_recipe_data: { recipe_data: { name: 'Brunch Recipe (Order 1)' } },
+              list_recipe_data: { recipe_data: { name: 'Brunch Recipe' } },
               recipe_mealplan: {
-                recipe_name: 'Brunch Recipe (Order 1)',
-                from_date: '2026-01-01',
-                // order: 1 but time is later — order must win over time to match the meal plan
-                meal_type: { name: 'Brunch', order: 1, time: '20:00' },
+                recipe_name: 'Brunch Recipe',
+                from_date: '2026-01-01T10:00:00',
               },
             },
             {
@@ -222,8 +218,7 @@ describe('ShoppingList', () => {
               list_recipe_data: { recipe_data: { name: 'Next Day Recipe' } },
               recipe_mealplan: {
                 recipe_name: 'Next Day Recipe',
-                from_date: '2026-01-02',
-                meal_type: { name: 'Lunch', time: '12:00' },
+                from_date: '2026-01-02T12:00:00',
               },
             },
           ],
@@ -252,84 +247,7 @@ describe('ShoppingList', () => {
     const groupNames = Array.from(container.querySelectorAll('h6')).map((node) =>
       node.childNodes[0]?.textContent?.trim(),
     );
-    expect(groupNames).toEqual([
-      'Brunch Recipe (Order 1)',
-      'Dinner Recipe (Order 2)',
-      'Next Day Recipe',
-    ]);
-  });
-
-  it('orders recipe groups by meal-plan date even when shopping list entries lack from_date', () => {
-    // Simulates Tandoor API responses that don't include from_date in recipe_mealplan.
-    // Wednesday's recipe was added first (firstIndex=0), Monday's last (firstIndex=1).
-    // Without the meal-plan fallback, Wednesday would appear first (wrong). With it, Monday appears first.
-    useQueryMock.mockImplementation(({ queryKey }: { queryKey: string[] }) => {
-      if (queryKey[0] === 'shopping-list') {
-        return {
-          data: [
-            {
-              id: 1,
-              amount: 1,
-              unit_name: 'cup',
-              food: makeFood(),
-              checked: false,
-              list_recipe_data: { recipe_data: { name: 'Wednesday Recipe' } },
-              recipe_mealplan: { recipe_name: 'Wednesday Recipe' }, // no from_date
-            },
-            {
-              id: 2,
-              amount: 1,
-              unit_name: 'cup',
-              food: { ...makeFood(), id: 2, name: 'Milk' },
-              checked: false,
-              list_recipe_data: { recipe_data: { name: 'Monday Recipe' } },
-              recipe_mealplan: { recipe_name: 'Monday Recipe' }, // no from_date
-            },
-          ],
-          isLoading: false,
-          isError: false,
-        };
-      }
-      // meal plan query returns entries with from_date
-      return {
-        data: [
-          {
-            id: 10,
-            recipe: { id: 100, name: 'Wednesday Recipe' },
-            meal_type: { id: 1, name: 'Dinner', order: 2 },
-            from_date: '2026-01-08',
-          },
-          {
-            id: 11,
-            recipe: { id: 101, name: 'Monday Recipe' },
-            meal_type: { id: 1, name: 'Dinner', order: 2 },
-            from_date: '2026-01-06',
-          },
-        ],
-        isLoading: false,
-        isError: false,
-      };
-    });
-
-    act(() => {
-      root.render(
-        <MemoryRouter>
-          <ShoppingList />
-        </MemoryRouter>,
-      );
-    });
-
-    const viewRecipeButton = container.querySelector<HTMLButtonElement>(
-      'button[aria-label="Show recipe groups"]',
-    );
-    act(() => {
-      viewRecipeButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    });
-
-    const groupNames = Array.from(container.querySelectorAll('h6')).map((node) =>
-      node.childNodes[0]?.textContent?.trim(),
-    );
-    expect(groupNames).toEqual(['Monday Recipe', 'Wednesday Recipe']);
+    expect(groupNames).toEqual(['Brunch Recipe', 'Dinner Recipe', 'Next Day Recipe']);
   });
 
   it('hides checked items when the hide toggle is enabled', () => {

@@ -3,43 +3,16 @@ import { Cart4 } from 'react-bootstrap-icons';
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiGet, apiPatch, apiDelete } from '../api/client';
+import { apiPatch, apiDelete } from '../api/client';
 import { broadcastInvalidation } from '../hooks/useInvalidationSocket';
-import type { Food, MealPlan, PaginatedResponse } from '../api/tandoor-types';
+import type { Food } from '../api/tandoor-types';
 import { LoadingMascot } from '../components/LoadingMascot';
 import { NoTokenAlert } from '../components/NoTokenAlert';
 import { formatFraction } from '../utils/fractions';
-import { formatDate } from '../utils/dateUtils';
 import {
   fetchAllShoppingListEntries,
   type ShoppingListEntry as ShoppingEntry,
 } from '../hooks/useShoppingListEntries';
-
-async function fetchMealPlanEntries(): Promise<MealPlan[]> {
-  const today = new Date();
-  const from = new Date(today);
-  from.setDate(from.getDate() - 30);
-  const to = new Date(today);
-  to.setDate(to.getDate() + 90);
-
-  const all: MealPlan[] = [];
-  let page = 1;
-  let hasNext = true;
-
-  while (hasNext) {
-    const data = await apiGet<PaginatedResponse<MealPlan>>('/meal-plan/', {
-      from_date: formatDate(from),
-      to_date: formatDate(to),
-      page_size: 100,
-      page,
-    });
-    all.push(...data.results);
-    hasNext = !!data.next;
-    page += 1;
-  }
-
-  return all;
-}
 
 export { fetchAllShoppingListEntries } from '../hooks/useShoppingListEntries';
 
@@ -94,119 +67,35 @@ function aggregateByIngredient(entries: ShoppingEntry[]): AggregatedIngredient[]
   return Array.from(map.values());
 }
 
-function groupByRecipe(
-  entries: ShoppingEntry[],
-  mealPlanEntries?: MealPlan[],
-): Record<string, ShoppingEntry[]> {
-  type RecipeSortPosition = {
-    date: string;
-    mealTimeMinutes: number;
-    mealOrder: number;
-    index: number;
-  };
+function groupByRecipe(entries: ShoppingEntry[]): Record<string, ShoppingEntry[]> {
   type RecipeGroup = {
     name: string;
     entries: ShoppingEntry[];
     firstIndex: number;
-    position: RecipeSortPosition | null;
+    fromDate: string | null;
   };
-
-  const toMealTimeMinutes = (
-    mealType?: { name?: string | null; time?: string | null } | null,
-  ): number => {
-    const time = mealType?.time;
-    if (time) {
-      const match = time.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
-      if (match) {
-        const hours = Number(match[1]);
-        const minutes = Number(match[2]);
-        if (
-          Number.isInteger(hours) &&
-          Number.isInteger(minutes) &&
-          hours >= 0 &&
-          hours <= 23 &&
-          minutes >= 0 &&
-          minutes <= 59
-        ) {
-          return hours * 60 + minutes;
-        }
-      }
-    }
-    return Number.MAX_SAFE_INTEGER;
-  };
-
-  const comparePositions = (a: RecipeSortPosition, b: RecipeSortPosition): number => {
-    if (a.date !== b.date) return a.date.localeCompare(b.date);
-    // mealOrder matches the meal plan page's sort order; mealTimeMinutes is a secondary tiebreaker only
-    if (a.mealOrder !== b.mealOrder) return a.mealOrder - b.mealOrder;
-    if (a.mealTimeMinutes !== b.mealTimeMinutes) return a.mealTimeMinutes - b.mealTimeMinutes;
-    return a.index - b.index;
-  };
-
-  // Build a fallback lookup from meal plan entries for when shopping list entries
-  // don't carry a from_date in their recipe_mealplan field.
-  const mealPlanPositionByRecipeName = new Map<string, RecipeSortPosition>();
-  if (mealPlanEntries) {
-    mealPlanEntries.forEach((mp, idx) => {
-      const recipe = typeof mp.recipe === 'object' ? mp.recipe : null;
-      const recipeName = recipe?.name;
-      if (!recipeName) return;
-      const date = mp.from_date?.split('T')[0];
-      if (!date) return;
-      const mealType = typeof mp.meal_type === 'object' ? mp.meal_type : null;
-      const position: RecipeSortPosition = {
-        date,
-        mealTimeMinutes: toMealTimeMinutes(mealType),
-        mealOrder: mealType?.order ?? Number.MAX_SAFE_INTEGER,
-        index: idx,
-      };
-      const existing = mealPlanPositionByRecipeName.get(recipeName);
-      if (!existing || comparePositions(position, existing) < 0) {
-        mealPlanPositionByRecipeName.set(recipeName, position);
-      }
-    });
-  }
 
   const groups = new Map<string, RecipeGroup>();
   entries.forEach((entry, index) => {
     const key = getRecipeName(entry) ?? 'No recipe';
     if (!groups.has(key)) {
-      groups.set(key, { name: key, entries: [], firstIndex: index, position: null });
+      groups.set(key, { name: key, entries: [], firstIndex: index, fromDate: null });
     }
     const group = groups.get(key)!;
     group.entries.push(entry);
 
-    const date = entry.recipe_mealplan?.from_date?.split('T')[0];
-    if (date) {
-      const position: RecipeSortPosition = {
-        date,
-        mealTimeMinutes: toMealTimeMinutes(entry.recipe_mealplan?.meal_type),
-        mealOrder: entry.recipe_mealplan?.meal_type?.order ?? Number.MAX_SAFE_INTEGER,
-        index,
-      };
-      if (!group.position || comparePositions(position, group.position) < 0) {
-        group.position = position;
-      }
+    const fromDate = entry.recipe_mealplan?.from_date ?? null;
+    if (fromDate && (!group.fromDate || fromDate < group.fromDate)) {
+      group.fromDate = fromDate;
     }
   });
-
-  // For groups that still have no position from the shopping list entries, fall back
-  // to the meal plan lookup.
-  for (const group of groups.values()) {
-    if (!group.position) {
-      const fallback = mealPlanPositionByRecipeName.get(group.name);
-      if (fallback) {
-        group.position = fallback;
-      }
-    }
-  }
 
   return Object.fromEntries(
     Array.from(groups.values())
       .sort((a, b) => {
-        if (a.position && b.position) return comparePositions(a.position, b.position);
-        if (a.position) return -1;
-        if (b.position) return 1;
+        if (a.fromDate && b.fromDate) return a.fromDate.localeCompare(b.fromDate);
+        if (a.fromDate) return -1;
+        if (b.fromDate) return 1;
         if (a.firstIndex !== b.firstIndex) return a.firstIndex - b.firstIndex;
         return a.name.localeCompare(b.name);
       })
@@ -226,11 +115,6 @@ export function ShoppingList() {
   const { data, isLoading, isError } = useQuery({
     queryKey: ['shopping-list'],
     queryFn: fetchAllShoppingListEntries,
-  });
-
-  const { data: mealPlanEntries } = useQuery({
-    queryKey: ['shopping-list-meal-plan'],
-    queryFn: fetchMealPlanEntries,
   });
 
   const toggle = useMutation({
@@ -310,7 +194,7 @@ export function ShoppingList() {
 
   const groups = groupByCategory(visibleEntries);
   const categoryNames = Object.keys(groups).filter((k) => groups[k].length > 0);
-  const recipeGroups = groupByRecipe(visibleEntries, mealPlanEntries);
+  const recipeGroups = groupByRecipe(visibleEntries);
   const recipeNames = Object.keys(recipeGroups).filter((k) => recipeGroups[k].length > 0);
   const remainingCount = entries.filter((entry) => !entry.checked).length;
   const visibleGroupNames = viewMode === 'recipe' ? recipeNames : categoryNames;
