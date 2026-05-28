@@ -79,6 +79,8 @@ import {
   getEmptyWeekendLunchDates,
   getDateMealTypeCollisionId,
   resolveDropTargetContainerId,
+  shoppingListHasCurrentWeekEntries,
+  shouldClearAssistantSessionFromShoppingList,
   useMealPlanSensors,
 } from './MealPlanPage';
 
@@ -282,6 +284,93 @@ describe('getEmptyWeekendLunchDates', () => {
         2,
       ),
     ).toEqual(['2026-05-30']);
+  });
+
+  describe('meal assistant shopping list lifecycle', () => {
+    const weekStart = '2026-06-06';
+    const weekEnd = '2026-06-12';
+
+    it('detects shopping-list items that belong to the current week', () => {
+      expect(
+        shoppingListHasCurrentWeekEntries(
+          [
+            {
+              id: 1,
+              checked: false,
+              food: null,
+              recipe_mealplan: { recipe_name: 'Aubergine Bake' },
+            },
+            {
+              id: 2,
+              checked: false,
+              food: null,
+              recipe_mealplan: { recipe_name: 'Pasta', from_date: '2026-06-10T00:00:00Z' },
+            },
+          ],
+          weekStart,
+          weekEnd,
+        ),
+      ).toBe(true);
+    });
+
+    it('clears assistant session when the shopping list is empty', () => {
+      expect(shouldClearAssistantSessionFromShoppingList([], weekStart, weekEnd)).toBe(true);
+    });
+
+    it('clears assistant session when no shopping-list item is from the current week', () => {
+      expect(
+        shouldClearAssistantSessionFromShoppingList(
+          [
+            {
+              id: 1,
+              checked: false,
+              food: null,
+              recipe_mealplan: { recipe_name: 'Old Week Curry', from_date: '2026-06-01T00:00:00Z' },
+            },
+            {
+              id: 2,
+              checked: true,
+              food: null,
+              recipe_mealplan: {
+                recipe_name: 'Future Week Pie',
+                from_date: '2026-06-20T00:00:00Z',
+              },
+            },
+          ],
+          weekStart,
+          weekEnd,
+        ),
+      ).toBe(true);
+    });
+
+    it('keeps assistant session when at least one item is for the current week', () => {
+      expect(
+        shouldClearAssistantSessionFromShoppingList(
+          [
+            {
+              id: 1,
+              checked: false,
+              food: null,
+              recipe_mealplan: {
+                recipe_name: 'Future Week Pie',
+                from_date: '2026-06-20T00:00:00Z',
+              },
+            },
+            {
+              id: 2,
+              checked: false,
+              food: null,
+              recipe_mealplan: {
+                recipe_name: 'Current Week Pasta',
+                from_date: '2026-06-12T12:00:00Z',
+              },
+            },
+          ],
+          weekStart,
+          weekEnd,
+        ),
+      ).toBe(false);
+    });
   });
 
   it('includes configured public holidays even when they are weekdays', () => {

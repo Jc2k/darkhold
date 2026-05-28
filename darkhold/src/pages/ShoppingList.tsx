@@ -3,35 +3,18 @@ import { Cart4 } from 'react-bootstrap-icons';
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiGet, apiPatch, apiDelete } from '../api/client';
+import { apiPatch, apiDelete } from '../api/client';
 import { broadcastInvalidation } from '../hooks/useInvalidationSocket';
-import type { Food, PaginatedResponse, SupermarketCategory } from '../api/tandoor-types';
+import type { Food } from '../api/tandoor-types';
 import { LoadingMascot } from '../components/LoadingMascot';
 import { NoTokenAlert } from '../components/NoTokenAlert';
 import { formatFraction } from '../utils/fractions';
+import {
+  fetchAllShoppingListEntries,
+  type ShoppingListEntry as ShoppingEntry,
+} from '../hooks/useShoppingListEntries';
 
-interface ShoppingEntry {
-  id: number;
-  amount?: number | null;
-  unit?: { id: number; name: string } | null;
-  unit_name?: string | null;
-  food: Food | null;
-  checked: boolean;
-  ingredient_note?: string | null;
-  recipe_mealplan?: {
-    recipe_name: string;
-    from_date?: string | null;
-    meal_type?: {
-      id?: number;
-      name?: string | null;
-      order?: number | null;
-      time?: string | null;
-    } | null;
-  } | null;
-  list_recipe_data?: { recipe_data: { name: string } } | null;
-  list_recipe?: number | null;
-  supermarket_category?: SupermarketCategory | null;
-}
+export { fetchAllShoppingListEntries } from '../hooks/useShoppingListEntries';
 
 interface AggregatedIngredient {
   food: Food | null;
@@ -163,24 +146,6 @@ function groupByRecipe(entries: ShoppingEntry[]): Record<string, ShoppingEntry[]
       })
       .map((group) => [group.name, group.entries]),
   );
-}
-
-export async function fetchAllShoppingListEntries(): Promise<ShoppingEntry[]> {
-  const all: ShoppingEntry[] = [];
-  let page = 1;
-  let hasNext = true;
-
-  while (hasNext) {
-    const data = await apiGet<PaginatedResponse<ShoppingEntry>>('/shopping-list-entry/', {
-      page_size: 100,
-      page,
-    });
-    all.push(...data.results);
-    hasNext = !!data.next;
-    page += 1;
-  }
-
-  return all;
 }
 
 export function ShoppingList() {
