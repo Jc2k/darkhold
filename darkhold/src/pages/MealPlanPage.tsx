@@ -435,8 +435,8 @@ function mealAssistantStorageKey(weekStart: string): string {
 function clearMealAssistantSessionsExcept(weekStart: string): void {
   const keyToKeep = mealAssistantStorageKey(weekStart);
   const keysToDelete: string[] = [];
-  for (let index = 0; index < localStorage.length; index += 1) {
-    const key = localStorage.key(index);
+  for (let storageIndex = 0; storageIndex < localStorage.length; storageIndex += 1) {
+    const key = localStorage.key(storageIndex);
     if (!key || !key.startsWith(MEAL_ASSISTANT_STORAGE_PREFIX) || key === keyToKeep) continue;
     keysToDelete.push(key);
   }
@@ -1694,11 +1694,7 @@ export function MealPlanPage() {
           ? 'Meal planning assistance ended because the shopping list is now empty.'
           : 'Meal planning assistance ended because the shopping list no longer contains items for this week.',
     });
-  }, [
-    assistantMode,
-    canonicalWeekStart,
-    shouldClearAssistantFromShoppingList,
-  ]);
+  }, [assistantMode, canonicalWeekStart, shouldClearAssistantFromShoppingList, shoppingEntries.length]);
 
   const sensors = useMealPlanSensors();
 
