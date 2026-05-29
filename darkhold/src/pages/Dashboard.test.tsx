@@ -368,4 +368,44 @@ describe('Dashboard', () => {
       lastIndex = index;
     }
   });
+
+  it('shows meal plan notes on upcoming meal cards', () => {
+    useUpSoonDataMock.mockReturnValue({ data: null, isLoading: false, isError: false });
+
+    const today = formatDate(new Date());
+    useMealPlanMock
+      .mockReturnValueOnce({
+        data: {
+          results: [
+            {
+              id: 1,
+              from_date: today,
+              note: 'Use the leftover chicken',
+              recipe: {
+                id: 1,
+                name: 'Chicken Salad',
+                created_by: 1,
+                keywords: [],
+                image: null,
+                rating: null,
+              },
+              meal_type: { id: 1, name: 'Lunch', time: '12:00', order: 1 },
+            },
+          ],
+        },
+        isLoading: false,
+        isError: false,
+      })
+      .mockReturnValueOnce({ data: { results: [] }, isLoading: false, isError: false });
+
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <Dashboard />
+        </MemoryRouter>,
+      );
+    });
+
+    expect(container.textContent).toContain('Use the leftover chicken');
+  });
 });
