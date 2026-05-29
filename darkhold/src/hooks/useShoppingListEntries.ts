@@ -10,7 +10,8 @@ export interface ShoppingListEntry {
   food: Food | null;
   checked: boolean;
   ingredient_note?: string | null;
-  recipe_mealplan?: {
+  recipe_mealplan?:
+    | {
     recipe_name: string;
     from_date?: string | null;
     meal_type?: {
@@ -19,8 +20,27 @@ export interface ShoppingListEntry {
       order?: number | null;
       time?: string | null;
     } | null;
+      }
+    | number
+    | null;
+  list_recipe_data?: {
+    recipe_data: {
+      name: string;
+      ingredients?: Array<{
+    food?: Food | number | null;
+      }>;
+      steps?: Array<{
+    order?: number | null;
+    ingredients?: Array<{
+      food?: Food | number | null;
+    }>;
+      }>;
+    };
+    from_date?: string | null;
+    mealplan?: {
+      from_date?: string | null;
+    } | null;
   } | null;
-  list_recipe_data?: { recipe_data: { name: string } } | null;
   list_recipe?: number | null;
   supermarket_category?: SupermarketCategory | null;
 }

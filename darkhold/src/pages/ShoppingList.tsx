@@ -23,6 +23,84 @@ interface AggregatedIngredient {
   recipes: string[];
 }
 
+function getRecipeMealPlanData(
+  entry: ShoppingEntry,
+): NonNullable<Exclude<ShoppingEntry['recipe_mealplan'], number>> | null {
+  const recipeMealPlan = entry.recipe_mealplan;
+  return recipeMealPlan && typeof recipeMealPlan === 'object' ? recipeMealPlan : null;
+}
+
+function getRecipeFromDate(entry: ShoppingEntry): string | null {
+  const recipeMealPlanFromDate = getRecipeMealPlanData(entry)?.from_date ?? null;
+  if (recipeMealPlanFromDate) return recipeMealPlanFromDate;
+  return entry.list_recipe_data?.mealplan?.from_date ?? entry.list_recipe_data?.from_date ?? null;
+}
+
+function getFoodId(value: Food | number | null | undefined): number | null {
+  if (typeof value === 'number') return value;
+  if (value && typeof value === 'object' && value.id != null) return value.id;
+  return null;
+}
+
+function buildRecipeIngredientOrder(entries: ShoppingEntry[]): Map<number, number> {
+  const recipeData = entries.find((entry) => entry.list_recipe_data?.recipe_data)?.list_recipe_data
+    ?.recipe_data;
+  if (!recipeData) return new Map<number, number>();
+
+  const stepOrder = new Map<number, number>();
+  let sequence = 0;
+
+  (recipeData.ingredients ?? []).forEach((ingredient) => {
+    const foodId = getFoodId(ingredient.food);
+    if (foodId != null && !stepOrder.has(foodId)) {
+      stepOrder.set(foodId, sequence);
+      sequence += 1;
+    }
+  });
+
+  (recipeData.steps ?? [])
+    .map((step, index) => ({ step, index }))
+    .sort(
+      (a, b) =>
+        (a.step.order ?? Number.MAX_SAFE_INTEGER) -
+          (b.step.order ?? Number.MAX_SAFE_INTEGER) || a.index - b.index,
+    )
+    .forEach(({ step }) => {
+      (step.ingredients ?? []).forEach((ingredient) => {
+        const foodId = getFoodId(ingredient.food);
+        if (foodId != null && !stepOrder.has(foodId)) {
+          stepOrder.set(foodId, sequence);
+          sequence += 1;
+        }
+      });
+    });
+
+  return stepOrder;
+}
+
+function sortRecipeEntries(entries: ShoppingEntry[]): ShoppingEntry[] {
+  const recipeIngredientOrder = buildRecipeIngredientOrder(entries);
+  if (recipeIngredientOrder.size === 0) return entries;
+
+  return entries
+    .map((entry, index) => ({
+      entry,
+      index,
+      recipeOrder: getFoodId(entry.food),
+    }))
+    .sort((a, b) => {
+      const aOrder =
+        a.recipeOrder != null ? recipeIngredientOrder.get(a.recipeOrder) : Number.MAX_SAFE_INTEGER;
+      const bOrder =
+        b.recipeOrder != null ? recipeIngredientOrder.get(b.recipeOrder) : Number.MAX_SAFE_INTEGER;
+      if (aOrder != null && bOrder != null && aOrder !== bOrder) return aOrder - bOrder;
+      if (aOrder != null && bOrder == null) return -1;
+      if (aOrder == null && bOrder != null) return 1;
+      return a.index - b.index;
+    })
+    .map(({ entry }) => entry);
+}
+
 function formatAmount(entry: ShoppingEntry): string {
   const parts: string[] = [];
   if (entry.amount != null) parts.push(formatFraction(entry.amount));
@@ -46,7 +124,7 @@ function groupByCategory(entries: ShoppingEntry[]): Record<string, ShoppingEntry
 }
 
 function getRecipeName(entry: ShoppingEntry): string | null {
-  return entry.list_recipe_data?.recipe_data.name ?? entry.recipe_mealplan?.recipe_name ?? null;
+  return entry.list_recipe_data?.recipe_data.name ?? getRecipeMealPlanData(entry)?.recipe_name ?? null;
 }
 
 function aggregateByIngredient(entries: ShoppingEntry[]): AggregatedIngredient[] {
@@ -84,7 +162,7 @@ function groupByRecipe(entries: ShoppingEntry[]): Record<string, ShoppingEntry[]
     const group = groups.get(key)!;
     group.entries.push(entry);
 
-    const fromDate = entry.recipe_mealplan?.from_date ?? null;
+    const fromDate = getRecipeFromDate(entry);
     if (fromDate && (!group.fromDate || fromDate < group.fromDate)) {
       group.fromDate = fromDate;
     }
@@ -99,7 +177,7 @@ function groupByRecipe(entries: ShoppingEntry[]): Record<string, ShoppingEntry[]
         if (a.firstIndex !== b.firstIndex) return a.firstIndex - b.firstIndex;
         return a.name.localeCompare(b.name);
       })
-      .map((group) => [group.name, group.entries]),
+      .map((group) => [group.name, sortRecipeEntries(group.entries)]),
   );
 }
 
