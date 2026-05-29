@@ -9,6 +9,7 @@ import {
   getMealPlanWeekPathFromDateString,
   invalidateAndRefreshMealPlanRedirectWeek,
   MEAL_PLAN_REDIRECT_WEEK_BROADCAST_KEY,
+  MEAL_PLAN_REDIRECT_WEEK_QUERY_KEY,
 } from '../utils/mealPlanRedirect';
 
 export const MEAL_PLAN_ITEM_QUERY_PARAMS = {

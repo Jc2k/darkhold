@@ -80,9 +80,7 @@ export async function getLockedMealPlanWeekPath(
     }
     if (latestMealPlanId == null) return fallback;
 
-    const mealPlan = await apiGet<RedirectMealPlanEntry>(
-      `/meal-plan/${latestMealPlanId}/`,
-    );
+    const mealPlan = await apiGet<RedirectMealPlanEntry>(`/meal-plan/${latestMealPlanId}/`);
     return getMealPlanWeekPathFromDateString(mealPlan.from_date) ?? fallback;
   } catch {
     return fallback;
