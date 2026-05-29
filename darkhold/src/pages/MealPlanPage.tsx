@@ -476,11 +476,8 @@ export function shoppingListHasCurrentWeekEntries(
   weekEnd: string,
 ): boolean {
   return entries.some((entry) => {
-    const recipeMealPlan =
-      entry.recipe_mealplan && typeof entry.recipe_mealplan === 'object'
-        ? entry.recipe_mealplan
-        : null;
-    const date = recipeMealPlan?.from_date?.split('T')[0];
+    const fromDate = entry.list_recipe_data?.meal_plan_data?.from_date;
+    const date = fromDate?.split('T')[0];
     if (!date) return false;
     return date >= weekStart && date <= weekEnd;
   });
