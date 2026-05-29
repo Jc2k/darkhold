@@ -1,10 +1,9 @@
 ## [1.80.8](https://github.com/Jc2k/darkhold/compare/v1.80.7...v1.80.8) (2026-05-28)
 
-
 ### Bug Fixes
 
-* sort recipe groups by meal-type order before time to match meal plan ([b472946](https://github.com/Jc2k/darkhold/commit/b4729469522105bbe6b60711ea48119d1731d32f))
-* use meal plan data as date source for shopping list recipe group ordering ([f92b638](https://github.com/Jc2k/darkhold/commit/f92b638362ff965fbf03a7678d34d40e1ea61d72))
+- sort recipe groups by meal-type order before time to match meal plan ([b472946](https://github.com/Jc2k/darkhold/commit/b4729469522105bbe6b60711ea48119d1731d32f))
+- use meal plan data as date source for shopping list recipe group ordering ([f92b638](https://github.com/Jc2k/darkhold/commit/f92b638362ff965fbf03a7678d34d40e1ea61d72))
 
 ## [1.80.7](https://github.com/Jc2k/darkhold/compare/v1.80.6...v1.80.7) (2026-05-28)
 

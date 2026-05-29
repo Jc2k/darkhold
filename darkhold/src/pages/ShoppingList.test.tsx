@@ -250,6 +250,72 @@ describe('ShoppingList', () => {
     expect(groupNames).toEqual(['Brunch Recipe', 'Dinner Recipe', 'Next Day Recipe']);
   });
 
+  it('keeps ingredients within a recipe group in API order', () => {
+    useQueryMock.mockImplementation(({ queryKey }: { queryKey: string[] }) => {
+      if (queryKey[0] === 'shopping-list') {
+        return {
+          data: [
+            {
+              id: 1,
+              amount: 1,
+              unit_name: 'cup',
+              food: { ...makeFood(), id: 101, name: 'Pepper' },
+              checked: false,
+              list_recipe_data: {
+                recipe_data: {
+                  name: 'Soup',
+                },
+              },
+              recipe_mealplan: {
+                recipe_name: 'Soup',
+                from_date: '2026-01-01T12:00:00',
+              },
+            },
+            {
+              id: 2,
+              amount: 1,
+              unit_name: 'cup',
+              food: { ...makeFood(), id: 202, name: 'Onion' },
+              checked: false,
+              list_recipe_data: {
+                recipe_data: {
+                  name: 'Soup',
+                },
+              },
+              recipe_mealplan: {
+                recipe_name: 'Soup',
+                from_date: '2026-01-01T12:00:00',
+              },
+            },
+          ],
+          isLoading: false,
+          isError: false,
+        };
+      }
+      return { data: [], isLoading: false, isError: false };
+    });
+
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <ShoppingList />
+        </MemoryRouter>,
+      );
+    });
+
+    const viewRecipeButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Show recipe groups"]',
+    );
+    act(() => {
+      viewRecipeButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    const ingredientNames = Array.from(
+      container.querySelectorAll<HTMLAnchorElement>('.list-group-item a'),
+    ).map((node) => node.textContent);
+    expect(ingredientNames).toEqual(['Pepper', 'Onion']);
+  });
+
   it('hides checked items when the hide toggle is enabled', () => {
     useQueryMock.mockImplementation(({ queryKey }: { queryKey: string[] }) => {
       if (queryKey[0] === 'shopping-list') {

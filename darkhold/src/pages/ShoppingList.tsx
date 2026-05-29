@@ -23,6 +23,19 @@ interface AggregatedIngredient {
   recipes: string[];
 }
 
+function getRecipeMealPlanData(
+  entry: ShoppingEntry,
+): NonNullable<Exclude<ShoppingEntry['recipe_mealplan'], number>> | null {
+  const recipeMealPlan = entry.recipe_mealplan;
+  return recipeMealPlan && typeof recipeMealPlan === 'object' ? recipeMealPlan : null;
+}
+
+function getRecipeFromDate(entry: ShoppingEntry): string | null {
+  const recipeMealPlanFromDate = getRecipeMealPlanData(entry)?.from_date ?? null;
+  if (recipeMealPlanFromDate) return recipeMealPlanFromDate;
+  return entry.list_recipe_data?.mealplan?.from_date ?? entry.list_recipe_data?.from_date ?? null;
+}
+
 function formatAmount(entry: ShoppingEntry): string {
   const parts: string[] = [];
   if (entry.amount != null) parts.push(formatFraction(entry.amount));
@@ -46,7 +59,9 @@ function groupByCategory(entries: ShoppingEntry[]): Record<string, ShoppingEntry
 }
 
 function getRecipeName(entry: ShoppingEntry): string | null {
-  return entry.list_recipe_data?.recipe_data.name ?? entry.recipe_mealplan?.recipe_name ?? null;
+  return (
+    entry.list_recipe_data?.recipe_data.name ?? getRecipeMealPlanData(entry)?.recipe_name ?? null
+  );
 }
 
 function aggregateByIngredient(entries: ShoppingEntry[]): AggregatedIngredient[] {
@@ -84,7 +99,7 @@ function groupByRecipe(entries: ShoppingEntry[]): Record<string, ShoppingEntry[]
     const group = groups.get(key)!;
     group.entries.push(entry);
 
-    const fromDate = entry.recipe_mealplan?.from_date ?? null;
+    const fromDate = getRecipeFromDate(entry);
     if (fromDate && (!group.fromDate || fromDate < group.fromDate)) {
       group.fromDate = fromDate;
     }
