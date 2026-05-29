@@ -476,7 +476,11 @@ export function shoppingListHasCurrentWeekEntries(
   weekEnd: string,
 ): boolean {
   return entries.some((entry) => {
-    const date = entry.recipe_mealplan?.from_date?.split('T')[0];
+    const recipeMealPlan =
+      entry.recipe_mealplan && typeof entry.recipe_mealplan === 'object'
+        ? entry.recipe_mealplan
+        : null;
+    const date = recipeMealPlan?.from_date?.split('T')[0];
     if (!date) return false;
     return date >= weekStart && date <= weekEnd;
   });

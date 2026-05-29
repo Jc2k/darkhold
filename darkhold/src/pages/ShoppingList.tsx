@@ -62,8 +62,8 @@ function buildRecipeIngredientOrder(entries: ShoppingEntry[]): Map<number, numbe
     .map((step, index) => ({ step, index }))
     .sort(
       (a, b) =>
-        (a.step.order ?? Number.MAX_SAFE_INTEGER) -
-          (b.step.order ?? Number.MAX_SAFE_INTEGER) || a.index - b.index,
+        (a.step.order ?? Number.MAX_SAFE_INTEGER) - (b.step.order ?? Number.MAX_SAFE_INTEGER) ||
+        a.index - b.index,
     )
     .forEach(({ step }) => {
       (step.ingredients ?? []).forEach((ingredient) => {
@@ -124,7 +124,9 @@ function groupByCategory(entries: ShoppingEntry[]): Record<string, ShoppingEntry
 }
 
 function getRecipeName(entry: ShoppingEntry): string | null {
-  return entry.list_recipe_data?.recipe_data.name ?? getRecipeMealPlanData(entry)?.recipe_name ?? null;
+  return (
+    entry.list_recipe_data?.recipe_data.name ?? getRecipeMealPlanData(entry)?.recipe_name ?? null
+  );
 }
 
 function aggregateByIngredient(entries: ShoppingEntry[]): AggregatedIngredient[] {

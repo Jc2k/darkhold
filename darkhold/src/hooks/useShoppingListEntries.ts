@@ -12,14 +12,14 @@ export interface ShoppingListEntry {
   ingredient_note?: string | null;
   recipe_mealplan?:
     | {
-    recipe_name: string;
-    from_date?: string | null;
-    meal_type?: {
-      id?: number;
-      name?: string | null;
-      order?: number | null;
-      time?: string | null;
-    } | null;
+        recipe_name: string;
+        from_date?: string | null;
+        meal_type?: {
+          id?: number;
+          name?: string | null;
+          order?: number | null;
+          time?: string | null;
+        } | null;
       }
     | number
     | null;
@@ -27,13 +27,13 @@ export interface ShoppingListEntry {
     recipe_data: {
       name: string;
       ingredients?: Array<{
-    food?: Food | number | null;
+        food?: Food | number | null;
       }>;
       steps?: Array<{
-    order?: number | null;
-    ingredients?: Array<{
-      food?: Food | number | null;
-    }>;
+        order?: number | null;
+        ingredients?: Array<{
+          food?: Food | number | null;
+        }>;
       }>;
     };
     from_date?: string | null;
