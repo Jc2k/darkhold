@@ -8,16 +8,11 @@ type ApiGetLike = <T>(
 
 interface RedirectShoppingListEntry {
   id: number;
-  recipe_mealplan?:
-    | number
-    | {
-        id?: number | null;
-      }
-    | null;
-}
-
-interface RedirectMealPlanEntry {
-  from_date: string;
+  list_recipe_data?: {
+    meal_plan_data?: {
+      from_date?: string | null;
+    } | null;
+  } | null;
 }
 
 interface PaginatedResults<T> {
@@ -29,12 +24,8 @@ export const MEAL_PLAN_REDIRECT_WEEK_QUERY_KEY = ['meal-plan', 'redirect-week-pa
 export const MEAL_PLAN_REDIRECT_WEEK_BROADCAST_KEY = 'meal-plan-redirect-week-path';
 export const MEAL_PLAN_REDIRECT_WEEK_STALE_TIME = 60_000;
 
-function getRecipeMealPlanId(entry: RedirectShoppingListEntry): number | null {
-  if (typeof entry.recipe_mealplan === 'number') return entry.recipe_mealplan;
-  if (entry.recipe_mealplan && typeof entry.recipe_mealplan.id === 'number') {
-    return entry.recipe_mealplan.id;
-  }
-  return null;
+function getFromDateFromEntry(entry: RedirectShoppingListEntry): string | null {
+  return entry.list_recipe_data?.meal_plan_data?.from_date ?? null;
 }
 
 export function getCurrentMealPlanWeekPath(now: Date = new Date()): string {
@@ -56,8 +47,7 @@ export async function getLockedMealPlanWeekPath(
 
   try {
     let page = 1;
-    let latestMealPlanId: number | null = null;
-    while (latestMealPlanId == null) {
+    while (true) {
       const shoppingList = await apiGet<PaginatedResults<RedirectShoppingListEntry>>(
         '/shopping-list-entry/',
         {
@@ -68,20 +58,18 @@ export async function getLockedMealPlanWeekPath(
       );
 
       const latestWithMealPlan = shoppingList.results.find(
-        (entry) => getRecipeMealPlanId(entry) != null,
+        (entry) => getFromDateFromEntry(entry) != null,
       );
       if (latestWithMealPlan) {
-        latestMealPlanId = getRecipeMealPlanId(latestWithMealPlan);
-        break;
+        const fromDate = getFromDateFromEntry(latestWithMealPlan)!;
+        return getMealPlanWeekPathFromDateString(fromDate) ?? fallback;
       }
 
       if (!shoppingList.next) break;
       page += 1;
     }
-    if (latestMealPlanId == null) return fallback;
 
-    const mealPlan = await apiGet<RedirectMealPlanEntry>(`/meal-plan/${latestMealPlanId}/`);
-    return getMealPlanWeekPathFromDateString(mealPlan.from_date) ?? fallback;
+    return fallback;
   } catch {
     return fallback;
   }

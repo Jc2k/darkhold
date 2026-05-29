@@ -27,17 +27,8 @@ interface AggregatedIngredient {
   recipes: string[];
 }
 
-function getRecipeMealPlanData(
-  entry: ShoppingEntry,
-): NonNullable<Exclude<ShoppingEntry['recipe_mealplan'], number>> | null {
-  const recipeMealPlan = entry.recipe_mealplan;
-  return recipeMealPlan && typeof recipeMealPlan === 'object' ? recipeMealPlan : null;
-}
-
 function getRecipeFromDate(entry: ShoppingEntry): string | null {
-  const recipeMealPlanFromDate = getRecipeMealPlanData(entry)?.from_date ?? null;
-  if (recipeMealPlanFromDate) return recipeMealPlanFromDate;
-  return entry.list_recipe_data?.mealplan?.from_date ?? entry.list_recipe_data?.from_date ?? null;
+  return entry.list_recipe_data?.meal_plan_data?.from_date ?? null;
 }
 
 function formatAmount(entry: ShoppingEntry): string {
@@ -63,9 +54,7 @@ function groupByCategory(entries: ShoppingEntry[]): Record<string, ShoppingEntry
 }
 
 function getRecipeName(entry: ShoppingEntry): string | null {
-  return (
-    entry.list_recipe_data?.recipe_data.name ?? getRecipeMealPlanData(entry)?.recipe_name ?? null
-  );
+  return entry.list_recipe_data?.recipe_data.name ?? null;
 }
 
 function aggregateByIngredient(entries: ShoppingEntry[]): AggregatedIngredient[] {

@@ -298,13 +298,16 @@ describe('getEmptyWeekendLunchDates', () => {
               id: 1,
               checked: false,
               food: null,
-              recipe_mealplan: { recipe_name: 'Aubergine Bake' },
+              list_recipe_data: { recipe_data: { name: 'Aubergine Bake' } },
             },
             {
               id: 2,
               checked: false,
               food: null,
-              recipe_mealplan: { recipe_name: 'Pasta', from_date: '2026-06-10T00:00:00Z' },
+              list_recipe_data: {
+                recipe_data: { name: 'Pasta' },
+                meal_plan_data: { from_date: '2026-06-10T00:00:00Z' },
+              },
             },
           ],
           weekStart,
@@ -325,15 +328,18 @@ describe('getEmptyWeekendLunchDates', () => {
               id: 1,
               checked: false,
               food: null,
-              recipe_mealplan: { recipe_name: 'Old Week Curry', from_date: '2026-06-01T00:00:00Z' },
+              list_recipe_data: {
+                recipe_data: { name: 'Old Week Curry' },
+                meal_plan_data: { from_date: '2026-06-01T00:00:00Z' },
+              },
             },
             {
               id: 2,
               checked: true,
               food: null,
-              recipe_mealplan: {
-                recipe_name: 'Future Week Pie',
-                from_date: '2026-06-20T00:00:00Z',
+              list_recipe_data: {
+                recipe_data: { name: 'Future Week Pie' },
+                meal_plan_data: { from_date: '2026-06-20T00:00:00Z' },
               },
             },
           ],
@@ -351,18 +357,18 @@ describe('getEmptyWeekendLunchDates', () => {
               id: 1,
               checked: false,
               food: null,
-              recipe_mealplan: {
-                recipe_name: 'Future Week Pie',
-                from_date: '2026-06-20T00:00:00Z',
+              list_recipe_data: {
+                recipe_data: { name: 'Future Week Pie' },
+                meal_plan_data: { from_date: '2026-06-20T00:00:00Z' },
               },
             },
             {
               id: 2,
               checked: false,
               food: null,
-              recipe_mealplan: {
-                recipe_name: 'Current Week Pasta',
-                from_date: '2026-06-12T12:00:00Z',
+              list_recipe_data: {
+                recipe_data: { name: 'Current Week Pasta' },
+                meal_plan_data: { from_date: '2026-06-12T12:00:00Z' },
               },
             },
           ],

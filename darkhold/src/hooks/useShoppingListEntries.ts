@@ -10,19 +10,6 @@ export interface ShoppingListEntry {
   food: Food | null;
   checked: boolean;
   ingredient_note?: string | null;
-  recipe_mealplan?:
-    | {
-        recipe_name: string;
-        from_date?: string | null;
-        meal_type?: {
-          id?: number;
-          name?: string | null;
-          order?: number | null;
-          time?: string | null;
-        } | null;
-      }
-    | number
-    | null;
   list_recipe_data?: {
     recipe_data: {
       name: string;
@@ -36,8 +23,7 @@ export interface ShoppingListEntry {
         }>;
       }>;
     };
-    from_date?: string | null;
-    mealplan?: {
+    meal_plan_data?: {
       from_date?: string | null;
     } | null;
   } | null;

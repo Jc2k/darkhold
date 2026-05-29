@@ -191,10 +191,9 @@ describe('ShoppingList', () => {
               unit_name: 'cup',
               food: makeFood(),
               checked: false,
-              list_recipe_data: { recipe_data: { name: 'Dinner Recipe' } },
-              recipe_mealplan: {
-                recipe_name: 'Dinner Recipe',
-                from_date: '2026-01-01T18:00:00',
+              list_recipe_data: {
+                recipe_data: { name: 'Dinner Recipe' },
+                meal_plan_data: { from_date: '2026-01-01T18:00:00' },
               },
             },
             {
@@ -203,10 +202,9 @@ describe('ShoppingList', () => {
               unit_name: 'cup',
               food: { ...makeFood(), id: 2, name: 'Milk' },
               checked: false,
-              list_recipe_data: { recipe_data: { name: 'Brunch Recipe' } },
-              recipe_mealplan: {
-                recipe_name: 'Brunch Recipe',
-                from_date: '2026-01-01T10:00:00',
+              list_recipe_data: {
+                recipe_data: { name: 'Brunch Recipe' },
+                meal_plan_data: { from_date: '2026-01-01T10:00:00' },
               },
             },
             {
@@ -215,10 +213,9 @@ describe('ShoppingList', () => {
               unit_name: 'cup',
               food: { ...makeFood(), id: 3, name: 'Lettuce' },
               checked: false,
-              list_recipe_data: { recipe_data: { name: 'Next Day Recipe' } },
-              recipe_mealplan: {
-                recipe_name: 'Next Day Recipe',
-                from_date: '2026-01-02T12:00:00',
+              list_recipe_data: {
+                recipe_data: { name: 'Next Day Recipe' },
+                meal_plan_data: { from_date: '2026-01-02T12:00:00' },
               },
             },
           ],
@@ -262,13 +259,8 @@ describe('ShoppingList', () => {
               food: { ...makeFood(), id: 101, name: 'Pepper' },
               checked: false,
               list_recipe_data: {
-                recipe_data: {
-                  name: 'Soup',
-                },
-              },
-              recipe_mealplan: {
-                recipe_name: 'Soup',
-                from_date: '2026-01-01T12:00:00',
+                recipe_data: { name: 'Soup' },
+                meal_plan_data: { from_date: '2026-01-01T12:00:00' },
               },
             },
             {
@@ -278,13 +270,8 @@ describe('ShoppingList', () => {
               food: { ...makeFood(), id: 202, name: 'Onion' },
               checked: false,
               list_recipe_data: {
-                recipe_data: {
-                  name: 'Soup',
-                },
-              },
-              recipe_mealplan: {
-                recipe_name: 'Soup',
-                from_date: '2026-01-01T12:00:00',
+                recipe_data: { name: 'Soup' },
+                meal_plan_data: { from_date: '2026-01-01T12:00:00' },
               },
             },
           ],
