@@ -159,11 +159,14 @@ describe('invalidateAndRefreshMealPlanRedirectWeek', () => {
     const invalidateQueries = vi.fn();
     const fetchQuery = vi.fn().mockResolvedValue('/meal-plan/2026-05-30');
     const queryClient = { invalidateQueries, fetchQuery };
-    const apiGet = vi.fn();
+    const apiGet = vi.fn() as unknown as <T>(
+      path: string,
+      params?: Record<string, string | number | boolean | undefined | null>,
+    ) => Promise<T>;
 
-    await expect(
-      invalidateAndRefreshMealPlanRedirectWeek(queryClient, apiGet as never),
-    ).resolves.toBe('/meal-plan/2026-05-30');
+    await expect(invalidateAndRefreshMealPlanRedirectWeek(queryClient, apiGet)).resolves.toBe(
+      '/meal-plan/2026-05-30',
+    );
 
     expect(invalidateQueries).toHaveBeenCalledWith({
       queryKey: MEAL_PLAN_REDIRECT_WEEK_QUERY_KEY,
