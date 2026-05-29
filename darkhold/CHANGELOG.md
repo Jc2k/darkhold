@@ -1,11 +1,10 @@
 ## [1.80.10](https://github.com/Jc2k/darkhold/compare/v1.80.9...v1.80.10) (2026-05-29)
 
-
 ### Bug Fixes
 
-* remove extra-request fallbacks from meal plan redirect ([af35c53](https://github.com/Jc2k/darkhold/commit/af35c53d94cbb11f192844b613c5506fa16c8619))
-* remove recipe_mealplan fallbacks, use list_recipe_data.meal_plan_data.from_date throughout ([b55e9a1](https://github.com/Jc2k/darkhold/commit/b55e9a18515a554e5a864d488c7414062053699a))
-* use list_recipe_data.meal_plan_data.from_date for meal plan redirect ([e21bbe5](https://github.com/Jc2k/darkhold/commit/e21bbe51b99331196f7f85740213a75be3eef95c))
+- remove extra-request fallbacks from meal plan redirect ([af35c53](https://github.com/Jc2k/darkhold/commit/af35c53d94cbb11f192844b613c5506fa16c8619))
+- remove recipe_mealplan fallbacks, use list_recipe_data.meal_plan_data.from_date throughout ([b55e9a1](https://github.com/Jc2k/darkhold/commit/b55e9a18515a554e5a864d488c7414062053699a))
+- use list_recipe_data.meal_plan_data.from_date for meal plan redirect ([e21bbe5](https://github.com/Jc2k/darkhold/commit/e21bbe51b99331196f7f85740213a75be3eef95c))
 
 ## [1.80.9](https://github.com/Jc2k/darkhold/compare/v1.80.8...v1.80.9) (2026-05-29)
 

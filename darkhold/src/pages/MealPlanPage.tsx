@@ -873,6 +873,7 @@ export function AddMealModal({ date, onHide, mealTypes, initialMealTypeId }: Add
   const [servings, setServings] = useState(1);
   const [note, setNote] = useState('');
   const createMeal = useCreateMealPlan();
+  const queryClient = useQueryClient();
   const defaultMealTypeId = initialMealTypeId ?? mealTypes[0]?.id;
   const [subRecipeLinks, setSubRecipeLinks] = useState<SubRecipeLink[] | null>(null);
   const [subRecipeToggles, setSubRecipeToggles] = useState<Record<number, boolean>>({});
@@ -939,7 +940,14 @@ export function AddMealModal({ date, onHide, mealTypes, initialMealTypeId }: Add
           subRecipeLinks: [],
         })
       : (async () => {
-          const fullRecipe = await apiGet<Recipe>(`/recipe/${r.id}/`);
+          const [fullRecipe, mealTypesData] = await Promise.all([
+            apiGet<Recipe>(`/recipe/${r.id}/`),
+            queryClient.fetchQuery<PaginatedResponse<MealType>>({
+              queryKey: ['meal-types'],
+              queryFn: () => apiGet<PaginatedResponse<MealType>>('/meal-type/'),
+            }),
+          ]);
+          const resolvedMealTypes = mealTypesData?.results ?? [];
           const seen = new Set<number>();
           const links: SubRecipeLink[] = [];
           if (fullRecipe?.steps) {
@@ -959,7 +967,7 @@ export function AddMealModal({ date, onHide, mealTypes, initialMealTypeId }: Add
           }
           return {
             subRecipeLinks: links,
-            mealTypeId: deriveMealType(fullRecipe, mealTypes) ?? mealTypes[0]?.id,
+            mealTypeId: deriveMealType(fullRecipe, resolvedMealTypes) ?? resolvedMealTypes[0]?.id,
           };
         })();
     recipeSelectionPromiseRef.current = resolutionPromise;
