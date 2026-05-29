@@ -250,7 +250,7 @@ describe('ShoppingList', () => {
     expect(groupNames).toEqual(['Brunch Recipe', 'Dinner Recipe', 'Next Day Recipe']);
   });
 
-  it('orders ingredients within a recipe group by recipe ingredient order', () => {
+  it('keeps ingredients within a recipe group in API order', () => {
     useQueryMock.mockImplementation(({ queryKey }: { queryKey: string[] }) => {
       if (queryKey[0] === 'shopping-list') {
         return {
@@ -264,16 +264,6 @@ describe('ShoppingList', () => {
               list_recipe_data: {
                 recipe_data: {
                   name: 'Soup',
-                  steps: [
-                    {
-                      order: 2,
-                      ingredients: [{ food: { id: 101, name: 'Pepper' } }],
-                    },
-                    {
-                      order: 1,
-                      ingredients: [{ food: { id: 202, name: 'Onion' } }],
-                    },
-                  ],
                 },
               },
               recipe_mealplan: {
@@ -323,7 +313,7 @@ describe('ShoppingList', () => {
     const ingredientNames = Array.from(
       container.querySelectorAll<HTMLAnchorElement>('.list-group-item a'),
     ).map((node) => node.textContent);
-    expect(ingredientNames).toEqual(['Onion', 'Pepper']);
+    expect(ingredientNames).toEqual(['Pepper', 'Onion']);
   });
 
   it('hides checked items when the hide toggle is enabled', () => {
