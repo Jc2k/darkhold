@@ -223,6 +223,11 @@ function UpcomingMealsShelf({
                   </div>
                 )}
               </div>
+              {entry?.note && (
+                <div className="text-muted small mt-1" style={{ wordBreak: 'break-word' }}>
+                  {entry.note}
+                </div>
+              )}
             </div>
           );
         })}
