@@ -1,3 +1,12 @@
+## [1.80.9](https://github.com/Jc2k/darkhold/compare/v1.80.8...v1.80.9) (2026-05-29)
+
+
+### Bug Fixes
+
+* **meal-plan:** dedupe redirect week refresh queries ([9df9a85](https://github.com/Jc2k/darkhold/commit/9df9a8545cd62dfac0debff9ddcc133e0ad25ec6))
+* **meal-plan:** refresh redirect week cache on shopping list changes ([34d771f](https://github.com/Jc2k/darkhold/commit/34d771f0c9d62a8b088168c7d2fc0515cef96b76))
+* **shopping-list:** keep recipe entries in api order ([05b09f6](https://github.com/Jc2k/darkhold/commit/05b09f6f6f10307d8db4438f3114ebdedf5f05aa))
+
 ## [1.80.8](https://github.com/Jc2k/darkhold/compare/v1.80.7...v1.80.8) (2026-05-28)
 
 ### Bug Fixes
