@@ -1,6 +1,10 @@
 import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { MEAL_PLAN_REDIRECT_WEEK_QUERY_KEY } from '../utils/mealPlanRedirect';
+import { apiGet } from '../api/client';
+import {
+  invalidateAndRefreshMealPlanRedirectWeek,
+  MEAL_PLAN_REDIRECT_WEEK_BROADCAST_KEY,
+} from '../utils/mealPlanRedirect';
 
 type InvalidationMessage = { type: 'invalidate'; queryKey: string };
 type VersionMessage = { type: 'version'; version: string };
@@ -90,16 +94,27 @@ export function useInvalidationSocket(): void {
   const queryClient = useQueryClient();
 
   useEffect(() => {
+    const refreshRedirectWeek = () => {
+      void invalidateAndRefreshMealPlanRedirectWeek(queryClient, apiGet);
+    };
+
     const handler = (msg: InvalidationMessage) => {
       if (msg.type === 'invalidate') {
         queryClient.invalidateQueries({ queryKey: [msg.queryKey] });
+        if (
+          msg.queryKey === 'shopping-list' ||
+          msg.queryKey === 'meal-plan' ||
+          msg.queryKey === MEAL_PLAN_REDIRECT_WEEK_BROADCAST_KEY
+        ) {
+          refreshRedirectWeek();
+        }
       }
     };
 
     handlers.add(handler);
     const connectHandler = () => {
       queryClient.invalidateQueries({ queryKey: ['shopping-list'] });
-      queryClient.invalidateQueries({ queryKey: MEAL_PLAN_REDIRECT_WEEK_QUERY_KEY });
+      refreshRedirectWeek();
     };
     connectHandlers.add(connectHandler);
     connect();

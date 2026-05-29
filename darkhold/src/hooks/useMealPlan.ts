@@ -7,6 +7,7 @@ import { formatDate } from '../utils/dateUtils';
 import { MEAL_PLAN_GC_TIME, MEAL_PLAN_STALE_TIME } from '../utils/cacheConfig';
 import {
   getMealPlanWeekPathFromDateString,
+  invalidateAndRefreshMealPlanRedirectWeek,
   MEAL_PLAN_REDIRECT_WEEK_BROADCAST_KEY,
   MEAL_PLAN_REDIRECT_WEEK_QUERY_KEY,
 } from '../utils/mealPlanRedirect';
@@ -37,7 +38,7 @@ export function useDeleteMealPlan() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['meal-plan'] });
       qc.invalidateQueries({ queryKey: ['shopping-list'] });
-      qc.invalidateQueries({ queryKey: MEAL_PLAN_REDIRECT_WEEK_QUERY_KEY });
+      void invalidateAndRefreshMealPlanRedirectWeek(qc, apiGet);
       broadcastInvalidation('meal-plan');
       broadcastInvalidation('shopping-list');
       broadcastInvalidation(MEAL_PLAN_REDIRECT_WEEK_BROADCAST_KEY);
@@ -53,7 +54,7 @@ export function useUpdateMealPlan() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['meal-plan'] });
       qc.invalidateQueries({ queryKey: ['shopping-list'] });
-      qc.invalidateQueries({ queryKey: MEAL_PLAN_REDIRECT_WEEK_QUERY_KEY });
+      void invalidateAndRefreshMealPlanRedirectWeek(qc, apiGet);
       broadcastInvalidation('meal-plan');
       broadcastInvalidation('shopping-list');
       broadcastInvalidation(MEAL_PLAN_REDIRECT_WEEK_BROADCAST_KEY);
@@ -72,7 +73,7 @@ export function useCreateMealPlan() {
       }
       qc.invalidateQueries({ queryKey: ['meal-plan'] });
       qc.invalidateQueries({ queryKey: ['shopping-list'] });
-      qc.invalidateQueries({ queryKey: MEAL_PLAN_REDIRECT_WEEK_QUERY_KEY });
+      void invalidateAndRefreshMealPlanRedirectWeek(qc, apiGet);
       broadcastInvalidation('meal-plan');
       broadcastInvalidation('shopping-list');
       broadcastInvalidation(MEAL_PLAN_REDIRECT_WEEK_BROADCAST_KEY);

@@ -23,8 +23,7 @@ import { useAppConfig } from './hooks/useAppConfig';
 import { apiGet } from './api/client';
 import {
   getCurrentMealPlanWeekPath,
-  getLockedMealPlanWeekPath,
-  MEAL_PLAN_REDIRECT_WEEK_QUERY_KEY,
+  getMealPlanRedirectWeekQueryOptions,
 } from './utils/mealPlanRedirect';
 
 function getHomepage(): string {
@@ -35,12 +34,7 @@ function getHomepage(): string {
 }
 
 function MealPlanCurrentWeekRedirect() {
-  const { data } = useQuery({
-    queryKey: MEAL_PLAN_REDIRECT_WEEK_QUERY_KEY,
-    queryFn: () => getLockedMealPlanWeekPath(apiGet),
-    staleTime: 60_000,
-    retry: false,
-  });
+  const { data } = useQuery(getMealPlanRedirectWeekQueryOptions(apiGet));
 
   if (!data) return <LoadingMascot />;
 
