@@ -14,6 +14,13 @@ interface RedirectShoppingListEntry {
         id?: number | null;
       }
     | null;
+  list_recipe_data?: {
+    mealplan?: number | null;
+    meal_plan_data?: {
+      id?: number | null;
+      from_date?: string | null;
+    } | null;
+  } | null;
 }
 
 interface RedirectMealPlanEntry {
@@ -34,7 +41,17 @@ function getRecipeMealPlanId(entry: RedirectShoppingListEntry): number | null {
   if (entry.recipe_mealplan && typeof entry.recipe_mealplan.id === 'number') {
     return entry.recipe_mealplan.id;
   }
+  if (typeof entry.list_recipe_data?.mealplan === 'number') {
+    return entry.list_recipe_data.mealplan;
+  }
+  if (typeof entry.list_recipe_data?.meal_plan_data?.id === 'number') {
+    return entry.list_recipe_data.meal_plan_data.id;
+  }
   return null;
+}
+
+function getFromDateFromEntry(entry: RedirectShoppingListEntry): string | null {
+  return entry.list_recipe_data?.meal_plan_data?.from_date ?? null;
 }
 
 export function getCurrentMealPlanWeekPath(now: Date = new Date()): string {
@@ -57,7 +74,8 @@ export async function getLockedMealPlanWeekPath(
   try {
     let page = 1;
     let latestMealPlanId: number | null = null;
-    while (latestMealPlanId == null) {
+    let directFromDate: string | null = null;
+    while (latestMealPlanId == null && directFromDate == null) {
       const shoppingList = await apiGet<PaginatedResults<RedirectShoppingListEntry>>(
         '/shopping-list-entry/',
         {
@@ -68,15 +86,22 @@ export async function getLockedMealPlanWeekPath(
       );
 
       const latestWithMealPlan = shoppingList.results.find(
-        (entry) => getRecipeMealPlanId(entry) != null,
+        (entry) => getFromDateFromEntry(entry) != null || getRecipeMealPlanId(entry) != null,
       );
       if (latestWithMealPlan) {
-        latestMealPlanId = getRecipeMealPlanId(latestWithMealPlan);
+        directFromDate = getFromDateFromEntry(latestWithMealPlan);
+        if (directFromDate == null) {
+          latestMealPlanId = getRecipeMealPlanId(latestWithMealPlan);
+        }
         break;
       }
 
       if (!shoppingList.next) break;
       page += 1;
+    }
+
+    if (directFromDate != null) {
+      return getMealPlanWeekPathFromDateString(directFromDate) ?? fallback;
     }
     if (latestMealPlanId == null) return fallback;
 

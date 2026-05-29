@@ -110,6 +110,48 @@ describe('getLockedMealPlanWeekPath', () => {
     );
   });
 
+  it('uses from_date directly from list_recipe_data.meal_plan_data without extra API call', async () => {
+    const apiGetMock = vi.fn().mockResolvedValueOnce({
+      results: [
+        {
+          id: 3242,
+          list_recipe_data: {
+            mealplan: 329,
+            meal_plan_data: { id: 329, from_date: '2026-05-31T12:00:00+01:00' },
+          },
+        },
+      ],
+    });
+    const apiGet = apiGetMock as unknown as <T>(
+      path: string,
+      params?: Record<string, string | number | boolean | undefined | null>,
+    ) => Promise<T>;
+
+    await expect(getLockedMealPlanWeekPath(apiGet, new Date('2026-05-27T10:30:00Z'))).resolves.toBe(
+      '/meal-plan/2026-05-30',
+    );
+    // Should NOT make a second API call to /meal-plan/{id}/
+    expect(apiGetMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses list_recipe_data.mealplan id when meal_plan_data has no from_date', async () => {
+    const apiGetMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        results: [{ id: 3242, list_recipe_data: { mealplan: 329, meal_plan_data: { id: 329 } } }],
+      })
+      .mockResolvedValueOnce({ from_date: '2026-05-31' });
+    const apiGet = apiGetMock as unknown as <T>(
+      path: string,
+      params?: Record<string, string | number | boolean | undefined | null>,
+    ) => Promise<T>;
+
+    await expect(getLockedMealPlanWeekPath(apiGet, new Date('2026-05-27T10:30:00Z'))).resolves.toBe(
+      '/meal-plan/2026-05-30',
+    );
+    expect(apiGetMock).toHaveBeenNthCalledWith(2, '/meal-plan/329/');
+  });
+
   it('checks later pages to find the most recent linked meal-plan entry', async () => {
     const apiGetMock = vi
       .fn()
