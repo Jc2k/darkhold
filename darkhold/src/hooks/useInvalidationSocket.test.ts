@@ -3,7 +3,10 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { MEAL_PLAN_REDIRECT_WEEK_QUERY_KEY } from '../utils/mealPlanRedirect';
+import {
+  MEAL_PLAN_REDIRECT_WEEK_BROADCAST_KEY,
+  MEAL_PLAN_REDIRECT_WEEK_QUERY_KEY,
+} from '../utils/mealPlanRedirect';
 import {
   getVersionReloadUrl,
   shouldReloadForVersion,
@@ -96,9 +99,10 @@ describe('useInvalidationSocket', () => {
     delete actGlobal.IS_REACT_ACT_ENVIRONMENT;
   });
 
-  it('invalidates shopping and redirect week caches when websocket connects', () => {
+  it('invalidates shopping and proactively refreshes redirect week when websocket connects', () => {
     const queryClient = new QueryClient();
     const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+    const fetchSpy = vi.spyOn(queryClient, 'fetchQuery').mockResolvedValue('/meal-plan/2026-05-23');
 
     act(() => {
       root.render(
@@ -119,5 +123,67 @@ describe('useInvalidationSocket', () => {
 
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['shopping-list'] });
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: MEAL_PLAN_REDIRECT_WEEK_QUERY_KEY });
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ queryKey: MEAL_PLAN_REDIRECT_WEEK_QUERY_KEY }),
+    );
+  });
+
+  it('refreshes redirect week when receiving shopping-list invalidations', () => {
+    const queryClient = new QueryClient();
+    const fetchSpy = vi.spyOn(queryClient, 'fetchQuery').mockResolvedValue('/meal-plan/2026-05-23');
+
+    act(() => {
+      root.render(
+        React.createElement(
+          QueryClientProvider,
+          { client: queryClient },
+          React.createElement(HookHarness),
+        ),
+      );
+    });
+
+    const socket = MockWebSocket.instances[0];
+    expect(socket).toBeDefined();
+
+    act(() => {
+      socket.onmessage?.({
+        data: JSON.stringify({ type: 'invalidate', queryKey: 'shopping-list' }),
+      } as MessageEvent<string>);
+    });
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ queryKey: MEAL_PLAN_REDIRECT_WEEK_QUERY_KEY }),
+    );
+  });
+
+  it('refreshes redirect week when receiving redirect broadcast invalidations', () => {
+    const queryClient = new QueryClient();
+    const fetchSpy = vi.spyOn(queryClient, 'fetchQuery').mockResolvedValue('/meal-plan/2026-05-23');
+
+    act(() => {
+      root.render(
+        React.createElement(
+          QueryClientProvider,
+          { client: queryClient },
+          React.createElement(HookHarness),
+        ),
+      );
+    });
+
+    const socket = MockWebSocket.instances[0];
+    expect(socket).toBeDefined();
+
+    act(() => {
+      socket.onmessage?.({
+        data: JSON.stringify({
+          type: 'invalidate',
+          queryKey: MEAL_PLAN_REDIRECT_WEEK_BROADCAST_KEY,
+        }),
+      } as MessageEvent<string>);
+    });
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ queryKey: MEAL_PLAN_REDIRECT_WEEK_QUERY_KEY }),
+    );
   });
 });

@@ -3,7 +3,7 @@ import { Cart4 } from 'react-bootstrap-icons';
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiPatch, apiDelete } from '../api/client';
+import { apiPatch, apiDelete, apiGet } from '../api/client';
 import { broadcastInvalidation } from '../hooks/useInvalidationSocket';
 import type { Food } from '../api/tandoor-types';
 import { LoadingMascot } from '../components/LoadingMascot';
@@ -13,6 +13,10 @@ import {
   fetchAllShoppingListEntries,
   type ShoppingListEntry as ShoppingEntry,
 } from '../hooks/useShoppingListEntries';
+import {
+  invalidateAndRefreshMealPlanRedirectWeek,
+  MEAL_PLAN_REDIRECT_WEEK_BROADCAST_KEY,
+} from '../utils/mealPlanRedirect';
 
 export { fetchAllShoppingListEntries } from '../hooks/useShoppingListEntries';
 
@@ -179,7 +183,9 @@ export function ShoppingList() {
       .finally(() => {
         setIsClearing(false);
         qc.invalidateQueries({ queryKey: ['shopping-list'] });
+        void invalidateAndRefreshMealPlanRedirectWeek(qc, apiGet);
         broadcastInvalidation('shopping-list');
+        broadcastInvalidation(MEAL_PLAN_REDIRECT_WEEK_BROADCAST_KEY);
       });
   };
 

@@ -112,8 +112,8 @@ import {
 import { MealPlanAssistantModal } from '../components/MealPlanAssistantModal';
 import { useAppConfig } from '../hooks/useAppConfig';
 import {
+  invalidateAndRefreshMealPlanRedirectWeek,
   MEAL_PLAN_REDIRECT_WEEK_BROADCAST_KEY,
-  MEAL_PLAN_REDIRECT_WEEK_QUERY_KEY,
 } from '../utils/mealPlanRedirect';
 
 type WithSortable = { sortable?: { containerId: string } } | undefined;
@@ -1645,7 +1645,7 @@ export function MealPlanPage() {
       const failed = results.filter((r) => r.status === 'rejected').length;
       queryClient.invalidateQueries({ queryKey: ['meal-plan'] });
       queryClient.invalidateQueries({ queryKey: ['shopping-list'] });
-      queryClient.invalidateQueries({ queryKey: MEAL_PLAN_REDIRECT_WEEK_QUERY_KEY });
+      void invalidateAndRefreshMealPlanRedirectWeek(queryClient, apiGet);
       broadcastInvalidation('meal-plan');
       broadcastInvalidation('shopping-list');
       broadcastInvalidation(MEAL_PLAN_REDIRECT_WEEK_BROADCAST_KEY);
