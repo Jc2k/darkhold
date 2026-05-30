@@ -196,6 +196,7 @@ function UpcomingMealsShelf({
                       recipe={recipe}
                       onAddToMealPlan={onAddToMealPlan}
                       linkTo={`/meal-plan-entry/${entry.id}`}
+                      mealPlanNote={entry.note}
                       imageOverlayAction={
                         isEligible && !isCooked ? (
                           <Button
@@ -223,11 +224,6 @@ function UpcomingMealsShelf({
                   </div>
                 )}
               </div>
-              {entry?.note && (
-                <div className="text-muted small mt-1" style={{ wordBreak: 'break-word' }}>
-                  {entry.note}
-                </div>
-              )}
             </div>
           );
         })}

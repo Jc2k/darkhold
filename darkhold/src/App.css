@@ -10,6 +10,11 @@
   overflow: hidden;
 }
 
+.recipe-card-meal-plan-note {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
 .refresh-throbber {
   position: fixed;
   right: 1rem;
