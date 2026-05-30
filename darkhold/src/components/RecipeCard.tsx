@@ -15,13 +15,21 @@ interface Props {
   linkTo?: string;
   /** Optional extra action rendered in the image button overlay row. */
   imageOverlayAction?: ReactNode;
+  /** Optional meal plan note rendered within the card. */
+  mealPlanNote?: string;
 }
 
 const IMAGE_HEIGHT = 180;
 const PLACEHOLDER_BG = '#d0d0d0';
 const PLACEHOLDER_ICON_COLOR = '#a0a0a0';
 
-export function RecipeCard({ recipe, onAddToMealPlan, linkTo, imageOverlayAction }: Props) {
+export function RecipeCard({
+  recipe,
+  onAddToMealPlan,
+  linkTo,
+  imageOverlayAction,
+  mealPlanNote,
+}: Props) {
   const navigate = useNavigate();
   const destination = linkTo ?? `/recipe/${recipe.id}`;
   const keywords = Array.isArray(recipe.keywords)
@@ -105,6 +113,11 @@ export function RecipeCard({ recipe, onAddToMealPlan, linkTo, imageOverlayAction
           ))}
         </div>
       </Card.Body>
+      {mealPlanNote && (
+        <Card.Footer className="small text-muted recipe-card-meal-plan-note">
+          {mealPlanNote}
+        </Card.Footer>
+      )}
     </Card>
   );
 }

@@ -406,6 +406,8 @@ describe('Dashboard', () => {
       );
     });
 
-    expect(container.textContent).toContain('Use the leftover chicken');
+    const note = container.querySelector('.recipe-card-meal-plan-note');
+    expect(note?.textContent).toContain('Use the leftover chicken');
+    expect(note?.closest('.recipe-card')).not.toBeNull();
   });
 });
