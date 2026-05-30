@@ -1,11 +1,11 @@
 import { ListGroup, Form, Alert, Badge, Spinner, Button, ButtonGroup } from 'react-bootstrap';
-import { Cart4 } from 'react-bootstrap-icons';
+import { ArrowLeft, Cart4 } from 'react-bootstrap-icons';
 import { Link } from 'react-router-dom';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiPatch, apiDelete, apiGet } from '../api/client';
+import { apiPatch, apiDelete, apiGet, apiPost } from '../api/client';
 import { broadcastInvalidation } from '../hooks/useInvalidationSocket';
-import type { Food } from '../api/tandoor-types';
+import type { Food, ShoppingList as TandoorShoppingList } from '../api/tandoor-types';
 import { LoadingMascot } from '../components/LoadingMascot';
 import { NoTokenAlert } from '../components/NoTokenAlert';
 import { formatFraction } from '../utils/fractions';
@@ -19,6 +19,28 @@ import {
 } from '../utils/mealPlanRedirect';
 
 export { fetchAllShoppingListEntries } from '../hooks/useShoppingListEntries';
+
+const TO_CHECK_LIST_NAME = 'To Check';
+const SWIPE_THRESHOLD_PX = 60;
+
+export function isInShoppingList(entry: ShoppingEntry, listName: string): boolean {
+  return entry.shopping_lists?.some((list) => list.name === listName) ?? false;
+}
+
+export function isLeftSwipe(deltaX: number, deltaY: number): boolean {
+  return deltaX <= -SWIPE_THRESHOLD_PX && Math.abs(deltaX) > Math.abs(deltaY);
+}
+
+export function addShoppingListToEntries(
+  entries: ShoppingEntry[],
+  entryIds: Set<number>,
+  shoppingList: TandoorShoppingList,
+): ShoppingEntry[] {
+  return entries.map((entry) => {
+    if (!entryIds.has(entry.id) || isInShoppingList(entry, shoppingList.name)) return entry;
+    return { ...entry, shopping_lists: [...(entry.shopping_lists ?? []), shoppingList] };
+  });
+}
 
 interface AggregatedIngredient {
   food: Food | null;
@@ -116,13 +138,22 @@ export function ShoppingList() {
   const [pendingIds, setPendingIds] = useState<Set<number>>(new Set());
   const [isClearing, setIsClearing] = useState(false);
   const [clearError, setClearError] = useState<string | null>(null);
+  const [moveError, setMoveError] = useState<string | null>(null);
+  const swipeStart = useRef<{ key: string; x: number; y: number } | null>(null);
   const [viewMode, setViewMode] = useState<'category' | 'recipe'>('category');
   const [hideChecked, setHideChecked] = useState(false);
+  const [showToCheckOnly, setShowToCheckOnly] = useState(false);
   const hasPersonalToken = Boolean(localStorage.getItem('tandoor_token'));
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['shopping-list'],
     queryFn: fetchAllShoppingListEntries,
+  });
+
+  const { data: toCheckList } = useQuery({
+    queryKey: ['shopping-list-to-check'],
+    queryFn: () => apiPost<TandoorShoppingList>('/shopping-list/', { name: TO_CHECK_LIST_NAME }),
+    enabled: hasPersonalToken,
   });
 
   const toggle = useMutation({
@@ -133,6 +164,52 @@ export function ShoppingList() {
       broadcastInvalidation('shopping-list');
     },
   });
+
+  const moveToCheck = useMutation({
+    mutationFn: (entries: ShoppingEntry[]) => {
+      if (!toCheckList) throw new Error('The To Check list is not ready yet.');
+      return Promise.all(
+        entries.map((entry) =>
+          apiPatch(`/shopping-list-entry/${entry.id}/`, {
+            shopping_lists: [...(entry.shopping_lists ?? []), toCheckList],
+          }),
+        ),
+      );
+    },
+    onMutate: (entries) => {
+      setMoveError(null);
+      setPendingIds((previous) => new Set([...previous, ...entries.map((entry) => entry.id)]));
+    },
+    onSuccess: (_result, entries) => {
+      if (!toCheckList) return;
+      const entryIds = new Set(entries.map((entry) => entry.id));
+      qc.setQueryData<ShoppingEntry[]>(['shopping-list'], (current) =>
+        current ? addShoppingListToEntries(current, entryIds, toCheckList) : current,
+      );
+      qc.invalidateQueries({ queryKey: ['shopping-list'] });
+      broadcastInvalidation('shopping-list');
+    },
+    onError: () => {
+      setMoveError('Failed to send item to To Check. Please try again.');
+    },
+    onSettled: (_result, _error, entries) => {
+      setPendingIds((previous) => {
+        const next = new Set(previous);
+        entries.forEach((entry) => next.delete(entry.id));
+        return next;
+      });
+    },
+  });
+
+  const sendToCheck = (entries: ShoppingEntry[]) => {
+    if (
+      !hasPersonalToken ||
+      !toCheckList ||
+      entries.every((entry) => isInShoppingList(entry, TO_CHECK_LIST_NAME))
+    )
+      return;
+    moveToCheck.mutate(entries.filter((entry) => !isInShoppingList(entry, TO_CHECK_LIST_NAME)));
+  };
 
   const toggleAll = (entries: ShoppingEntry[], checked: boolean) => {
     if (!hasPersonalToken) return;
@@ -187,7 +264,11 @@ export function ShoppingList() {
   }
 
   const entries = data ?? [];
-  const visibleEntries = hideChecked ? entries.filter((entry) => !entry.checked) : entries;
+  const visibleEntries = entries.filter(
+    (entry) =>
+      (!hideChecked || !entry.checked) &&
+      (!showToCheckOnly || isInShoppingList(entry, TO_CHECK_LIST_NAME)),
+  );
   if (entries.length === 0) {
     return (
       <div
@@ -232,6 +313,14 @@ export function ShoppingList() {
             >
               Recipe
             </Button>
+            <Button
+              variant={showToCheckOnly ? 'primary' : 'outline-secondary'}
+              onClick={() => setShowToCheckOnly((value) => !value)}
+              aria-label="Show To Check items only"
+              aria-pressed={showToCheckOnly}
+            >
+              To Check
+            </Button>
           </ButtonGroup>
           <Button
             variant={hideChecked ? 'primary' : 'outline-secondary'}
@@ -261,18 +350,22 @@ export function ShoppingList() {
       </div>
       <p className="text-muted small mb-3">
         {remainingCount} item{remainingCount !== 1 ? 's' : ''} remaining of {entries.length} item
-        {entries.length !== 1 ? 's' : ''}
+        {entries.length !== 1 ? 's' : ''}. Swipe an item left to send it to To Check.
       </p>
       {clearError && (
         <Alert variant="danger" dismissible onClose={() => setClearError(null)}>
           {clearError}
         </Alert>
       )}
+      {moveError && (
+        <Alert variant="danger" dismissible onClose={() => setMoveError(null)}>
+          {moveError}
+        </Alert>
+      )}
 
       {visibleGroupNames.length === 0 && (
         <Alert variant="light" className="border">
-          All shopping list items are checked. Turn off &quot;Hide checked items&quot; to show them
-          again.
+          No items match the current filters. Turn off a filter to show more shopping list items.
         </Alert>
       )}
 
@@ -297,6 +390,13 @@ export function ShoppingList() {
                   ...new Set(agg.entries.map((e) => e.ingredient_note).filter(Boolean)),
                 ];
                 const isPending = agg.entries.some((e) => pendingIds.has(e.id));
+                const rowKey =
+                  agg.food?.id != null
+                    ? `food-${agg.food.id}`
+                    : `entries-${agg.entries.map((entry) => entry.id).join('-')}`;
+                const isToCheck = agg.entries.every((entry) =>
+                  isInShoppingList(entry, TO_CHECK_LIST_NAME),
+                );
                 const quantityParts = agg.entries
                   .map((entry) => ({
                     id: entry.id,
@@ -307,12 +407,21 @@ export function ShoppingList() {
 
                 return (
                   <ListGroup.Item
-                    key={
-                      agg.food?.id != null
-                        ? `food-${agg.food.id}`
-                        : `entries-${agg.entries.map((e) => e.id).join('-')}`
-                    }
+                    key={rowKey}
                     className="py-2"
+                    onPointerDown={(event) => {
+                      swipeStart.current = { key: rowKey, x: event.clientX, y: event.clientY };
+                    }}
+                    onPointerUp={(event) => {
+                      const start = swipeStart.current;
+                      swipeStart.current = null;
+                      if (
+                        start?.key === rowKey &&
+                        isLeftSwipe(event.clientX - start.x, event.clientY - start.y)
+                      ) {
+                        sendToCheck(agg.entries);
+                      }
+                    }}
                   >
                     <div className="d-flex align-items-start gap-2">
                       <button
@@ -384,6 +493,17 @@ export function ShoppingList() {
                           </span>
                         )}
                       </div>
+                      <Button
+                        variant={isToCheck ? 'secondary' : 'outline-secondary'}
+                        size="sm"
+                        className="d-flex align-items-center gap-1 flex-shrink-0"
+                        onClick={() => sendToCheck(agg.entries)}
+                        disabled={isPending || isToCheck || !toCheckList || !hasPersonalToken}
+                        aria-label={`Send ${foodName} to To Check`}
+                      >
+                        <ArrowLeft aria-hidden="true" />
+                        <span className="d-none d-sm-inline">To Check</span>
+                      </Button>
                     </div>
                   </ListGroup.Item>
                 );

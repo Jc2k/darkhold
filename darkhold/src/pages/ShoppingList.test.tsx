@@ -23,6 +23,7 @@ vi.mock('@tanstack/react-query', () => ({
 vi.mock('../api/client', () => ({
   apiGet: vi.fn(),
   apiPatch: vi.fn(),
+  apiPost: vi.fn(),
   apiDelete: vi.fn(),
 }));
 
@@ -39,7 +40,13 @@ vi.mock('../components/NoTokenAlert', () => ({
 }));
 
 import { apiGet } from '../api/client';
-import { ShoppingList, fetchAllShoppingListEntries } from './ShoppingList';
+import {
+  ShoppingList,
+  addShoppingListToEntries,
+  fetchAllShoppingListEntries,
+  isInShoppingList,
+  isLeftSwipe,
+} from './ShoppingList';
 
 function makeFood(): Food {
   return {
@@ -102,6 +109,28 @@ describe('ShoppingList', () => {
     localStorage.clear();
     delete actGlobal.IS_REACT_ACT_ENVIRONMENT;
     vi.clearAllMocks();
+  });
+
+  it('detects horizontal left swipes beyond the movement threshold', () => {
+    expect(isLeftSwipe(-60, 5)).toBe(true);
+    expect(isLeftSwipe(-59, 5)).toBe(false);
+    expect(isLeftSwipe(-80, 100)).toBe(false);
+    expect(isLeftSwipe(80, 5)).toBe(false);
+  });
+
+  it('adds To Check to selected cached entries without duplicating list membership', () => {
+    const toCheck = { id: 7, name: 'To Check' };
+    const entries = [
+      { id: 1, food: makeFood(), checked: false },
+      { id: 2, food: makeFood(), checked: false, shopping_lists: [toCheck] },
+      { id: 3, food: makeFood(), checked: false },
+    ];
+
+    const updated = addShoppingListToEntries(entries, new Set([1, 2]), toCheck);
+
+    expect(isInShoppingList(updated[0], 'To Check')).toBe(true);
+    expect(updated[1].shopping_lists).toEqual([toCheck]);
+    expect(updated[2]).toBe(entries[2]);
   });
 
   it('fetches all shopping list pages', async () => {
@@ -364,5 +393,53 @@ describe('ShoppingList', () => {
     expect(hideCheckedButton?.getAttribute('aria-pressed')).toBe('false');
     expect(container.textContent).toContain('Flour');
     expect(container.textContent).toContain('Milk');
+  });
+
+  it('filters the view to entries assigned to To Check', () => {
+    useQueryMock.mockImplementation(({ queryKey }: { queryKey: string[] }) => {
+      if (queryKey[0] === 'shopping-list') {
+        return {
+          data: [
+            {
+              id: 1,
+              food: makeFood(),
+              checked: false,
+              shopping_lists: [{ id: 7, name: 'To Check' }],
+            },
+            {
+              id: 2,
+              food: { ...makeFood(), id: 2, name: 'Milk' },
+              checked: false,
+            },
+          ],
+          isLoading: false,
+          isError: false,
+        };
+      }
+      return { data: { id: 7, name: 'To Check' }, isLoading: false, isError: false };
+    });
+
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <ShoppingList />
+        </MemoryRouter>,
+      );
+    });
+
+    const toCheckButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Show To Check items only"]',
+    );
+    expect(toCheckButton?.getAttribute('aria-pressed')).toBe('false');
+    expect(container.textContent).toContain('Flour');
+    expect(container.textContent).toContain('Milk');
+
+    act(() => {
+      toCheckButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(toCheckButton?.getAttribute('aria-pressed')).toBe('true');
+    expect(container.textContent).toContain('Flour');
+    expect(container.textContent).not.toContain('Milk');
   });
 });
