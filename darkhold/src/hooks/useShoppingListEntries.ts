@@ -1,6 +1,11 @@
 import { queryOptions } from '@tanstack/react-query';
 import { apiGet } from '../api/client';
-import type { Food, PaginatedResponse, SupermarketCategory } from '../api/tandoor-types';
+import type {
+  Food,
+  PaginatedResponse,
+  ShoppingList,
+  SupermarketCategory,
+} from '../api/tandoor-types';
 
 export interface ShoppingListEntry {
   id: number;
@@ -29,6 +34,7 @@ export interface ShoppingListEntry {
   } | null;
   list_recipe?: number | null;
   supermarket_category?: SupermarketCategory | null;
+  shopping_lists?: ShoppingList[];
 }
 
 export async function fetchAllShoppingListEntries(): Promise<ShoppingListEntry[]> {

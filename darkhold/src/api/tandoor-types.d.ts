@@ -146,6 +146,9 @@ export interface ShoppingListItem {
 /** Shopping list */
 export interface ShoppingList {
   id: number;
+  name: string;
+  description?: string | null;
+  color?: string | null;
   recipes?: number[];
   items?: ShoppingListItem[];
 }
