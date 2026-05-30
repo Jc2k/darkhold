@@ -38,7 +38,12 @@ vi.mock('../hooks/useCookLog', () => ({
 }));
 
 vi.mock('../components/RecipeCard', () => ({
-  RecipeCard: ({ recipe }: { recipe: Recipe }) => <div>{recipe.name}</div>,
+  RecipeCard: ({ recipe, mealPlanNote }: { recipe: Recipe; mealPlanNote?: string }) => (
+    <div className="recipe-card">
+      {recipe.name}
+      {mealPlanNote && <div className="recipe-card-meal-plan-note">{mealPlanNote}</div>}
+    </div>
+  ),
 }));
 
 vi.mock('../components/MealPlanAddModal', () => ({
