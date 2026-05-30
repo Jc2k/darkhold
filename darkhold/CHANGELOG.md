@@ -1,3 +1,16 @@
+# [1.81.0](https://github.com/Jc2k/darkhold/compare/v1.80.10...v1.81.0) (2026-05-30)
+
+
+### Bug Fixes
+
+* **dashboard:** preserve meal notes in recipe card mock ([3ce146e](https://github.com/Jc2k/darkhold/commit/3ce146ea08c9b57e0b44d811ff55568493aac8a5))
+* **dashboard:** render upcoming meal notes inside cards ([634aa6d](https://github.com/Jc2k/darkhold/commit/634aa6d799d72104a54c90538fbe307ce82fb2c1))
+
+
+### Features
+
+* **shopping-list:** add to check workflow ([8308fdb](https://github.com/Jc2k/darkhold/commit/8308fdb60045d3f116b2ddf014f903d7dda7f716))
+
 ## [1.80.10](https://github.com/Jc2k/darkhold/compare/v1.80.9...v1.80.10) (2026-05-29)
 
 ### Bug Fixes
