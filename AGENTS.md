@@ -22,6 +22,10 @@ Breaking changes must include `BREAKING CHANGE:` in the commit footer, or append
 
 **Exception:** Commit messages that start with `Initial plan` are exempt from conventional-commits validation. These are generated automatically by the Copilot coding agent at the start of a task.
 
+## Agent Environment Setup
+
+Run `./setup.sh` from the repository root before running tests when dependencies are not already installed. This is the shared setup entrypoint for Codex and GitHub Copilot. Keep environment setup changes in this script so both coding-agent environments stay in sync.
+
 ## Testing
 
 Tests are co-located next to source files as `*.test.ts` or `*.test.tsx` files.
