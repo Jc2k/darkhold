@@ -380,24 +380,24 @@ export function ShoppingList() {
           </ButtonGroup>
           <ButtonGroup aria-label="Shopping list filters">
             <Button
-              variant={filter === 'to-check' ? 'primary' : 'outline-secondary'}
+              variant={filter === 'to-buy' ? 'primary' : 'outline-secondary'}
               style={TOOLBAR_BUTTON_STYLE}
-              onClick={() => setFilter((value) => (value === 'to-check' ? null : 'to-check'))}
-              aria-label="Show To Check items only"
-              aria-pressed={filter === 'to-check'}
+              onClick={() => setFilter((value) => (value === 'to-buy' ? null : 'to-buy'))}
+              aria-label="Show To Buy items only"
+              aria-pressed={filter === 'to-buy'}
             >
-              {filter === 'to-check' ? (
+              {filter === 'to-buy' ? (
                 <Basket3Fill aria-hidden="true" />
               ) : (
                 <Basket3 aria-hidden="true" />
               )}
             </Button>
             <Button
-              variant={filter === 'to-buy' ? 'primary' : 'outline-secondary'}
+              variant={filter === 'to-check' ? 'primary' : 'outline-secondary'}
               style={TOOLBAR_BUTTON_STYLE}
-              onClick={() => setFilter((value) => (value === 'to-buy' ? null : 'to-buy'))}
-              aria-label="Show To Buy items only"
-              aria-pressed={filter === 'to-buy'}
+              onClick={() => setFilter((value) => (value === 'to-check' ? null : 'to-check'))}
+              aria-label="Show To Check items only"
+              aria-pressed={filter === 'to-check'}
             >
               <Eyeglasses aria-hidden="true" />
             </Button>
