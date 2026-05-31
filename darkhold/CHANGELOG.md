@@ -1,3 +1,10 @@
+## [1.83.1](https://github.com/Jc2k/darkhold/compare/v1.83.0...v1.83.1) (2026-05-31)
+
+
+### Bug Fixes
+
+* **shopping-list:** preserve desktop hover button clicks ([1a2a112](https://github.com/Jc2k/darkhold/commit/1a2a11213f589179b36ca074ded83d45e3242936))
+
 # [1.83.0](https://github.com/Jc2k/darkhold/compare/v1.82.0...v1.83.0) (2026-05-31)
 
 
