@@ -42,13 +42,24 @@ vi.mock('./NoTokenAlert', () => ({
 
 vi.mock('./AsyncTypeaheadFilter', () => ({
   AsyncTypeaheadFilter: ({
+    allowNew,
     onChange,
   }: {
-    onChange: (foods: { id: number; name: string }[]) => void;
+    allowNew?: boolean;
+    onChange: (foods: Array<{ id: number | string; name: string; customOption?: true }>) => void;
   }) => (
-    <button type="button" onClick={() => onChange([{ id: 12, name: 'Tomatoes' }])}>
-      Select tomatoes
-    </button>
+    <>
+      <span>{allowNew ? 'New foods enabled' : 'New foods disabled'}</span>
+      <button type="button" onClick={() => onChange([{ id: 12, name: 'Tomatoes' }])}>
+        Select tomatoes
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange([{ id: 'new-id-1', name: 'Kitchen roll', customOption: true }])}
+      >
+        Add kitchen roll
+      </button>
+    </>
   ),
 }));
 
@@ -129,6 +140,33 @@ describe('ShoppingRequestPanel', () => {
       unit: null,
     });
     expect(document.body.textContent).not.toContain('You can adjust the amount while shopping');
+  });
+
+  it('allows and posts ad-hoc foods with a gram unit', async () => {
+    apiPostMock.mockResolvedValueOnce({});
+    act(() => {
+      root.render(
+        <MemoryRouter initialEntries={['/?add=request']}>
+          <ShoppingRequestPanel />
+        </MemoryRouter>,
+      );
+    });
+
+    expect(document.body.textContent).toContain('New foods enabled');
+    const addRequestMutation = useMutationMock.mock.calls[0][0] as {
+      mutationFn: (
+        foods: Array<{ id: string; name: string; customOption: true }>,
+      ) => Promise<unknown>;
+    };
+    await addRequestMutation.mutationFn([
+      { id: 'new-id-1', name: 'Kitchen roll', customOption: true },
+    ]);
+
+    expect(apiPostMock).toHaveBeenCalledWith('/shopping-list-entry/', {
+      food: { name: 'Kitchen roll' },
+      amount: 1,
+      unit: { name: 'g' },
+    });
   });
 
   it('appends created entries to the local cache and broadcasts an invalidation', () => {
