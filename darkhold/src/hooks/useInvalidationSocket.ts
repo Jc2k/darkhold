@@ -113,7 +113,10 @@ export function useInvalidationSocket(): void {
 
     handlers.add(handler);
     const connectHandler = () => {
-      queryClient.invalidateQueries({ queryKey: ['shopping-list'] });
+      // A reconnect can follow a period where broadcasts were missed. Mark every
+      // cache stale so active queries refetch immediately and inactive queries
+      // refresh the next time they mount.
+      queryClient.invalidateQueries();
       refreshRedirectWeek();
     };
     connectHandlers.add(connectHandler);

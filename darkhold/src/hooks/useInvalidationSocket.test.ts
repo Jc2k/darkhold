@@ -99,7 +99,7 @@ describe('useInvalidationSocket', () => {
     delete actGlobal.IS_REACT_ACT_ENVIRONMENT;
   });
 
-  it('invalidates shopping and proactively refreshes redirect week when websocket connects', () => {
+  it('invalidates all caches and proactively refreshes redirect week when websocket connects', () => {
     const queryClient = new QueryClient();
     const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
     const fetchSpy = vi.spyOn(queryClient, 'fetchQuery').mockResolvedValue('/meal-plan/2026-05-23');
@@ -121,7 +121,7 @@ describe('useInvalidationSocket', () => {
       socket.onopen?.();
     });
 
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['shopping-list'] });
+    expect(invalidateSpy).toHaveBeenCalledWith();
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: MEAL_PLAN_REDIRECT_WEEK_QUERY_KEY });
     expect(fetchSpy).toHaveBeenCalledWith(
       expect.objectContaining({ queryKey: MEAL_PLAN_REDIRECT_WEEK_QUERY_KEY }),

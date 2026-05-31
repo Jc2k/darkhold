@@ -57,6 +57,13 @@ export function addShoppingListToEntries(
   });
 }
 
+export function removeShoppingListEntries(
+  entries: ShoppingEntry[],
+  entryIds: Set<number>,
+): ShoppingEntry[] {
+  return entries.filter((entry) => !entryIds.has(entry.id));
+}
+
 export function updateShoppingListEntries(
   entries: ShoppingEntry[],
   entryIds: Set<number>,
@@ -279,7 +286,15 @@ export function ShoppingList() {
     setClearError(null);
     Promise.allSettled(entries.map((entry) => apiDelete(`/shopping-list-entry/${entry.id}/`)))
       .then((results) => {
-        const failed = results.filter((r) => r.status === 'rejected').length;
+        const removedIds = new Set(
+          entries
+            .filter((_entry, index) => results[index].status === 'fulfilled')
+            .map((entry) => entry.id),
+        );
+        qc.setQueryData<ShoppingEntry[]>(['shopping-list'], (current) =>
+          current ? removeShoppingListEntries(current, removedIds) : current,
+        );
+        const failed = results.length - removedIds.size;
         if (failed > 0) {
           setClearError(
             `Failed to remove ${failed} item${failed !== 1 ? 's' : ''}. Please try again.`,

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPost } from '../api/client';
 import type { CookLog, MealType, PaginatedResponse } from '../api/tandoor-types';
+import { broadcastInvalidation } from './useInvalidationSocket';
 
 /** Normalised cook-log state: YYYY-MM-DD → array of cooked recipe IDs. */
 export type CookedByDate = Record<string, number[]>;
@@ -30,6 +31,18 @@ export function buildCookLogTimestamp(mealPlanDate: string, mealType?: MealType 
     return `${mealPlanDate}T${time.length === 5 ? `${time}:00` : time}`;
   }
   return `${mealPlanDate}T12:00:00`;
+}
+
+/** Returns whether a cook-log query key covers the given YYYY-MM-DD date. */
+export function isDateInCookLogRange(queryKey: readonly unknown[], dateStr: string): boolean {
+  return (
+    queryKey.length === 3 &&
+    queryKey[0] === 'cook-log' &&
+    typeof queryKey[1] === 'string' &&
+    typeof queryKey[2] === 'string' &&
+    dateStr >= queryKey[1] &&
+    dateStr <= queryKey[2]
+  );
 }
 
 /**
@@ -86,18 +99,28 @@ export function useCreateCookLog() {
     }) => apiPost<CookLog>('/cook-log/', data),
 
     onMutate: (variables) => {
-      // Optimistically update every cached cook-log range that is loaded.
+      // Optimistically update loaded cook-log ranges that cover the accepted date.
       const dateStr = variables.created_at.split('T')[0];
-      qc.setQueriesData<CookedByDate>({ queryKey: ['cook-log'] }, (old) => {
-        if (old === undefined) return old;
-        const existing = old[dateStr] ?? [];
-        if (existing.includes(variables.recipe)) return old;
-        return { ...old, [dateStr]: [...existing, variables.recipe] };
-      });
+      const previous = qc.getQueriesData<CookedByDate>({ queryKey: ['cook-log'] });
+      for (const [queryKey, current] of previous) {
+        if (!current || !isDateInCookLogRange(queryKey, dateStr)) continue;
+        const existing = current[dateStr] ?? [];
+        if (existing.includes(variables.recipe)) continue;
+        qc.setQueryData<CookedByDate>(queryKey, {
+          ...current,
+          [dateStr]: [...existing, variables.recipe],
+        });
+      }
+      return { previous };
+    },
+
+    onError: (_error, _variables, context) => {
+      context?.previous.forEach(([queryKey, previous]) => qc.setQueryData(queryKey, previous));
     },
 
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['cook-log'] });
+      broadcastInvalidation('cook-log');
     },
   });
 }

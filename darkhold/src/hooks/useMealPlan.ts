@@ -5,6 +5,7 @@ import { broadcastInvalidation } from './useInvalidationSocket';
 import type { UpSoonData } from './useUpSoon';
 import { formatDate } from '../utils/dateUtils';
 import { MEAL_PLAN_GC_TIME, MEAL_PLAN_STALE_TIME } from '../utils/cacheConfig';
+import { removeMealPlanFromCaches, updateMealPlanCaches } from '../utils/mealPlanCache';
 import {
   getMealPlanWeekPathFromDateString,
   invalidateAndRefreshMealPlanRedirectWeek,
@@ -35,7 +36,8 @@ export function useDeleteMealPlan() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: number) => apiDelete(`/meal-plan/${id}/`, MEAL_PLAN_ITEM_QUERY_PARAMS),
-    onSuccess: () => {
+    onSuccess: (_result, id) => {
+      removeMealPlanFromCaches(qc, id);
       qc.invalidateQueries({ queryKey: ['meal-plan'] });
       qc.invalidateQueries({ queryKey: ['shopping-list'] });
       void invalidateAndRefreshMealPlanRedirectWeek(qc, apiGet);
@@ -51,7 +53,8 @@ export function useUpdateMealPlan() {
   return useMutation({
     mutationFn: ({ id, data }: { id: number; data: Partial<MealPlan> }) =>
       apiPatch<MealPlan>(`/meal-plan/${id}/`, data, MEAL_PLAN_ITEM_QUERY_PARAMS),
-    onSuccess: () => {
+    onSuccess: (result) => {
+      updateMealPlanCaches(qc, result);
       qc.invalidateQueries({ queryKey: ['meal-plan'] });
       qc.invalidateQueries({ queryKey: ['shopping-list'] });
       void invalidateAndRefreshMealPlanRedirectWeek(qc, apiGet);
@@ -67,6 +70,7 @@ export function useCreateMealPlan() {
   return useMutation({
     mutationFn: (data: Partial<MealPlan>) => apiPost<MealPlan>('/meal-plan/', data),
     onSuccess: async (result, variables) => {
+      updateMealPlanCaches(qc, result);
       const redirectWeekPath = getMealPlanWeekPathFromDateString(result.from_date);
       if (redirectWeekPath) {
         qc.setQueryData(MEAL_PLAN_REDIRECT_WEEK_QUERY_KEY, redirectWeekPath);
