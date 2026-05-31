@@ -48,6 +48,7 @@ import {
   ShoppingList,
   addShoppingListToEntries,
   fetchAllShoppingListEntries,
+  formatAmount,
   isFullLeftSwipe,
   isFullRightSwipe,
   isInShoppingList,
@@ -144,6 +145,28 @@ describe('ShoppingList', () => {
     delete actGlobal.IS_REACT_ACT_ENVIRONMENT;
     vi.unstubAllGlobals();
     vi.clearAllMocks();
+  });
+
+  it('hides the quantity for manual requests without a unit', () => {
+    expect(formatAmount({ id: 1, amount: 1, unit: null, food: makeFood(), checked: false })).toBe(
+      '',
+    );
+    expect(
+      formatAmount({ id: 2, amount: 1, unit_name: 'cup', food: makeFood(), checked: false }),
+    ).toBe('1 cup');
+    expect(
+      formatAmount({
+        id: 3,
+        amount: 1,
+        unit: null,
+        food: makeFood(),
+        checked: false,
+        list_recipe_data: {
+          recipe_data: { name: 'Cake' },
+          meal_plan_data: { from_date: '2026-05-31' },
+        },
+      }),
+    ).toBe('1');
   });
 
   it('marks manual requests with a pencil and groups them first in recipe view', () => {

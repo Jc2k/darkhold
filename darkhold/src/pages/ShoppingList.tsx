@@ -107,10 +107,12 @@ function getRecipeFromDate(entry: ShoppingEntry): string | null {
   return entry.list_recipe_data?.meal_plan_data?.from_date ?? null;
 }
 
-function formatAmount(entry: ShoppingEntry): string {
+export function formatAmount(entry: ShoppingEntry): string {
+  const unitName = typeof entry.unit === 'object' && entry.unit ? entry.unit.name : entry.unit_name;
+  if (!unitName && !entry.list_recipe_data?.meal_plan_data) return '';
+
   const parts: string[] = [];
   if (entry.amount != null) parts.push(formatFraction(entry.amount));
-  const unitName = typeof entry.unit === 'object' && entry.unit ? entry.unit.name : entry.unit_name;
   if (unitName) parts.push(unitName);
   return parts.join(' ');
 }
