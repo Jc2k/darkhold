@@ -566,6 +566,35 @@ describe('ShoppingList', () => {
     expect(rowActions?.querySelector('button[aria-label="Mark Flour bought"]')).toBeTruthy();
   });
 
+  it('does not start a swipe when using desktop row actions', () => {
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <ShoppingList />
+        </MemoryRouter>,
+      );
+    });
+
+    const rowContent = container.querySelector('.shopping-list-swipe-content');
+    const desktopAction = container.querySelector<HTMLButtonElement>(
+      '.shopping-list-row-actions button[aria-label="Mark Flour bought"]',
+    );
+
+    act(() => {
+      dispatchPointer(desktopAction!, 'pointerdown', 140, 10);
+      dispatchPointer(desktopAction!, 'pointermove', 50, 12);
+      dispatchPointer(desktopAction!, 'pointerup', 50, 12);
+      desktopAction?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect((rowContent as HTMLDivElement).style.transform).toBe('translateX(0px)');
+    expect(moveToCheckMutateMock).toHaveBeenCalledWith({
+      entries: [expect.objectContaining({ id: 11 }), expect.objectContaining({ id: 22 })],
+      checked: true,
+      isToCheck: false,
+    });
+  });
+
   it('reveals the bought action after swiping an item right', () => {
     act(() => {
       root.render(

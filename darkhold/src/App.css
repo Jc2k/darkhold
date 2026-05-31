@@ -419,4 +419,9 @@ body {
   .shopping-list-swipe-item:focus-within .shopping-list-row-actions {
     display: flex;
   }
+
+  .shopping-list-swipe-item:hover .shopping-list-to-check-indicator,
+  .shopping-list-swipe-item:focus-within .shopping-list-to-check-indicator {
+    display: none;
+  }
 }
