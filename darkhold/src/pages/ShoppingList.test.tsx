@@ -496,11 +496,23 @@ describe('ShoppingList', () => {
     const toBuyButton = filterGroup?.querySelector<HTMLButtonElement>(
       'button[aria-label="Show To Buy items only"]',
     );
+    expect(toCheckButton?.querySelector('.bi-basket3')).not.toBeNull();
+    expect(toBuyButton?.querySelector('.bi-eyeglasses')).not.toBeNull();
+    expect(
+      container.querySelector('button[aria-label="Clear shopping list"] .bi-trash3-fill'),
+    ).not.toBeNull();
+
     act(() => {
       toCheckButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(toCheckButton?.getAttribute('aria-pressed')).toBe('true');
+    expect(toCheckButton?.querySelector('.bi-basket3-fill')).not.toBeNull();
+
+    act(() => {
       toBuyButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
     expect(toCheckButton?.getAttribute('aria-pressed')).toBe('false');
+    expect(toCheckButton?.querySelector('.bi-basket3')).not.toBeNull();
     expect(toBuyButton?.getAttribute('aria-pressed')).toBe('true');
   });
 
