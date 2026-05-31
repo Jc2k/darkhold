@@ -1,3 +1,15 @@
+# [1.83.0](https://github.com/Jc2k/darkhold/compare/v1.82.0...v1.83.0) (2026-05-31)
+
+
+### Bug Fixes
+
+* lint ([b00c6ea](https://github.com/Jc2k/darkhold/commit/b00c6ea9b28f67f4db83290d8d07454f48ea6dbb))
+
+
+### Features
+
+* **shopping-list:** refine shopping interactions ([42377c9](https://github.com/Jc2k/darkhold/commit/42377c9dab58d869116ae5410718c571975de26a))
+
 # [1.82.0](https://github.com/Jc2k/darkhold/compare/v1.81.1...v1.82.0) (2026-05-31)
 
 ### Features
