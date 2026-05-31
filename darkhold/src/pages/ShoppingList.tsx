@@ -1,5 +1,13 @@
 import { ListGroup, Alert, Badge, Spinner, Button, ButtonGroup } from 'react-bootstrap';
-import { Cart4, PlusCircle, QuestionCircleFill, Trash3 } from 'react-bootstrap-icons';
+import {
+  Basket3,
+  Basket3Fill,
+  Cart4,
+  Eyeglasses,
+  PlusCircle,
+  QuestionCircleFill,
+  Trash3Fill,
+} from 'react-bootstrap-icons';
 import { Link } from 'react-router-dom';
 import { useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -378,7 +386,11 @@ export function ShoppingList() {
               aria-label="Show To Check items only"
               aria-pressed={filter === 'to-check'}
             >
-              To Check
+              {filter === 'to-check' ? (
+                <Basket3Fill aria-hidden="true" />
+              ) : (
+                <Basket3 aria-hidden="true" />
+              )}
             </Button>
             <Button
               variant={filter === 'to-buy' ? 'primary' : 'outline-secondary'}
@@ -387,7 +399,7 @@ export function ShoppingList() {
               aria-label="Show To Buy items only"
               aria-pressed={filter === 'to-buy'}
             >
-              To Buy
+              <Eyeglasses aria-hidden="true" />
             </Button>
           </ButtonGroup>
         </div>
@@ -404,7 +416,7 @@ export function ShoppingList() {
               Clearing…
             </>
           ) : (
-            <Trash3 aria-hidden="true" />
+            <Trash3Fill aria-hidden="true" />
           )}
         </Button>
       </div>
