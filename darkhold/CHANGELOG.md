@@ -1,3 +1,10 @@
+# [1.82.0](https://github.com/Jc2k/darkhold/compare/v1.81.1...v1.82.0) (2026-05-31)
+
+
+### Features
+
+* **shopping-list:** trigger action on full swipe ([203b2e6](https://github.com/Jc2k/darkhold/commit/203b2e6168b71f87527c7be681e6277ac1045ec0))
+
 ## [1.81.1](https://github.com/Jc2k/darkhold/compare/v1.81.0...v1.81.1) (2026-05-31)
 
 ### Bug Fixes
