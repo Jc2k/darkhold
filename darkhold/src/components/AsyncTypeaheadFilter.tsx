@@ -19,6 +19,7 @@ interface AsyncTypeaheadFilterProps {
   multiple?: boolean;
   disabled?: boolean;
   removeLabel?: string;
+  allowNew?: boolean;
 }
 
 export function AsyncTypeaheadFilter({
@@ -32,6 +33,7 @@ export function AsyncTypeaheadFilter({
   multiple = true,
   disabled = false,
   removeLabel,
+  allowNew = false,
 }: AsyncTypeaheadFilterProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [options, setOptions] = useState<FilterOption[]>([]);
@@ -62,6 +64,7 @@ export function AsyncTypeaheadFilter({
           multiple={multiple}
           disabled={disabled}
           minLength={1}
+          allowNew={allowNew}
           options={options}
           selected={selected}
           onSearch={handleSearch}

@@ -13,6 +13,18 @@ const SWIPE_THRESHOLD_PX = 60;
 const SWIPE_ACTION_WIDTH_PX = 104;
 const FULL_SWIPE_THRESHOLD_PX = SWIPE_ACTION_WIDTH_PX * 2;
 
+type AdHocFood = {
+  customOption: true;
+  id: string;
+  name: string;
+};
+
+type ShoppingRequestFood = FilterOption | AdHocFood;
+
+function isAdHocFood(food: ShoppingRequestFood): food is AdHocFood {
+  return 'customOption' in food && food.customOption;
+}
+
 export function isUpSwipe(deltaX: number, deltaY: number): boolean {
   return deltaY <= -SWIPE_THRESHOLD_PX && Math.abs(deltaY) > Math.abs(deltaX);
 }
@@ -21,13 +33,13 @@ export function ShoppingRequestPanel() {
   const qc = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedFoods, setSelectedFoods] = useState<FilterOption[]>([]);
-  const [pendingFoods, setPendingFoods] = useState<FilterOption[]>([]);
-  const [openSwipeFoodId, setOpenSwipeFoodId] = useState<number | null>(null);
+  const [pendingFoods, setPendingFoods] = useState<ShoppingRequestFood[]>([]);
+  const [openSwipeFoodId, setOpenSwipeFoodId] = useState<number | string | null>(null);
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [requestError, setRequestError] = useState<string | null>(null);
   const handleSwipeStart = useRef<{ pointerId: number; x: number; y: number } | null>(null);
   const rowSwipeStart = useRef<{
-    foodId: number;
+    foodId: number | string;
     pointerId: number;
     x: number;
     y: number;
@@ -61,10 +73,14 @@ export function ShoppingRequestPanel() {
   };
 
   const addRequest = useMutation({
-    mutationFn: (foods: FilterOption[]) =>
+    mutationFn: (foods: ShoppingRequestFood[]) =>
       Promise.all(
         foods.map((food) =>
-          apiPost<ShoppingListEntry>('/shopping-list-entry/', { food, amount: 1, unit: null }),
+          apiPost<ShoppingListEntry>('/shopping-list-entry/', {
+            food: isAdHocFood(food) ? { name: food.name } : food,
+            amount: 1,
+            unit: isAdHocFood(food) ? { name: 'g' } : null,
+          }),
         ),
       ),
     onMutate: () => setRequestError(null),
@@ -82,7 +98,7 @@ export function ShoppingRequestPanel() {
     onError: () => setRequestError('Failed to add item. Please try again.'),
   });
 
-  const stageSelectedFoods = (foods: FilterOption[]) => {
+  const stageSelectedFoods = (foods: ShoppingRequestFood[]) => {
     const food = foods[0];
     if (food) {
       setPendingFoods((current) =>
@@ -92,7 +108,7 @@ export function ShoppingRequestPanel() {
     setSelectedFoods([]);
   };
 
-  const removePendingFood = (foodId: number) => {
+  const removePendingFood = (foodId: number | string) => {
     setPendingFoods((current) => current.filter((food) => food.id !== foodId));
     closeSwipeAction();
   };
@@ -141,6 +157,7 @@ export function ShoppingRequestPanel() {
               placeholder="Search foods…"
               multiple={false}
               disabled={!hasPersonalToken || addRequest.isPending}
+              allowNew
             />
             {pendingFoods.length > 0 && (
               <ListGroup className="mb-3">
