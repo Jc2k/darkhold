@@ -16,6 +16,9 @@ interface AsyncTypeaheadFilterProps {
   onChange: (selected: FilterOption[]) => void;
   onRemove: () => void;
   placeholder?: string;
+  multiple?: boolean;
+  disabled?: boolean;
+  removeLabel?: string;
 }
 
 export function AsyncTypeaheadFilter({
@@ -26,6 +29,9 @@ export function AsyncTypeaheadFilter({
   onChange,
   onRemove,
   placeholder,
+  multiple = true,
+  disabled = false,
+  removeLabel,
 }: AsyncTypeaheadFilterProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [options, setOptions] = useState<FilterOption[]>([]);
@@ -53,7 +59,8 @@ export function AsyncTypeaheadFilter({
           id={id}
           isLoading={isLoading}
           labelKey="name"
-          multiple
+          multiple={multiple}
+          disabled={disabled}
           minLength={1}
           options={options}
           selected={selected}
@@ -73,8 +80,8 @@ export function AsyncTypeaheadFilter({
         size="sm"
         className="mt-4 flex-shrink-0"
         onClick={onRemove}
-        aria-label={`Remove ${label} filter`}
-        title={`Remove ${label} filter`}
+        aria-label={removeLabel ?? `Remove ${label} filter`}
+        title={removeLabel ?? `Remove ${label} filter`}
       >
         ×
       </Button>
