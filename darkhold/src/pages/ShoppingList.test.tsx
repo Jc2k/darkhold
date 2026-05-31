@@ -4,11 +4,14 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Food } from '../api/tandoor-types';
 
-const { useQueryMock, useMutationMock, useQueryClientMock } = vi.hoisted(() => ({
-  useQueryMock: vi.fn(),
-  useMutationMock: vi.fn(),
-  useQueryClientMock: vi.fn(),
-}));
+const { moveToCheckMutateMock, useQueryMock, useMutationMock, useQueryClientMock } = vi.hoisted(
+  () => ({
+    moveToCheckMutateMock: vi.fn(),
+    useQueryMock: vi.fn(),
+    useMutationMock: vi.fn(),
+    useQueryClientMock: vi.fn(),
+  }),
+);
 
 type ReactActGlobal = typeof globalThis & {
   IS_REACT_ACT_ENVIRONMENT?: boolean;
@@ -44,6 +47,7 @@ import {
   ShoppingList,
   addShoppingListToEntries,
   fetchAllShoppingListEntries,
+  isFullLeftSwipe,
   isInShoppingList,
   isLeftSwipe,
 } from './ShoppingList';
@@ -82,7 +86,10 @@ describe('ShoppingList', () => {
     root = createRoot(container);
 
     useQueryClientMock.mockReturnValue({ invalidateQueries: vi.fn() });
-    useMutationMock.mockReturnValue({ mutateAsync: vi.fn().mockResolvedValue({}) });
+    useMutationMock.mockReturnValue({
+      mutate: moveToCheckMutateMock,
+      mutateAsync: vi.fn().mockResolvedValue({}),
+    });
     useQueryMock.mockImplementation(({ queryKey }: { queryKey: string[] }) => {
       if (queryKey[0] === 'shopping-list') {
         return {
@@ -130,6 +137,13 @@ describe('ShoppingList', () => {
     expect(isLeftSwipe(-59, 5)).toBe(false);
     expect(isLeftSwipe(-80, 100)).toBe(false);
     expect(isLeftSwipe(80, 5)).toBe(false);
+  });
+
+  it('detects full horizontal left swipes beyond the action trigger threshold', () => {
+    expect(isFullLeftSwipe(-208, 5)).toBe(true);
+    expect(isFullLeftSwipe(-207, 5)).toBe(false);
+    expect(isFullLeftSwipe(-240, 250)).toBe(false);
+    expect(isFullLeftSwipe(240, 5)).toBe(false);
   });
 
   it('adds To Check to selected cached entries without duplicating list membership', () => {
@@ -450,6 +464,40 @@ describe('ShoppingList', () => {
 
     expect(action?.tabIndex).toBe(0);
     expect((rowContent as HTMLDivElement).style.transform).toBe('translateX(-104px)');
+  });
+
+  it('expands and triggers the To Check action when an item is swiped fully left', () => {
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <ShoppingList />
+        </MemoryRouter>,
+      );
+    });
+
+    const rowContent = container.querySelector('.shopping-list-swipe-content');
+    const action = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Send Flour to To Check"]',
+    );
+
+    act(() => {
+      dispatchPointer(rowContent!, 'pointerdown', 280, 10);
+      dispatchPointer(rowContent!, 'pointermove', 40, 12);
+    });
+
+    expect((rowContent as HTMLDivElement).style.transform).toBe('translateX(-240px)');
+    expect(action?.style.width).toBe('240px');
+    expect(action?.classList.contains('shopping-list-swipe-action-ready')).toBe(true);
+
+    act(() => {
+      dispatchPointer(rowContent!, 'pointerup', 40, 12);
+    });
+
+    expect(moveToCheckMutateMock).toHaveBeenCalledWith([
+      expect.objectContaining({ id: 11 }),
+      expect.objectContaining({ id: 22 }),
+    ]);
+    expect((rowContent as HTMLDivElement).style.transform).toBe('translateX(-0px)');
   });
 
   it('reveals the To Check action from the compact non-touch fallback', () => {
