@@ -1,3 +1,10 @@
+## [1.85.3](https://github.com/Jc2k/darkhold/compare/v1.85.2...v1.85.3) (2026-05-31)
+
+
+### Bug Fixes
+
+* **ui:** reset sticky mobile button hover styles ([13c007d](https://github.com/Jc2k/darkhold/commit/13c007d6108805c1870e31ff549e87d3e35c58b0))
+
 ## [1.85.2](https://github.com/Jc2k/darkhold/compare/v1.85.1...v1.85.2) (2026-05-31)
 
 
