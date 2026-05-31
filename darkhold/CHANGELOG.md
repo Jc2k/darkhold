@@ -1,3 +1,10 @@
+# [1.84.0](https://github.com/Jc2k/darkhold/compare/v1.83.3...v1.84.0) (2026-05-31)
+
+
+### Features
+
+* **shopping:** replace toolbar labels with icons ([9873ba6](https://github.com/Jc2k/darkhold/commit/9873ba60200eb3eaa45c2dc28f6283189ef55343))
+
 ## [1.83.3](https://github.com/Jc2k/darkhold/compare/v1.83.2...v1.83.3) (2026-05-31)
 
 
