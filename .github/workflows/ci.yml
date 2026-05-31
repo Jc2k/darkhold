@@ -47,19 +47,22 @@ jobs:
         run: deno task test
 
   docker-test:
-    runs-on: ubuntu-latest
+    # Run each image on its native architecture. In particular, Deno/V8 startup
+    # can hang intermittently when the arm64 container runs through QEMU on an
+    # x64 host, and extending the readiness timeout only hides that failure.
+    runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
     strategy:
       fail-fast: false
       matrix:
-        platform:
-          - linux/amd64
-          - linux/arm64
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v4
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: Build Docker image
@@ -73,7 +76,7 @@ jobs:
         run: docker run -d --name darkhold-test -p 8099:8099 darkhold-test
       - name: Wait for container and Deno backend to be ready
         run: |
-          for i in $(seq 1 600); do
+          for i in $(seq 1 60); do
             if curl -sf http://localhost:8099/ > /dev/null 2>&1 \
               && curl -sf 'http://localhost:8099/calendar-events?from=2025-01-01&to=2025-01-01' > /dev/null 2>&1; then
               echo "Container ready after ${i}s"
@@ -81,7 +84,7 @@ jobs:
             fi
             sleep 1
           done
-          echo "Container failed to start in 600s"
+          echo "Container failed to start in 60s"
           docker logs darkhold-test
           exit 1
       - name: Test SPA is served
