@@ -15,6 +15,30 @@ require_command() {
   fi
 }
 
+append_bashrc_export() {
+  local bashrc="${HOME}/.bashrc"
+  local export_statement="$1"
+
+  touch "${bashrc}"
+  if ! grep -Fqx "${export_statement}" "${bashrc}"; then
+    printf '\n# Added by Darkhold setup.sh for future task shells.\n%s\n' \
+      "${export_statement}" >> "${bashrc}"
+  fi
+}
+
+configure_deno_certificate() {
+  if [[ -z "${DENO_CERT:-}" && -n "${CODEX_PROXY_CERT:-}" ]]; then
+    export DENO_CERT="${CODEX_PROXY_CERT}"
+  fi
+}
+
+persist_deno_environment() {
+  append_bashrc_export "export PATH=\"${DENO_INSTALL}/bin:\${PATH}\""
+  if [[ -n "${DENO_CERT:-}" ]]; then
+    append_bashrc_export "export DENO_CERT=\"${DENO_CERT}\""
+  fi
+}
+
 install_deno_archive() {
   local deno_archive
   local deno_target
@@ -51,8 +75,9 @@ install_deno_archive() {
 
 require_command node
 require_command npm
+configure_deno_certificate
 
-if [[ "$(deno --version 2>/dev/null | head -n 1 || true)" != "deno ${DENO_VERSION#v}" ]]; then
+if [[ "$(deno --version 2>/dev/null | head -n 1 || true)" != "deno ${DENO_VERSION#v}"* ]]; then
   require_command curl
   require_command unzip
 
@@ -62,12 +87,12 @@ if [[ "$(deno --version 2>/dev/null | head -n 1 || true)" != "deno ${DENO_VERSIO
   fi
 fi
 
-# GitHub Actions reads this file after the step finishes. Codex cloud images
-# and standard developer shells include ~/.local/bin on PATH; custom install
-# locations should add $DENO_INSTALL/bin to PATH before invoking this script.
+# GitHub Actions reads this file after the step finishes. Codex cloud runs task
+# commands in shells created after setup, so persist the same path in .bashrc.
 if [[ -n "${GITHUB_PATH:-}" ]]; then
   printf '%s\n' "${DENO_INSTALL}/bin" >> "${GITHUB_PATH}"
 fi
+persist_deno_environment
 
 cd "${REPO_ROOT}/darkhold"
 npm ci --legacy-peer-deps
