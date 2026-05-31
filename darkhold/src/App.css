@@ -462,3 +462,14 @@ body {
     touch-action: none;
   }
 }
+
+.shopping-request-row-delete {
+  display: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .shopping-request-swipe-item:hover .shopping-request-row-delete,
+  .shopping-request-swipe-item:focus-within .shopping-request-row-delete {
+    display: inline-flex;
+  }
+}

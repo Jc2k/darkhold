@@ -160,7 +160,7 @@ describe('ShoppingRequestPanel', () => {
     expect(broadcastInvalidationMock).toHaveBeenCalledWith('shopping-list');
   });
 
-  it('queues, removes, and submits selected foods explicitly', () => {
+  it('queues selections eagerly, removes them, and submits pending foods', () => {
     act(() => {
       root.render(
         <MemoryRouter initialEntries={['/?add=request']}>
@@ -176,17 +176,52 @@ describe('ShoppingRequestPanel', () => {
 
     act(() => findButton('Select tomatoes')?.click());
     expect(mutateMock).not.toHaveBeenCalled();
-
-    act(() => findButton('Add')?.click());
+    expect(findButton('Add')).toBeUndefined();
     expect(document.body.textContent).toContain('Tomatoes');
 
     act(() => document.querySelector<HTMLButtonElement>('[aria-label="Remove Tomatoes"]')?.click());
     expect(document.querySelector('[aria-label="Remove Tomatoes"]')).toBeNull();
 
     act(() => findButton('Select tomatoes')?.click());
-    act(() => findButton('Add')?.click());
     act(() => findButton('Submit requests')?.click());
     expect(mutateMock).toHaveBeenCalledWith([{ id: 12, name: 'Tomatoes' }]);
+  });
+
+  it('deletes a pending food after a full left swipe', () => {
+    act(() => {
+      root.render(
+        <MemoryRouter initialEntries={['/?add=request']}>
+          <ShoppingRequestPanel />
+        </MemoryRouter>,
+      );
+    });
+
+    const selectTomatoes = [...document.querySelectorAll('button')].find(
+      (button) => button.textContent?.trim() === 'Select tomatoes',
+    );
+    act(() => selectTomatoes?.click());
+    const row = document.querySelector('.shopping-list-swipe-content');
+    expect(row).toBeTruthy();
+
+    const dispatchPointer = (
+      type: 'pointerdown' | 'pointermove' | 'pointerup',
+      clientX: number,
+    ) => {
+      const event = new MouseEvent(type, { bubbles: true, clientX, clientY: 10 });
+      Object.defineProperties(event, {
+        pointerId: { value: 1 },
+        pointerType: { value: 'touch' },
+      });
+      row?.dispatchEvent(event);
+    };
+
+    act(() => {
+      dispatchPointer('pointerdown', 280);
+      dispatchPointer('pointermove', 40);
+      dispatchPointer('pointerup', 40);
+    });
+
+    expect(document.body.textContent).not.toContain('Tomatoes');
   });
 
   it('renders an unlabelled iOS-style handle with an accessible name', () => {

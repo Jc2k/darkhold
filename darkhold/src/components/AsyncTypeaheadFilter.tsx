@@ -14,7 +14,7 @@ interface AsyncTypeaheadFilterProps {
   selected: FilterOption[];
   onSearch: (query: string) => Promise<FilterOption[]>;
   onChange: (selected: FilterOption[]) => void;
-  onRemove: () => void;
+  onRemove?: () => void;
   placeholder?: string;
   multiple?: boolean;
   disabled?: boolean;
@@ -75,16 +75,18 @@ export function AsyncTypeaheadFilter({
           </Alert>
         )}
       </div>
-      <Button
-        variant="outline-secondary"
-        size="sm"
-        className="mt-4 flex-shrink-0"
-        onClick={onRemove}
-        aria-label={removeLabel ?? `Remove ${label} filter`}
-        title={removeLabel ?? `Remove ${label} filter`}
-      >
-        ×
-      </Button>
+      {onRemove && (
+        <Button
+          variant="outline-secondary"
+          size="sm"
+          className="mt-4 flex-shrink-0"
+          onClick={onRemove}
+          aria-label={removeLabel ?? `Remove ${label} filter`}
+          title={removeLabel ?? `Remove ${label} filter`}
+        >
+          ×
+        </Button>
+      )}
     </div>
   );
 }
