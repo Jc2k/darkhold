@@ -1,3 +1,16 @@
+# [1.85.0](https://github.com/Jc2k/darkhold/compare/v1.84.0...v1.85.0) (2026-05-31)
+
+
+### Bug Fixes
+
+* **setup:** persist deno path for cloud tasks ([771cc75](https://github.com/Jc2k/darkhold/commit/771cc75e620f8d7b293ae9d3dbd0b87822c8a9a5))
+* **shopping:** restore filter order and icons ([de39a49](https://github.com/Jc2k/darkhold/commit/de39a490145fbbdee7b1f3706386eaac23d26fab))
+
+
+### Features
+
+* **shopping:** add manual shopping requests ([753a5c3](https://github.com/Jc2k/darkhold/commit/753a5c30a73fc45b3b764779f42e1c084a6a6d45))
+
 # [1.84.0](https://github.com/Jc2k/darkhold/compare/v1.83.3...v1.84.0) (2026-05-31)
 
 
