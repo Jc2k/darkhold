@@ -491,6 +491,12 @@ export function ShoppingList() {
                           transform: `translateX(${openSwipeKey === rowKey ? swipeOffset : 0}px)`,
                         }}
                         onPointerDown={(event) => {
+                          if (
+                            event.target instanceof Element &&
+                            event.target.closest('a, button')
+                          ) {
+                            return;
+                          }
                           if (event.pointerType === 'mouse' && event.button !== 0) return;
                           swipeStart.current = {
                             key: rowKey,
@@ -575,7 +581,7 @@ export function ShoppingList() {
                         </div>
                         {isToCheck && (
                           <QuestionCircleFill
-                            className="text-secondary flex-shrink-0"
+                            className="shopping-list-to-check-indicator text-secondary flex-shrink-0"
                             aria-label="To Check"
                           />
                         )}
