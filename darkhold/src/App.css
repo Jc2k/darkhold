@@ -383,7 +383,7 @@ body {
 
 .shopping-list-swipe-action {
   position: absolute;
-  inset: 0 0 0 auto;
+  inset-block: 0;
   display: flex;
   width: 6.5rem;
   flex-direction: column;
@@ -397,16 +397,26 @@ body {
     filter 120ms ease-in-out;
 }
 
+.shopping-list-swipe-action-buy {
+  left: 0;
+}
+
+.shopping-list-swipe-action-check {
+  right: 0;
+}
+
 .shopping-list-swipe-action-ready {
   filter: brightness(0.85);
 }
 
-.shopping-list-more-action {
-  opacity: 0;
-  transition: opacity 120ms ease-in-out;
+.shopping-list-row-actions {
+  display: none;
+  gap: 0.25rem;
 }
 
-.shopping-list-swipe-item:hover .shopping-list-more-action,
-.shopping-list-swipe-item:focus-within .shopping-list-more-action {
-  opacity: 1;
+@media (hover: hover) and (pointer: fine) {
+  .shopping-list-swipe-item:hover .shopping-list-row-actions,
+  .shopping-list-swipe-item:focus-within .shopping-list-row-actions {
+    display: flex;
+  }
 }

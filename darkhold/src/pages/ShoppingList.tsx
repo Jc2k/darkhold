@@ -1,5 +1,5 @@
-import { ListGroup, Form, Alert, Badge, Spinner, Button, ButtonGroup } from 'react-bootstrap';
-import { ArrowLeft, Cart4, ThreeDotsVertical } from 'react-bootstrap-icons';
+import { ListGroup, Alert, Badge, Spinner, Button, ButtonGroup } from 'react-bootstrap';
+import { Cart4, PlusCircle, QuestionCircleFill, Trash3 } from 'react-bootstrap-icons';
 import { Link } from 'react-router-dom';
 import { useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -33,8 +33,16 @@ export function isLeftSwipe(deltaX: number, deltaY: number): boolean {
   return deltaX <= -SWIPE_THRESHOLD_PX && Math.abs(deltaX) > Math.abs(deltaY);
 }
 
+export function isRightSwipe(deltaX: number, deltaY: number): boolean {
+  return deltaX >= SWIPE_THRESHOLD_PX && Math.abs(deltaX) > Math.abs(deltaY);
+}
+
 export function isFullLeftSwipe(deltaX: number, deltaY: number): boolean {
   return deltaX <= -FULL_SWIPE_THRESHOLD_PX && Math.abs(deltaX) > Math.abs(deltaY);
+}
+
+export function isFullRightSwipe(deltaX: number, deltaY: number): boolean {
+  return deltaX >= FULL_SWIPE_THRESHOLD_PX && Math.abs(deltaX) > Math.abs(deltaY);
 }
 
 export function addShoppingListToEntries(
@@ -45,6 +53,27 @@ export function addShoppingListToEntries(
   return entries.map((entry) => {
     if (!entryIds.has(entry.id) || isInShoppingList(entry, shoppingList.name)) return entry;
     return { ...entry, shopping_lists: [...(entry.shopping_lists ?? []), shoppingList] };
+  });
+}
+
+export function updateShoppingListEntries(
+  entries: ShoppingEntry[],
+  entryIds: Set<number>,
+  updates: { checked?: boolean; toCheckList?: TandoorShoppingList; isToCheck?: boolean },
+): ShoppingEntry[] {
+  return entries.map((entry) => {
+    if (!entryIds.has(entry.id)) return entry;
+    const next = { ...entry };
+    if (updates.checked !== undefined) next.checked = updates.checked;
+    if (updates.toCheckList && updates.isToCheck !== undefined) {
+      const shoppingLists = (entry.shopping_lists ?? []).filter(
+        (list) => list.name !== TO_CHECK_LIST_NAME,
+      );
+      next.shopping_lists = updates.isToCheck
+        ? [...shoppingLists, updates.toCheckList]
+        : shoppingLists;
+    }
+    return next;
   });
 }
 
@@ -149,8 +178,7 @@ export function ShoppingList() {
   const [openSwipeKey, setOpenSwipeKey] = useState<string | null>(null);
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [viewMode, setViewMode] = useState<'category' | 'recipe'>('category');
-  const [hideChecked, setHideChecked] = useState(false);
-  const [showToCheckOnly, setShowToCheckOnly] = useState(false);
+  const [filter, setFilter] = useState<'to-check' | 'to-buy' | null>(null);
   const hasPersonalToken = Boolean(localStorage.getItem('tandoor_token'));
 
   const { data, isLoading, isError } = useQuery({
@@ -164,43 +192,49 @@ export function ShoppingList() {
     enabled: hasPersonalToken,
   });
 
-  const toggle = useMutation({
-    mutationFn: ({ id, checked }: { id: number; checked: boolean }) =>
-      apiPatch(`/shopping-list-entry/${id}/`, { checked }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['shopping-list'] });
-      broadcastInvalidation('shopping-list');
-    },
-  });
+  type UpdateEntriesVariables = {
+    entries: ShoppingEntry[];
+    checked?: boolean;
+    isToCheck?: boolean;
+  };
 
-  const moveToCheck = useMutation({
-    mutationFn: (entries: ShoppingEntry[]) => {
-      if (!toCheckList) throw new Error('The To Check list is not ready yet.');
+  const updateEntries = useMutation({
+    mutationFn: ({ entries, checked, isToCheck }: UpdateEntriesVariables) => {
+      if (isToCheck !== undefined && !toCheckList) {
+        throw new Error('The To Check list is not ready yet.');
+      }
       return Promise.all(
-        entries.map((entry) =>
-          apiPatch(`/shopping-list-entry/${entry.id}/`, {
-            shopping_lists: [...(entry.shopping_lists ?? []), toCheckList],
-          }),
-        ),
+        entries.map((entry) => {
+          const shoppingLists = (entry.shopping_lists ?? []).filter(
+            (list) => list.name !== TO_CHECK_LIST_NAME,
+          );
+          return apiPatch(`/shopping-list-entry/${entry.id}/`, {
+            ...(checked !== undefined && { checked }),
+            ...(isToCheck !== undefined && {
+              shopping_lists: isToCheck ? [...shoppingLists, toCheckList!] : shoppingLists,
+            }),
+          });
+        }),
       );
     },
-    onMutate: (entries) => {
+    onMutate: ({ entries }) => {
       setMoveError(null);
       setPendingIds((previous) => new Set([...previous, ...entries.map((entry) => entry.id)]));
     },
-    onSuccess: (_result, entries) => {
-      if (!toCheckList) return;
+    onSuccess: (_result, { entries, checked, isToCheck }) => {
       const entryIds = new Set(entries.map((entry) => entry.id));
       qc.setQueryData<ShoppingEntry[]>(['shopping-list'], (current) =>
-        current ? addShoppingListToEntries(current, entryIds, toCheckList) : current,
+        current
+          ? updateShoppingListEntries(current, entryIds, { checked, isToCheck, toCheckList })
+          : current,
       );
       qc.invalidateQueries({ queryKey: ['shopping-list'] });
       broadcastInvalidation('shopping-list');
     },
     onError: () => {
-      setMoveError('Failed to send item to To Check. Please try again.');
+      setMoveError('Failed to update item. Please try again.');
     },
-    onSettled: (_result, _error, entries) => {
+    onSettled: (_result, _error, { entries }) => {
       setPendingIds((previous) => {
         const next = new Set(previous);
         entries.forEach((entry) => next.delete(entry.id));
@@ -214,29 +248,20 @@ export function ShoppingList() {
     setSwipeOffset(0);
   };
 
-  const sendToCheck = (entries: ShoppingEntry[]) => {
-    if (
-      !hasPersonalToken ||
-      !toCheckList ||
-      entries.every((entry) => isInShoppingList(entry, TO_CHECK_LIST_NAME))
-    )
-      return;
+  const toggleToCheck = (entries: ShoppingEntry[]) => {
+    if (!hasPersonalToken || !toCheckList) return;
+    const isToCheck = !entries.every((entry) => isInShoppingList(entry, TO_CHECK_LIST_NAME));
     closeSwipeAction();
-    moveToCheck.mutate(entries.filter((entry) => !isInShoppingList(entry, TO_CHECK_LIST_NAME)));
+    updateEntries.mutate({ entries, isToCheck, ...(isToCheck && { checked: false }) });
   };
 
-  const toggleAll = (entries: ShoppingEntry[], checked: boolean) => {
+  const toggleChecked = (entries: ShoppingEntry[], checked: boolean) => {
     if (!hasPersonalToken) return;
-    const ids = entries.map((e) => e.id);
-    setPendingIds((prev: Set<number>) => new Set([...prev, ...ids]));
-    Promise.allSettled(
-      entries.map((entry) => toggle.mutateAsync({ id: entry.id, checked })),
-    ).finally(() => {
-      setPendingIds((prev: Set<number>) => {
-        const next = new Set(prev);
-        ids.forEach((id) => next.delete(id));
-        return next;
-      });
+    closeSwipeAction();
+    updateEntries.mutate({
+      entries,
+      checked,
+      ...(checked && toCheckList && { isToCheck: false }),
     });
   };
 
@@ -280,8 +305,8 @@ export function ShoppingList() {
   const entries = data ?? [];
   const visibleEntries = entries.filter(
     (entry) =>
-      (!hideChecked || !entry.checked) &&
-      (!showToCheckOnly || isInShoppingList(entry, TO_CHECK_LIST_NAME)),
+      (filter !== 'to-buy' || !entry.checked) &&
+      (filter !== 'to-check' || isInShoppingList(entry, TO_CHECK_LIST_NAME)),
   );
   if (entries.length === 0) {
     return (
@@ -329,30 +354,31 @@ export function ShoppingList() {
             </Button>
           </ButtonGroup>
           <span className="text-muted small ms-1">Filters</span>
-          <Button
-            variant={showToCheckOnly ? 'primary' : 'outline-secondary'}
-            size="sm"
-            onClick={() => setShowToCheckOnly((value) => !value)}
-            aria-label="Show To Check items only"
-            aria-pressed={showToCheckOnly}
-          >
-            To Check
-          </Button>
-          <Button
-            variant={hideChecked ? 'primary' : 'outline-secondary'}
-            size="sm"
-            onClick={() => setHideChecked((value) => !value)}
-            aria-label="Hide checked items"
-            aria-pressed={hideChecked}
-          >
-            Hide checked items
-          </Button>
+          <ButtonGroup size="sm" aria-label="Shopping list filters">
+            <Button
+              variant={filter === 'to-check' ? 'primary' : 'outline-secondary'}
+              onClick={() => setFilter((value) => (value === 'to-check' ? null : 'to-check'))}
+              aria-label="Show To Check items only"
+              aria-pressed={filter === 'to-check'}
+            >
+              To Check
+            </Button>
+            <Button
+              variant={filter === 'to-buy' ? 'primary' : 'outline-secondary'}
+              onClick={() => setFilter((value) => (value === 'to-buy' ? null : 'to-buy'))}
+              aria-label="Show To Buy items only"
+              aria-pressed={filter === 'to-buy'}
+            >
+              To Buy
+            </Button>
+          </ButtonGroup>
         </div>
         <Button
           variant="outline-danger"
           size="sm"
           onClick={() => clearAll(entries)}
           disabled={isClearing || !hasPersonalToken}
+          aria-label="Clear shopping list"
         >
           {isClearing ? (
             <>
@@ -360,13 +386,14 @@ export function ShoppingList() {
               Clearing…
             </>
           ) : (
-            'Clear'
+            <Trash3 aria-hidden="true" />
           )}
         </Button>
       </div>
       <p className="text-muted small mb-3">
         {remainingCount} item{remainingCount !== 1 ? 's' : ''} remaining of {entries.length} item
-        {entries.length !== 1 ? 's' : ''}. Swipe an item left to send it to To Check.
+        {entries.length !== 1 ? 's' : ''}. Swipe right to mark an item bought, or left to toggle To
+        Check.
       </p>
       {clearError && (
         <Alert variant="danger" dismissible onClose={() => setClearError(null)}>
@@ -425,30 +452,43 @@ export function ShoppingList() {
                   <ListGroup.Item key={rowKey} className="shopping-list-swipe-item p-0">
                     <div className="shopping-list-swipe-shell">
                       <Button
-                        variant="secondary"
-                        className={`shopping-list-swipe-action rounded-0${
+                        variant="success"
+                        className={`shopping-list-swipe-action shopping-list-swipe-action-buy rounded-0${
                           openSwipeKey === rowKey && swipeOffset >= FULL_SWIPE_THRESHOLD_PX
                             ? ' shopping-list-swipe-action-ready'
                             : ''
                         }`}
-                        style={{
-                          width:
-                            openSwipeKey === rowKey
-                              ? Math.max(swipeOffset, SWIPE_ACTION_WIDTH_PX)
-                              : SWIPE_ACTION_WIDTH_PX,
-                        }}
-                        onClick={() => sendToCheck(agg.entries)}
-                        disabled={isPending || isToCheck || !toCheckList || !hasPersonalToken}
-                        aria-label={`Send ${foodName} to To Check`}
-                        tabIndex={openSwipeKey === rowKey ? 0 : -1}
+                        style={{ width: Math.max(swipeOffset, SWIPE_ACTION_WIDTH_PX) }}
+                        onClick={() => toggleChecked(agg.entries, !agg.allChecked)}
+                        disabled={isPending || !hasPersonalToken}
+                        aria-label={
+                          agg.allChecked ? `Mark ${foodName} to buy` : `Mark ${foodName} bought`
+                        }
+                        tabIndex={openSwipeKey === rowKey && swipeOffset > 0 ? 0 : -1}
                       >
-                        <ArrowLeft aria-hidden="true" />
-                        <span>To Check</span>
+                        <PlusCircle aria-hidden="true" />
+                        <span>{agg.allChecked ? 'To Buy' : 'Bought'}</span>
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        className={`shopping-list-swipe-action shopping-list-swipe-action-check rounded-0${
+                          openSwipeKey === rowKey && swipeOffset <= -FULL_SWIPE_THRESHOLD_PX
+                            ? ' shopping-list-swipe-action-ready'
+                            : ''
+                        }`}
+                        style={{ width: Math.max(-swipeOffset, SWIPE_ACTION_WIDTH_PX) }}
+                        onClick={() => toggleToCheck(agg.entries)}
+                        disabled={isPending || !toCheckList || !hasPersonalToken}
+                        aria-label={`${isToCheck ? 'Return' : 'Send'} ${foodName} ${isToCheck ? 'from' : 'to'} To Check`}
+                        tabIndex={openSwipeKey === rowKey && swipeOffset < 0 ? 0 : -1}
+                      >
+                        <QuestionCircleFill aria-hidden="true" />
+                        <span>{isToCheck ? 'Return' : 'To Check'}</span>
                       </Button>
                       <div
-                        className="shopping-list-swipe-content d-flex align-items-start gap-2 py-2 px-3"
+                        className="shopping-list-swipe-content d-flex align-items-center gap-2 py-2 px-3"
                         style={{
-                          transform: `translateX(-${openSwipeKey === rowKey ? swipeOffset : 0}px)`,
+                          transform: `translateX(${openSwipeKey === rowKey ? swipeOffset : 0}px)`,
                         }}
                         onPointerDown={(event) => {
                           if (event.pointerType === 'mouse' && event.button !== 0) return;
@@ -467,7 +507,7 @@ export function ShoppingList() {
                           const deltaY = event.clientY - start.y;
                           if (Math.abs(deltaX) <= Math.abs(deltaY)) return;
                           setOpenSwipeKey(rowKey);
-                          setSwipeOffset(Math.max(-deltaX, 0));
+                          setSwipeOffset(deltaX);
                         }}
                         onPointerUp={(event) => {
                           const start = swipeStart.current;
@@ -475,47 +515,22 @@ export function ShoppingList() {
                           if (start?.key !== rowKey || start.pointerId !== event.pointerId) return;
                           const deltaX = event.clientX - start.x;
                           const deltaY = event.clientY - start.y;
-                          if (isFullLeftSwipe(deltaX, deltaY)) {
-                            sendToCheck(agg.entries);
-                          } else if (isLeftSwipe(deltaX, deltaY)) {
+                          if (isFullLeftSwipe(deltaX, deltaY)) toggleToCheck(agg.entries);
+                          else if (isFullRightSwipe(deltaX, deltaY))
+                            toggleChecked(agg.entries, !agg.allChecked);
+                          else if (isLeftSwipe(deltaX, deltaY)) {
+                            setOpenSwipeKey(rowKey);
+                            setSwipeOffset(-SWIPE_ACTION_WIDTH_PX);
+                          } else if (isRightSwipe(deltaX, deltaY)) {
                             setOpenSwipeKey(rowKey);
                             setSwipeOffset(SWIPE_ACTION_WIDTH_PX);
-                          } else {
-                            closeSwipeAction();
-                          }
+                          } else closeSwipeAction();
                         }}
                         onPointerCancel={() => {
                           swipeStart.current = null;
                           closeSwipeAction();
                         }}
                       >
-                        <button
-                          type="button"
-                          className="btn p-0 d-flex align-items-center justify-content-center flex-shrink-0 mt-1"
-                          style={{
-                            width: '2.25rem',
-                            height: '2.25rem',
-                            background: 'none',
-                            border: 'none',
-                            cursor: isPending ? 'wait' : hasPersonalToken ? 'pointer' : 'default',
-                          }}
-                          onClick={() => toggleAll(agg.entries, !agg.allChecked)}
-                          disabled={isPending || !hasPersonalToken}
-                          aria-label={agg.allChecked ? `Uncheck ${foodName}` : `Check ${foodName}`}
-                          aria-pressed={agg.allChecked}
-                        >
-                          {isPending ? (
-                            <Spinner animation="border" size="sm" />
-                          ) : (
-                            <Form.Check
-                              type="checkbox"
-                              checked={agg.allChecked}
-                              readOnly
-                              tabIndex={-1}
-                              style={{ pointerEvents: 'none' }}
-                            />
-                          )}
-                        </button>
                         <div className="flex-grow-1">
                           {quantityParts.length > 0 && (
                             <span className="me-1 text-muted small">
@@ -558,20 +573,36 @@ export function ShoppingList() {
                             </span>
                           )}
                         </div>
-                        {!isToCheck && (
-                          <button
-                            type="button"
-                            className="shopping-list-more-action btn btn-sm btn-outline-secondary flex-shrink-0"
-                            onClick={() => {
-                              setOpenSwipeKey(rowKey);
-                              setSwipeOffset(SWIPE_ACTION_WIDTH_PX);
-                            }}
+                        {isToCheck && (
+                          <QuestionCircleFill
+                            className="text-secondary flex-shrink-0"
+                            aria-label="To Check"
+                          />
+                        )}
+                        <div className="shopping-list-row-actions flex-shrink-0">
+                          <Button
+                            variant="outline-secondary"
+                            size="sm"
+                            onClick={() => toggleToCheck(agg.entries)}
                             disabled={isPending || !toCheckList || !hasPersonalToken}
-                            aria-label={`Show actions for ${foodName}`}
-                            aria-expanded={openSwipeKey === rowKey}
+                            aria-label={`${isToCheck ? 'Return' : 'Send'} ${foodName} ${isToCheck ? 'from' : 'to'} To Check`}
                           >
-                            <ThreeDotsVertical aria-hidden="true" />
-                          </button>
+                            <QuestionCircleFill aria-hidden="true" />
+                          </Button>
+                          <Button
+                            variant="outline-success"
+                            size="sm"
+                            onClick={() => toggleChecked(agg.entries, !agg.allChecked)}
+                            disabled={isPending || !hasPersonalToken}
+                            aria-label={
+                              agg.allChecked ? `Mark ${foodName} to buy` : `Mark ${foodName} bought`
+                            }
+                          >
+                            <PlusCircle aria-hidden="true" />
+                          </Button>
+                        </div>
+                        {isPending && (
+                          <Spinner animation="border" size="sm" className="flex-shrink-0" />
                         )}
                       </div>
                     </div>
