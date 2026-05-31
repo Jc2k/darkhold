@@ -84,6 +84,7 @@ import type {
   Food,
 } from '../api/tandoor-types';
 import { deriveMealType } from '../utils/mealUtils';
+import { removeMealPlanFromCaches } from '../utils/mealPlanCache';
 import {
   formatDate,
   formatMonthYear,
@@ -1639,7 +1640,11 @@ export function MealPlanPage() {
           apiDelete(`/meal-plan/${entry.id}/`, MEAL_PLAN_ITEM_QUERY_PARAMS),
         ),
       );
-      const failed = results.filter((r) => r.status === 'rejected').length;
+      const deletedIds = data.results
+        .filter((_entry, index) => results[index].status === 'fulfilled')
+        .map((entry) => entry.id);
+      deletedIds.forEach((id) => removeMealPlanFromCaches(queryClient, id));
+      const failed = results.length - deletedIds.length;
       queryClient.invalidateQueries({ queryKey: ['meal-plan'] });
       queryClient.invalidateQueries({ queryKey: ['shopping-list'] });
       void invalidateAndRefreshMealPlanRedirectWeek(queryClient, apiGet);

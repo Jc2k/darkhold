@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isCookedOnDate, buildCookLogTimestamp } from './useCookLog';
+import { buildCookLogTimestamp, isCookedOnDate, isDateInCookLogRange } from './useCookLog';
 import type { CookedByDate } from './useCookLog';
 
 describe('isCookedOnDate', () => {
@@ -59,5 +59,23 @@ describe('buildCookLogTimestamp', () => {
     const ts = buildCookLogTimestamp(today, { id: 1, name: 'Dinner' });
     expect(ts.startsWith(today + 'T')).toBe(true);
     expect(ts).not.toBe(`${today}T12:00:00`); // not the historical fallback
+  });
+});
+
+describe('isDateInCookLogRange', () => {
+  it('returns true when a date is covered by the cached range', () => {
+    expect(isDateInCookLogRange(['cook-log', '2026-05-23', '2026-05-29'], '2026-05-25')).toBe(true);
+  });
+
+  it('returns false when a date falls outside the cached range', () => {
+    expect(isDateInCookLogRange(['cook-log', '2026-05-23', '2026-05-29'], '2026-05-30')).toBe(
+      false,
+    );
+  });
+
+  it('returns false for unrelated cache keys', () => {
+    expect(isDateInCookLogRange(['meal-plan', '2026-05-23', '2026-05-29'], '2026-05-25')).toBe(
+      false,
+    );
   });
 });

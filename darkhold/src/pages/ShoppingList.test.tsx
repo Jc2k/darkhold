@@ -52,6 +52,7 @@ import {
   isInShoppingList,
   isLeftSwipe,
   isRightSwipe,
+  removeShoppingListEntries,
   updateShoppingListEntries,
 } from './ShoppingList';
 
@@ -173,6 +174,16 @@ describe('ShoppingList', () => {
     expect(isInShoppingList(updated[0], 'To Check')).toBe(true);
     expect(updated[1].shopping_lists).toEqual([toCheck]);
     expect(updated[2]).toBe(entries[2]);
+  });
+
+  it('removes accepted bulk deletions from cached entries', () => {
+    const entries = [
+      { id: 1, food: makeFood(), checked: false },
+      { id: 2, food: makeFood(), checked: false },
+      { id: 3, food: makeFood(), checked: false },
+    ];
+
+    expect(removeShoppingListEntries(entries, new Set([1, 3]))).toEqual([entries[1]]);
   });
 
   it('updates checked and To Check state in cached entries', () => {
