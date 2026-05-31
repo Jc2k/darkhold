@@ -30,6 +30,7 @@ const navItems = [
 ];
 
 const menuItems = [
+  { to: '/shopping?add=request', icon: '✏️', label: 'Add Shopping Request' },
   { to: '/settings', icon: '⚙️', label: 'Settings' },
   { to: '/utilities/gas-marks', icon: '🔥', label: 'Gas Marks' },
   { to: '/utilities/unit-converter', icon: '📐', label: 'Unit Converter' },
