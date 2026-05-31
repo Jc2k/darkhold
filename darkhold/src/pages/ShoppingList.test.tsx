@@ -48,8 +48,11 @@ import {
   addShoppingListToEntries,
   fetchAllShoppingListEntries,
   isFullLeftSwipe,
+  isFullRightSwipe,
   isInShoppingList,
   isLeftSwipe,
+  isRightSwipe,
+  updateShoppingListEntries,
 } from './ShoppingList';
 
 function makeFood(): Food {
@@ -139,11 +142,22 @@ describe('ShoppingList', () => {
     expect(isLeftSwipe(80, 5)).toBe(false);
   });
 
-  it('detects full horizontal left swipes beyond the action trigger threshold', () => {
+  it('detects horizontal right swipes beyond the movement threshold', () => {
+    expect(isRightSwipe(60, 5)).toBe(true);
+    expect(isRightSwipe(59, 5)).toBe(false);
+    expect(isRightSwipe(80, 100)).toBe(false);
+    expect(isRightSwipe(-80, 5)).toBe(false);
+  });
+
+  it('detects full horizontal swipes beyond the action trigger threshold', () => {
     expect(isFullLeftSwipe(-208, 5)).toBe(true);
     expect(isFullLeftSwipe(-207, 5)).toBe(false);
     expect(isFullLeftSwipe(-240, 250)).toBe(false);
     expect(isFullLeftSwipe(240, 5)).toBe(false);
+    expect(isFullRightSwipe(208, 5)).toBe(true);
+    expect(isFullRightSwipe(207, 5)).toBe(false);
+    expect(isFullRightSwipe(240, 250)).toBe(false);
+    expect(isFullRightSwipe(-240, 5)).toBe(false);
   });
 
   it('adds To Check to selected cached entries without duplicating list membership', () => {
@@ -159,6 +173,30 @@ describe('ShoppingList', () => {
     expect(isInShoppingList(updated[0], 'To Check')).toBe(true);
     expect(updated[1].shopping_lists).toEqual([toCheck]);
     expect(updated[2]).toBe(entries[2]);
+  });
+
+  it('updates checked and To Check state in cached entries', () => {
+    const toCheck = { id: 7, name: 'To Check' };
+    const entries = [
+      { id: 1, food: makeFood(), checked: true },
+      { id: 2, food: makeFood(), checked: true, shopping_lists: [toCheck] },
+    ];
+
+    const updated = updateShoppingListEntries(entries, new Set([1, 2]), {
+      checked: false,
+      isToCheck: true,
+      toCheckList: toCheck,
+    });
+
+    expect(updated[0]).toMatchObject({ checked: false, shopping_lists: [toCheck] });
+    expect(updated[1]).toMatchObject({ checked: false, shopping_lists: [toCheck] });
+
+    const returned = updateShoppingListEntries(updated, new Set([1, 2]), {
+      isToCheck: false,
+      toCheckList: toCheck,
+    });
+    expect(returned[0].shopping_lists).toEqual([]);
+    expect(returned[1].shopping_lists).toEqual([]);
   });
 
   it('fetches all shopping list pages', async () => {
@@ -220,7 +258,7 @@ describe('ShoppingList', () => {
     const checkbox = container.querySelector<HTMLInputElement>(
       '.form-check-input[type="checkbox"]',
     );
-    expect(checkbox?.checked).toBe(false);
+    expect(checkbox).toBeNull();
 
     const recipeViewButton = container.querySelector<HTMLButtonElement>(
       'button[aria-label="Show recipe groups"]',
@@ -401,7 +439,7 @@ describe('ShoppingList', () => {
     expect(container.textContent).toContain('Milk');
 
     const hideCheckedButton = container.querySelector<HTMLButtonElement>(
-      'button[aria-label="Hide checked items"]',
+      'button[aria-label="Show To Buy items only"]',
     );
     expect(hideCheckedButton).toBeTruthy();
     expect(hideCheckedButton?.getAttribute('aria-pressed')).toBe('false');
@@ -423,7 +461,7 @@ describe('ShoppingList', () => {
     expect(container.textContent).toContain('Milk');
   });
 
-  it('keeps To Check separate from the category and recipe view group', () => {
+  it('groups the mutually exclusive To Check and To Buy filters together', () => {
     act(() => {
       root.render(
         <MemoryRouter>
@@ -437,8 +475,20 @@ describe('ShoppingList', () => {
     );
     const viewGroup = container.querySelector('[aria-label="Shopping list view"]');
 
+    const filterGroup = container.querySelector('[aria-label="Shopping list filters"]');
     expect(viewGroup?.querySelectorAll('button')).toHaveLength(2);
-    expect(toCheckButton?.closest('.btn-group')).toBeNull();
+    expect(filterGroup?.querySelectorAll('button')).toHaveLength(2);
+    expect(toCheckButton?.closest('.btn-group')).toBe(filterGroup);
+
+    const toBuyButton = filterGroup?.querySelector<HTMLButtonElement>(
+      'button[aria-label="Show To Buy items only"]',
+    );
+    act(() => {
+      toCheckButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      toBuyButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(toCheckButton?.getAttribute('aria-pressed')).toBe('false');
+    expect(toBuyButton?.getAttribute('aria-pressed')).toBe('true');
   });
 
   it('reveals the To Check action after swiping an item left', () => {
@@ -493,14 +543,15 @@ describe('ShoppingList', () => {
       dispatchPointer(rowContent!, 'pointerup', 40, 12);
     });
 
-    expect(moveToCheckMutateMock).toHaveBeenCalledWith([
-      expect.objectContaining({ id: 11 }),
-      expect.objectContaining({ id: 22 }),
-    ]);
-    expect((rowContent as HTMLDivElement).style.transform).toBe('translateX(-0px)');
+    expect(moveToCheckMutateMock).toHaveBeenCalledWith({
+      entries: [expect.objectContaining({ id: 11 }), expect.objectContaining({ id: 22 })],
+      isToCheck: true,
+      checked: false,
+    });
+    expect((rowContent as HTMLDivElement).style.transform).toBe('translateX(0px)');
   });
 
-  it('reveals the To Check action from the compact non-touch fallback', () => {
+  it('provides desktop row actions instead of a compact hamburger fallback', () => {
     act(() => {
       root.render(
         <MemoryRouter>
@@ -509,20 +560,33 @@ describe('ShoppingList', () => {
       );
     });
 
-    const moreButton = container.querySelector<HTMLButtonElement>(
-      'button[aria-label="Show actions for Flour"]',
-    );
-    const action = container.querySelector<HTMLButtonElement>(
-      'button[aria-label="Send Flour to To Check"]',
-    );
+    expect(container.querySelector('button[aria-label="Show actions for Flour"]')).toBeNull();
+    const rowActions = container.querySelector('.shopping-list-row-actions');
+    expect(rowActions?.querySelector('button[aria-label="Send Flour to To Check"]')).toBeTruthy();
+    expect(rowActions?.querySelector('button[aria-label="Mark Flour bought"]')).toBeTruthy();
+  });
 
-    expect(moreButton).toBeTruthy();
+  it('reveals the bought action after swiping an item right', () => {
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <ShoppingList />
+        </MemoryRouter>,
+      );
+    });
+
+    const rowContent = container.querySelector('.shopping-list-swipe-content');
+    const action = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Mark Flour bought"]',
+    );
     expect(action?.tabIndex).toBe(-1);
     act(() => {
-      moreButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      dispatchPointer(rowContent!, 'pointerdown', 50, 10);
+      dispatchPointer(rowContent!, 'pointermove', 140, 12);
+      dispatchPointer(rowContent!, 'pointerup', 140, 12);
     });
-    expect(moreButton?.getAttribute('aria-expanded')).toBe('true');
     expect(action?.tabIndex).toBe(0);
+    expect((rowContent as HTMLDivElement).style.transform).toBe('translateX(104px)');
   });
 
   it('filters the view to entries assigned to To Check', () => {
