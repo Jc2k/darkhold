@@ -1,3 +1,11 @@
+## [1.81.1](https://github.com/Jc2k/darkhold/compare/v1.81.0...v1.81.1) (2026-05-31)
+
+
+### Bug Fixes
+
+* lint ([5e43647](https://github.com/Jc2k/darkhold/commit/5e436472b7d88875df0c9e660bf24d1849286c58))
+* **shopping-list:** improve to check controls ([3feb7a1](https://github.com/Jc2k/darkhold/commit/3feb7a11dea523815533a645fc7f78ef97ab91a4))
+
 # [1.81.0](https://github.com/Jc2k/darkhold/compare/v1.80.10...v1.81.0) (2026-05-30)
 
 ### Bug Fixes
