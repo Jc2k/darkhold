@@ -1,5 +1,5 @@
 import { ListGroup, Form, Alert, Badge, Spinner, Button, ButtonGroup } from 'react-bootstrap';
-import { ArrowLeft, Cart4 } from 'react-bootstrap-icons';
+import { ArrowLeft, Cart4, ThreeDotsVertical } from 'react-bootstrap-icons';
 import { Link } from 'react-router-dom';
 import { useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -22,6 +22,7 @@ export { fetchAllShoppingListEntries } from '../hooks/useShoppingListEntries';
 
 const TO_CHECK_LIST_NAME = 'To Check';
 const SWIPE_THRESHOLD_PX = 60;
+const SWIPE_ACTION_WIDTH_PX = 104;
 
 export function isInShoppingList(entry: ShoppingEntry, listName: string): boolean {
   return entry.shopping_lists?.some((list) => list.name === listName) ?? false;
@@ -139,7 +140,9 @@ export function ShoppingList() {
   const [isClearing, setIsClearing] = useState(false);
   const [clearError, setClearError] = useState<string | null>(null);
   const [moveError, setMoveError] = useState<string | null>(null);
-  const swipeStart = useRef<{ key: string; x: number; y: number } | null>(null);
+  const swipeStart = useRef<{ key: string; pointerId: number; x: number; y: number } | null>(null);
+  const [openSwipeKey, setOpenSwipeKey] = useState<string | null>(null);
+  const [swipeOffset, setSwipeOffset] = useState(0);
   const [viewMode, setViewMode] = useState<'category' | 'recipe'>('category');
   const [hideChecked, setHideChecked] = useState(false);
   const [showToCheckOnly, setShowToCheckOnly] = useState(false);
@@ -201,6 +204,11 @@ export function ShoppingList() {
     },
   });
 
+  const closeSwipeAction = () => {
+    setOpenSwipeKey(null);
+    setSwipeOffset(0);
+  };
+
   const sendToCheck = (entries: ShoppingEntry[]) => {
     if (
       !hasPersonalToken ||
@@ -208,6 +216,7 @@ export function ShoppingList() {
       entries.every((entry) => isInShoppingList(entry, TO_CHECK_LIST_NAME))
     )
       return;
+    closeSwipeAction();
     moveToCheck.mutate(entries.filter((entry) => !isInShoppingList(entry, TO_CHECK_LIST_NAME)));
   };
 
@@ -313,15 +322,17 @@ export function ShoppingList() {
             >
               Recipe
             </Button>
-            <Button
-              variant={showToCheckOnly ? 'primary' : 'outline-secondary'}
-              onClick={() => setShowToCheckOnly((value) => !value)}
-              aria-label="Show To Check items only"
-              aria-pressed={showToCheckOnly}
-            >
-              To Check
-            </Button>
           </ButtonGroup>
+          <span className="text-muted small ms-1">Filters</span>
+          <Button
+            variant={showToCheckOnly ? 'primary' : 'outline-secondary'}
+            size="sm"
+            onClick={() => setShowToCheckOnly((value) => !value)}
+            aria-label="Show To Check items only"
+            aria-pressed={showToCheckOnly}
+          >
+            To Check
+          </Button>
           <Button
             variant={hideChecked ? 'primary' : 'outline-secondary'}
             size="sm"
@@ -406,104 +417,144 @@ export function ShoppingList() {
                   .filter((part) => part.text);
 
                 return (
-                  <ListGroup.Item
-                    key={rowKey}
-                    className="py-2"
-                    onPointerDown={(event) => {
-                      swipeStart.current = { key: rowKey, x: event.clientX, y: event.clientY };
-                    }}
-                    onPointerUp={(event) => {
-                      const start = swipeStart.current;
-                      swipeStart.current = null;
-                      if (
-                        start?.key === rowKey &&
-                        isLeftSwipe(event.clientX - start.x, event.clientY - start.y)
-                      ) {
-                        sendToCheck(agg.entries);
-                      }
-                    }}
-                  >
-                    <div className="d-flex align-items-start gap-2">
-                      <button
-                        type="button"
-                        className="btn p-0 d-flex align-items-center justify-content-center flex-shrink-0 mt-1"
-                        style={{
-                          width: '2.25rem',
-                          height: '2.25rem',
-                          background: 'none',
-                          border: 'none',
-                          cursor: isPending ? 'wait' : hasPersonalToken ? 'pointer' : 'default',
-                        }}
-                        onClick={() => toggleAll(agg.entries, !agg.allChecked)}
-                        disabled={isPending || !hasPersonalToken}
-                        aria-label={agg.allChecked ? `Uncheck ${foodName}` : `Check ${foodName}`}
-                        aria-pressed={agg.allChecked}
-                      >
-                        {isPending ? (
-                          <Spinner animation="border" size="sm" />
-                        ) : (
-                          <Form.Check
-                            type="checkbox"
-                            checked={agg.allChecked}
-                            readOnly
-                            tabIndex={-1}
-                            style={{ pointerEvents: 'none' }}
-                          />
-                        )}
-                      </button>
-                      <div className="flex-grow-1">
-                        {quantityParts.length > 0 && (
-                          <span className="me-1 text-muted small">
-                            {quantityParts.map((part, index) => (
-                              <span
-                                key={part.id}
-                                className={part.checked ? 'text-decoration-line-through' : ''}
-                              >
-                                {index > 0 && <span>{' + '}</span>}
-                                {part.text}
-                              </span>
-                            ))}
-                          </span>
-                        )}
-                        <span
-                          className={
-                            agg.allChecked ? 'text-decoration-line-through text-muted' : ''
-                          }
-                        >
-                          {agg.food?.id != null ? (
-                            <Link to={`/ingredient/${agg.food.id}`}>{foodName}</Link>
-                          ) : (
-                            foodName
-                          )}
-                        </span>
-                        {notes.map((note) => (
-                          <span key={note} className="text-muted small ms-1">
-                            ({note})
-                          </span>
-                        ))}
-                        {viewMode === 'category' && agg.recipes.length > 1 && (
-                          <span className="ms-2">
-                            <Badge
-                              bg="secondary"
-                              style={{ fontSize: '0.65rem', cursor: 'default' }}
-                              title={agg.recipes.join('\n')}
-                            >
-                              {agg.recipes.length} recipes
-                            </Badge>
-                          </span>
-                        )}
-                      </div>
+                  <ListGroup.Item key={rowKey} className="shopping-list-swipe-item p-0">
+                    <div className="shopping-list-swipe-shell">
                       <Button
-                        variant={isToCheck ? 'secondary' : 'outline-secondary'}
-                        size="sm"
-                        className="d-flex align-items-center gap-1 flex-shrink-0"
+                        variant="secondary"
+                        className="shopping-list-swipe-action rounded-0"
                         onClick={() => sendToCheck(agg.entries)}
                         disabled={isPending || isToCheck || !toCheckList || !hasPersonalToken}
                         aria-label={`Send ${foodName} to To Check`}
+                        tabIndex={openSwipeKey === rowKey ? 0 : -1}
                       >
                         <ArrowLeft aria-hidden="true" />
-                        <span className="d-none d-sm-inline">To Check</span>
+                        <span>To Check</span>
                       </Button>
+                      <div
+                        className="shopping-list-swipe-content d-flex align-items-start gap-2 py-2 px-3"
+                        style={{
+                          transform: `translateX(-${openSwipeKey === rowKey ? swipeOffset : 0}px)`,
+                        }}
+                        onPointerDown={(event) => {
+                          if (event.pointerType === 'mouse' && event.button !== 0) return;
+                          swipeStart.current = {
+                            key: rowKey,
+                            pointerId: event.pointerId,
+                            x: event.clientX,
+                            y: event.clientY,
+                          };
+                          event.currentTarget.setPointerCapture?.(event.pointerId);
+                        }}
+                        onPointerMove={(event) => {
+                          const start = swipeStart.current;
+                          if (start?.key !== rowKey || start.pointerId !== event.pointerId) return;
+                          const deltaX = event.clientX - start.x;
+                          const deltaY = event.clientY - start.y;
+                          if (Math.abs(deltaX) <= Math.abs(deltaY)) return;
+                          setOpenSwipeKey(rowKey);
+                          setSwipeOffset(Math.min(Math.max(-deltaX, 0), SWIPE_ACTION_WIDTH_PX));
+                        }}
+                        onPointerUp={(event) => {
+                          const start = swipeStart.current;
+                          swipeStart.current = null;
+                          if (start?.key !== rowKey || start.pointerId !== event.pointerId) return;
+                          if (isLeftSwipe(event.clientX - start.x, event.clientY - start.y)) {
+                            setOpenSwipeKey(rowKey);
+                            setSwipeOffset(SWIPE_ACTION_WIDTH_PX);
+                          } else {
+                            closeSwipeAction();
+                          }
+                        }}
+                        onPointerCancel={() => {
+                          swipeStart.current = null;
+                          closeSwipeAction();
+                        }}
+                      >
+                        <button
+                          type="button"
+                          className="btn p-0 d-flex align-items-center justify-content-center flex-shrink-0 mt-1"
+                          style={{
+                            width: '2.25rem',
+                            height: '2.25rem',
+                            background: 'none',
+                            border: 'none',
+                            cursor: isPending ? 'wait' : hasPersonalToken ? 'pointer' : 'default',
+                          }}
+                          onClick={() => toggleAll(agg.entries, !agg.allChecked)}
+                          disabled={isPending || !hasPersonalToken}
+                          aria-label={agg.allChecked ? `Uncheck ${foodName}` : `Check ${foodName}`}
+                          aria-pressed={agg.allChecked}
+                        >
+                          {isPending ? (
+                            <Spinner animation="border" size="sm" />
+                          ) : (
+                            <Form.Check
+                              type="checkbox"
+                              checked={agg.allChecked}
+                              readOnly
+                              tabIndex={-1}
+                              style={{ pointerEvents: 'none' }}
+                            />
+                          )}
+                        </button>
+                        <div className="flex-grow-1">
+                          {quantityParts.length > 0 && (
+                            <span className="me-1 text-muted small">
+                              {quantityParts.map((part, index) => (
+                                <span
+                                  key={part.id}
+                                  className={part.checked ? 'text-decoration-line-through' : ''}
+                                >
+                                  {index > 0 && <span>{' + '}</span>}
+                                  {part.text}
+                                </span>
+                              ))}
+                            </span>
+                          )}
+                          <span
+                            className={
+                              agg.allChecked ? 'text-decoration-line-through text-muted' : ''
+                            }
+                          >
+                            {agg.food?.id != null ? (
+                              <Link to={`/ingredient/${agg.food.id}`}>{foodName}</Link>
+                            ) : (
+                              foodName
+                            )}
+                          </span>
+                          {notes.map((note) => (
+                            <span key={note} className="text-muted small ms-1">
+                              ({note})
+                            </span>
+                          ))}
+                          {viewMode === 'category' && agg.recipes.length > 1 && (
+                            <span className="ms-2">
+                              <Badge
+                                bg="secondary"
+                                style={{ fontSize: '0.65rem', cursor: 'default' }}
+                                title={agg.recipes.join('\n')}
+                              >
+                                {agg.recipes.length} recipes
+                              </Badge>
+                            </span>
+                          )}
+                        </div>
+                        {!isToCheck && (
+                          <button
+                            type="button"
+                            className="shopping-list-more-action btn btn-sm btn-outline-secondary flex-shrink-0"
+                            onClick={() => {
+                              setOpenSwipeKey(rowKey);
+                              setSwipeOffset(SWIPE_ACTION_WIDTH_PX);
+                            }}
+                            disabled={isPending || !toCheckList || !hasPersonalToken}
+                            aria-label={`Show actions for ${foodName}`}
+                            aria-expanded={openSwipeKey === rowKey}
+                          >
+                            <ThreeDotsVertical aria-hidden="true" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </ListGroup.Item>
                 );
