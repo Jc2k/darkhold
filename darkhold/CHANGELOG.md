@@ -1,3 +1,10 @@
+# [1.86.0](https://github.com/Jc2k/darkhold/compare/v1.85.3...v1.86.0) (2026-05-31)
+
+
+### Features
+
+* **shopping:** streamline pending request staging ([2691b2c](https://github.com/Jc2k/darkhold/commit/2691b2c5345240df71be4409e8958728f16fd1f5))
+
 ## [1.85.3](https://github.com/Jc2k/darkhold/compare/v1.85.2...v1.85.3) (2026-05-31)
 
 
