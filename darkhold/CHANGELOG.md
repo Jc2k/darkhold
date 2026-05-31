@@ -1,3 +1,10 @@
+## [1.85.1](https://github.com/Jc2k/darkhold/compare/v1.85.0...v1.85.1) (2026-05-31)
+
+
+### Bug Fixes
+
+* **shopping:** repair global request sheet ([0b2bd60](https://github.com/Jc2k/darkhold/commit/0b2bd60819a62307f9b60eba8648e197368fb3bb))
+
 # [1.85.0](https://github.com/Jc2k/darkhold/compare/v1.84.0...v1.85.0) (2026-05-31)
 
 
