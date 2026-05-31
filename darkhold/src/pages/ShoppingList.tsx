@@ -595,13 +595,6 @@ export function ShoppingList() {
                               foodName
                             )}
                           </span>
-                          {isManualRequest && (
-                            <PencilFill
-                              className="ms-1 text-muted"
-                              aria-label="Added manually"
-                              title="Added manually"
-                            />
-                          )}
                           {notes.map((note) => (
                             <span key={note} className="text-muted small ms-1">
                               ({note})
@@ -619,6 +612,13 @@ export function ShoppingList() {
                             </span>
                           )}
                         </div>
+                        {isManualRequest && (
+                          <PencilFill
+                            className="text-muted flex-shrink-0"
+                            aria-label="Added manually"
+                            title="Added manually"
+                          />
+                        )}
                         {isToCheck && (
                           <QuestionCircleFill
                             className="shopping-list-to-check-indicator text-secondary flex-shrink-0"

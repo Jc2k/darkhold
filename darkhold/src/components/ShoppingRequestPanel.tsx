@@ -1,11 +1,12 @@
 import { useRef, useState } from 'react';
-import { Alert, Offcanvas, Spinner } from 'react-bootstrap';
+import { Alert, Button, ListGroup, Offcanvas, Spinner } from 'react-bootstrap';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { apiPost, searchFoods } from '../api/client';
 import { broadcastInvalidation } from '../hooks/useInvalidationSocket';
 import { AsyncTypeaheadFilter, type FilterOption } from './AsyncTypeaheadFilter';
 import { NoTokenAlert } from './NoTokenAlert';
+import type { ShoppingListEntry } from '../hooks/useShoppingListEntries';
 
 const SWIPE_THRESHOLD_PX = 60;
 
@@ -17,6 +18,7 @@ export function ShoppingRequestPanel() {
   const qc = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedFoods, setSelectedFoods] = useState<FilterOption[]>([]);
+  const [pendingFoods, setPendingFoods] = useState<FilterOption[]>([]);
   const [requestError, setRequestError] = useState<string | null>(null);
   const swipeStart = useRef<{ pointerId: number; x: number; y: number } | null>(null);
   const hasPersonalToken = Boolean(localStorage.getItem('tandoor_token'));
@@ -37,25 +39,42 @@ export function ShoppingRequestPanel() {
       return next;
     });
     setSelectedFoods([]);
+    setPendingFoods([]);
     setRequestError(null);
   };
 
   const addRequest = useMutation({
-    mutationFn: (food: FilterOption) =>
-      apiPost('/shopping-list-entry/', { food, amount: 1, unit: null }),
+    mutationFn: (foods: FilterOption[]) =>
+      Promise.all(
+        foods.map((food) =>
+          apiPost<ShoppingListEntry>('/shopping-list-entry/', { food, amount: 1, unit: null }),
+        ),
+      ),
     onMutate: () => setRequestError(null),
-    onSuccess: () => {
+    onSuccess: (createdEntries) => {
       setSelectedFoods([]);
+      setPendingFoods([]);
+      qc.setQueryData<ShoppingListEntry[]>(['shopping-list'], (current) => [
+        ...(current ?? []),
+        ...createdEntries,
+      ]);
       qc.invalidateQueries({ queryKey: ['shopping-list'] });
       broadcastInvalidation('shopping-list');
     },
     onError: () => setRequestError('Failed to add item. Please try again.'),
   });
 
-  const selectFood = (foods: FilterOption[]) => {
-    const food = foods[0];
-    setSelectedFoods(food ? [food] : []);
-    if (food) addRequest.mutate(food);
+  const addSelectedFood = () => {
+    const food = selectedFoods[0];
+    if (!food) return;
+    setPendingFoods((current) =>
+      current.some((pendingFood) => pendingFood.id === food.id) ? current : [...current, food],
+    );
+    setSelectedFoods([]);
+  };
+
+  const removePendingFood = (foodId: number) => {
+    setPendingFoods((current) => current.filter((food) => food.id !== foodId));
   };
 
   return (
@@ -91,10 +110,6 @@ export function ShoppingRequestPanel() {
             <Offcanvas.Title>Add shopping request</Offcanvas.Title>
           </Offcanvas.Header>
           <Offcanvas.Body>
-            <p className="text-muted small">
-              Search for a food to add it directly to your shopping list. You can adjust the amount
-              while shopping.
-            </p>
             {!hasPersonalToken && <NoTokenAlert />}
             {requestError && <Alert variant="danger">{requestError}</Alert>}
             <AsyncTypeaheadFilter
@@ -102,18 +117,60 @@ export function ShoppingRequestPanel() {
               label="Food"
               selected={selectedFoods}
               onSearch={searchFoods}
-              onChange={selectFood}
-              onRemove={close}
+              onChange={setSelectedFoods}
+              onRemove={() => setSelectedFoods([])}
               placeholder="Search foods…"
               multiple={false}
               disabled={!hasPersonalToken || addRequest.isPending}
-              removeLabel="Close food search"
+              removeLabel="Clear selected food"
             />
-            {addRequest.isPending && (
-              <div className="text-muted small d-flex align-items-center gap-2">
-                <Spinner animation="border" size="sm" /> Adding request…
-              </div>
+            <Button
+              type="button"
+              variant="outline-primary"
+              size="sm"
+              className="mb-3"
+              onClick={addSelectedFood}
+              disabled={!hasPersonalToken || addRequest.isPending || selectedFoods.length === 0}
+            >
+              Add
+            </Button>
+            {pendingFoods.length > 0 && (
+              <ListGroup className="mb-3">
+                {pendingFoods.map((food) => (
+                  <ListGroup.Item
+                    key={food.id}
+                    className="d-flex align-items-center justify-content-between gap-2"
+                  >
+                    <span>{food.name}</span>
+                    <Button
+                      type="button"
+                      variant="outline-secondary"
+                      size="sm"
+                      aria-label={`Remove ${food.name}`}
+                      onClick={() => removePendingFood(food.id)}
+                      disabled={addRequest.isPending}
+                    >
+                      ×
+                    </Button>
+                  </ListGroup.Item>
+                ))}
+              </ListGroup>
             )}
+            <Button
+              type="button"
+              variant="primary"
+              onClick={() => addRequest.mutate(pendingFoods)}
+              disabled={!hasPersonalToken || addRequest.isPending || pendingFoods.length === 0}
+            >
+              {addRequest.isPending ? (
+                <>
+                  <Spinner animation="border" size="sm" className="me-2" />
+                  Adding requests…
+                </>
+              ) : (
+                'Submit requests'
+              )}
+            </Button>
           </Offcanvas.Body>
         </Offcanvas>
       )}
