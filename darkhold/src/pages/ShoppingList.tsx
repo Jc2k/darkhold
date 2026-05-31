@@ -1,3 +1,5 @@
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faAmazon } from '@fortawesome/free-brands-svg-icons';
 import { ListGroup, Alert, Badge, Spinner, Button, ButtonGroup } from 'react-bootstrap';
 import {
   Basket3,
@@ -466,6 +468,7 @@ export function ShoppingList() {
                 ];
                 const isPending = agg.entries.some((e) => pendingIds.has(e.id));
                 const isManualRequest = agg.entries.some((entry) => !getRecipeName(entry));
+                const isAmazon = agg.entries.some((entry) => isInShoppingList(entry, 'Amazon'));
                 const rowKey =
                   agg.food?.id != null
                     ? `food-${agg.food.id}`
@@ -617,6 +620,14 @@ export function ShoppingList() {
                             className="text-muted flex-shrink-0"
                             aria-label="Added manually"
                             title="Added manually"
+                          />
+                        )}
+                        {isAmazon && (
+                          <FontAwesomeIcon
+                            icon={faAmazon}
+                            className="text-muted flex-shrink-0"
+                            aria-label="Amazon"
+                            title="Amazon"
                           />
                         )}
                         {isToCheck && (
