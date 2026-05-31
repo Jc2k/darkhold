@@ -3,16 +3,28 @@ import { createRoot } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { apiPostMock, mutateMock, useMutationMock, invalidateQueriesMock } = vi.hoisted(() => ({
+const {
+  apiPostMock,
+  mutateMock,
+  useMutationMock,
+  invalidateQueriesMock,
+  setQueryDataMock,
+  broadcastInvalidationMock,
+} = vi.hoisted(() => ({
   apiPostMock: vi.fn(),
   mutateMock: vi.fn(),
   useMutationMock: vi.fn(),
   invalidateQueriesMock: vi.fn(),
+  setQueryDataMock: vi.fn(),
+  broadcastInvalidationMock: vi.fn(),
 }));
 
 vi.mock('@tanstack/react-query', () => ({
   useMutation: useMutationMock,
-  useQueryClient: () => ({ invalidateQueries: invalidateQueriesMock }),
+  useQueryClient: () => ({
+    invalidateQueries: invalidateQueriesMock,
+    setQueryData: setQueryDataMock,
+  }),
 }));
 
 vi.mock('../api/client', () => ({
@@ -21,11 +33,23 @@ vi.mock('../api/client', () => ({
 }));
 
 vi.mock('../hooks/useInvalidationSocket', () => ({
-  broadcastInvalidation: vi.fn(),
+  broadcastInvalidation: broadcastInvalidationMock,
 }));
 
 vi.mock('./NoTokenAlert', () => ({
   NoTokenAlert: () => <div>no-token</div>,
+}));
+
+vi.mock('./AsyncTypeaheadFilter', () => ({
+  AsyncTypeaheadFilter: ({
+    onChange,
+  }: {
+    onChange: (foods: { id: number; name: string }[]) => void;
+  }) => (
+    <button type="button" onClick={() => onChange([{ id: 12, name: 'Tomatoes' }])}>
+      Select tomatoes
+    </button>
+  ),
 }));
 
 import { isUpSwipe, ShoppingRequestPanel } from './ShoppingRequestPanel';
@@ -76,7 +100,7 @@ describe('ShoppingRequestPanel', () => {
     expect(isUpSwipe(5, 80)).toBe(false);
   });
 
-  it('posts a nested food with a default amount', async () => {
+  it('posts multiple nested foods with default amounts on submit', async () => {
     apiPostMock.mockResolvedValueOnce({});
     act(() => {
       root.render(
@@ -87,16 +111,82 @@ describe('ShoppingRequestPanel', () => {
     });
 
     const addRequestMutation = useMutationMock.mock.calls[0][0] as {
-      mutationFn: (food: { id: number; name: string }) => Promise<unknown>;
+      mutationFn: (foods: { id: number; name: string }[]) => Promise<unknown>;
     };
-    await addRequestMutation.mutationFn({ id: 12, name: 'Tomatoes' });
+    await addRequestMutation.mutationFn([
+      { id: 12, name: 'Tomatoes' },
+      { id: 13, name: 'Carrots' },
+    ]);
 
     expect(apiPostMock).toHaveBeenCalledWith('/shopping-list-entry/', {
       food: { id: 12, name: 'Tomatoes' },
       amount: 1,
       unit: null,
     });
-    expect(document.body.textContent).toContain('You can adjust the amount while shopping');
+    expect(apiPostMock).toHaveBeenCalledWith('/shopping-list-entry/', {
+      food: { id: 13, name: 'Carrots' },
+      amount: 1,
+      unit: null,
+    });
+    expect(document.body.textContent).not.toContain('You can adjust the amount while shopping');
+  });
+
+  it('appends created entries to the local cache and broadcasts an invalidation', () => {
+    act(() => {
+      root.render(
+        <MemoryRouter initialEntries={['/?add=request']}>
+          <ShoppingRequestPanel />
+        </MemoryRouter>,
+      );
+    });
+
+    const addRequestMutation = useMutationMock.mock.calls[0][0] as {
+      onSuccess: (
+        entries: { id: number; food: { id: number; name: string }; checked: boolean }[],
+      ) => void;
+    };
+    const existingEntry = { id: 1, food: { id: 11, name: 'Milk' }, checked: false };
+    const createdEntry = { id: 2, food: { id: 12, name: 'Tomatoes' }, checked: false };
+
+    act(() => addRequestMutation.onSuccess([createdEntry]));
+
+    expect(setQueryDataMock).toHaveBeenCalledWith(['shopping-list'], expect.any(Function));
+    const updateCache = setQueryDataMock.mock.calls[0][1] as (
+      entries: (typeof existingEntry)[] | undefined,
+    ) => (typeof existingEntry)[];
+    expect(updateCache([existingEntry])).toEqual([existingEntry, createdEntry]);
+    expect(updateCache(undefined)).toEqual([createdEntry]);
+    expect(invalidateQueriesMock).toHaveBeenCalledWith({ queryKey: ['shopping-list'] });
+    expect(broadcastInvalidationMock).toHaveBeenCalledWith('shopping-list');
+  });
+
+  it('queues, removes, and submits selected foods explicitly', () => {
+    act(() => {
+      root.render(
+        <MemoryRouter initialEntries={['/?add=request']}>
+          <ShoppingRequestPanel />
+        </MemoryRouter>,
+      );
+    });
+
+    const findButton = (label: string) =>
+      [...document.querySelectorAll('button')].find(
+        (button) => button.textContent?.trim() === label,
+      );
+
+    act(() => findButton('Select tomatoes')?.click());
+    expect(mutateMock).not.toHaveBeenCalled();
+
+    act(() => findButton('Add')?.click());
+    expect(document.body.textContent).toContain('Tomatoes');
+
+    act(() => document.querySelector<HTMLButtonElement>('[aria-label="Remove Tomatoes"]')?.click());
+    expect(document.querySelector('[aria-label="Remove Tomatoes"]')).toBeNull();
+
+    act(() => findButton('Select tomatoes')?.click());
+    act(() => findButton('Add')?.click());
+    act(() => findButton('Submit requests')?.click());
+    expect(mutateMock).toHaveBeenCalledWith([{ id: 12, name: 'Tomatoes' }]);
   });
 
   it('renders an unlabelled iOS-style handle with an accessible name', () => {
