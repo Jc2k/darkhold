@@ -56,6 +56,20 @@ function makeFood(): Food {
   };
 }
 
+function dispatchPointer(
+  node: Element,
+  type: 'pointerdown' | 'pointermove' | 'pointerup',
+  clientX: number,
+  clientY: number,
+) {
+  const event = new MouseEvent(type, { bubbles: true, clientX, clientY });
+  Object.defineProperties(event, {
+    pointerId: { value: 1 },
+    pointerType: { value: 'touch' },
+  });
+  node.dispatchEvent(event);
+}
+
 describe('ShoppingList', () => {
   let container: HTMLDivElement;
   let root: ReturnType<typeof createRoot>;
@@ -393,6 +407,74 @@ describe('ShoppingList', () => {
     expect(hideCheckedButton?.getAttribute('aria-pressed')).toBe('false');
     expect(container.textContent).toContain('Flour');
     expect(container.textContent).toContain('Milk');
+  });
+
+  it('keeps To Check separate from the category and recipe view group', () => {
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <ShoppingList />
+        </MemoryRouter>,
+      );
+    });
+
+    const toCheckButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Show To Check items only"]',
+    );
+    const viewGroup = container.querySelector('[aria-label="Shopping list view"]');
+
+    expect(viewGroup?.querySelectorAll('button')).toHaveLength(2);
+    expect(toCheckButton?.closest('.btn-group')).toBeNull();
+  });
+
+  it('reveals the To Check action after swiping an item left', () => {
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <ShoppingList />
+        </MemoryRouter>,
+      );
+    });
+
+    const rowContent = container.querySelector('.shopping-list-swipe-content');
+    const action = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Send Flour to To Check"]',
+    );
+
+    expect(action?.tabIndex).toBe(-1);
+    act(() => {
+      dispatchPointer(rowContent!, 'pointerdown', 140, 10);
+      dispatchPointer(rowContent!, 'pointermove', 50, 12);
+      dispatchPointer(rowContent!, 'pointerup', 50, 12);
+    });
+
+    expect(action?.tabIndex).toBe(0);
+    expect((rowContent as HTMLDivElement).style.transform).toBe('translateX(-104px)');
+  });
+
+  it('reveals the To Check action from the compact non-touch fallback', () => {
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <ShoppingList />
+        </MemoryRouter>,
+      );
+    });
+
+    const moreButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Show actions for Flour"]',
+    );
+    const action = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Send Flour to To Check"]',
+    );
+
+    expect(moreButton).toBeTruthy();
+    expect(action?.tabIndex).toBe(-1);
+    act(() => {
+      moreButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(moreButton?.getAttribute('aria-expanded')).toBe('true');
+    expect(action?.tabIndex).toBe(0);
   });
 
   it('filters the view to entries assigned to To Check', () => {
