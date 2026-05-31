@@ -1,3 +1,10 @@
+## [1.83.3](https://github.com/Jc2k/darkhold/compare/v1.83.2...v1.83.3) (2026-05-31)
+
+
+### Bug Fixes
+
+* **cache:** refresh local and remote mutation caches ([85a6ab9](https://github.com/Jc2k/darkhold/commit/85a6ab9dca647e50759e7ab3326dc3878c127936))
+
 ## [1.83.2](https://github.com/Jc2k/darkhold/compare/v1.83.1...v1.83.2) (2026-05-31)
 
 
