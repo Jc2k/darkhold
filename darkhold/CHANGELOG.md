@@ -1,3 +1,10 @@
+## [1.85.2](https://github.com/Jc2k/darkhold/compare/v1.85.1...v1.85.2) (2026-05-31)
+
+
+### Bug Fixes
+
+* **shopping-list:** update cache after manual request submit ([d35ac96](https://github.com/Jc2k/darkhold/commit/d35ac96e2dcd788008dc18942c13e64c5fbc74d5))
+
 ## [1.85.1](https://github.com/Jc2k/darkhold/compare/v1.85.0...v1.85.1) (2026-05-31)
 
 
