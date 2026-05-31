@@ -43,7 +43,7 @@ vi.mock('../components/NoTokenAlert', () => ({
   NoTokenAlert: () => <div>no-token</div>,
 }));
 
-import { apiGet, apiPost } from '../api/client';
+import { apiGet } from '../api/client';
 import {
   ShoppingList,
   addShoppingListToEntries,
@@ -53,7 +53,6 @@ import {
   isInShoppingList,
   isLeftSwipe,
   isRightSwipe,
-  isUpSwipe,
   removeShoppingListEntries,
   updateShoppingListEntries,
 } from './ShoppingList';
@@ -145,37 +144,6 @@ describe('ShoppingList', () => {
     delete actGlobal.IS_REACT_ACT_ENVIRONMENT;
     vi.unstubAllGlobals();
     vi.clearAllMocks();
-  });
-
-  it('detects upward swipes beyond the movement threshold', () => {
-    expect(isUpSwipe(5, -60)).toBe(true);
-    expect(isUpSwipe(5, -59)).toBe(false);
-    expect(isUpSwipe(100, -80)).toBe(false);
-    expect(isUpSwipe(5, 80)).toBe(false);
-  });
-
-  it('posts a manual request without quantity or unit', async () => {
-    const apiPostMock = vi.mocked(apiPost);
-    apiPostMock.mockResolvedValueOnce({});
-    act(() => {
-      root.render(
-        <MemoryRouter initialEntries={['/shopping?add=request']}>
-          <ShoppingList />
-        </MemoryRouter>,
-      );
-    });
-
-    const addRequestMutation = useMutationMock.mock.calls[0][0] as {
-      mutationFn: (food: { id: number; name: string }) => Promise<unknown>;
-    };
-    await addRequestMutation.mutationFn({ id: 12, name: 'Tomatoes' });
-
-    expect(apiPostMock).toHaveBeenCalledWith('/shopping-list-entry/', {
-      food: 12,
-      amount: null,
-      unit: null,
-    });
-    expect(document.body.textContent).toContain('Quantity and unit are left blank');
   });
 
   it('marks manual requests with a pencil and groups them first in recipe view', () => {

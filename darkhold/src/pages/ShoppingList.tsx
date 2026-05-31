@@ -1,22 +1,20 @@
-import { ListGroup, Alert, Badge, Spinner, Button, ButtonGroup, Offcanvas } from 'react-bootstrap';
+import { ListGroup, Alert, Badge, Spinner, Button, ButtonGroup } from 'react-bootstrap';
 import {
   Basket3,
   Basket3Fill,
   Cart4,
-  ChevronUp,
   Eyeglasses,
   PencilFill,
   PlusCircle,
   QuestionCircleFill,
   Trash3Fill,
 } from 'react-bootstrap-icons';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiPatch, apiDelete, apiGet, apiPost, searchFoods } from '../api/client';
+import { apiPatch, apiDelete, apiGet, apiPost } from '../api/client';
 import { broadcastInvalidation } from '../hooks/useInvalidationSocket';
 import type { Food, ShoppingList as TandoorShoppingList } from '../api/tandoor-types';
-import { AsyncTypeaheadFilter, type FilterOption } from '../components/AsyncTypeaheadFilter';
 import { LoadingMascot } from '../components/LoadingMascot';
 import { NoTokenAlert } from '../components/NoTokenAlert';
 import { formatFraction } from '../utils/fractions';
@@ -39,10 +37,6 @@ const TOOLBAR_BUTTON_STYLE = { minHeight: 44, padding: '0 1rem' };
 
 export function isInShoppingList(entry: ShoppingEntry, listName: string): boolean {
   return entry.shopping_lists?.some((list) => list.name === listName) ?? false;
-}
-
-export function isUpSwipe(deltaX: number, deltaY: number): boolean {
-  return deltaY <= -SWIPE_THRESHOLD_PX && Math.abs(deltaY) > Math.abs(deltaX);
 }
 
 export function isLeftSwipe(deltaX: number, deltaY: number): boolean {
@@ -195,7 +189,6 @@ function groupByRecipe(entries: ShoppingEntry[]): Record<string, ShoppingEntry[]
 
 export function ShoppingList() {
   const qc = useQueryClient();
-  const [searchParams, setSearchParams] = useSearchParams();
   const [pendingIds, setPendingIds] = useState<Set<number>>(new Set());
   const [isClearing, setIsClearing] = useState(false);
   const [clearError, setClearError] = useState<string | null>(null);
@@ -205,9 +198,6 @@ export function ShoppingList() {
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [viewMode, setViewMode] = useState<'category' | 'recipe'>('category');
   const [filter, setFilter] = useState<'to-check' | 'to-buy' | null>(null);
-  const [selectedRequestFoods, setSelectedRequestFoods] = useState<FilterOption[]>([]);
-  const [requestError, setRequestError] = useState<string | null>(null);
-  const requestSwipeStart = useRef<{ pointerId: number; x: number; y: number } | null>(null);
   const hasPersonalToken = Boolean(localStorage.getItem('tandoor_token'));
 
   const { data, isLoading, isError } = useQuery({
@@ -220,44 +210,6 @@ export function ShoppingList() {
     queryFn: () => apiPost<TandoorShoppingList>('/shopping-list/', { name: TO_CHECK_LIST_NAME }),
     enabled: hasPersonalToken,
   });
-
-  const isRequestPanelOpen = searchParams.get('add') === 'request';
-
-  const openRequestPanel = () => {
-    setSearchParams((current) => {
-      const next = new URLSearchParams(current);
-      next.set('add', 'request');
-      return next;
-    });
-  };
-
-  const closeRequestPanel = () => {
-    setSearchParams((current) => {
-      const next = new URLSearchParams(current);
-      next.delete('add');
-      return next;
-    });
-    setSelectedRequestFoods([]);
-    setRequestError(null);
-  };
-
-  const addRequest = useMutation({
-    mutationFn: (food: FilterOption) =>
-      apiPost('/shopping-list-entry/', { food: food.id, amount: null, unit: null }),
-    onMutate: () => setRequestError(null),
-    onSuccess: () => {
-      setSelectedRequestFoods([]);
-      qc.invalidateQueries({ queryKey: ['shopping-list'] });
-      broadcastInvalidation('shopping-list');
-    },
-    onError: () => setRequestError('Failed to add item. Please try again.'),
-  });
-
-  const selectRequestFood = (foods: FilterOption[]) => {
-    const food = foods[0];
-    setSelectedRequestFoods(food ? [food] : []);
-    if (food) addRequest.mutate(food);
-  };
 
   type UpdateEntriesVariables = {
     entries: ShoppingEntry[];
@@ -369,74 +321,6 @@ export function ShoppingList() {
       });
   };
 
-  const manualRequestUi = (
-    <>
-      <button
-        type="button"
-        className="shopping-list-request-handle"
-        aria-label="Swipe up or tap to add a shopping request"
-        onClick={openRequestPanel}
-        onPointerDown={(event) => {
-          requestSwipeStart.current = {
-            pointerId: event.pointerId,
-            x: event.clientX,
-            y: event.clientY,
-          };
-          event.currentTarget.setPointerCapture?.(event.pointerId);
-        }}
-        onPointerUp={(event) => {
-          const start = requestSwipeStart.current;
-          requestSwipeStart.current = null;
-          if (!start || start.pointerId !== event.pointerId) return;
-          if (isUpSwipe(event.clientX - start.x, event.clientY - start.y)) openRequestPanel();
-        }}
-        onPointerCancel={() => {
-          requestSwipeStart.current = null;
-        }}
-      >
-        <ChevronUp aria-hidden="true" />
-        <span>Add request</span>
-      </button>
-      {isRequestPanelOpen && (
-        <Offcanvas
-          show
-          onHide={closeRequestPanel}
-          placement="bottom"
-          className="shopping-list-request-panel"
-        >
-          <Offcanvas.Header closeButton>
-            <Offcanvas.Title>Add shopping request</Offcanvas.Title>
-          </Offcanvas.Header>
-          <Offcanvas.Body>
-            <p className="text-muted small">
-              Search for a food to add it directly to your shopping list. Quantity and unit are left
-              blank so you can decide how much to buy.
-            </p>
-            {!hasPersonalToken && <NoTokenAlert />}
-            {requestError && <Alert variant="danger">{requestError}</Alert>}
-            <AsyncTypeaheadFilter
-              id="shopping-list-request-food"
-              label="Food"
-              selected={selectedRequestFoods}
-              onSearch={searchFoods}
-              onChange={selectRequestFood}
-              onRemove={closeRequestPanel}
-              placeholder="Search foods…"
-              multiple={false}
-              disabled={!hasPersonalToken || addRequest.isPending}
-              removeLabel="Close food search"
-            />
-            {addRequest.isPending && (
-              <div className="text-muted small d-flex align-items-center gap-2">
-                <Spinner animation="border" size="sm" /> Adding request…
-              </div>
-            )}
-          </Offcanvas.Body>
-        </Offcanvas>
-      )}
-    </>
-  );
-
   if (isLoading && !data) {
     return <LoadingMascot />;
   }
@@ -461,7 +345,6 @@ export function ShoppingList() {
         <p className="text-muted text-center">
           Your shopping list is empty! Add recipes to your meal plan or add a shopping request.
         </p>
-        {manualRequestUi}
       </div>
     );
   }
@@ -475,7 +358,6 @@ export function ShoppingList() {
 
   return (
     <div className="pt-2">
-      {manualRequestUi}
       {!hasPersonalToken && <NoTokenAlert />}
       <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-1">
         <div className="d-flex flex-wrap align-items-center gap-2">

@@ -20,6 +20,7 @@ import {
 } from 'react-bootstrap-icons';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import { useInvalidationSocket } from '../hooks/useInvalidationSocket';
+import { ShoppingRequestPanel } from './ShoppingRequestPanel';
 
 const navItems = [
   { to: '/dashboard', Icon: RocketTakeoff, label: 'Dashboard' },
@@ -117,6 +118,8 @@ export function Layout() {
       <Container fluid className="flex-grow-1 py-3 pb-md-3 page-content">
         <Outlet />
       </Container>
+
+      <ShoppingRequestPanel />
 
       {/* Bottom tab bar - mobile */}
       <nav
