@@ -1,3 +1,10 @@
+## [1.88.1](https://github.com/Jc2k/darkhold/compare/v1.88.0...v1.88.1) (2026-05-31)
+
+
+### Bug Fixes
+
+* **shopping:** hide unitless manual quantities ([d277b49](https://github.com/Jc2k/darkhold/commit/d277b490c8902295c78dca73268b8be2b58606a6))
+
 # [1.88.0](https://github.com/Jc2k/darkhold/compare/v1.87.0...v1.88.0) (2026-05-31)
 
 
