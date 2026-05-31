@@ -1,36 +1,19 @@
-# Rsbuild project
+# Darkhold
 
-## Setup
+Darkhold is a React frontend and Deno backend for a Home Assistant add-on that integrates with Tandoor.
 
-Install the dependencies:
+## Development
 
-```bash
-deno install
-```
-
-## Get started
-
-Start the dev server, and the app will be available at [http://localhost:3000](http://localhost:3000).
+Bootstrap the shared local and cloud-agent development environment from the repository root:
 
 ```bash
+./setup.sh
+cd darkhold
 deno task dev
 ```
 
-Build the app for production:
+The app will be available at [http://localhost:3000](http://localhost:3000). See [DEVELOPMENT.md](DEVELOPMENT.md) for Codex cloud, GitHub Copilot coding agent, and troubleshooting guidance.
 
-```bash
-deno task build
-```
+## Configuration
 
-Preview the production build locally:
-
-```bash
-deno task preview
-```
-
-## Learn more
-
-To learn more about Rsbuild, check out the following resources:
-
-- [Rsbuild documentation](https://rsbuild.rs) - explore Rsbuild features and APIs.
-- [Rsbuild GitHub repository](https://github.com/web-infra-dev/rsbuild) - your feedback and contributions are welcome!
+See [CONFIGURATION.md](CONFIGURATION.md) for Home Assistant add-on setup and application configuration.
