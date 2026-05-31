@@ -1,3 +1,10 @@
+## [1.83.2](https://github.com/Jc2k/darkhold/compare/v1.83.1...v1.83.2) (2026-05-31)
+
+
+### Bug Fixes
+
+* **shopping-list:** simplify shopping list controls ([03a99e2](https://github.com/Jc2k/darkhold/commit/03a99e262c3f089a039883335c7321ffe7bce1da))
+
 ## [1.83.1](https://github.com/Jc2k/darkhold/compare/v1.83.0...v1.83.1) (2026-05-31)
 
 
