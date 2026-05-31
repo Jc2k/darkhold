@@ -69,6 +69,12 @@
 }
 
 @media (hover: none) {
+  .btn:hover {
+    background-color: var(--bs-btn-bg);
+    border-color: var(--bs-btn-border-color);
+    color: var(--bs-btn-color);
+  }
+
   .list-group-item-action:hover,
   .list-group-item-action:focus,
   .list-group-item-action:active {
