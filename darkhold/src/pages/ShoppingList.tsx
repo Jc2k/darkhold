@@ -23,6 +23,7 @@ export { fetchAllShoppingListEntries } from '../hooks/useShoppingListEntries';
 const TO_CHECK_LIST_NAME = 'To Check';
 const SWIPE_THRESHOLD_PX = 60;
 const SWIPE_ACTION_WIDTH_PX = 104;
+const FULL_SWIPE_THRESHOLD_PX = SWIPE_ACTION_WIDTH_PX * 2;
 
 export function isInShoppingList(entry: ShoppingEntry, listName: string): boolean {
   return entry.shopping_lists?.some((list) => list.name === listName) ?? false;
@@ -30,6 +31,10 @@ export function isInShoppingList(entry: ShoppingEntry, listName: string): boolea
 
 export function isLeftSwipe(deltaX: number, deltaY: number): boolean {
   return deltaX <= -SWIPE_THRESHOLD_PX && Math.abs(deltaX) > Math.abs(deltaY);
+}
+
+export function isFullLeftSwipe(deltaX: number, deltaY: number): boolean {
+  return deltaX <= -FULL_SWIPE_THRESHOLD_PX && Math.abs(deltaX) > Math.abs(deltaY);
 }
 
 export function addShoppingListToEntries(
@@ -421,7 +426,17 @@ export function ShoppingList() {
                     <div className="shopping-list-swipe-shell">
                       <Button
                         variant="secondary"
-                        className="shopping-list-swipe-action rounded-0"
+                        className={`shopping-list-swipe-action rounded-0${
+                          openSwipeKey === rowKey && swipeOffset >= FULL_SWIPE_THRESHOLD_PX
+                            ? ' shopping-list-swipe-action-ready'
+                            : ''
+                        }`}
+                        style={{
+                          width:
+                            openSwipeKey === rowKey
+                              ? Math.max(swipeOffset, SWIPE_ACTION_WIDTH_PX)
+                              : SWIPE_ACTION_WIDTH_PX,
+                        }}
                         onClick={() => sendToCheck(agg.entries)}
                         disabled={isPending || isToCheck || !toCheckList || !hasPersonalToken}
                         aria-label={`Send ${foodName} to To Check`}
@@ -452,13 +467,17 @@ export function ShoppingList() {
                           const deltaY = event.clientY - start.y;
                           if (Math.abs(deltaX) <= Math.abs(deltaY)) return;
                           setOpenSwipeKey(rowKey);
-                          setSwipeOffset(Math.min(Math.max(-deltaX, 0), SWIPE_ACTION_WIDTH_PX));
+                          setSwipeOffset(Math.max(-deltaX, 0));
                         }}
                         onPointerUp={(event) => {
                           const start = swipeStart.current;
                           swipeStart.current = null;
                           if (start?.key !== rowKey || start.pointerId !== event.pointerId) return;
-                          if (isLeftSwipe(event.clientX - start.x, event.clientY - start.y)) {
+                          const deltaX = event.clientX - start.x;
+                          const deltaY = event.clientY - start.y;
+                          if (isFullLeftSwipe(deltaX, deltaY)) {
+                            sendToCheck(agg.entries);
+                          } else if (isLeftSwipe(deltaX, deltaY)) {
                             setOpenSwipeKey(rowKey);
                             setSwipeOffset(SWIPE_ACTION_WIDTH_PX);
                           } else {

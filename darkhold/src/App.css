@@ -392,6 +392,13 @@ body {
   gap: 0.1rem;
   border: 0;
   font-size: 0.75rem;
+  transition:
+    width 180ms ease-out,
+    filter 120ms ease-in-out;
+}
+
+.shopping-list-swipe-action-ready {
+  filter: brightness(0.85);
 }
 
 .shopping-list-more-action {
