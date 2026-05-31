@@ -19,7 +19,7 @@ The setup script:
 3. Installs frontend dependencies with `npm ci --legacy-peer-deps`.
 4. Caches the Deno server dependency graph so cloud-agent tasks do not need network access after setup.
 
-The default installation directory is `$HOME/.local/bin`, which is already on the standard Codex cloud path. If you override `DENO_INSTALL`, add `$DENO_INSTALL/bin` to your shell `PATH` before running the script and in future shells.
+The default installation directory is `$HOME/.local/bin`. Because Codex cloud runs setup in a separate shell from the task agent, the script also adds the selected `$DENO_INSTALL/bin` directory to `~/.bashrc` so Deno remains available to later task shells. When Codex exposes its proxy CA through `$CODEX_PROXY_CERT`, the script maps that file to Deno's `$DENO_CERT` setting and persists it too, allowing Deno to fetch npm metadata through the cloud proxy. GitHub Actions receives the Deno binary path through `$GITHUB_PATH`. If you override `DENO_INSTALL` for an existing local shell, start a new Bash shell or source `~/.bashrc` before invoking Deno from that shell.
 
 ## Codex cloud
 
