@@ -1,3 +1,10 @@
+# [1.87.0](https://github.com/Jc2k/darkhold/compare/v1.86.0...v1.87.0) (2026-05-31)
+
+
+### Features
+
+* **shopping-list:** show amazon list icon ([05638c8](https://github.com/Jc2k/darkhold/commit/05638c83120aed3b0d1e5d99bb7e4275a3e09500))
+
 # [1.86.0](https://github.com/Jc2k/darkhold/compare/v1.85.3...v1.86.0) (2026-05-31)
 
 
