@@ -1,3 +1,10 @@
+# [1.88.0](https://github.com/Jc2k/darkhold/compare/v1.87.0...v1.88.0) (2026-05-31)
+
+
+### Features
+
+* **shopping-list:** allow ad-hoc shopping requests ([a7fc952](https://github.com/Jc2k/darkhold/commit/a7fc952a0abfb232bb30f9dffc094d7b54502c8a))
+
 # [1.87.0](https://github.com/Jc2k/darkhold/compare/v1.86.0...v1.87.0) (2026-05-31)
 
 
