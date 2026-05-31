@@ -187,6 +187,36 @@ describe('ShoppingList', () => {
     expect(text.indexOf('Requests')).toBeLessThan(text.indexOf('Cake'));
   });
 
+  it('marks foods assigned to the Amazon shopping list with an Amazon icon', () => {
+    useQueryMock.mockImplementation(({ queryKey }: { queryKey: string[] }) => {
+      if (queryKey[0] === 'shopping-list') {
+        return {
+          data: [
+            {
+              id: 1,
+              food: makeFood(),
+              checked: false,
+              shopping_lists: [{ id: 8, name: 'Amazon' }],
+            },
+          ],
+          isLoading: false,
+          isError: false,
+        };
+      }
+      return { data: { id: 7, name: 'To Check' }, isLoading: false, isError: false };
+    });
+
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <ShoppingList />
+        </MemoryRouter>,
+      );
+    });
+
+    expect(container.querySelector('[aria-label="Amazon"]')).toBeTruthy();
+  });
+
   it('detects horizontal left swipes beyond the movement threshold', () => {
     expect(isLeftSwipe(-60, 5)).toBe(true);
     expect(isLeftSwipe(-59, 5)).toBe(false);
