@@ -334,7 +334,6 @@ export function ShoppingList() {
       {!hasPersonalToken && <NoTokenAlert />}
       <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-1">
         <div className="d-flex flex-wrap align-items-center gap-2">
-          <span className="text-muted small">View</span>
           <ButtonGroup size="sm" aria-label="Shopping list view">
             <Button
               variant={viewMode === 'category' ? 'primary' : 'outline-secondary'}
@@ -353,7 +352,6 @@ export function ShoppingList() {
               Recipe
             </Button>
           </ButtonGroup>
-          <span className="text-muted small ms-1">Filters</span>
           <ButtonGroup size="sm" aria-label="Shopping list filters">
             <Button
               variant={filter === 'to-check' ? 'primary' : 'outline-secondary'}
@@ -392,8 +390,7 @@ export function ShoppingList() {
       </div>
       <p className="text-muted small mb-3">
         {remainingCount} item{remainingCount !== 1 ? 's' : ''} remaining of {entries.length} item
-        {entries.length !== 1 ? 's' : ''}. Swipe right to mark an item bought, or left to toggle To
-        Check.
+        {entries.length !== 1 ? 's' : ''}. Swipe left to toggle To Check.
       </p>
       {clearError && (
         <Alert variant="danger" dismissible onClose={() => setClearError(null)}>
@@ -483,7 +480,7 @@ export function ShoppingList() {
                         tabIndex={openSwipeKey === rowKey && swipeOffset < 0 ? 0 : -1}
                       >
                         <QuestionCircleFill aria-hidden="true" />
-                        <span>{isToCheck ? 'Return' : 'To Check'}</span>
+                        <span>{isToCheck ? 'To Buy' : 'To Check'}</span>
                       </Button>
                       <div
                         className="shopping-list-swipe-content d-flex align-items-center gap-2 py-2 px-3"
