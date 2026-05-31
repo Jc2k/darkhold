@@ -605,7 +605,7 @@ describe('ShoppingList', () => {
     expect(toBuyButton?.querySelector('.bi-basket3')).not.toBeNull();
     expect(toCheckButton?.querySelector('.bi-eyeglasses')).not.toBeNull();
     expect(
-      container.querySelector('button[aria-label="Clear shopping list"] .bi-trash3-fill'),
+      container.querySelector('button[aria-label="Clear shopping list"] .bi-trash3'),
     ).not.toBeNull();
 
     act(() => {

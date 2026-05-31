@@ -9,7 +9,7 @@ import {
   PencilFill,
   PlusCircle,
   QuestionCircleFill,
-  Trash3Fill,
+  Trash3,
 } from 'react-bootstrap-icons';
 import { Link } from 'react-router-dom';
 import { useRef, useState } from 'react';
@@ -423,7 +423,7 @@ export function ShoppingList() {
               Clearing…
             </>
           ) : (
-            <Trash3Fill aria-hidden="true" />
+            <Trash3 aria-hidden="true" />
           )}
         </Button>
       </div>
