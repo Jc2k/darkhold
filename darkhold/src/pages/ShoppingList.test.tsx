@@ -478,6 +478,8 @@ describe('ShoppingList', () => {
     const filterGroup = container.querySelector('[aria-label="Shopping list filters"]');
     expect(viewGroup?.querySelectorAll('button')).toHaveLength(2);
     expect(filterGroup?.querySelectorAll('button')).toHaveLength(2);
+    expect(viewGroup?.previousElementSibling).toBeNull();
+    expect(filterGroup?.previousElementSibling).toBe(viewGroup);
     expect(toCheckButton?.closest('.btn-group')).toBe(filterGroup);
 
     const toBuyButton = filterGroup?.querySelector<HTMLButtonElement>(
@@ -489,6 +491,52 @@ describe('ShoppingList', () => {
     });
     expect(toCheckButton?.getAttribute('aria-pressed')).toBe('false');
     expect(toBuyButton?.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('shows concise swipe guidance without the bought instruction', () => {
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <ShoppingList />
+        </MemoryRouter>,
+      );
+    });
+
+    expect(container.textContent).toContain('Swipe left to toggle To Check.');
+    expect(container.textContent).not.toContain('Swipe right to mark an item bought');
+  });
+
+  it('labels the swipe action for a To Check item as To Buy', () => {
+    useQueryMock.mockImplementation(({ queryKey }: { queryKey: string[] }) => {
+      if (queryKey[0] === 'shopping-list') {
+        return {
+          data: [
+            {
+              id: 11,
+              food: makeFood(),
+              checked: false,
+              shopping_lists: [{ id: 7, name: 'To Check' }],
+            },
+          ],
+          isLoading: false,
+          isError: false,
+        };
+      }
+      return { data: { id: 7, name: 'To Check' }, isLoading: false, isError: false };
+    });
+
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <ShoppingList />
+        </MemoryRouter>,
+      );
+    });
+
+    const action = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Return Flour from To Check"]',
+    );
+    expect(action?.textContent).toBe('To Buy');
   });
 
   it('reveals the To Check action after swiping an item left', () => {
