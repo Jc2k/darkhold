@@ -493,7 +493,7 @@ describe('ShoppingList', () => {
     expect(toBuyButton?.getAttribute('aria-pressed')).toBe('true');
   });
 
-  it('shows concise swipe guidance without the bought instruction', () => {
+  it('does not show swipe guidance', () => {
     act(() => {
       root.render(
         <MemoryRouter>
@@ -502,7 +502,7 @@ describe('ShoppingList', () => {
       );
     });
 
-    expect(container.textContent).toContain('Swipe left to toggle To Check.');
+    expect(container.textContent).not.toContain('Swipe left to toggle To Check.');
     expect(container.textContent).not.toContain('Swipe right to mark an item bought');
   });
 

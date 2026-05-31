@@ -24,6 +24,7 @@ const TO_CHECK_LIST_NAME = 'To Check';
 const SWIPE_THRESHOLD_PX = 60;
 const SWIPE_ACTION_WIDTH_PX = 104;
 const FULL_SWIPE_THRESHOLD_PX = SWIPE_ACTION_WIDTH_PX * 2;
+const TOOLBAR_BUTTON_STYLE = { minHeight: 44, padding: '0 1rem' };
 
 export function isInShoppingList(entry: ShoppingEntry, listName: string): boolean {
   return entry.shopping_lists?.some((list) => list.name === listName) ?? false;
@@ -334,9 +335,10 @@ export function ShoppingList() {
       {!hasPersonalToken && <NoTokenAlert />}
       <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-1">
         <div className="d-flex flex-wrap align-items-center gap-2">
-          <ButtonGroup size="sm" aria-label="Shopping list view">
+          <ButtonGroup aria-label="Shopping list view">
             <Button
               variant={viewMode === 'category' ? 'primary' : 'outline-secondary'}
+              style={TOOLBAR_BUTTON_STYLE}
               onClick={() => setViewMode('category')}
               aria-label="Show category groups"
               aria-pressed={viewMode === 'category'}
@@ -345,6 +347,7 @@ export function ShoppingList() {
             </Button>
             <Button
               variant={viewMode === 'recipe' ? 'primary' : 'outline-secondary'}
+              style={TOOLBAR_BUTTON_STYLE}
               onClick={() => setViewMode('recipe')}
               aria-label="Show recipe groups"
               aria-pressed={viewMode === 'recipe'}
@@ -352,9 +355,10 @@ export function ShoppingList() {
               Recipe
             </Button>
           </ButtonGroup>
-          <ButtonGroup size="sm" aria-label="Shopping list filters">
+          <ButtonGroup aria-label="Shopping list filters">
             <Button
               variant={filter === 'to-check' ? 'primary' : 'outline-secondary'}
+              style={TOOLBAR_BUTTON_STYLE}
               onClick={() => setFilter((value) => (value === 'to-check' ? null : 'to-check'))}
               aria-label="Show To Check items only"
               aria-pressed={filter === 'to-check'}
@@ -363,6 +367,7 @@ export function ShoppingList() {
             </Button>
             <Button
               variant={filter === 'to-buy' ? 'primary' : 'outline-secondary'}
+              style={TOOLBAR_BUTTON_STYLE}
               onClick={() => setFilter((value) => (value === 'to-buy' ? null : 'to-buy'))}
               aria-label="Show To Buy items only"
               aria-pressed={filter === 'to-buy'}
@@ -373,7 +378,7 @@ export function ShoppingList() {
         </div>
         <Button
           variant="outline-danger"
-          size="sm"
+          style={TOOLBAR_BUTTON_STYLE}
           onClick={() => clearAll(entries)}
           disabled={isClearing || !hasPersonalToken}
           aria-label="Clear shopping list"
@@ -390,7 +395,7 @@ export function ShoppingList() {
       </div>
       <p className="text-muted small mb-3">
         {remainingCount} item{remainingCount !== 1 ? 's' : ''} remaining of {entries.length} item
-        {entries.length !== 1 ? 's' : ''}. Swipe left to toggle To Check.
+        {entries.length !== 1 ? 's' : ''}.
       </p>
       {clearError && (
         <Alert variant="danger" dismissible onClose={() => setClearError(null)}>
