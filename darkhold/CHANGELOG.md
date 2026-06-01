@@ -1,3 +1,10 @@
+## [1.88.6](https://github.com/Jc2k/darkhold/compare/v1.88.5...v1.88.6) (2026-06-01)
+
+
+### Bug Fixes
+
+* **settings:** identify connected tandoor user ([bef275c](https://github.com/Jc2k/darkhold/commit/bef275cb13adc66510783d72dc11d531b1cb4d27))
+
 ## [1.88.5](https://github.com/Jc2k/darkhold/compare/v1.88.4...v1.88.5) (2026-06-01)
 
 
