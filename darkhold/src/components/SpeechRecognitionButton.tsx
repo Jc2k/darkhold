@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Button } from 'react-bootstrap';
-import { Mic, MicFill, StopCircle } from 'react-bootstrap-icons';
+import { Alert, Button, Spinner } from 'react-bootstrap';
+import { MicFill } from 'react-bootstrap-icons';
 
 type SpeechRecognitionResultEvent = Event & {
   resultIndex: number;
@@ -90,7 +90,7 @@ export function SpeechRecognitionButton({
     setError(null);
     const recognition = new SpeechRecognition();
     recognition.continuous = false;
-    recognition.interimResults = false;
+    recognition.interimResults = true;
     recognition.lang = navigator.language;
     recognition.maxAlternatives = 1;
     recognition.onresult = (event) => {
@@ -119,25 +119,20 @@ export function SpeechRecognitionButton({
   };
 
   return (
-    <div className="mb-3">
+    <>
       <Button
         type="button"
-        variant={isListening ? 'danger' : 'outline-primary'}
+        variant="danger"
         size="sm"
         onClick={isListening ? stopListening : startListening}
         disabled={disabled}
         aria-pressed={isListening}
+        aria-label={isListening ? 'Stop voice input' : 'Add item with voice'}
       >
         {isListening ? (
-          <>
-            <StopCircle className="me-2" aria-hidden="true" />
-            Stop listening
-          </>
+          <Spinner animation="border" size="sm" aria-hidden="true" />
         ) : (
-          <>
-            <Mic className="me-2" aria-hidden="true" />
-            Add item with voice
-          </>
+          <MicFill aria-hidden="true" />
         )}
       </Button>
       <span className="visually-hidden" aria-live="polite">
@@ -154,6 +149,6 @@ export function SpeechRecognitionButton({
           {error}
         </Alert>
       )}
-    </div>
+    </>
   );
 }

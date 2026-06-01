@@ -68,9 +68,9 @@ describe('SpeechRecognitionButton', () => {
     const recognition = MockSpeechRecognition.instances[0];
     expect(recognition.start).toHaveBeenCalledOnce();
     expect(recognition.continuous).toBe(false);
-    expect(recognition.interimResults).toBe(false);
+    expect(recognition.interimResults).toBe(true);
     expect(recognition.maxAlternatives).toBe(1);
-    expect(container.textContent).toContain('Stop listening');
+    expect(container.textContent).not.toContain('Add item with voice');
 
     act(() =>
       recognition.onresult?.({
@@ -81,7 +81,7 @@ describe('SpeechRecognitionButton', () => {
 
     expect(onResult).toHaveBeenCalledWith('Milk');
     expect(recognition.stop).toHaveBeenCalledOnce();
-    expect(container.textContent).toContain('Add item with voice');
+    expect(container.textContent).not.toContain('Listening for one shopping item');
   });
 
   it('stops listening and shows a useful message when microphone access is denied', () => {

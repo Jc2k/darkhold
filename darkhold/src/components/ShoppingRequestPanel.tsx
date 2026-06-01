@@ -152,21 +152,27 @@ export function ShoppingRequestPanel() {
           <Offcanvas.Body>
             {!hasPersonalToken && <NoTokenAlert />}
             {requestError && <Alert variant="danger">{requestError}</Alert>}
-            <AsyncTypeaheadFilter
-              id="shopping-list-request-food"
-              label="Food"
-              selected={selectedFoods}
-              onSearch={searchFoods}
-              onChange={stageSelectedFoods}
-              placeholder="Search foods…"
-              multiple={false}
-              disabled={!hasPersonalToken || addRequest.isPending}
-              allowNew
-            />
-            <SpeechRecognitionButton
-              disabled={!hasPersonalToken || addRequest.isPending}
-              onResult={stageSpokenFood}
-            />
+            <div className="d-flex align-items-end gap-2 mb-2">
+              <div className="flex-grow-1">
+                <AsyncTypeaheadFilter
+                  id="shopping-list-request-food"
+                  label="Food"
+                  selected={selectedFoods}
+                  onSearch={searchFoods}
+                  onChange={stageSelectedFoods}
+                  placeholder="Search foods…"
+                  multiple={false}
+                  disabled={!hasPersonalToken || addRequest.isPending}
+                  allowNew
+                />
+              </div>
+              <div className="flex-shrink-0">
+                <SpeechRecognitionButton
+                  disabled={!hasPersonalToken || addRequest.isPending}
+                  onResult={stageSpokenFood}
+                />
+              </div>
+            </div>
             {pendingFoods.length > 0 && (
               <ListGroup className="mb-3">
                 {pendingFoods.map((food) => {
@@ -279,7 +285,7 @@ export function ShoppingRequestPanel() {
                   Adding requests…
                 </>
               ) : (
-                'Submit requests'
+                'Add'
               )}
             </Button>
           </Offcanvas.Body>
