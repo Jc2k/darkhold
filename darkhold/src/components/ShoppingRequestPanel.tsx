@@ -4,7 +4,7 @@ import { Trash3 } from 'react-bootstrap-icons';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { apiPost, searchFoods } from '../api/client';
-import { broadcastInvalidation } from '../hooks/useInvalidationSocket';
+import { invalidateCacheQueries } from '../hooks/useCacheInvalidation';
 import { AsyncTypeaheadFilter, type FilterOption } from './AsyncTypeaheadFilter';
 import { NoTokenAlert } from './NoTokenAlert';
 import type { ShoppingListEntry } from '../hooks/useShoppingListEntries';
@@ -92,8 +92,7 @@ export function ShoppingRequestPanel() {
         ...(current ?? []),
         ...createdEntries,
       ]);
-      qc.invalidateQueries({ queryKey: ['shopping-list'] });
-      broadcastInvalidation('shopping-list');
+      invalidateCacheQueries(qc, 'shopping-list');
     },
     onError: () => setRequestError('Failed to add item. Please try again.'),
   });

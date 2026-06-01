@@ -49,3 +49,16 @@ npm test
 npx tsc --noEmit
 deno task test
 ```
+
+## Local API cache lifecycle
+
+The frontend uses TanStack React Query as a stale-while-revalidate local API cache. Server-backed views should prefer reusable hooks from `darkhold/src/hooks/` so pages share query keys, cached values, and refresh behavior. Stale cached content remains renderable while active queries refresh in the background.
+
+Mutations have two responsibilities after the server accepts a write:
+
+1. Proactively update the affected local React Query cache entries (and any screen-local preview state) so mounted views re-render immediately.
+2. Call `invalidateCacheQueries(queryClient, ...queryKeys)` from `darkhold/src/hooks/useCacheInvalidation.ts` for every affected resource. The helper marks local caches stale, starts background reconciliation for active queries, and broadcasts websocket invalidations so other connected browsers also treat matching caches as stale.
+
+`darkhold/src/hooks/useInvalidationSocket.ts` treats every websocket connection as the end of a potentially blind period. It therefore invalidates all React Query caches on connect or reconnect. Active queries refresh immediately in the background; inactive caches remain usable but refresh when next mounted. Websocket messages are stale signals only: clients fetch authoritative content from the API rather than using websocket messages as data payloads.
+
+See the repository-root `AGENTS.md` section **Local API caching and websocket invalidation** for mandatory guidance when adding AI-authored views or mutations.

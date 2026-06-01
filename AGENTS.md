@@ -87,3 +87,23 @@ Do not commit if any of these fail. **Skipping the commitlint check will cause s
 - Keep the viewport scalable for accessibility. Do not disable user zoom with `user-scalable=no` or a restrictive `maximum-scale` viewport value.
 - iOS Safari automatically zooms a focused editable control when its computed text size is below `16px`. Preserve the app-wide coarse-pointer rule in `darkhold/src/App.css` that keeps `input`, `textarea`, and `select` controls at or above that threshold on touch devices.
 - Apply focus-zoom prevention globally rather than patching an individual page or component. This includes controls rendered by third-party components such as typeaheads.
+
+## Local API caching and websocket invalidation
+
+Darkhold uses TanStack React Query as its local API cache and a websocket as a cross-client stale-cache signal. New AI-authored views and mutations **must** preserve these behaviors without needing additional prompting:
+
+- Prefer reusable hooks in `darkhold/src/hooks/` for view fetching. When a resource already has a hook or query-options factory, reuse it instead of declaring an ad hoc `useQuery` in a page. Add a reusable hook for new server-backed views where practical.
+- Render cached data while React Query refreshes it in the background. Do not clear usable cached content merely because a query is stale or fetching. Use loading UI only when no cached data exists.
+- Proactively update the local React Query cache after every successful mutation so mounted views re-render immediately. For optimistic updates, snapshot and restore previous cache data if the request fails. If a screen has additional local preview state, update that too.
+- After applying the local cache update, call `invalidateCacheQueries(queryClient, ...queryKeys)` from `darkhold/src/hooks/useCacheInvalidation.ts`. This marks matching local caches stale, triggers background reconciliation for active queries, and broadcasts each invalidation over the websocket so other clients mark their caches stale too.
+- Include every affected resource key, not only the resource directly written. For example, meal-plan mutations also affect shopping-list data and the meal-plan redirect-week calculation.
+- Keep `useInvalidationSocket()` mounted in the app layout. A websocket connection or reconnection follows a potentially blind period, so it deliberately invalidates all queries: active queries refresh in the background and inactive cached queries refresh when next mounted.
+- Treat websocket invalidation messages as stale signals, not as payload transport. The initiating client owns its proactive cache write; peers reconcile from the API after receiving the broadcast.
+- Rare idempotent get-or-create queries may need to broadcast with `broadcastInvalidation()` directly after their accepted response instead of invalidating their own currently active query, to avoid a refetch loop. Document the reason inline when using this exception.
+
+Useful implementation points:
+
+- `darkhold/src/hooks/useCacheInvalidation.ts` — standard local invalidation plus websocket broadcast helper for successful mutations.
+- `darkhold/src/hooks/useInvalidationSocket.ts` — shared websocket lifecycle, cross-client invalidation handling, and reconnect-wide stale marking.
+- `darkhold/src/hooks/useShoppingListEntries.ts`, `darkhold/src/hooks/useMealPlan.ts`, and `darkhold/src/hooks/useUpSoon.ts` — examples of reusable cached fetch hooks and mutation cache updates.
+- `darkhold/src/utils/mealPlanCache.ts` — example of updating all cached variants of a ranged resource after mutation.

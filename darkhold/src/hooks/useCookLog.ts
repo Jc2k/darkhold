@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPost } from '../api/client';
 import type { CookLog, MealType, PaginatedResponse } from '../api/tandoor-types';
-import { broadcastInvalidation } from './useInvalidationSocket';
+import { invalidateCacheQueries } from './useCacheInvalidation';
 
 /** Normalised cook-log state: YYYY-MM-DD → array of cooked recipe IDs. */
 export type CookedByDate = Record<string, number[]>;
@@ -119,8 +119,7 @@ export function useCreateCookLog() {
     },
 
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['cook-log'] });
-      broadcastInvalidation('cook-log');
+      invalidateCacheQueries(qc, 'cook-log');
     },
   });
 }

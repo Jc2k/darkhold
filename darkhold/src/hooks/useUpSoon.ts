@@ -8,7 +8,7 @@ import type {
   User,
   PaginatedResponse,
 } from '../api/tandoor-types';
-import { broadcastInvalidation } from './useInvalidationSocket';
+import { invalidateCacheQueries } from './useCacheInvalidation';
 
 export const UP_SOON_BOOK_NAME = 'Up Soon';
 
@@ -124,8 +124,18 @@ export function useAddToUpSoon() {
       if (!bookId) {
         const book = await createUpSoonBook();
         bookId = book.id;
+        qc.setQueryData<RecipeBook[]>(['books'], (current) =>
+          current && !current.some((candidate) => candidate.id === book.id)
+            ? [...current, book]
+            : current,
+        );
+        invalidateCacheQueries(qc, 'books');
       }
-      return apiPost<RecipeBookEntry>('/recipe-book-entry/', { book: bookId, recipe: recipeId });
+      const entry = await apiPost<RecipeBookEntry>('/recipe-book-entry/', {
+        book: bookId,
+        recipe: recipeId,
+      });
+      return { bookId, entry };
     },
     onMutate: async (recipeId) => {
       await qc.cancelQueries({ queryKey: ['up-soon'] });
@@ -147,9 +157,29 @@ export function useAddToUpSoon() {
         qc.setQueryData(['up-soon'], context.previous);
       }
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['up-soon'] });
-      broadcastInvalidation('up-soon');
+    onSuccess: ({ bookId, entry }, recipeId) => {
+      qc.setQueriesData<RecipeBookEntry[]>({ queryKey: ['book-entries'] }, (current) =>
+        current && !current.some((candidate) => candidate.id === entry.id)
+          ? [...current, entry]
+          : current,
+      );
+      qc.setQueryData<UpSoonData | null>(['up-soon'], (current) => {
+        const acceptedEntry: UpSoonEntry = {
+          entryId: entry.id,
+          recipeId,
+          recipe: { id: recipeId, name: '', created_by: 0 },
+        };
+        if (!current) return { bookId, entries: [acceptedEntry] };
+        return {
+          ...current,
+          entries: current.entries.map((candidate) =>
+            candidate.entryId === -1 && candidate.recipeId === recipeId
+              ? { ...candidate, entryId: entry.id }
+              : candidate,
+          ),
+        };
+      });
+      invalidateCacheQueries(qc, 'up-soon', 'books', 'book-entries');
     },
   });
 }
@@ -178,9 +208,11 @@ export function useRemoveFromUpSoon() {
         qc.setQueryData(['up-soon'], context.previous);
       }
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['up-soon'] });
-      broadcastInvalidation('up-soon');
+    onSuccess: (_result, { entryId }) => {
+      qc.setQueriesData<RecipeBookEntry[]>({ queryKey: ['book-entries'] }, (current) =>
+        current?.filter((candidate) => candidate.id !== entryId),
+      );
+      invalidateCacheQueries(qc, 'up-soon', 'books', 'book-entries');
     },
   });
 }

@@ -40,7 +40,7 @@ import { proxyMediaUrl } from '../utils/mediaUrl';
 import { formatFraction } from '../utils/fractions';
 import { useRecipeWeightG } from '../hooks/useRecipeWeightG';
 import { useAppConfig } from '../hooks/useAppConfig';
-import { broadcastInvalidation } from '../hooks/useInvalidationSocket';
+import { invalidateCacheQueries } from '../hooks/useCacheInvalidation';
 import { useCookLog, isCookedOnDate } from '../hooks/useCookLog';
 import { useKeepScreenAwake } from '../hooks/useKeepScreenAwake';
 
@@ -743,8 +743,7 @@ export function RecipeDetail() {
     apiPost('/view-log/', { recipe: Number(id) })
       .then(() => {
         // Invalidate so the shelf re-syncs with the server in the background.
-        queryClient.invalidateQueries({ queryKey: ['recently-viewed'] });
-        broadcastInvalidation('recently-viewed');
+        invalidateCacheQueries(queryClient, 'recently-viewed');
       })
       .catch(() => {
         // Roll back the optimistic update by re-fetching from the server.
