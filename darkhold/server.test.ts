@@ -999,6 +999,14 @@ Deno.test('handleAddToShoppingList creates new food entry when none found', asyn
         }),
       );
     }
+    if (r.url.includes('/api/automation/') && r.method === 'GET') {
+      return Promise.resolve(
+        new Response(JSON.stringify({ results: [] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    }
     throw new Error('unexpected fetch: ' + r.url);
   }) as typeof fetch;
 
@@ -1156,6 +1164,145 @@ Deno.test('findOrCreateFood creates food when no exact match exists', async () =
     const id = await findOrCreateFood('http://tandoor:8080', 'tok', 'apples');
     if (!postCalled) throw new Error('expected POST to create food');
     if (id !== 99) throw new Error(`expected id 99, got ${id}`);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+Deno.test(
+  'findOrCreateFood matches singular variant when only plural exists in results',
+  async () => {
+    const originalFetch = globalThis.fetch;
+
+    // Search returns "apples" but the request is for "apple".
+    globalThis.fetch = (() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ results: [{ id: 11, name: 'apples' }] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )) as typeof fetch;
+
+    try {
+      const id = await findOrCreateFood('http://tandoor:8080', 'tok', 'apple');
+      if (id !== 11) throw new Error(`expected id 11, got ${id}`);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  },
+);
+
+Deno.test(
+  'findOrCreateFood matches plural variant when only singular exists in results',
+  async () => {
+    const originalFetch = globalThis.fetch;
+
+    // Search returns "apple" but the request is for "apples".
+    globalThis.fetch = (() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ results: [{ id: 12, name: 'apple' }] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )) as typeof fetch;
+
+    try {
+      const id = await findOrCreateFood('http://tandoor:8080', 'tok', 'apples');
+      if (id !== 12) throw new Error(`expected id 12, got ${id}`);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  },
+);
+
+Deno.test('findOrCreateFood resolves food via FOOD_ALIAS when no direct match', async () => {
+  const originalFetch = globalThis.fetch;
+  const captured: Request[] = [];
+
+  globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+    const r = new Request(input, init);
+    captured.push(r);
+
+    // Initial food search: no exact or variant match.
+    if (r.url.includes('/api/food/') && r.url.includes('query=tomatoes') && r.method === 'GET') {
+      return Promise.resolve(
+        new Response(JSON.stringify({ results: [] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    }
+    // FOOD_ALIAS automation lookup returns a canonical name.
+    if (r.url.includes('/api/automation/') && r.method === 'GET') {
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            results: [{ id: 1, type: 'FOOD_ALIAS', param_1: 'tomatoes', param_2: 'tomato' }],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        ),
+      );
+    }
+    // Secondary food search for canonical name "tomato".
+    if (r.url.includes('/api/food/') && r.url.includes('query=tomato') && r.method === 'GET') {
+      return Promise.resolve(
+        new Response(JSON.stringify({ results: [{ id: 55, name: 'tomato' }] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    }
+    throw new Error('unexpected fetch: ' + r.url);
+  }) as typeof fetch;
+
+  try {
+    const id = await findOrCreateFood('http://tandoor:8080', 'tok', 'tomatoes');
+    if (id !== 55) throw new Error(`expected id 55, got ${id}`);
+    const aliasReq = captured.find((r) => r.url.includes('/api/automation/'));
+    if (!aliasReq) throw new Error('expected FOOD_ALIAS automation request');
+    if (!aliasReq.url.includes('param_1=tomatoes')) {
+      throw new Error(`expected param_1=tomatoes in alias URL, got ${aliasReq.url}`);
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+Deno.test('findOrCreateFood creates food when FOOD_ALIAS returns no results', async () => {
+  const originalFetch = globalThis.fetch;
+  let postCalled = false;
+
+  globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+    const r = new Request(input, init);
+    if (r.url.includes('/api/food/') && r.method === 'GET') {
+      return Promise.resolve(
+        new Response(JSON.stringify({ results: [] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    }
+    if (r.url.includes('/api/automation/') && r.method === 'GET') {
+      return Promise.resolve(
+        new Response(JSON.stringify({ results: [] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    }
+    postCalled = true;
+    return Promise.resolve(
+      new Response(JSON.stringify({ id: 77, name: 'quinoa' }), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+  }) as typeof fetch;
+
+  try {
+    const id = await findOrCreateFood('http://tandoor:8080', 'tok', 'quinoa');
+    if (!postCalled) throw new Error('expected POST to create food');
+    if (id !== 77) throw new Error(`expected id 77, got ${id}`);
   } finally {
     globalThis.fetch = originalFetch;
   }
