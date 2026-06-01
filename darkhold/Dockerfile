@@ -41,7 +41,7 @@ RUN set -e; \
       --target "$DENO_TARGET" \
       --allow-net \
       --allow-read=/package.json \
-      --allow-env=ICAL_FEEDS,WEATHER_LATITUDE,WEATHER_LONGITUDE,WEATHER_TIMEZONE \
+      --allow-env=ICAL_FEEDS,WEATHER_LATITUDE,WEATHER_LONGITUDE,WEATHER_TIMEZONE,TANDOOR_URL,TANDOOR_WRITE_TOKEN \
       --output /app/server server.ts
 
 # Stage 4: Serve with nginx

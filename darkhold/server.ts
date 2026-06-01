@@ -660,6 +660,126 @@ async function handleWeatherForecast(req: Request): Promise<Response> {
 }
 
 // ---------------------------------------------------------------------------
+// Shopping list "add item" endpoint
+// ---------------------------------------------------------------------------
+
+/**
+ * Find a food entry in Tandoor by name (exact case-insensitive match), or
+ * create a new one if no exact match exists.  Returns the food item's ID.
+ */
+export async function findOrCreateFood(
+  tandoorUrl: string,
+  token: string,
+  name: string,
+): Promise<number> {
+  const searchUrl = tandoorUrl + '/api/food/?query=' + encodeURIComponent(name) + '&page_size=10';
+  const headers = { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' };
+
+  const searchRes = await fetch(searchUrl, { headers });
+  if (!searchRes.ok) {
+    throw new Error('Food search failed: HTTP ' + searchRes.status);
+  }
+  const searchData = (await searchRes.json()) as { results?: Array<{ id: number; name: string }> };
+  const results = searchData.results ?? [];
+
+  // Prefer an exact case-insensitive match so repeated Siri requests reuse the same food entry.
+  const lower = name.toLowerCase();
+  const exact = results.find((f) => f.name.toLowerCase() === lower);
+  if (exact) return exact.id;
+
+  // Create a new food entry with the given name.
+  const createRes = await fetch(tandoorUrl + '/api/food/', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ name }),
+  });
+  if (!createRes.ok) {
+    throw new Error('Food creation failed: HTTP ' + createRes.status);
+  }
+  const created = (await createRes.json()) as { id: number };
+  return created.id;
+}
+
+/**
+ * Handle POST /add-to-shopping-list.
+ *
+ * Expects JSON body: { "item": "<item name>" }
+ * Requires an Authorization: ****** header matching TANDOOR_WRITE_TOKEN.
+ *
+ * The writeToken and tandoorUrl parameters default to their environment-variable
+ * values but can be overridden in tests.
+ */
+export async function handleAddToShoppingList(
+  req: Request,
+  writeToken = Deno.env.get('TANDOOR_WRITE_TOKEN') ?? '',
+  tandoorUrl = Deno.env.get('TANDOOR_URL') ?? 'http://tandoor:8080',
+): Promise<Response> {
+  if (!writeToken) {
+    return new Response(JSON.stringify({ error: 'Write token not configured' }), {
+      status: 503,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader || authHeader !== 'Bearer ' + writeToken) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  let body: Record<string, unknown>;
+  try {
+    body = (await req.json()) as Record<string, unknown>;
+  } catch {
+    return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  const item = body.item;
+  if (typeof item !== 'string' || item.trim().length === 0) {
+    return new Response(
+      JSON.stringify({ error: 'item field is required and must be a non-empty string' }),
+      { status: 400, headers: { 'Content-Type': 'application/json' } },
+    );
+  }
+
+  const itemName = item.trim();
+  const tandoorHeaders = {
+    Authorization: 'Bearer ' + writeToken,
+    'Content-Type': 'application/json',
+  };
+
+  try {
+    const foodId = await findOrCreateFood(tandoorUrl, writeToken, itemName);
+
+    const entryRes = await fetch(tandoorUrl + '/api/shopping-list-entry/', {
+      method: 'POST',
+      headers: tandoorHeaders,
+      body: JSON.stringify({ food: { id: foodId }, amount: 1, unit: null, checked: false }),
+    });
+    if (!entryRes.ok) {
+      throw new Error('Shopping list entry creation failed: HTTP ' + entryRes.status);
+    }
+
+    return new Response(JSON.stringify({ success: true, item: itemName }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('Add to shopping list error:', err);
+    return new Response(JSON.stringify({ error: message }), {
+      status: 502,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
 // WebSocket broadcast server
 // ---------------------------------------------------------------------------
 
@@ -673,6 +793,9 @@ Deno.serve({ port: 8098, hostname: '127.0.0.1' }, async (req: Request): Promise<
   }
   if (url.pathname === '/weather-forecast' && req.method === 'GET') {
     return handleWeatherForecast(req);
+  }
+  if (url.pathname === '/add-to-shopping-list' && req.method === 'POST') {
+    return handleAddToShoppingList(req);
   }
 
   if (req.headers.get('upgrade')?.toLowerCase() !== 'websocket') {

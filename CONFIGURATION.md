@@ -33,6 +33,80 @@ tandoor_default_token: "<your-read-only-api-token>"
 
 Personal tokens (set on the Settings page) always take precedence, so the per-user write path still uses the correct token for attribution.  The default token itself is never sent to the browser; it lives only in the server-side nginx configuration.
 
+### Write Token (Siri / Apple Shortcuts)
+
+A second, dedicated **write token** lets external clients — such as a HomePod speaking through an Apple Shortcut — add items to the Tandoor shopping list without exposing the default read-only token.
+
+```yaml
+tandoor_write_token: "<your-write-api-token>"
+```
+
+When set, the add-on exposes the endpoint `POST /add-to-shopping-list` (see [Siri Shopping List](#siri--homepod-shopping-list) below).  The endpoint only accepts requests that carry this exact token in the `Authorization` header, so it is safe to store in an Apple Shortcut on a trusted device.
+
+Generate a Tandoor token with sufficient write permissions at **Tandoor → User menu → API Token**.
+
+## Siri / HomePod Shopping List
+
+With the write token configured you can say **"Hey Siri, add milk to the shopping list"** on a HomePod, iPhone, or any Apple device and have the item appear in Tandoor instantly.
+
+### How it works
+
+1. Siri passes the spoken item name to an Apple Shortcut installed on your iPhone.
+2. The shortcut makes a `POST /add-to-shopping-list` request to the Darkhold add-on.
+3. Darkhold finds or creates the matching Tandoor food entry and adds it to the shopping list.
+
+HomePod triggers shortcuts that are installed on an iPhone sharing the same Apple ID.
+
+### Setting up the Apple Shortcut
+
+1. Open the **Shortcuts** app on your iPhone (iOS 16+).
+2. Tap **+** to create a new shortcut.
+3. Name it **"Add to Shopping List"** (this becomes the Siri phrase).
+4. Add the following actions in order:
+
+   **Action 1 — Ask for Input**
+   - Action type: *Ask for Input*
+   - Input type: *Text*
+   - Prompt: `What should I add to the shopping list?`
+   - Store the result in a variable named **Item**
+
+   **Action 2 — Get Contents of URL**
+   - URL: `http://<YOUR_HA_IP>:8099/add-to-shopping-list`
+     *(replace `<YOUR_HA_IP>` with your Home Assistant IP address, e.g. `192.168.1.10`)*
+   - Method: `POST`
+   - Headers:
+     - `Authorization` → `Bearer <your-write-token>`
+     - `Content-Type` → `application/json`
+   - Request Body: *JSON*  
+     Key: `item` → Value: **Item** (the variable from Action 1)
+
+   **Action 3 — Show Result** *(optional)*
+   - Shows the JSON response from the server so you can confirm success.
+
+5. Tap **Add to Siri** (or the ⓘ details screen → *Add to Siri*) and record the phrase **"add to shopping list"** so Siri recognises the shortcut by voice.
+
+> **Tip**: You can also skip the "Ask for Input" action and instead use **Shortcut Input** as the item value. In that case, invoke the shortcut by saying *"Hey Siri, add apples to shopping list"* — iOS will pass *"apples"* as the shortcut input automatically.
+
+### Using the shortcut with HomePod
+
+Once the shortcut is installed on your iPhone and registered with Siri, say:
+
+> **"Hey Siri, add milk to the shopping list"**
+
+on any HomePod, iPhone, iPad, or Mac that shares your Apple ID.  HomePod will confirm the prompt, capture your item name, and the shortcut will silently add it to Tandoor.
+
+### API reference
+
+| Field | Value |
+|---|---|
+| **Endpoint** | `POST /add-to-shopping-list` |
+| **Authentication** | `Authorization: Bearer <your-write-token>` |
+| **Request body** | `{ "item": "milk" }` |
+| **Success response** | `200 { "success": true, "item": "milk" }` |
+| **Error responses** | `400` bad request · `401` wrong token · `503` token not configured · `502` Tandoor error |
+
+The endpoint first searches for an existing Tandoor food entry whose name matches exactly (case-insensitive); if none is found it creates a new food entry before adding the shopping list entry.
+
 ## iCloud Calendar Feeds
 
 You can display upcoming appointments alongside the meal plan by connecting one or more iCal calendar feeds. This is useful for seeing how scheduled events might affect meal choices.
