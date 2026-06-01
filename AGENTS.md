@@ -81,3 +81,9 @@ Do not commit if any of these fail. **Skipping the commitlint check will cause s
 
 - Prefer CSS media queries as the default approach for responsive behavior.
 - Avoid JavaScript viewport logic for layout switching unless media queries cannot solve the requirement.
+
+## Mobile Form Controls
+
+- Keep the viewport scalable for accessibility. Do not disable user zoom with `user-scalable=no` or a restrictive `maximum-scale` viewport value.
+- iOS Safari automatically zooms a focused editable control when its computed text size is below `16px`. Preserve the app-wide coarse-pointer rule in `darkhold/src/App.css` that keeps `input`, `textarea`, and `select` controls at or above that threshold on touch devices.
+- Apply focus-zoom prevention globally rather than patching an individual page or component. This includes controls rendered by third-party components such as typeaheads.
