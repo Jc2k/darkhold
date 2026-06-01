@@ -1,3 +1,10 @@
+# [1.90.0](https://github.com/Jc2k/darkhold/compare/v1.89.0...v1.90.0) (2026-06-01)
+
+
+### Features
+
+* **shopping-list:** add ingredient details long press ([27e1e59](https://github.com/Jc2k/darkhold/commit/27e1e59909279c06d510a1e199e5b4d7ab6a6e3d))
+
 # [1.89.0](https://github.com/Jc2k/darkhold/compare/v1.88.6...v1.89.0) (2026-06-01)
 
 
