@@ -918,6 +918,56 @@ Deno.test('handleAddToShoppingList adds item that already exists in food databas
   }
 });
 
+Deno.test('handleAddToShoppingList does not send checked field when creating entry', async () => {
+  const originalFetch = globalThis.fetch;
+  const captured: Request[] = [];
+
+  globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+    const r = new Request(input, init);
+    captured.push(r);
+    if (r.url.includes('/api/food/') && r.method === 'GET') {
+      return Promise.resolve(
+        new Response(JSON.stringify({ results: [{ id: 42, name: 'apples' }] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    }
+    if (r.url.includes('/api/shopping-list-entry/') && r.method === 'POST') {
+      return Promise.resolve(
+        new Response(JSON.stringify({ id: 1, food: { id: 42 } }), {
+          status: 201,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    }
+    throw new Error('unexpected fetch: ' + r.url);
+  }) as typeof fetch;
+
+  try {
+    const req = new Request('http://localhost/add-to-shopping-list', {
+      method: 'POST',
+      headers: { Authorization: CORRECT_AUTH, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ item: 'apples' }),
+    });
+    const res = await handleAddToShoppingList(req, 'http://tandoor:8080');
+
+    if (res.status !== 200) throw new Error(`expected 200, got ${res.status}`);
+    const entryReq = captured.find(
+      (r) => r.url.includes('/api/shopping-list-entry/') && r.method === 'POST',
+    );
+    if (!entryReq) throw new Error('expected shopping list entry creation request');
+    const entryBody = (await entryReq.json()) as Record<string, unknown>;
+    if ('checked' in entryBody) {
+      throw new Error(
+        `expected checked to be omitted from entry payload, got ${entryBody.checked}`,
+      );
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 Deno.test('handleAddToShoppingList creates new food entry when none found', async () => {
   const originalFetch = globalThis.fetch;
   const captured: Request[] = [];
@@ -1032,6 +1082,19 @@ Deno.test(
       });
 
       if (res.status !== 502) throw new Error(`expected 502, got ${res.status}`);
+      const body = (await res.json()) as { error?: string; details?: string };
+      if (body.error !== 'Failed to add item to shopping list') {
+        throw new Error(`unexpected error message: ${body.error}`);
+      }
+      if (!body.details?.includes('Food search failed')) {
+        throw new Error(`expected food search error details, got: ${body.details}`);
+      }
+      if (!body.details?.includes('HTTP 500')) {
+        throw new Error(`expected status code in details, got: ${body.details}`);
+      }
+      if (!body.details?.includes('Internal Server Error')) {
+        throw new Error(`expected upstream error details, got: ${body.details}`);
+      }
       if (notifyCalled) throw new Error('expected notifyClients NOT to be called on failure');
     } finally {
       globalThis.fetch = originalFetch;
