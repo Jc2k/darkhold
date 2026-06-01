@@ -227,14 +227,13 @@ describe('ShoppingRequestPanel', () => {
 
     act(() => findButton('Select tomatoes')?.click());
     expect(mutateMock).not.toHaveBeenCalled();
-    expect(findButton('Add')).toBeUndefined();
     expect(document.body.textContent).toContain('Tomatoes');
 
     act(() => document.querySelector<HTMLButtonElement>('[aria-label="Remove Tomatoes"]')?.click());
     expect(document.querySelector('[aria-label="Remove Tomatoes"]')).toBeNull();
 
     act(() => findButton('Select tomatoes')?.click());
-    act(() => findButton('Submit requests')?.click());
+    act(() => findButton('Add')?.click());
     expect(mutateMock).toHaveBeenCalledWith([{ id: 12, name: 'Tomatoes' }]);
   });
 
@@ -255,7 +254,7 @@ describe('ShoppingRequestPanel', () => {
     act(() => findButton('Speak milk')?.click());
     expect(document.body.textContent).toContain('Milk');
 
-    act(() => findButton('Submit requests')?.click());
+    act(() => findButton('Add')?.click());
     expect(mutateMock).toHaveBeenCalledWith([
       { customOption: true, id: 'speech-milk', name: 'Milk' },
     ]);
