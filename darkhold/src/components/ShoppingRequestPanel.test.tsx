@@ -155,8 +155,24 @@ describe('ShoppingRequestPanel', () => {
     expect(document.body.textContent).not.toContain('You can adjust the amount while shopping');
   });
 
-  it('allows and posts ad-hoc foods with a gram unit', async () => {
-    apiPostMock.mockResolvedValueOnce({});
+  it('parses and posts ad-hoc foods via ingredient parser', async () => {
+    apiPostMock
+      .mockResolvedValueOnce({
+        ingredient: {
+          food: { id: 998, name: 'Kitchen roll' },
+          unit: {
+            id: 13,
+            name: 'g',
+            plural_name: 'g',
+            description: null,
+            base_unit: 'g',
+            open_data_slug: 'unit-g',
+          },
+          amount: 100,
+          note: '',
+        },
+      })
+      .mockResolvedValueOnce({});
     act(() => {
       root.render(
         <MemoryRouter initialEntries={['/?add=request']}>
@@ -175,10 +191,21 @@ describe('ShoppingRequestPanel', () => {
       { id: 'new-id-1', name: 'Kitchen roll', customOption: true },
     ]);
 
-    expect(apiPostMock).toHaveBeenCalledWith('/shopping-list-entry/', {
-      food: { name: 'Kitchen roll' },
-      amount: 1,
-      unit: { name: 'g' },
+    expect(apiPostMock).toHaveBeenNthCalledWith(1, '/ingredient-parser/post/', {
+      ingredient: 'Kitchen roll',
+    });
+    expect(apiPostMock).toHaveBeenNthCalledWith(2, '/shopping-list-entry/', {
+      food: { id: 998, name: 'Kitchen roll' },
+      amount: 100,
+      unit: {
+        id: 13,
+        name: 'g',
+        plural_name: 'g',
+        description: null,
+        base_unit: 'g',
+        open_data_slug: 'unit-g',
+      },
+      note: '',
     });
   });
 
