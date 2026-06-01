@@ -678,7 +678,7 @@ export async function findOrCreateFood(
   tandoorUrl: string,
   token: string,
   name: string,
-): Promise<number> {
+): Promise<{ id: number; name: string }> {
   const formatTandoorError = (prefix: string, status: number, responseText: string) =>
     new TandoorUpstreamError(formatFetchError(prefix, status, responseText).message);
 
@@ -695,7 +695,7 @@ export async function findOrCreateFood(
   // Prefer an exact case-insensitive match so repeated Siri requests reuse the same food entry.
   const lower = name.toLowerCase();
   const exact = results.find((f) => f.name.toLowerCase() === lower);
-  if (exact) return exact.id;
+  if (exact) return { id: exact.id, name: exact.name };
 
   // Also accept the singular/plural variant (e.g. "apples" ↔ "apple").
   // Only apply when the derived variant is at least 3 characters to avoid
@@ -703,7 +703,7 @@ export async function findOrCreateFood(
   const rawVariant = lower.endsWith('s') ? lower.slice(0, -1) : lower + 's';
   const variantMatch =
     rawVariant.length >= 3 ? results.find((f) => f.name.toLowerCase() === rawVariant) : undefined;
-  if (variantMatch) return variantMatch.id;
+  if (variantMatch) return { id: variantMatch.id, name: variantMatch.name };
 
   // If neither form matched, check for a FOOD_ALIAS automation rule.
   try {
@@ -725,7 +725,7 @@ export async function findOrCreateFood(
           const canonicalMatch = (canonicalData.results ?? []).find(
             (f) => f.name.toLowerCase() === canonicalLower,
           );
-          if (canonicalMatch) return canonicalMatch.id;
+          if (canonicalMatch) return { id: canonicalMatch.id, name: canonicalMatch.name };
         }
       }
     }
@@ -742,8 +742,8 @@ export async function findOrCreateFood(
   if (!createRes.ok) {
     throw formatTandoorError('Food creation failed', createRes.status, await createRes.text());
   }
-  const created = (await createRes.json()) as { id: number };
-  return created.id;
+  const created = (await createRes.json()) as { id: number; name: string };
+  return { id: created.id, name: created.name };
 }
 
 // ---------------------------------------------------------------------------
@@ -819,12 +819,12 @@ export async function handleAddToShoppingList(
   };
 
   try {
-    const foodId = await findOrCreateFood(tandoorUrl, token, itemName);
+    const food = await findOrCreateFood(tandoorUrl, token, itemName);
 
     const entryRes = await fetch(tandoorUrl + '/api/shopping-list-entry/', {
       method: 'POST',
       headers: tandoorHeaders,
-      body: JSON.stringify({ food: { id: foodId }, amount: 1, unit: null }),
+      body: JSON.stringify({ food: { id: food.id, name: food.name }, amount: 1, unit: null }),
     });
     if (!entryRes.ok) {
       throw new TandoorUpstreamError(

@@ -1130,8 +1130,9 @@ Deno.test('findOrCreateFood returns id of exact case-insensitive match', async (
     )) as typeof fetch;
 
   try {
-    const id = await findOrCreateFood('http://tandoor:8080', 'tok', 'apples');
-    if (id !== 7) throw new Error(`expected id 7, got ${id}`);
+    const food = await findOrCreateFood('http://tandoor:8080', 'tok', 'apples');
+    if (food.id !== 7) throw new Error(`expected id 7, got ${food.id}`);
+    if (food.name !== 'Apples') throw new Error(`expected name Apples, got ${food.name}`);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -1161,9 +1162,10 @@ Deno.test('findOrCreateFood creates food when no exact match exists', async () =
   }) as typeof fetch;
 
   try {
-    const id = await findOrCreateFood('http://tandoor:8080', 'tok', 'apples');
+    const food = await findOrCreateFood('http://tandoor:8080', 'tok', 'apples');
     if (!postCalled) throw new Error('expected POST to create food');
-    if (id !== 99) throw new Error(`expected id 99, got ${id}`);
+    if (food.id !== 99) throw new Error(`expected id 99, got ${food.id}`);
+    if (food.name !== 'apples') throw new Error(`expected name apples, got ${food.name}`);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -1184,8 +1186,9 @@ Deno.test(
       )) as typeof fetch;
 
     try {
-      const id = await findOrCreateFood('http://tandoor:8080', 'tok', 'apple');
-      if (id !== 11) throw new Error(`expected id 11, got ${id}`);
+      const food = await findOrCreateFood('http://tandoor:8080', 'tok', 'apple');
+      if (food.id !== 11) throw new Error(`expected id 11, got ${food.id}`);
+      if (food.name !== 'apples') throw new Error(`expected name apples, got ${food.name}`);
     } finally {
       globalThis.fetch = originalFetch;
     }
@@ -1207,8 +1210,9 @@ Deno.test(
       )) as typeof fetch;
 
     try {
-      const id = await findOrCreateFood('http://tandoor:8080', 'tok', 'apples');
-      if (id !== 12) throw new Error(`expected id 12, got ${id}`);
+      const food = await findOrCreateFood('http://tandoor:8080', 'tok', 'apples');
+      if (food.id !== 12) throw new Error(`expected id 12, got ${food.id}`);
+      if (food.name !== 'apple') throw new Error(`expected name apple, got ${food.name}`);
     } finally {
       globalThis.fetch = originalFetch;
     }
@@ -1256,8 +1260,9 @@ Deno.test('findOrCreateFood resolves food via FOOD_ALIAS when no direct match', 
   }) as typeof fetch;
 
   try {
-    const id = await findOrCreateFood('http://tandoor:8080', 'tok', 'tomatoes');
-    if (id !== 55) throw new Error(`expected id 55, got ${id}`);
+    const food = await findOrCreateFood('http://tandoor:8080', 'tok', 'tomatoes');
+    if (food.id !== 55) throw new Error(`expected id 55, got ${food.id}`);
+    if (food.name !== 'tomato') throw new Error(`expected name tomato, got ${food.name}`);
     const aliasReq = captured.find((r) => r.url.includes('/api/automation/'));
     if (!aliasReq) throw new Error('expected FOOD_ALIAS automation request');
     if (!aliasReq.url.includes('param_1=tomatoes')) {
@@ -1300,9 +1305,10 @@ Deno.test('findOrCreateFood creates food when FOOD_ALIAS returns no results', as
   }) as typeof fetch;
 
   try {
-    const id = await findOrCreateFood('http://tandoor:8080', 'tok', 'quinoa');
+    const food = await findOrCreateFood('http://tandoor:8080', 'tok', 'quinoa');
     if (!postCalled) throw new Error('expected POST to create food');
-    if (id !== 77) throw new Error(`expected id 77, got ${id}`);
+    if (food.id !== 77) throw new Error(`expected id 77, got ${food.id}`);
+    if (food.name !== 'quinoa') throw new Error(`expected name quinoa, got ${food.name}`);
   } finally {
     globalThis.fetch = originalFetch;
   }
