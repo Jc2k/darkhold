@@ -844,7 +844,12 @@ describe('ShoppingList', () => {
     });
 
     expect(document.body.querySelector('.modal-title')?.textContent).toBe('Flour');
+    expect(rowContent?.classList.contains('shopping-list-long-press-pending')).toBe(true);
     expect((rowContent as HTMLDivElement).style.transform).toBe('translateX(0px)');
+
+    act(() => dispatchPointer(rowContent!, 'pointerup', 140, 10));
+
+    expect(rowContent?.classList.contains('shopping-list-long-press-pending')).toBe(false);
   });
 
   it('does not start a swipe when using desktop row actions', () => {

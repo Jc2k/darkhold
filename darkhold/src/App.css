@@ -493,6 +493,8 @@ body {
 
 .shopping-list-long-press-pending {
   background: var(--bs-secondary-bg);
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .shopping-list-info-facts li {
