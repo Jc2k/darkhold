@@ -114,7 +114,10 @@ describe('ShoppingList', () => {
               unit_name: 'cup',
               food: makeFood(),
               checked: true,
-              list_recipe_data: { recipe_data: { name: 'Cake' } },
+              list_recipe_data: {
+                recipe_data: { name: 'Cake' },
+                meal_plan_data: { from_date: '2026-05-31' },
+              },
             },
             {
               id: 22,
@@ -122,7 +125,10 @@ describe('ShoppingList', () => {
               unit_name: 'cup',
               food: makeFood(),
               checked: false,
-              list_recipe_data: { recipe_data: { name: 'Bread' } },
+              list_recipe_data: {
+                recipe_data: { name: 'Bread' },
+                meal_plan_data: { from_date: '2026-06-01' },
+              },
             },
           ],
           isLoading: false,
@@ -147,13 +153,13 @@ describe('ShoppingList', () => {
     vi.clearAllMocks();
   });
 
-  it('hides the quantity for manual requests without a unit', () => {
+  it('hides quantities and units for manual requests', () => {
     expect(formatAmount({ id: 1, amount: 1, unit: null, food: makeFood(), checked: false })).toBe(
       '',
     );
     expect(
       formatAmount({ id: 2, amount: 1, unit_name: 'cup', food: makeFood(), checked: false }),
-    ).toBe('1 cup');
+    ).toBe('');
     expect(
       formatAmount({
         id: 3,
@@ -167,6 +173,19 @@ describe('ShoppingList', () => {
         },
       }),
     ).toBe('1');
+    expect(
+      formatAmount({
+        id: 4,
+        amount: 2,
+        unit_name: 'cup',
+        food: makeFood(),
+        checked: false,
+        list_recipe_data: {
+          recipe_data: { name: 'Cake' },
+          meal_plan_data: { from_date: '2026-05-31' },
+        },
+      }),
+    ).toBe('2 cup');
   });
 
   it('marks manual requests with a pencil and groups them first in recipe view', () => {

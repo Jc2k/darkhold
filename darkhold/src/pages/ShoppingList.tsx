@@ -109,7 +109,7 @@ function getRecipeFromDate(entry: ShoppingEntry): string | null {
 
 export function formatAmount(entry: ShoppingEntry): string {
   const unitName = typeof entry.unit === 'object' && entry.unit ? entry.unit.name : entry.unit_name;
-  if (!unitName && !entry.list_recipe_data?.meal_plan_data) return '';
+  if (!entry.list_recipe_data?.meal_plan_data) return '';
 
   const parts: string[] = [];
   if (entry.amount != null) parts.push(formatFraction(entry.amount));
