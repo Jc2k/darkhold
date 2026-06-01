@@ -1,6 +1,6 @@
 # Darkhold
 
-Darkhold is a React frontend and Deno backend for Tandoor, packaged as a Home Assistant app.
+Darkhold is a React frontend and Deno backend for Tandoor, packaged as a Home Assistant app. It's primary focus is around recipe (re)discovery, weekly meal planning and managing shopping.
 
 ## Development
 
