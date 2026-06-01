@@ -1,3 +1,10 @@
+## [1.88.2](https://github.com/Jc2k/darkhold/compare/v1.88.1...v1.88.2) (2026-06-01)
+
+
+### Bug Fixes
+
+* **ui:** match shopping list trash icon ([1f1d98d](https://github.com/Jc2k/darkhold/commit/1f1d98d4c0772b1467c5bbdf3c03dc0e4118ec59))
+
 ## [1.88.1](https://github.com/Jc2k/darkhold/compare/v1.88.0...v1.88.1) (2026-05-31)
 
 
