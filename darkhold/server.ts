@@ -698,8 +698,11 @@ export async function findOrCreateFood(
   if (exact) return exact.id;
 
   // Also accept the singular/plural variant (e.g. "apples" ↔ "apple").
-  const variant = lower.endsWith('s') ? lower.slice(0, -1) : lower + 's';
-  const variantMatch = results.find((f) => f.name.toLowerCase() === variant);
+  // Only apply when the derived variant is at least 3 characters to avoid
+  // false positives on short words (e.g. "as" → "a").
+  const rawVariant = lower.endsWith('s') ? lower.slice(0, -1) : lower + 's';
+  const variantMatch =
+    rawVariant.length >= 3 ? results.find((f) => f.name.toLowerCase() === rawVariant) : undefined;
   if (variantMatch) return variantMatch.id;
 
   // If neither form matched, check for a FOOD_ALIAS automation rule.
