@@ -124,6 +124,13 @@ export interface ParsedEvent {
   category?: 'appointment' | 'bank-holiday' | 'context';
 }
 
+class TandoorUpstreamError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'TandoorUpstreamError';
+  }
+}
+
 function formatCalDavTimestamp(date: Date): string {
   const y = String(date.getUTCFullYear());
   const m = String(date.getUTCMonth() + 1).padStart(2, '0');
@@ -672,12 +679,15 @@ export async function findOrCreateFood(
   token: string,
   name: string,
 ): Promise<number> {
+  const formatTandoorError = (prefix: string, status: number, responseText: string) =>
+    new TandoorUpstreamError(formatFetchError(prefix, status, responseText).message);
+
   const searchUrl = tandoorUrl + '/api/food/?query=' + encodeURIComponent(name) + '&page_size=10';
   const headers = { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' };
 
   const searchRes = await fetch(searchUrl, { headers });
   if (!searchRes.ok) {
-    throw formatFetchError('Food search failed', searchRes.status, await searchRes.text());
+    throw formatTandoorError('Food search failed', searchRes.status, await searchRes.text());
   }
   const searchData = (await searchRes.json()) as { results?: Array<{ id: number; name: string }> };
   const results = searchData.results ?? [];
@@ -694,7 +704,7 @@ export async function findOrCreateFood(
     body: JSON.stringify({ name }),
   });
   if (!createRes.ok) {
-    throw formatFetchError('Food creation failed', createRes.status, await createRes.text());
+    throw formatTandoorError('Food creation failed', createRes.status, await createRes.text());
   }
   const created = (await createRes.json()) as { id: number };
   return created.id;
@@ -781,10 +791,12 @@ export async function handleAddToShoppingList(
       body: JSON.stringify({ food: { id: foodId }, amount: 1, unit: null }),
     });
     if (!entryRes.ok) {
-      throw formatFetchError(
-        'Shopping list entry creation failed',
-        entryRes.status,
-        await entryRes.text(),
+      throw new TandoorUpstreamError(
+        formatFetchError(
+          'Shopping list entry creation failed',
+          entryRes.status,
+          await entryRes.text(),
+        ).message,
       );
     }
 
@@ -795,7 +807,8 @@ export async function handleAddToShoppingList(
     });
   } catch (err) {
     console.error('Add to shopping list error:', err);
-    const details = err instanceof Error ? err.message : String(err);
+    const details =
+      err instanceof TandoorUpstreamError ? err.message : 'Unexpected error while calling Tandoor';
     return new Response(JSON.stringify({ error: 'Failed to add item to shopping list', details }), {
       status: 502,
       headers: { 'Content-Type': 'application/json' },

@@ -93,7 +93,7 @@ on any HomePod, iPhone, iPad, or Mac that shares your Apple ID.  HomePod will co
 | **Authentication** | `Authorization: Bearer <your-tandoor-api-token>` |
 | **Request body** | `{ "item": "milk" }` |
 | **Success response** | `200 { "success": true, "item": "milk" }` |
-| **Error responses** | `400` bad request · `401` missing authorization · `502` Tandoor error (includes `details` with upstream message when available) |
+| **Error responses** | `400` bad request · `401` missing authorization · `502` Tandoor error (includes `details` with upstream or fallback error information) |
 
 The endpoint passes the supplied token directly to Tandoor, so the shopping list entry is attributed to the owner of that token.  The endpoint first searches for an existing Tandoor food entry whose name matches exactly (case-insensitive); if none is found it creates a new food entry before adding the shopping list entry.
 

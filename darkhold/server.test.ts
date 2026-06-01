@@ -958,8 +958,11 @@ Deno.test('handleAddToShoppingList does not send checked field when creating ent
     );
     if (!entryReq) throw new Error('expected shopping list entry creation request');
     const entryBody = (await entryReq.json()) as Record<string, unknown>;
-    if ('checked' in entryBody)
-      throw new Error('expected checked to be omitted from entry payload');
+    if ('checked' in entryBody) {
+      throw new Error(
+        `expected checked to be omitted from entry payload, got ${entryBody.checked}`,
+      );
+    }
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -1083,7 +1086,13 @@ Deno.test(
       if (body.error !== 'Failed to add item to shopping list') {
         throw new Error(`unexpected error message: ${body.error}`);
       }
-      if (!body.details?.includes('Food search failed: HTTP 500; Internal Server Error')) {
+      if (!body.details?.includes('Food search failed')) {
+        throw new Error(`expected food search error details, got: ${body.details}`);
+      }
+      if (!body.details?.includes('HTTP 500')) {
+        throw new Error(`expected status code in details, got: ${body.details}`);
+      }
+      if (!body.details?.includes('Internal Server Error')) {
         throw new Error(`expected upstream error details, got: ${body.details}`);
       }
       if (notifyCalled) throw new Error('expected notifyClients NOT to be called on failure');
