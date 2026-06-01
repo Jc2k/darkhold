@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Button } from 'react-bootstrap';
+import { Alert, Button } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { BookmarkFill, Check2Circle } from 'react-bootstrap-icons';
+import { BookmarkFill, CalendarDay, Cart4, Check2Circle } from 'react-bootstrap-icons';
 import { apiGet } from '../api/client';
 import type { Recipe, Keyword, MealPlan, MealType, PaginatedResponse } from '../api/tandoor-types';
 import { RecipeCard } from '../components/RecipeCard';
@@ -14,9 +14,11 @@ import { LoadingMascot } from '../components/LoadingMascot';
 import { useUpSoonData } from '../hooks/useUpSoon';
 import { useCookLog } from '../hooks/useCookLog';
 import { useMealPlan } from '../hooks/useMealPlan';
+import { getShoppingListEntriesQueryOptions } from '../hooks/useShoppingListEntries';
 import { smallCircleButtonStyle } from '../utils/buttonStyles';
 import { formatDate, getMealPlanWeekStartSaturday } from '../utils/dateUtils';
 import { buildRecentlyAddedRecipeParams } from '../utils/recentRecipes';
+import { getMealPlanWeekStartFromShoppingListEntries } from '../utils/mealPlanRedirect';
 
 function addDays(date: Date, numDays: number): Date {
   const result = new Date(date);
@@ -71,6 +73,12 @@ function compareMealPlanEntries(a: MealPlan, b: MealPlan): number {
 
 function shortDay(date: Date): string {
   return date.toLocaleDateString('en-GB', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+function alertDay(date: Date): string {
+  return date
+    .toLocaleDateString('en-GB', { weekday: 'short', month: 'short', day: 'numeric' })
+    .replace(',', '');
 }
 
 interface ShelfProps {
@@ -538,6 +546,14 @@ export function Dashboard() {
   const nextWeekStart = useMemo(() => addDays(currentWeekStart, 7), [currentWeekStart]);
   const currentWeekMealPlan = useMealPlan(currentWeekStart, addDays(currentWeekStart, 6));
   const nextWeekMealPlan = useMealPlan(nextWeekStart, addDays(nextWeekStart, 6));
+  const { data: shoppingListEntries = [] } = useQuery(getShoppingListEntriesQueryOptions());
+  const shoppingListPlanningWeekStart = useMemo(
+    () => getMealPlanWeekStartFromShoppingListEntries(shoppingListEntries, currentWeekStart),
+    [currentWeekStart, shoppingListEntries],
+  );
+  const shoppingListPlanningWeekEnd = shoppingListPlanningWeekStart
+    ? addDays(shoppingListPlanningWeekStart, 6)
+    : null;
 
   // Derived cook log modal props — computed outside JSX to avoid inline IIFEs.
   const cookLogMealType =
@@ -598,6 +614,29 @@ export function Dashboard() {
 
   return (
     <div className="pt-2">
+      {shoppingListPlanningWeekStart && shoppingListPlanningWeekEnd && (
+        <Alert variant="info" className="d-flex align-items-center gap-2 py-2 mb-3">
+          <span className="flex-grow-1">
+            Meal planning in progress for {alertDay(shoppingListPlanningWeekStart)} to{' '}
+            {alertDay(shoppingListPlanningWeekEnd)}
+          </span>
+          <Link
+            to={`/meal-plan/${formatDate(shoppingListPlanningWeekStart)}`}
+            className="btn btn-outline-info d-inline-flex align-items-center justify-content-center"
+            aria-label="Open meal planner"
+          >
+            <CalendarDay />
+          </Link>
+          <Link
+            to="/shopping"
+            className="btn btn-outline-info d-inline-flex align-items-center justify-content-center"
+            aria-label="Open shopping list"
+          >
+            <Cart4 />
+          </Link>
+        </Alert>
+      )}
+
       <UpcomingMealsShelf
         days={days}
         mealsByDay={mealsByDay}
