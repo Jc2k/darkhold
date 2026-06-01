@@ -1,4 +1,4 @@
-import { queryOptions } from '@tanstack/react-query';
+import { queryOptions, useQuery } from '@tanstack/react-query';
 import { apiGet } from '../api/client';
 import type {
   Food,
@@ -60,6 +60,14 @@ export async function fetchAllShoppingListEntries(): Promise<ShoppingListEntry[]
 
 export function getShoppingListEntriesQueryOptions() {
   return queryOptions({
+    queryKey: ['shopping-list'],
+    queryFn: fetchAllShoppingListEntries,
+  });
+}
+
+/** Shared query hook for views that render the active shopping-list entries. */
+export function useShoppingListEntries() {
+  return useQuery({
     queryKey: ['shopping-list'],
     queryFn: fetchAllShoppingListEntries,
   });

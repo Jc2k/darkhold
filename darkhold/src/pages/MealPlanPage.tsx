@@ -74,7 +74,7 @@ import type {
 } from '../hooks/useWeatherForecast';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiDelete } from '../api/client';
-import { broadcastInvalidation } from '../hooks/useInvalidationSocket';
+import { invalidateCacheQueries } from '../hooks/useCacheInvalidation';
 import type {
   MealPlan,
   Recipe,
@@ -1645,12 +1645,13 @@ export function MealPlanPage() {
         .map((entry) => entry.id);
       deletedIds.forEach((id) => removeMealPlanFromCaches(queryClient, id));
       const failed = results.length - deletedIds.length;
-      queryClient.invalidateQueries({ queryKey: ['meal-plan'] });
-      queryClient.invalidateQueries({ queryKey: ['shopping-list'] });
+      invalidateCacheQueries(
+        queryClient,
+        'meal-plan',
+        'shopping-list',
+        MEAL_PLAN_REDIRECT_WEEK_BROADCAST_KEY,
+      );
       void invalidateAndRefreshMealPlanRedirectWeek(queryClient, apiGet);
-      broadcastInvalidation('meal-plan');
-      broadcastInvalidation('shopping-list');
-      broadcastInvalidation(MEAL_PLAN_REDIRECT_WEEK_BROADCAST_KEY);
       if (failed > 0) {
         setAssistantFeedback({
           variant: 'danger',

@@ -17,13 +17,14 @@ import { Link } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiPatch, apiDelete, apiGet, apiPost } from '../api/client';
+import { invalidateCacheQueries } from '../hooks/useCacheInvalidation';
 import { broadcastInvalidation } from '../hooks/useInvalidationSocket';
 import type { Food, ShoppingList as TandoorShoppingList } from '../api/tandoor-types';
 import { LoadingMascot } from '../components/LoadingMascot';
 import { NoTokenAlert } from '../components/NoTokenAlert';
 import { formatFraction } from '../utils/fractions';
 import {
-  fetchAllShoppingListEntries,
+  useShoppingListEntries,
   type ShoppingListEntry as ShoppingEntry,
 } from '../hooks/useShoppingListEntries';
 import {
@@ -237,14 +238,20 @@ export function ShoppingList() {
   const [filter, setFilter] = useState<'to-check' | 'to-buy' | null>(null);
   const hasPersonalToken = Boolean(localStorage.getItem('tandoor_token'));
 
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ['shopping-list'],
-    queryFn: fetchAllShoppingListEntries,
-  });
+  const { data, isLoading, isError } = useShoppingListEntries();
 
   const { data: toCheckList } = useQuery({
     queryKey: ['shopping-list-to-check'],
-    queryFn: () => apiPost<TandoorShoppingList>('/shopping-list/', { name: TO_CHECK_LIST_NAME }),
+    queryFn: async () => {
+      const shoppingList = await apiPost<TandoorShoppingList>('/shopping-list/', {
+        name: TO_CHECK_LIST_NAME,
+      });
+      // The POST is an idempotent get-or-create request. The accepted result is
+      // already the local query value; notify peers without invalidating this
+      // active query and causing an immediate get-or-create loop.
+      broadcastInvalidation('shopping-list-to-check');
+      return shoppingList;
+    },
     enabled: hasPersonalToken,
   });
 
@@ -315,8 +322,7 @@ export function ShoppingList() {
           ? updateShoppingListEntries(current, entryIds, { checked, isToCheck, toCheckList })
           : current,
       );
-      qc.invalidateQueries({ queryKey: ['shopping-list'] });
-      broadcastInvalidation('shopping-list');
+      invalidateCacheQueries(qc, 'shopping-list');
     },
     onError: () => {
       setMoveError('Failed to update item. Please try again.');
@@ -382,10 +388,8 @@ export function ShoppingList() {
       })
       .finally(() => {
         setIsClearing(false);
-        qc.invalidateQueries({ queryKey: ['shopping-list'] });
+        invalidateCacheQueries(qc, 'shopping-list', MEAL_PLAN_REDIRECT_WEEK_BROADCAST_KEY);
         void invalidateAndRefreshMealPlanRedirectWeek(qc, apiGet);
-        broadcastInvalidation('shopping-list');
-        broadcastInvalidation(MEAL_PLAN_REDIRECT_WEEK_BROADCAST_KEY);
       });
   };
 

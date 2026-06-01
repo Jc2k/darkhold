@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Alert, Button, Form, ListGroup, Modal } from 'react-bootstrap';
 import { Trash3 } from 'react-bootstrap-icons';
 import { Link } from 'react-router-dom';
@@ -10,8 +11,10 @@ import {
 } from '../api/housekeeping';
 import { HousekeepingProgress } from '../components/HousekeepingProgress';
 import { HousekeepingSelection } from '../components/HousekeepingSelection';
+import { invalidateCacheQueries } from '../hooks/useCacheInvalidation';
 
 export function OrphanedIngredients() {
+  const queryClient = useQueryClient();
   const [result, setResult] = useState<OrphanedIngredientScan | null>(null);
   const [selected, setSelected] = useState(new Set<number>());
   const [progress, setProgress] = useState<ScanProgress | null>(null);
@@ -54,6 +57,7 @@ export function OrphanedIngredients() {
       );
     } finally {
       setApplying(false);
+      invalidateCacheQueries(queryClient, 'foods', 'shopping-list', 'recipes');
     }
   };
 

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Alert, Button, Card, Modal } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import {
@@ -9,8 +10,10 @@ import {
 } from '../api/housekeeping';
 import { HousekeepingProgress } from '../components/HousekeepingProgress';
 import { proxyMediaUrl } from '../utils/mediaUrl';
+import { invalidateCacheQueries } from '../hooks/useCacheInvalidation';
 
 export function HistoricCookLogs() {
+  const queryClient = useQueryClient();
   const [candidates, setCandidates] = useState<HistoricCookLogCandidate[] | null>(null);
   const [progress, setProgress] = useState<ScanProgress | null>(null);
   const [error, setError] = useState('');
@@ -43,6 +46,7 @@ export function HistoricCookLogs() {
       setError('Cook-log creation stopped after an API error. Re-scan before trying again.');
     } finally {
       setApplying(false);
+      invalidateCacheQueries(queryClient, 'cook-log');
     }
   };
 

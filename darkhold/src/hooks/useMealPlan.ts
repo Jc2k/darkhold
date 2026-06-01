@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPost, apiPatch, apiDelete } from '../api/client';
 import type { MealPlan, PaginatedResponse } from '../api/tandoor-types';
-import { broadcastInvalidation } from './useInvalidationSocket';
+import { invalidateCacheQueries } from './useCacheInvalidation';
 import type { UpSoonData } from './useUpSoon';
 import { formatDate, isMealPlanDateInPast } from '../utils/dateUtils';
 import { MEAL_PLAN_GC_TIME, MEAL_PLAN_STALE_TIME } from '../utils/cacheConfig';
@@ -38,12 +38,13 @@ export function useDeleteMealPlan() {
     mutationFn: (id: number) => apiDelete(`/meal-plan/${id}/`, MEAL_PLAN_ITEM_QUERY_PARAMS),
     onSuccess: (_result, id) => {
       removeMealPlanFromCaches(qc, id);
-      qc.invalidateQueries({ queryKey: ['meal-plan'] });
-      qc.invalidateQueries({ queryKey: ['shopping-list'] });
+      invalidateCacheQueries(
+        qc,
+        'meal-plan',
+        'shopping-list',
+        MEAL_PLAN_REDIRECT_WEEK_BROADCAST_KEY,
+      );
       void invalidateAndRefreshMealPlanRedirectWeek(qc, apiGet);
-      broadcastInvalidation('meal-plan');
-      broadcastInvalidation('shopping-list');
-      broadcastInvalidation(MEAL_PLAN_REDIRECT_WEEK_BROADCAST_KEY);
     },
   });
 }
@@ -55,12 +56,13 @@ export function useUpdateMealPlan() {
       apiPatch<MealPlan>(`/meal-plan/${id}/`, data, MEAL_PLAN_ITEM_QUERY_PARAMS),
     onSuccess: (result) => {
       updateMealPlanCaches(qc, result);
-      qc.invalidateQueries({ queryKey: ['meal-plan'] });
-      qc.invalidateQueries({ queryKey: ['shopping-list'] });
+      invalidateCacheQueries(
+        qc,
+        'meal-plan',
+        'shopping-list',
+        MEAL_PLAN_REDIRECT_WEEK_BROADCAST_KEY,
+      );
       void invalidateAndRefreshMealPlanRedirectWeek(qc, apiGet);
-      broadcastInvalidation('meal-plan');
-      broadcastInvalidation('shopping-list');
-      broadcastInvalidation(MEAL_PLAN_REDIRECT_WEEK_BROADCAST_KEY);
     },
   });
 }
@@ -81,12 +83,13 @@ export function useCreateMealPlan() {
       if (redirectWeekPath) {
         qc.setQueryData(MEAL_PLAN_REDIRECT_WEEK_QUERY_KEY, redirectWeekPath);
       }
-      qc.invalidateQueries({ queryKey: ['meal-plan'] });
-      qc.invalidateQueries({ queryKey: ['shopping-list'] });
+      invalidateCacheQueries(
+        qc,
+        'meal-plan',
+        'shopping-list',
+        MEAL_PLAN_REDIRECT_WEEK_BROADCAST_KEY,
+      );
       void invalidateAndRefreshMealPlanRedirectWeek(qc, apiGet);
-      broadcastInvalidation('meal-plan');
-      broadcastInvalidation('shopping-list');
-      broadcastInvalidation(MEAL_PLAN_REDIRECT_WEEK_BROADCAST_KEY);
 
       // Remove from Up Soon if this recipe is in the list
       const recipeId =
@@ -99,8 +102,15 @@ export function useCreateMealPlan() {
         if (entry) {
           try {
             await apiDelete(`/recipe-book-entry/${entry.entryId}/`);
-            qc.invalidateQueries({ queryKey: ['up-soon'] });
-            broadcastInvalidation('up-soon');
+            qc.setQueryData<UpSoonData | null>(['up-soon'], (current) =>
+              current
+                ? {
+                    ...current,
+                    entries: current.entries.filter((candidate) => candidate !== entry),
+                  }
+                : current,
+            );
+            invalidateCacheQueries(qc, 'up-soon');
           } catch {
             // Non-fatal: up-soon removal failed, but the meal plan was added successfully
           }
