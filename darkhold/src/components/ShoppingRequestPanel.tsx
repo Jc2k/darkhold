@@ -103,11 +103,14 @@ export function ShoppingRequestPanel() {
             const parsedIngredient = ingredientParserData.ingredient;
             const parsedFood = parsedIngredient?.food;
             if (
-              !parsedFood?.id ||
+              typeof parsedFood?.id !== 'number' ||
+              !Number.isFinite(parsedFood.id) ||
               typeof parsedFood.name !== 'string' ||
               parsedFood.name.length === 0
             ) {
-              throw new Error(`Ingredient parse failed for "${food.name}": missing parsed food`);
+              throw new Error(
+                `Ingredient parse failed for "${food.name}": unexpected parser response`,
+              );
             }
             const parsedAmount =
               typeof parsedIngredient?.amount === 'number' &&
