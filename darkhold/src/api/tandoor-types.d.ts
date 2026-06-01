@@ -206,6 +206,13 @@ export interface User {
   last_name?: string;
 }
 
+/** User membership in a space */
+export interface UserSpace {
+  id: number;
+  user: User;
+  space: Space | number;
+}
+
 /** Space (workspace) */
 export interface Space {
   id: number;

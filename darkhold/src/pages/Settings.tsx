@@ -4,7 +4,7 @@ import { Card, Form, Button, Alert, InputGroup, Spinner } from 'react-bootstrap'
 import { useSettings, type HomepageSetting } from '../hooks/useSettings';
 import { useAppConfig } from '../hooks/useAppConfig';
 import { apiGet } from '../api/client';
-import type { User } from '../api/tandoor-types';
+import type { UserSpace } from '../api/tandoor-types';
 
 export function Settings() {
   const { token, setToken, homepage, setHomepage } = useSettings();
@@ -34,8 +34,8 @@ export function Settings() {
     setTesting(true);
     setTestResult(null);
     try {
-      const response = await apiGet<User[]>('/user/');
-      const username = response[0]?.username;
+      const response = await apiGet<UserSpace[]>('/user-space/all_personal/');
+      const username = response[0]?.user.username;
       if (!username) throw new Error('Connection failed: no user returned');
       setTestResult({ ok: true, message: `Connected as ${username}` });
     } catch (e) {
