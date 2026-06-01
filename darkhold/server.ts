@@ -704,7 +704,7 @@ export async function findOrCreateFood(
  * Handle POST /add-to-shopping-list.
  *
  * Expects JSON body: { "item": "<item name>" }
- * The Authorization: ****** header must be present; the token is
+ * Requires an `Authorization: ****** header; the token is
  * passed directly to Tandoor API calls so callers (e.g. Siri shortcuts) supply
  * their own Tandoor API token rather than a separately configured write token.
  *
