@@ -1,3 +1,10 @@
+## [1.88.3](https://github.com/Jc2k/darkhold/compare/v1.88.2...v1.88.3) (2026-06-01)
+
+
+### Bug Fixes
+
+* **ui:** prevent ios focus zoom on form controls ([745b388](https://github.com/Jc2k/darkhold/commit/745b388b268967ac6700a51f3b6f186a0b8a1af9))
+
 ## [1.88.2](https://github.com/Jc2k/darkhold/compare/v1.88.1...v1.88.2) (2026-06-01)
 
 
