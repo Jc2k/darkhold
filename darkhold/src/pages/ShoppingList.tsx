@@ -18,12 +18,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiPatch, apiDelete, apiGet, apiPost } from '../api/client';
 import { broadcastInvalidation } from '../hooks/useInvalidationSocket';
-import type {
-  Food,
-  PaginatedResponse,
-  Recipe,
-  ShoppingList as TandoorShoppingList,
-} from '../api/tandoor-types';
+import type { Food, ShoppingList as TandoorShoppingList } from '../api/tandoor-types';
 import { LoadingMascot } from '../components/LoadingMascot';
 import { NoTokenAlert } from '../components/NoTokenAlert';
 import { formatFraction } from '../utils/fractions';
@@ -105,17 +100,23 @@ export function updateShoppingListEntries(
   });
 }
 
+interface ShoppingListRecipe {
+  id: number | null;
+  name: string;
+}
+
 interface AggregatedIngredient {
   food: Food | null;
   entries: ShoppingEntry[];
   allChecked: boolean;
-  recipes: string[];
+  recipes: ShoppingListRecipe[];
 }
 
 interface IngredientInfo {
   food: Food | null;
   isAmazon: boolean;
   isToCheck: boolean;
+  recipes: ShoppingListRecipe[];
   requestedBy: string[];
 }
 
@@ -151,6 +152,11 @@ function getRecipeName(entry: ShoppingEntry): string | null {
   return entry.list_recipe_data?.recipe_data.name ?? null;
 }
 
+function getRecipe(entry: ShoppingEntry): ShoppingListRecipe | null {
+  const name = getRecipeName(entry);
+  return name ? { id: entry.list_recipe_data?.recipe ?? null, name } : null;
+}
+
 function aggregateByIngredient(entries: ShoppingEntry[]): AggregatedIngredient[] {
   const map = new Map<string, AggregatedIngredient>();
   for (const entry of entries) {
@@ -161,9 +167,16 @@ function aggregateByIngredient(entries: ShoppingEntry[]): AggregatedIngredient[]
     const agg = map.get(key)!;
     agg.entries.push(entry);
     if (!entry.checked) agg.allChecked = false;
-    const recipeName = getRecipeName(entry);
-    if (recipeName && !agg.recipes.includes(recipeName)) {
-      agg.recipes.push(recipeName);
+    const recipe = getRecipe(entry);
+    if (
+      recipe &&
+      !agg.recipes.some((candidate) =>
+        recipe.id != null && candidate.id != null
+          ? candidate.id === recipe.id
+          : candidate.name === recipe.name,
+      )
+    ) {
+      agg.recipes.push(recipe);
     }
   }
   return Array.from(map.values());
@@ -235,17 +248,6 @@ export function ShoppingList() {
     enabled: hasPersonalToken,
   });
 
-  const {
-    data: ingredientRecipes,
-    isLoading: ingredientRecipesLoading,
-    isError: ingredientRecipesError,
-  } = useQuery({
-    queryKey: ['recipes-by-food', ingredientInfo?.food?.id],
-    queryFn: () =>
-      apiGet<PaginatedResponse<Recipe>>('/recipe/', { foods: ingredientInfo!.food!.id }),
-    enabled: ingredientInfo?.food?.id != null,
-  });
-
   useEffect(
     () => () => {
       if (longPressTimeout.current) clearTimeout(longPressTimeout.current);
@@ -272,6 +274,7 @@ export function ShoppingList() {
       food: agg.food,
       isAmazon: agg.entries.some((entry) => isInShoppingList(entry, 'Amazon')),
       isToCheck: agg.entries.some((entry) => isInShoppingList(entry, TO_CHECK_LIST_NAME)),
+      recipes: agg.recipes,
       requestedBy,
     });
   };
@@ -694,7 +697,7 @@ export function ShoppingList() {
                               <Badge
                                 bg="secondary"
                                 style={{ fontSize: '0.65rem', cursor: 'default' }}
-                                title={agg.recipes.join('\n')}
+                                title={agg.recipes.map((recipe) => recipe.name).join('\n')}
                               >
                                 {agg.recipes.length} recipes
                               </Badge>
@@ -795,39 +798,36 @@ export function ShoppingList() {
             </ul>
           )}
 
-          {ingredientInfo?.food?.id != null && (
+          {(ingredientInfo?.recipes.length ?? 0) > 0 && (
             <section>
-              <h3 className="h6">Recipes using this ingredient</h3>
-              {ingredientRecipesLoading && <Spinner animation="border" size="sm" />}
-              {ingredientRecipesError && (
-                <Alert variant="danger">Failed to load recipes for this ingredient.</Alert>
-              )}
-              {!ingredientRecipesLoading && !ingredientRecipesError && (
-                <>
-                  {(ingredientRecipes?.results?.length ?? 0) > 0 && (
-                    <ul>
-                      {ingredientRecipes?.results?.map((recipe) => (
-                        <li key={recipe.id}>
-                          <Link to={`/recipe/${recipe.id}`} onClick={() => setIngredientInfo(null)}>
-                            {recipe.name}
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  <p className="mb-0">
-                    See{' '}
-                    <Link
-                      to={`/ingredient/${ingredientInfo.food.id}`}
-                      onClick={() => setIngredientInfo(null)}
-                    >
-                      more recipes
-                    </Link>{' '}
-                    that use this.
-                  </p>
-                </>
-              )}
+              <h3 className="h6">Added for recipes</h3>
+              <ul>
+                {ingredientInfo?.recipes.map((recipe) => (
+                  <li key={recipe.id ?? recipe.name}>
+                    {recipe.id != null ? (
+                      <Link to={`/recipe/${recipe.id}`} onClick={() => setIngredientInfo(null)}>
+                        {recipe.name}
+                      </Link>
+                    ) : (
+                      recipe.name
+                    )}
+                  </li>
+                ))}
+              </ul>
             </section>
+          )}
+
+          {ingredientInfo?.food?.id != null && (
+            <p className="mb-0">
+              See{' '}
+              <Link
+                to={`/ingredient/${ingredientInfo.food.id}`}
+                onClick={() => setIngredientInfo(null)}
+              >
+                all recipes
+              </Link>{' '}
+              that use this ingredient.
+            </p>
           )}
         </Modal.Body>
       </Modal>

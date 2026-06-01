@@ -17,6 +17,7 @@ export interface ShoppingListEntry {
   created_by?: { username: string } | null;
   ingredient_note?: string | null;
   list_recipe_data?: {
+    recipe?: number | null;
     recipe_data: {
       name: string;
       ingredients?: Array<{
