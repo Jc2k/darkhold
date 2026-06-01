@@ -1,3 +1,10 @@
+## [1.97.2](https://github.com/Jc2k/darkhold/compare/v1.97.1...v1.97.2) (2026-06-01)
+
+
+### Bug Fixes
+
+* **server:** use ingredient parser for siri shopping list ([57352ed](https://github.com/Jc2k/darkhold/commit/57352ed4dc311a6ffd1b4d25453664a61fb9988d))
+
 ## [1.97.1](https://github.com/Jc2k/darkhold/compare/v1.97.0...v1.97.1) (2026-06-01)
 
 
