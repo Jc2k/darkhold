@@ -1,3 +1,10 @@
+# [1.94.0](https://github.com/Jc2k/darkhold/compare/v1.93.0...v1.94.0) (2026-06-01)
+
+
+### Features
+
+* **shopping:** add speech input for shopping requests ([c3f8f60](https://github.com/Jc2k/darkhold/commit/c3f8f604898665a0042bc84b8399d2813f93a47f))
+
 # [1.93.0](https://github.com/Jc2k/darkhold/compare/v1.92.0...v1.93.0) (2026-06-01)
 
 
