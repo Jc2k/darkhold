@@ -1,3 +1,15 @@
+# [1.97.0](https://github.com/Jc2k/darkhold/compare/v1.96.0...v1.97.0) (2026-06-01)
+
+
+### Bug Fixes
+
+* guard short-word false positives in singular/plural variant check ([9508e3d](https://github.com/Jc2k/darkhold/commit/9508e3dc3df767a4fb71111cd69e8e0439d3ef11))
+
+
+### Features
+
+* check singular/plural variant and FOOD_ALIAS in findOrCreateFood ([e95d34f](https://github.com/Jc2k/darkhold/commit/e95d34faff821d43cba7d5a905bbee68a9b27c6e))
+
 # [1.96.0](https://github.com/Jc2k/darkhold/compare/v1.95.0...v1.96.0) (2026-06-01)
 
 
