@@ -1,3 +1,10 @@
+# [1.93.0](https://github.com/Jc2k/darkhold/compare/v1.92.0...v1.93.0) (2026-06-01)
+
+
+### Features
+
+* **cache:** synchronize mutation invalidations ([af25d99](https://github.com/Jc2k/darkhold/commit/af25d995a17048712dae02c98aa09e6a0e3dcd97))
+
 # [1.92.0](https://github.com/Jc2k/darkhold/compare/v1.91.2...v1.92.0) (2026-06-01)
 
 
