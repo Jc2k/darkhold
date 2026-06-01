@@ -612,7 +612,6 @@ export function ShoppingList() {
                             longPressTimeout.current = setTimeout(() => {
                               longPressTriggered.current = true;
                               longPressTimeout.current = null;
-                              setLongPressKey(null);
                               closeSwipeAction();
                               openIngredientInfo(agg);
                             }, LONG_PRESS_DELAY_MS);
