@@ -963,6 +963,10 @@ Deno.test('handleAddToShoppingList does not send checked field when creating ent
         `expected checked to be omitted from entry payload, got ${entryBody.checked}`,
       );
     }
+    const food = entryBody.food as Record<string, unknown>;
+    if (food.name !== 'apples') {
+      throw new Error(`expected food.name to be 'apples', got ${food.name}`);
+    }
   } finally {
     globalThis.fetch = originalFetch;
   }

@@ -788,7 +788,7 @@ export async function handleAddToShoppingList(
     const entryRes = await fetch(tandoorUrl + '/api/shopping-list-entry/', {
       method: 'POST',
       headers: tandoorHeaders,
-      body: JSON.stringify({ food: { id: foodId }, amount: 1, unit: null }),
+      body: JSON.stringify({ food: { id: foodId, name: itemName }, amount: 1, unit: null }),
     });
     if (!entryRes.ok) {
       throw new TandoorUpstreamError(
