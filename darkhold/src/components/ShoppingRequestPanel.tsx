@@ -29,16 +29,14 @@ function isAdHocFood(food: ShoppingRequestFood): food is AdHocFood {
 type ParsedIngredientResponse = {
   ingredient?: {
     food?: { id: number; name: string };
-    unit?:
-      | {
-          id: number;
-          name: string;
-          plural_name?: string | null;
-          description?: string | null;
-          base_unit?: string;
-          open_data_slug?: string;
-        }
-      | null;
+    unit?: {
+      id: number;
+      name: string;
+      plural_name?: string | null;
+      description?: string | null;
+      base_unit?: string;
+      open_data_slug?: string;
+    } | null;
     amount?: number;
     note?: string;
   };
@@ -111,15 +109,16 @@ export function ShoppingRequestPanel() {
             ) {
               throw new Error('Ingredient parse failed');
             }
+            const parsedAmount =
+              typeof parsedIngredient?.amount === 'number' &&
+              Number.isFinite(parsedIngredient.amount)
+                ? parsedIngredient.amount
+                : 1;
             return apiPost<ShoppingListEntry>('/shopping-list-entry/', {
               food: { id: parsedFood.id, name: parsedFood.name },
-              amount:
-                typeof parsedIngredient.amount === 'number' &&
-                Number.isFinite(parsedIngredient.amount)
-                  ? parsedIngredient.amount
-                  : 1,
-              unit: parsedIngredient.unit ?? null,
-              note: typeof parsedIngredient.note === 'string' ? parsedIngredient.note : '',
+              amount: parsedAmount,
+              unit: parsedIngredient?.unit ?? null,
+              note: typeof parsedIngredient?.note === 'string' ? parsedIngredient.note : '',
             });
           }
           return apiPost<ShoppingListEntry>('/shopping-list-entry/', {
