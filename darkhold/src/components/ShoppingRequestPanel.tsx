@@ -107,7 +107,7 @@ export function ShoppingRequestPanel() {
               typeof parsedFood.name !== 'string' ||
               parsedFood.name.length === 0
             ) {
-              throw new Error('Ingredient parse failed: missing parsed food');
+              throw new Error(`Ingredient parse failed for "${food.name}": missing parsed food`);
             }
             const parsedAmount =
               typeof parsedIngredient?.amount === 'number' &&
