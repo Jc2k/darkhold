@@ -41,7 +41,7 @@ You can say **"Hey Siri, add milk to the shopping list"** on a HomePod, iPhone, 
 
 1. Siri passes the spoken item name to an Apple Shortcut installed on your iPhone.
 2. The shortcut makes a `POST /add-to-shopping-list` request to the Darkhold add-on, including your Tandoor API token in the `Authorization` header.
-3. Darkhold passes that token through to Tandoor to find or create the matching food entry and add it to the shopping list.
+3. Darkhold passes that token through to Tandoor's ingredient parser endpoint, then uses the parsed ingredient (food, amount, unit, note) to create the shopping list entry.
 
 HomePod triggers shortcuts that are installed on an iPhone sharing the same Apple ID.
 
@@ -95,7 +95,7 @@ on any HomePod, iPhone, iPad, or Mac that shares your Apple ID.  HomePod will co
 | **Success response** | `200 { "success": true, "item": "milk" }` |
 | **Error responses** | `400` bad request · `401` missing authorization · `502` Tandoor error (includes `details` with upstream or fallback error information) |
 
-The endpoint passes the supplied token directly to Tandoor, so the shopping list entry is attributed to the owner of that token.  The endpoint first searches for an existing Tandoor food entry whose name matches exactly (case-insensitive); if none is found it creates a new food entry before adding the shopping list entry.
+The endpoint passes the supplied token directly to Tandoor, so the shopping list entry is attributed to the owner of that token.  The endpoint submits the spoken text to Tandoor's ingredient parser (`/api/ingredient-parser/post/`) and then creates the shopping list entry from the returned parsed ingredient data.
 
 ## iCloud Calendar Feeds
 
