@@ -765,7 +765,7 @@ describe('ShoppingList', () => {
     expect(rowActions?.querySelector('button[aria-label="Mark Flour bought"]')).toBeTruthy();
   });
 
-  it('opens ingredient details from the desktop info action with true facts and recipe links', () => {
+  it('opens ingredient details from the desktop info action with true facts and contributing recipes', () => {
     useQueryMock.mockImplementation(({ queryKey }: { queryKey: string[] }) => {
       if (queryKey[0] === 'shopping-list') {
         return {
@@ -780,14 +780,19 @@ describe('ShoppingList', () => {
                 { id: 8, name: 'Amazon' },
               ],
             },
+            {
+              id: 2,
+              food: makeFood(),
+              checked: false,
+              list_recipe_data: { recipe: 42, recipe_data: { name: 'Birthday Cake' } },
+            },
+            {
+              id: 3,
+              food: makeFood(),
+              checked: false,
+              list_recipe_data: { recipe: 42, recipe_data: { name: 'Birthday Cake' } },
+            },
           ],
-          isLoading: false,
-          isError: false,
-        };
-      }
-      if (queryKey[0] === 'recipes-by-food') {
-        return {
-          data: { results: [{ id: 42, name: 'Birthday Cake' }] },
           isLoading: false,
           isError: false,
         };
@@ -815,9 +820,11 @@ describe('ShoppingList', () => {
     expect(
       document.body.querySelector<HTMLAnchorElement>('a[href="/recipe/42"]')?.textContent,
     ).toBe('Birthday Cake');
+    expect(document.body.textContent).toContain('Added for recipes');
+    expect(document.body.querySelectorAll('a[href="/recipe/42"]')).toHaveLength(1);
     expect(
       document.body.querySelector<HTMLAnchorElement>('a[href="/ingredient/1"]')?.textContent,
-    ).toBe('more recipes');
+    ).toBe('all recipes');
   });
 
   it('opens ingredient details after a touch long press', () => {
