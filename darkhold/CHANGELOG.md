@@ -1,3 +1,15 @@
+# [1.89.0](https://github.com/Jc2k/darkhold/compare/v1.88.6...v1.89.0) (2026-06-01)
+
+
+### Bug Fixes
+
+* **meal-plan:** skip shopping items for past dates ([d7ae98a](https://github.com/Jc2k/darkhold/commit/d7ae98affaf34727b3632729856f4a8c1648b5d6))
+
+
+### Features
+
+* **housekeeping:** add superuser data maintenance tools ([7daaa84](https://github.com/Jc2k/darkhold/commit/7daaa8447c941e8d8f74c17b7e252a47c1415e2a))
+
 ## [1.88.6](https://github.com/Jc2k/darkhold/compare/v1.88.5...v1.88.6) (2026-06-01)
 
 

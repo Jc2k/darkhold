@@ -1,6 +1,6 @@
 {
   "name": "darkhold",
-  "version": "1.88.6",
+  "version": "1.89.0",
   "private": true,
   "type": "module",
   "scripts": {
