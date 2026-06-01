@@ -9,7 +9,6 @@ import {
   broadcastToAllClients,
   clampWeatherForecastRange,
   fetchFeedEvents,
-  findOrCreateFood,
   handleAddToShoppingList,
   parseOpenMeteoDaily,
   parseIcal,
@@ -868,19 +867,29 @@ Deno.test('handleAddToShoppingList returns 400 when body is not valid JSON', asy
   if (res.status !== 400) throw new Error(`expected 400, got ${res.status}`);
 });
 
-Deno.test('handleAddToShoppingList adds item that already exists in food database', async () => {
+Deno.test('handleAddToShoppingList parses ingredient text before creating entry', async () => {
   const originalFetch = globalThis.fetch;
   const captured: Request[] = [];
 
   globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
     const r = new Request(input, init);
     captured.push(r);
-    if (r.url.includes('/api/food/') && r.method === 'GET') {
+    if (r.url.includes('/api/ingredient-parser/post/') && r.method === 'POST') {
       return Promise.resolve(
-        new Response(JSON.stringify({ results: [{ id: 42, name: 'apples' }] }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }),
+        new Response(
+          JSON.stringify({
+            ingredient: {
+              food: { id: 42, name: 'apples' },
+              unit: null,
+              amount: 1,
+              note: '',
+            },
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        ),
       );
     }
     if (r.url.includes('/api/shopping-list-entry/') && r.method === 'POST') {
@@ -907,52 +916,15 @@ Deno.test('handleAddToShoppingList adds item that already exists in food databas
     if (!body.success) throw new Error('expected success: true');
     if (body.item !== 'apples') throw new Error(`expected item: apples, got ${body.item}`);
 
-    const foodSearchReq = captured.find((r) => r.url.includes('/api/food/') && r.method === 'GET');
-    if (!foodSearchReq) throw new Error('expected food search request');
-    const entryReq = captured.find(
-      (r) => r.url.includes('/api/shopping-list-entry/') && r.method === 'POST',
+    const parserReq = captured.find(
+      (r) => r.url.includes('/api/ingredient-parser/post/') && r.method === 'POST',
     );
-    if (!entryReq) throw new Error('expected shopping list entry creation request');
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
-
-Deno.test('handleAddToShoppingList does not send checked field when creating entry', async () => {
-  const originalFetch = globalThis.fetch;
-  const captured: Request[] = [];
-
-  globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
-    const r = new Request(input, init);
-    captured.push(r);
-    if (r.url.includes('/api/food/') && r.method === 'GET') {
-      return Promise.resolve(
-        new Response(JSON.stringify({ results: [{ id: 42, name: 'apples' }] }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }),
-      );
+    if (!parserReq) throw new Error('expected ingredient parser request');
+    const parserBody = (await parserReq.json()) as { ingredient?: string };
+    if (parserBody.ingredient !== 'apples') {
+      throw new Error(`expected ingredient parser body for apples, got ${parserBody.ingredient}`);
     }
-    if (r.url.includes('/api/shopping-list-entry/') && r.method === 'POST') {
-      return Promise.resolve(
-        new Response(JSON.stringify({ id: 1, food: { id: 42 } }), {
-          status: 201,
-          headers: { 'Content-Type': 'application/json' },
-        }),
-      );
-    }
-    throw new Error('unexpected fetch: ' + r.url);
-  }) as typeof fetch;
 
-  try {
-    const req = new Request('http://localhost/add-to-shopping-list', {
-      method: 'POST',
-      headers: { Authorization: CORRECT_AUTH, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ item: 'apples' }),
-    });
-    const res = await handleAddToShoppingList(req, 'http://tandoor:8080');
-
-    if (res.status !== 200) throw new Error(`expected 200, got ${res.status}`);
     const entryReq = captured.find(
       (r) => r.url.includes('/api/shopping-list-entry/') && r.method === 'POST',
     );
@@ -968,41 +940,35 @@ Deno.test('handleAddToShoppingList does not send checked field when creating ent
   }
 });
 
-Deno.test('handleAddToShoppingList creates new food entry when none found', async () => {
+Deno.test('handleAddToShoppingList forwards parsed amount and unit to shopping entry', async () => {
   const originalFetch = globalThis.fetch;
   const captured: Request[] = [];
 
   globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
     const r = new Request(input, init);
     captured.push(r);
-    if (r.url.includes('/api/food/') && r.method === 'GET') {
+    if (r.url.includes('/api/ingredient-parser/post/') && r.method === 'POST') {
       return Promise.resolve(
-        new Response(JSON.stringify({ results: [] }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }),
-      );
-    }
-    if (r.url.includes('/api/food/') && r.method === 'POST') {
-      return Promise.resolve(
-        new Response(JSON.stringify({ id: 99, name: 'dragon fruit' }), {
-          status: 201,
-          headers: { 'Content-Type': 'application/json' },
-        }),
+        new Response(
+          JSON.stringify({
+            ingredient: {
+              food: { id: 1149, name: 'space grapes' },
+              unit: { id: 13, name: 'g' },
+              amount: 100,
+              note: '',
+            },
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        ),
       );
     }
     if (r.url.includes('/api/shopping-list-entry/') && r.method === 'POST') {
       return Promise.resolve(
-        new Response(JSON.stringify({ id: 2, food: { id: 99 }, checked: false }), {
+        new Response(JSON.stringify({ id: 2, food: { id: 1149 }, checked: false }), {
           status: 201,
-          headers: { 'Content-Type': 'application/json' },
-        }),
-      );
-    }
-    if (r.url.includes('/api/automation/') && r.method === 'GET') {
-      return Promise.resolve(
-        new Response(JSON.stringify({ results: [] }), {
-          status: 200,
           headers: { 'Content-Type': 'application/json' },
         }),
       );
@@ -1014,16 +980,25 @@ Deno.test('handleAddToShoppingList creates new food entry when none found', asyn
     const req = new Request('http://localhost/add-to-shopping-list', {
       method: 'POST',
       headers: { Authorization: CORRECT_AUTH, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ item: 'dragon fruit' }),
+      body: JSON.stringify({ item: '100g space grapes' }),
     });
     const res = await handleAddToShoppingList(req, 'http://tandoor:8080');
-
     if (res.status !== 200) throw new Error(`expected 200, got ${res.status}`);
 
-    const foodCreateReq = captured.find((r) => r.url.includes('/api/food/') && r.method === 'POST');
-    if (!foodCreateReq) throw new Error('expected food create request');
-    const bodyText = await foodCreateReq.text();
-    if (!bodyText.includes('dragon fruit')) throw new Error('expected food name in create body');
+    const entryReq = captured.find(
+      (r) => r.url.includes('/api/shopping-list-entry/') && r.method === 'POST',
+    );
+    if (!entryReq) throw new Error('expected shopping list entry creation request');
+    const entryBody = (await entryReq.json()) as {
+      food?: { id?: number; name?: string };
+      amount?: number;
+      unit?: { id?: number; name?: string } | null;
+    };
+    if (entryBody.food?.id !== 1149)
+      throw new Error(`expected food id 1149, got ${entryBody.food?.id}`);
+    if (entryBody.amount !== 100) throw new Error(`expected amount 100, got ${entryBody.amount}`);
+    if (entryBody.unit?.id !== 13)
+      throw new Error(`expected unit id 13, got ${entryBody.unit?.id}`);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -1034,12 +1009,22 @@ Deno.test('handleAddToShoppingList notifies clients on successful add', async ()
 
   globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
     const r = new Request(input, init);
-    if (r.url.includes('/api/food/') && r.method === 'GET') {
+    if (r.url.includes('/api/ingredient-parser/post/') && r.method === 'POST') {
       return Promise.resolve(
-        new Response(JSON.stringify({ results: [{ id: 42, name: 'apples' }] }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }),
+        new Response(
+          JSON.stringify({
+            ingredient: {
+              food: { id: 42, name: 'apples' },
+              unit: null,
+              amount: 1,
+              note: '',
+            },
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        ),
       );
     }
     if (r.url.includes('/api/shopping-list-entry/') && r.method === 'POST') {
@@ -1094,8 +1079,8 @@ Deno.test(
       if (body.error !== 'Failed to add item to shopping list') {
         throw new Error(`unexpected error message: ${body.error}`);
       }
-      if (!body.details?.includes('Food search failed')) {
-        throw new Error(`expected food search error details, got: ${body.details}`);
+      if (!body.details?.includes('Ingredient parse failed')) {
+        throw new Error(`expected parser error details, got: ${body.details}`);
       }
       if (!body.details?.includes('HTTP 500')) {
         throw new Error(`expected status code in details, got: ${body.details}`);
@@ -1109,207 +1094,3 @@ Deno.test(
     }
   },
 );
-
-// ---------------------------------------------------------------------------
-// findOrCreateFood tests
-// ---------------------------------------------------------------------------
-
-Deno.test('findOrCreateFood returns id of exact case-insensitive match', async () => {
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = (() =>
-    Promise.resolve(
-      new Response(
-        JSON.stringify({
-          results: [
-            { id: 5, name: 'Apple Pie' },
-            { id: 7, name: 'Apples' },
-          ],
-        }),
-        { status: 200, headers: { 'Content-Type': 'application/json' } },
-      ),
-    )) as typeof fetch;
-
-  try {
-    const food = await findOrCreateFood('http://tandoor:8080', 'tok', 'apples');
-    if (food.id !== 7) throw new Error(`expected id 7, got ${food.id}`);
-    if (food.name !== 'Apples') throw new Error(`expected name Apples, got ${food.name}`);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
-
-Deno.test('findOrCreateFood creates food when no exact match exists', async () => {
-  const originalFetch = globalThis.fetch;
-  let postCalled = false;
-
-  globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
-    const r = new Request(input, init);
-    if (r.method === 'GET') {
-      return Promise.resolve(
-        new Response(JSON.stringify({ results: [{ id: 5, name: 'Apple Pie' }] }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }),
-      );
-    }
-    postCalled = true;
-    return Promise.resolve(
-      new Response(JSON.stringify({ id: 99, name: 'apples' }), {
-        status: 201,
-        headers: { 'Content-Type': 'application/json' },
-      }),
-    );
-  }) as typeof fetch;
-
-  try {
-    const food = await findOrCreateFood('http://tandoor:8080', 'tok', 'apples');
-    if (!postCalled) throw new Error('expected POST to create food');
-    if (food.id !== 99) throw new Error(`expected id 99, got ${food.id}`);
-    if (food.name !== 'apples') throw new Error(`expected name apples, got ${food.name}`);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
-
-Deno.test(
-  'findOrCreateFood matches singular variant when only plural exists in results',
-  async () => {
-    const originalFetch = globalThis.fetch;
-
-    // Search returns "apples" but the request is for "apple".
-    globalThis.fetch = (() =>
-      Promise.resolve(
-        new Response(JSON.stringify({ results: [{ id: 11, name: 'apples' }] }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }),
-      )) as typeof fetch;
-
-    try {
-      const food = await findOrCreateFood('http://tandoor:8080', 'tok', 'apple');
-      if (food.id !== 11) throw new Error(`expected id 11, got ${food.id}`);
-      if (food.name !== 'apples') throw new Error(`expected name apples, got ${food.name}`);
-    } finally {
-      globalThis.fetch = originalFetch;
-    }
-  },
-);
-
-Deno.test(
-  'findOrCreateFood matches plural variant when only singular exists in results',
-  async () => {
-    const originalFetch = globalThis.fetch;
-
-    // Search returns "apple" but the request is for "apples".
-    globalThis.fetch = (() =>
-      Promise.resolve(
-        new Response(JSON.stringify({ results: [{ id: 12, name: 'apple' }] }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }),
-      )) as typeof fetch;
-
-    try {
-      const food = await findOrCreateFood('http://tandoor:8080', 'tok', 'apples');
-      if (food.id !== 12) throw new Error(`expected id 12, got ${food.id}`);
-      if (food.name !== 'apple') throw new Error(`expected name apple, got ${food.name}`);
-    } finally {
-      globalThis.fetch = originalFetch;
-    }
-  },
-);
-
-Deno.test('findOrCreateFood resolves food via FOOD_ALIAS when no direct match', async () => {
-  const originalFetch = globalThis.fetch;
-  const captured: Request[] = [];
-
-  globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
-    const r = new Request(input, init);
-    captured.push(r);
-
-    // Initial food search: no exact or variant match.
-    if (r.url.includes('/api/food/') && r.url.includes('query=tomatoes') && r.method === 'GET') {
-      return Promise.resolve(
-        new Response(JSON.stringify({ results: [] }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }),
-      );
-    }
-    // FOOD_ALIAS automation lookup returns a canonical name.
-    if (r.url.includes('/api/automation/') && r.method === 'GET') {
-      return Promise.resolve(
-        new Response(
-          JSON.stringify({
-            results: [{ id: 1, type: 'FOOD_ALIAS', param_1: 'tomatoes', param_2: 'tomato' }],
-          }),
-          { status: 200, headers: { 'Content-Type': 'application/json' } },
-        ),
-      );
-    }
-    // Secondary food search for canonical name "tomato".
-    if (r.url.includes('/api/food/') && r.url.includes('query=tomato') && r.method === 'GET') {
-      return Promise.resolve(
-        new Response(JSON.stringify({ results: [{ id: 55, name: 'tomato' }] }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }),
-      );
-    }
-    throw new Error('unexpected fetch: ' + r.url);
-  }) as typeof fetch;
-
-  try {
-    const food = await findOrCreateFood('http://tandoor:8080', 'tok', 'tomatoes');
-    if (food.id !== 55) throw new Error(`expected id 55, got ${food.id}`);
-    if (food.name !== 'tomato') throw new Error(`expected name tomato, got ${food.name}`);
-    const aliasReq = captured.find((r) => r.url.includes('/api/automation/'));
-    if (!aliasReq) throw new Error('expected FOOD_ALIAS automation request');
-    if (!aliasReq.url.includes('param_1=tomatoes')) {
-      throw new Error(`expected param_1=tomatoes in alias URL, got ${aliasReq.url}`);
-    }
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
-
-Deno.test('findOrCreateFood creates food when FOOD_ALIAS returns no results', async () => {
-  const originalFetch = globalThis.fetch;
-  let postCalled = false;
-
-  globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
-    const r = new Request(input, init);
-    if (r.url.includes('/api/food/') && r.method === 'GET') {
-      return Promise.resolve(
-        new Response(JSON.stringify({ results: [] }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }),
-      );
-    }
-    if (r.url.includes('/api/automation/') && r.method === 'GET') {
-      return Promise.resolve(
-        new Response(JSON.stringify({ results: [] }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }),
-      );
-    }
-    postCalled = true;
-    return Promise.resolve(
-      new Response(JSON.stringify({ id: 77, name: 'quinoa' }), {
-        status: 201,
-        headers: { 'Content-Type': 'application/json' },
-      }),
-    );
-  }) as typeof fetch;
-
-  try {
-    const food = await findOrCreateFood('http://tandoor:8080', 'tok', 'quinoa');
-    if (!postCalled) throw new Error('expected POST to create food');
-    if (food.id !== 77) throw new Error(`expected id 77, got ${food.id}`);
-    if (food.name !== 'quinoa') throw new Error(`expected name quinoa, got ${food.name}`);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});

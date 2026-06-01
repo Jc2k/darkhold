@@ -670,82 +670,6 @@ async function handleWeatherForecast(req: Request): Promise<Response> {
 // Shopping list "add item" endpoint
 // ---------------------------------------------------------------------------
 
-/**
- * Find a food entry in Tandoor by name (exact case-insensitive match), or
- * create a new one if no exact match exists.  Returns the food item's ID.
- */
-export async function findOrCreateFood(
-  tandoorUrl: string,
-  token: string,
-  name: string,
-): Promise<{ id: number; name: string }> {
-  const formatTandoorError = (prefix: string, status: number, responseText: string) =>
-    new TandoorUpstreamError(formatFetchError(prefix, status, responseText).message);
-
-  const searchUrl = tandoorUrl + '/api/food/?query=' + encodeURIComponent(name) + '&page_size=10';
-  const headers = { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' };
-
-  const searchRes = await fetch(searchUrl, { headers });
-  if (!searchRes.ok) {
-    throw formatTandoorError('Food search failed', searchRes.status, await searchRes.text());
-  }
-  const searchData = (await searchRes.json()) as { results?: Array<{ id: number; name: string }> };
-  const results = searchData.results ?? [];
-
-  // Prefer an exact case-insensitive match so repeated Siri requests reuse the same food entry.
-  const lower = name.toLowerCase();
-  const exact = results.find((f) => f.name.toLowerCase() === lower);
-  if (exact) return { id: exact.id, name: exact.name };
-
-  // Also accept the singular/plural variant (e.g. "apples" ↔ "apple").
-  // Only apply when the derived variant is at least 3 characters to avoid
-  // false positives on short words (e.g. "as" → "a").
-  const rawVariant = lower.endsWith('s') ? lower.slice(0, -1) : lower + 's';
-  const variantMatch =
-    rawVariant.length >= 3 ? results.find((f) => f.name.toLowerCase() === rawVariant) : undefined;
-  if (variantMatch) return { id: variantMatch.id, name: variantMatch.name };
-
-  // If neither form matched, check for a FOOD_ALIAS automation rule.
-  try {
-    const aliasUrl =
-      tandoorUrl + '/api/automation/?type=FOOD_ALIAS&param_1=' + encodeURIComponent(name);
-    const aliasRes = await fetch(aliasUrl, { headers });
-    if (aliasRes.ok) {
-      const aliasData = (await aliasRes.json()) as { results?: Array<{ param_2?: string }> };
-      const canonicalName = aliasData.results?.[0]?.param_2;
-      if (canonicalName) {
-        const canonicalSearchUrl =
-          tandoorUrl + '/api/food/?query=' + encodeURIComponent(canonicalName) + '&page_size=10';
-        const canonicalSearchRes = await fetch(canonicalSearchUrl, { headers });
-        if (canonicalSearchRes.ok) {
-          const canonicalData = (await canonicalSearchRes.json()) as {
-            results?: Array<{ id: number; name: string }>;
-          };
-          const canonicalLower = canonicalName.toLowerCase();
-          const canonicalMatch = (canonicalData.results ?? []).find(
-            (f) => f.name.toLowerCase() === canonicalLower,
-          );
-          if (canonicalMatch) return { id: canonicalMatch.id, name: canonicalMatch.name };
-        }
-      }
-    }
-  } catch {
-    // FOOD_ALIAS lookup is best-effort; proceed to create if it fails.
-  }
-
-  // Create a new food entry with the given name.
-  const createRes = await fetch(tandoorUrl + '/api/food/', {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ name }),
-  });
-  if (!createRes.ok) {
-    throw formatTandoorError('Food creation failed', createRes.status, await createRes.text());
-  }
-  const created = (await createRes.json()) as { id: number; name: string };
-  return { id: created.id, name: created.name };
-}
-
 // ---------------------------------------------------------------------------
 // WebSocket broadcast server – client registry (declared here so that
 // handleAddToShoppingList can reference broadcastToAllClients as its default)
@@ -819,12 +743,51 @@ export async function handleAddToShoppingList(
   };
 
   try {
-    const food = await findOrCreateFood(tandoorUrl, token, itemName);
+    const ingredientParserRes = await fetch(tandoorUrl + '/api/ingredient-parser/post/', {
+      method: 'POST',
+      headers: tandoorHeaders,
+      body: JSON.stringify({ ingredient: itemName }),
+    });
+    if (!ingredientParserRes.ok) {
+      throw new TandoorUpstreamError(
+        formatFetchError(
+          'Ingredient parse failed',
+          ingredientParserRes.status,
+          await ingredientParserRes.text(),
+        ).message,
+      );
+    }
+
+    const ingredientParserData = (await ingredientParserRes.json()) as {
+      ingredient?: {
+        food?: { id: number; name: string };
+        unit?: { id: number; name: string; plural_name?: string | null } | null;
+        amount?: number;
+        note?: string;
+      };
+    };
+    const parsedIngredient = ingredientParserData.ingredient;
+    const parsedFood = parsedIngredient?.food;
+    if (!parsedFood?.id || typeof parsedFood.name !== 'string' || parsedFood.name.length === 0) {
+      throw new TandoorUpstreamError('Ingredient parse failed: missing parsed food');
+    }
+
+    const parsedAmount =
+      typeof parsedIngredient?.amount === 'number' && Number.isFinite(parsedIngredient.amount)
+        ? parsedIngredient.amount
+        : 1;
+    const parsedUnit = parsedIngredient?.unit ?? null;
+    const parsedNote = typeof parsedIngredient?.note === 'string' ? parsedIngredient.note : '';
 
     const entryRes = await fetch(tandoorUrl + '/api/shopping-list-entry/', {
       method: 'POST',
       headers: tandoorHeaders,
-      body: JSON.stringify({ food: { id: food.id, name: food.name }, amount: 1, unit: null }),
+      body: JSON.stringify({
+        food: { id: parsedFood.id, name: parsedFood.name },
+        amount: parsedAmount,
+        unit: parsedUnit,
+        note: parsedNote,
+      }),
     });
     if (!entryRes.ok) {
       throw new TandoorUpstreamError(
