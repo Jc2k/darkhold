@@ -4,6 +4,7 @@ import {
   formatMonthYear,
   getMealPlanWeekStartSaturday,
   getWeekStartingSaturday,
+  isMealPlanDateInPast,
   parseLocalDate,
 } from './dateUtils';
 
@@ -121,5 +122,25 @@ describe('getMealPlanWeekStartSaturday', () => {
   it('returns previous Saturday for a mid-week date', () => {
     const wednesday = new Date(2026, 4, 13);
     expect(formatDate(getMealPlanWeekStartSaturday(wednesday))).toBe('2026-05-09');
+  });
+});
+
+describe('isMealPlanDateInPast', () => {
+  const today = new Date(2026, 5, 1, 23, 59);
+
+  it('treats an earlier calendar date as past', () => {
+    expect(isMealPlanDateInPast('2026-05-31', today)).toBe(true);
+  });
+
+  it('does not treat today as past regardless of time', () => {
+    expect(isMealPlanDateInPast('2026-06-01T00:00:00Z', today)).toBe(false);
+  });
+
+  it('does not treat a future calendar date as past', () => {
+    expect(isMealPlanDateInPast('2026-06-02', today)).toBe(false);
+  });
+
+  it('does not suppress shopping-list behavior for malformed dates', () => {
+    expect(isMealPlanDateInPast('not-a-date', today)).toBe(false);
   });
 });

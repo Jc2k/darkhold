@@ -13,6 +13,11 @@ export function parseLocalDate(value: string): Date | null {
   return formatDate(date) === value ? date : null;
 }
 
+export function isMealPlanDateInPast(value: string, today = new Date()): boolean {
+  const date = parseLocalDate(value.slice(0, 10));
+  return date !== null && formatDate(date) < formatDate(today);
+}
+
 export function getMealPlanWeekStartSaturday(referenceDate: Date): Date {
   const base = new Date(referenceDate);
   base.setHours(0, 0, 0, 0);
