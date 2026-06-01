@@ -468,14 +468,13 @@ body {
     bottom: calc(56px + env(safe-area-inset-bottom));
     z-index: 1029;
     display: flex;
-    width: 5rem;
-    height: 1.5rem;
+    width: 9rem;
+    height: 2.75rem;
     transform: translateX(50%);
     align-items: center;
     justify-content: center;
     border: 0;
-    border-radius: 1rem 1rem 0 0;
-    background: var(--bs-body-bg);
+    background: transparent;
     touch-action: none;
   }
 }
