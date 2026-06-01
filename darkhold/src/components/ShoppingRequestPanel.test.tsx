@@ -262,7 +262,7 @@ describe('ShoppingRequestPanel', () => {
     expect(document.body.textContent).not.toContain('Tomatoes');
   });
 
-  it('renders an unlabelled iOS-style handle with an accessible name', () => {
+  it('renders an unlabelled request handle with an accessible name', () => {
     act(() => {
       root.render(
         <MemoryRouter>
@@ -272,8 +272,23 @@ describe('ShoppingRequestPanel', () => {
     });
 
     const handle = container.querySelector<HTMLButtonElement>('.shopping-list-request-handle');
-    expect(handle?.getAttribute('aria-label')).toBe('Swipe up or tap to add a shopping request');
+    expect(handle?.getAttribute('aria-label')).toBe('Add shopping request');
     expect(handle?.textContent).toBe('');
     expect(handle?.querySelector('.shopping-list-request-handle-bar')).toBeTruthy();
+  });
+
+  it('opens the request panel when the request handle is tapped', () => {
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <ShoppingRequestPanel />
+        </MemoryRouter>,
+      );
+    });
+
+    const handle = container.querySelector<HTMLButtonElement>('.shopping-list-request-handle');
+    act(() => handle?.click());
+
+    expect(document.body.textContent).toContain('Add shopping request');
   });
 });

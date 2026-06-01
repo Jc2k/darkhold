@@ -118,7 +118,7 @@ export function ShoppingRequestPanel() {
       <button
         type="button"
         className="shopping-list-request-handle"
-        aria-label="Swipe up or tap to add a shopping request"
+        aria-label="Add shopping request"
         onClick={open}
         onPointerDown={(event) => {
           handleSwipeStart.current = {
