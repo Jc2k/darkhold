@@ -697,6 +697,42 @@ export async function findOrCreateFood(
   const exact = results.find((f) => f.name.toLowerCase() === lower);
   if (exact) return exact.id;
 
+  // Also accept the singular/plural variant (e.g. "apples" ↔ "apple").
+  // Only apply when the derived variant is at least 3 characters to avoid
+  // false positives on short words (e.g. "as" → "a").
+  const rawVariant = lower.endsWith('s') ? lower.slice(0, -1) : lower + 's';
+  const variantMatch =
+    rawVariant.length >= 3 ? results.find((f) => f.name.toLowerCase() === rawVariant) : undefined;
+  if (variantMatch) return variantMatch.id;
+
+  // If neither form matched, check for a FOOD_ALIAS automation rule.
+  try {
+    const aliasUrl =
+      tandoorUrl + '/api/automation/?type=FOOD_ALIAS&param_1=' + encodeURIComponent(name);
+    const aliasRes = await fetch(aliasUrl, { headers });
+    if (aliasRes.ok) {
+      const aliasData = (await aliasRes.json()) as { results?: Array<{ param_2?: string }> };
+      const canonicalName = aliasData.results?.[0]?.param_2;
+      if (canonicalName) {
+        const canonicalSearchUrl =
+          tandoorUrl + '/api/food/?query=' + encodeURIComponent(canonicalName) + '&page_size=10';
+        const canonicalSearchRes = await fetch(canonicalSearchUrl, { headers });
+        if (canonicalSearchRes.ok) {
+          const canonicalData = (await canonicalSearchRes.json()) as {
+            results?: Array<{ id: number; name: string }>;
+          };
+          const canonicalLower = canonicalName.toLowerCase();
+          const canonicalMatch = (canonicalData.results ?? []).find(
+            (f) => f.name.toLowerCase() === canonicalLower,
+          );
+          if (canonicalMatch) return canonicalMatch.id;
+        }
+      }
+    }
+  } catch {
+    // FOOD_ALIAS lookup is best-effort; proceed to create if it fails.
+  }
+
   // Create a new food entry with the given name.
   const createRes = await fetch(tandoorUrl + '/api/food/', {
     method: 'POST',

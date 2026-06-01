@@ -17,6 +17,7 @@
     "npm:@types/react-dom@^19.2.3": "19.2.3_@types+react@19.2.16",
     "npm:@types/react@^19.2.14": "19.2.16",
     "npm:bootstrap@^5.3.8": "5.3.8_@popperjs+core@2.11.8",
+    "npm:ical.js@2": "2.2.1",
     "npm:ical.js@^2.2.1": "2.2.1",
     "npm:jsdom@^29.1.1": "29.1.1_css-tree@3.2.1",
     "npm:openapi-fetch@0.17": "0.17.0",
