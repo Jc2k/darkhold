@@ -1,3 +1,10 @@
+## [1.88.4](https://github.com/Jc2k/darkhold/compare/v1.88.3...v1.88.4) (2026-06-01)
+
+
+### Bug Fixes
+
+* **shopping-list:** hide quantities for manual requests ([0f42d1a](https://github.com/Jc2k/darkhold/commit/0f42d1ad1f5893ff9e06abcd4786a090eae29e12))
+
 ## [1.88.3](https://github.com/Jc2k/darkhold/compare/v1.88.2...v1.88.3) (2026-06-01)
 
 
