@@ -1,22 +1,29 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faAmazon } from '@fortawesome/free-brands-svg-icons';
-import { ListGroup, Alert, Badge, Spinner, Button, ButtonGroup } from 'react-bootstrap';
+import { ListGroup, Alert, Badge, Spinner, Button, ButtonGroup, Modal } from 'react-bootstrap';
 import {
   Basket3,
   Basket3Fill,
   Cart4,
   Eyeglasses,
+  InfoCircle,
   PencilFill,
+  PersonFill,
   PlusCircle,
   QuestionCircleFill,
   Trash3,
 } from 'react-bootstrap-icons';
 import { Link } from 'react-router-dom';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiPatch, apiDelete, apiGet, apiPost } from '../api/client';
 import { broadcastInvalidation } from '../hooks/useInvalidationSocket';
-import type { Food, ShoppingList as TandoorShoppingList } from '../api/tandoor-types';
+import type {
+  Food,
+  PaginatedResponse,
+  Recipe,
+  ShoppingList as TandoorShoppingList,
+} from '../api/tandoor-types';
 import { LoadingMascot } from '../components/LoadingMascot';
 import { NoTokenAlert } from '../components/NoTokenAlert';
 import { formatFraction } from '../utils/fractions';
@@ -36,6 +43,8 @@ const SWIPE_THRESHOLD_PX = 60;
 const SWIPE_ACTION_WIDTH_PX = 104;
 const FULL_SWIPE_THRESHOLD_PX = SWIPE_ACTION_WIDTH_PX * 2;
 const TOOLBAR_BUTTON_STYLE = { minHeight: 44, padding: '0 1rem' };
+const LONG_PRESS_DELAY_MS = 500;
+const LONG_PRESS_MOVE_TOLERANCE_PX = 10;
 
 export function isInShoppingList(entry: ShoppingEntry, listName: string): boolean {
   return entry.shopping_lists?.some((list) => list.name === listName) ?? false;
@@ -101,6 +110,13 @@ interface AggregatedIngredient {
   entries: ShoppingEntry[];
   allChecked: boolean;
   recipes: string[];
+}
+
+interface IngredientInfo {
+  food: Food | null;
+  isAmazon: boolean;
+  isToCheck: boolean;
+  requestedBy: string[];
 }
 
 function getRecipeFromDate(entry: ShoppingEntry): string | null {
@@ -198,6 +214,10 @@ export function ShoppingList() {
   const [clearError, setClearError] = useState<string | null>(null);
   const [moveError, setMoveError] = useState<string | null>(null);
   const swipeStart = useRef<{ key: string; pointerId: number; x: number; y: number } | null>(null);
+  const longPressTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressTriggered = useRef(false);
+  const [longPressKey, setLongPressKey] = useState<string | null>(null);
+  const [ingredientInfo, setIngredientInfo] = useState<IngredientInfo | null>(null);
   const [openSwipeKey, setOpenSwipeKey] = useState<string | null>(null);
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [viewMode, setViewMode] = useState<'category' | 'recipe'>('category');
@@ -214,6 +234,47 @@ export function ShoppingList() {
     queryFn: () => apiPost<TandoorShoppingList>('/shopping-list/', { name: TO_CHECK_LIST_NAME }),
     enabled: hasPersonalToken,
   });
+
+  const {
+    data: ingredientRecipes,
+    isLoading: ingredientRecipesLoading,
+    isError: ingredientRecipesError,
+  } = useQuery({
+    queryKey: ['recipes-by-food', ingredientInfo?.food?.id],
+    queryFn: () =>
+      apiGet<PaginatedResponse<Recipe>>('/recipe/', { foods: ingredientInfo!.food!.id }),
+    enabled: ingredientInfo?.food?.id != null,
+  });
+
+  useEffect(
+    () => () => {
+      if (longPressTimeout.current) clearTimeout(longPressTimeout.current);
+    },
+    [],
+  );
+
+  const clearLongPress = () => {
+    if (longPressTimeout.current) clearTimeout(longPressTimeout.current);
+    longPressTimeout.current = null;
+    setLongPressKey(null);
+  };
+
+  const openIngredientInfo = (agg: AggregatedIngredient) => {
+    const requestedBy = [
+      ...new Set(
+        agg.entries
+          .filter((entry) => !getRecipeName(entry))
+          .map((entry) => entry.created_by?.username)
+          .filter((username): username is string => Boolean(username)),
+      ),
+    ];
+    setIngredientInfo({
+      food: agg.food,
+      isAmazon: agg.entries.some((entry) => isInShoppingList(entry, 'Amazon')),
+      isToCheck: agg.entries.some((entry) => isInShoppingList(entry, TO_CHECK_LIST_NAME)),
+      requestedBy,
+    });
+  };
 
   type UpdateEntriesVariables = {
     entries: ShoppingEntry[];
@@ -524,7 +585,9 @@ export function ShoppingList() {
                         <span>{isToCheck ? 'To Buy' : 'To Check'}</span>
                       </Button>
                       <div
-                        className="shopping-list-swipe-content d-flex align-items-center gap-2 py-2 px-3"
+                        className={`shopping-list-swipe-content d-flex align-items-center gap-2 py-2 px-3${
+                          longPressKey === rowKey ? ' shopping-list-long-press-pending' : ''
+                        }`}
                         style={{
                           transform: `translateX(${openSwipeKey === rowKey ? swipeOffset : 0}px)`,
                         }}
@@ -542,6 +605,18 @@ export function ShoppingList() {
                             x: event.clientX,
                             y: event.clientY,
                           };
+                          longPressTriggered.current = false;
+                          if (event.pointerType !== 'mouse') {
+                            clearLongPress();
+                            setLongPressKey(rowKey);
+                            longPressTimeout.current = setTimeout(() => {
+                              longPressTriggered.current = true;
+                              longPressTimeout.current = null;
+                              setLongPressKey(null);
+                              closeSwipeAction();
+                              openIngredientInfo(agg);
+                            }, LONG_PRESS_DELAY_MS);
+                          }
                           event.currentTarget.setPointerCapture?.(event.pointerId);
                         }}
                         onPointerMove={(event) => {
@@ -549,6 +624,12 @@ export function ShoppingList() {
                           if (start?.key !== rowKey || start.pointerId !== event.pointerId) return;
                           const deltaX = event.clientX - start.x;
                           const deltaY = event.clientY - start.y;
+                          if (
+                            Math.abs(deltaX) > LONG_PRESS_MOVE_TOLERANCE_PX ||
+                            Math.abs(deltaY) > LONG_PRESS_MOVE_TOLERANCE_PX
+                          ) {
+                            clearLongPress();
+                          }
                           if (Math.abs(deltaX) <= Math.abs(deltaY)) return;
                           setOpenSwipeKey(rowKey);
                           setSwipeOffset(deltaX);
@@ -556,7 +637,12 @@ export function ShoppingList() {
                         onPointerUp={(event) => {
                           const start = swipeStart.current;
                           swipeStart.current = null;
+                          clearLongPress();
                           if (start?.key !== rowKey || start.pointerId !== event.pointerId) return;
+                          if (longPressTriggered.current) {
+                            longPressTriggered.current = false;
+                            return;
+                          }
                           const deltaX = event.clientX - start.x;
                           const deltaY = event.clientY - start.y;
                           if (isFullLeftSwipe(deltaX, deltaY)) toggleToCheck(agg.entries);
@@ -572,6 +658,8 @@ export function ShoppingList() {
                         }}
                         onPointerCancel={() => {
                           swipeStart.current = null;
+                          longPressTriggered.current = false;
+                          clearLongPress();
                           closeSwipeAction();
                         }}
                       >
@@ -594,11 +682,7 @@ export function ShoppingList() {
                               agg.allChecked ? 'text-decoration-line-through text-muted' : ''
                             }
                           >
-                            {agg.food?.id != null ? (
-                              <Link to={`/ingredient/${agg.food.id}`}>{foodName}</Link>
-                            ) : (
-                              foodName
-                            )}
+                            {foodName}
                           </span>
                           {notes.map((note) => (
                             <span key={note} className="text-muted small ms-1">
@@ -642,6 +726,14 @@ export function ShoppingList() {
                           <Button
                             variant="outline-secondary"
                             size="sm"
+                            onClick={() => openIngredientInfo(agg)}
+                            aria-label={`Show details for ${foodName}`}
+                          >
+                            <InfoCircle aria-hidden="true" />
+                          </Button>
+                          <Button
+                            variant="outline-secondary"
+                            size="sm"
                             onClick={() => toggleToCheck(agg.entries)}
                             disabled={isPending || !toCheckList || !hasPersonalToken}
                             aria-label={`${isToCheck ? 'Return' : 'Send'} ${foodName} ${isToCheck ? 'from' : 'to'} To Check`}
@@ -672,6 +764,73 @@ export function ShoppingList() {
           </div>
         );
       })}
+
+      <Modal show={ingredientInfo != null} onHide={() => setIngredientInfo(null)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>{ingredientInfo?.food?.name ?? 'Shopping list item'}</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {(ingredientInfo?.isAmazon ||
+            ingredientInfo?.isToCheck ||
+            (ingredientInfo?.requestedBy.length ?? 0) > 0) && (
+            <ul className="shopping-list-info-facts list-unstyled">
+              {ingredientInfo?.isAmazon && (
+                <li>
+                  <FontAwesomeIcon icon={faAmazon} aria-hidden="true" />
+                  <span>This item is bought from Amazon.</span>
+                </li>
+              )}
+              {ingredientInfo?.requestedBy.map((username) => (
+                <li key={username}>
+                  <PersonFill aria-hidden="true" />
+                  <span>This item was requested by {username}.</span>
+                </li>
+              ))}
+              {ingredientInfo?.isToCheck && (
+                <li>
+                  <QuestionCircleFill aria-hidden="true" />
+                  <span>Check to see if we have any.</span>
+                </li>
+              )}
+            </ul>
+          )}
+
+          {ingredientInfo?.food?.id != null && (
+            <section>
+              <h3 className="h6">Recipes using this ingredient</h3>
+              {ingredientRecipesLoading && <Spinner animation="border" size="sm" />}
+              {ingredientRecipesError && (
+                <Alert variant="danger">Failed to load recipes for this ingredient.</Alert>
+              )}
+              {!ingredientRecipesLoading && !ingredientRecipesError && (
+                <>
+                  {(ingredientRecipes?.results?.length ?? 0) > 0 && (
+                    <ul>
+                      {ingredientRecipes?.results?.map((recipe) => (
+                        <li key={recipe.id}>
+                          <Link to={`/recipe/${recipe.id}`} onClick={() => setIngredientInfo(null)}>
+                            {recipe.name}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <p className="mb-0">
+                    See{' '}
+                    <Link
+                      to={`/ingredient/${ingredientInfo.food.id}`}
+                      onClick={() => setIngredientInfo(null)}
+                    >
+                      more recipes
+                    </Link>{' '}
+                    that use this.
+                  </p>
+                </>
+              )}
+            </section>
+          )}
+        </Modal.Body>
+      </Modal>
     </div>
   );
 }
