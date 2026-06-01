@@ -1,3 +1,10 @@
+## [1.91.2](https://github.com/Jc2k/darkhold/compare/v1.91.1...v1.91.2) (2026-06-01)
+
+
+### Bug Fixes
+
+* **dashboard:** align planning alert with shared cache ([11e971a](https://github.com/Jc2k/darkhold/commit/11e971a2a0775457595d6219304cc2aa32e9918d))
+
 ## [1.91.1](https://github.com/Jc2k/darkhold/compare/v1.91.0...v1.91.1) (2026-06-01)
 
 
