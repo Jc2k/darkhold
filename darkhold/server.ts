@@ -700,6 +700,26 @@ export async function findOrCreateFood(
   return created.id;
 }
 
+// ---------------------------------------------------------------------------
+// WebSocket broadcast server – client registry (declared here so that
+// handleAddToShoppingList can reference broadcastToAllClients as its default)
+// ---------------------------------------------------------------------------
+
+const clients = new Set<WebSocket>();
+
+/** Send a raw message string to every currently-open WebSocket client. */
+export function broadcastToAllClients(message: string): void {
+  for (const client of clients) {
+    if (client.readyState === WebSocket.OPEN) {
+      try {
+        client.send(message);
+      } catch {
+        clients.delete(client);
+      }
+    }
+  }
+}
+
 /**
  * Handle POST /add-to-shopping-list.
  *
@@ -709,11 +729,15 @@ export async function findOrCreateFood(
  * their own Tandoor API token rather than a separately configured write token.
  *
  * The tandoorUrl parameter defaults to its environment-variable value but can
- * be overridden in tests.
+ * be overridden in tests.  The notifyClients callback is called on success to
+ * push a shopping-list invalidation to all connected WebSocket clients; it can
+ * be replaced in tests to observe or suppress the broadcast.
  */
 export async function handleAddToShoppingList(
   req: Request,
   tandoorUrl = Deno.env.get('TANDOOR_URL') ?? 'http://tandoor:8080',
+  notifyClients: () => void = () =>
+    broadcastToAllClients(JSON.stringify({ type: 'invalidate', queryKey: 'shopping-list' })),
 ): Promise<Response> {
   const authHeader = req.headers.get('Authorization');
   if (!authHeader?.startsWith('Bearer ')) {
@@ -760,6 +784,7 @@ export async function handleAddToShoppingList(
       throw new Error('Shopping list entry creation failed: HTTP ' + entryRes.status);
     }
 
+    notifyClients();
     return new Response(JSON.stringify({ success: true, item: itemName }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
@@ -776,8 +801,6 @@ export async function handleAddToShoppingList(
 // ---------------------------------------------------------------------------
 // WebSocket broadcast server
 // ---------------------------------------------------------------------------
-
-const clients = new Set<WebSocket>();
 
 Deno.serve({ port: 8098, hostname: '127.0.0.1' }, async (req: Request): Promise<Response> => {
   const url = new URL(req.url);

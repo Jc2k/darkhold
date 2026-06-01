@@ -6,6 +6,7 @@
  */
 
 import {
+  broadcastToAllClients,
   clampWeatherForecastRange,
   fetchFeedEvents,
   findOrCreateFood,
@@ -970,23 +971,73 @@ Deno.test('handleAddToShoppingList creates new food entry when none found', asyn
   }
 });
 
-Deno.test('handleAddToShoppingList returns 502 when Tandoor food search fails', async () => {
+Deno.test('handleAddToShoppingList notifies clients on successful add', async () => {
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = (() =>
-    Promise.resolve(new Response('Internal Server Error', { status: 500 }))) as typeof fetch;
+
+  globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+    const r = new Request(input, init);
+    if (r.url.includes('/api/food/') && r.method === 'GET') {
+      return Promise.resolve(
+        new Response(JSON.stringify({ results: [{ id: 42, name: 'apples' }] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    }
+    if (r.url.includes('/api/shopping-list-entry/') && r.method === 'POST') {
+      return Promise.resolve(
+        new Response(JSON.stringify({ id: 1, food: { id: 42 }, checked: false }), {
+          status: 201,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    }
+    throw new Error('unexpected fetch: ' + r.url);
+  }) as typeof fetch;
 
   try {
+    let notifyCalled = false;
     const req = new Request('http://localhost/add-to-shopping-list', {
       method: 'POST',
       headers: { Authorization: CORRECT_AUTH, 'Content-Type': 'application/json' },
       body: JSON.stringify({ item: 'apples' }),
     });
-    const res = await handleAddToShoppingList(req, 'http://tandoor:8080');
-    if (res.status !== 502) throw new Error(`expected 502, got ${res.status}`);
+    const res = await handleAddToShoppingList(req, 'http://tandoor:8080', () => {
+      notifyCalled = true;
+    });
+
+    if (res.status !== 200) throw new Error(`expected 200, got ${res.status}`);
+    if (!notifyCalled) throw new Error('expected notifyClients to be called on success');
   } finally {
     globalThis.fetch = originalFetch;
   }
 });
+
+Deno.test(
+  'handleAddToShoppingList does not notify clients when Tandoor request fails',
+  async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (() =>
+      Promise.resolve(new Response('Internal Server Error', { status: 500 }))) as typeof fetch;
+
+    try {
+      let notifyCalled = false;
+      const req = new Request('http://localhost/add-to-shopping-list', {
+        method: 'POST',
+        headers: { Authorization: CORRECT_AUTH, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item: 'apples' }),
+      });
+      const res = await handleAddToShoppingList(req, 'http://tandoor:8080', () => {
+        notifyCalled = true;
+      });
+
+      if (res.status !== 502) throw new Error(`expected 502, got ${res.status}`);
+      if (notifyCalled) throw new Error('expected notifyClients NOT to be called on failure');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  },
+);
 
 // ---------------------------------------------------------------------------
 // findOrCreateFood tests
