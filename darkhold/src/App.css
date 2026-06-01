@@ -490,3 +490,14 @@ body {
     display: inline-flex;
   }
 }
+
+.shopping-list-long-press-pending {
+  background: var(--bs-secondary-bg);
+}
+
+.shopping-list-info-facts li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}

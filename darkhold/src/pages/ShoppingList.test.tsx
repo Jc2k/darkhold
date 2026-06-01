@@ -151,6 +151,7 @@ describe('ShoppingList', () => {
     delete actGlobal.IS_REACT_ACT_ENVIRONMENT;
     vi.unstubAllGlobals();
     vi.clearAllMocks();
+    vi.useRealTimers();
   });
 
   it('hides quantities and units for manual requests', () => {
@@ -527,9 +528,10 @@ describe('ShoppingList', () => {
     });
 
     const ingredientNames = Array.from(
-      container.querySelectorAll<HTMLAnchorElement>('.list-group-item a'),
+      container.querySelectorAll<HTMLDivElement>('.shopping-list-swipe-content .flex-grow-1'),
     ).map((node) => node.textContent);
-    expect(ingredientNames).toEqual(['Pepper', 'Onion']);
+    expect(ingredientNames).toEqual(['1 cupPepper', '1 cupOnion']);
+    expect(container.querySelector('.list-group-item a')).toBeNull();
   });
 
   it('hides checked items when the hide toggle is enabled', () => {
@@ -758,8 +760,84 @@ describe('ShoppingList', () => {
 
     expect(container.querySelector('button[aria-label="Show actions for Flour"]')).toBeNull();
     const rowActions = container.querySelector('.shopping-list-row-actions');
+    expect(rowActions?.querySelector('button[aria-label="Show details for Flour"]')).toBeTruthy();
     expect(rowActions?.querySelector('button[aria-label="Send Flour to To Check"]')).toBeTruthy();
     expect(rowActions?.querySelector('button[aria-label="Mark Flour bought"]')).toBeTruthy();
+  });
+
+  it('opens ingredient details from the desktop info action with true facts and recipe links', () => {
+    useQueryMock.mockImplementation(({ queryKey }: { queryKey: string[] }) => {
+      if (queryKey[0] === 'shopping-list') {
+        return {
+          data: [
+            {
+              id: 1,
+              food: makeFood(),
+              checked: false,
+              created_by: { username: 'alice' },
+              shopping_lists: [
+                { id: 7, name: 'To Check' },
+                { id: 8, name: 'Amazon' },
+              ],
+            },
+          ],
+          isLoading: false,
+          isError: false,
+        };
+      }
+      if (queryKey[0] === 'recipes-by-food') {
+        return {
+          data: { results: [{ id: 42, name: 'Birthday Cake' }] },
+          isLoading: false,
+          isError: false,
+        };
+      }
+      return { data: { id: 7, name: 'To Check' }, isLoading: false, isError: false };
+    });
+
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <ShoppingList />
+        </MemoryRouter>,
+      );
+    });
+
+    expect(container.querySelector('.list-group-item a')).toBeNull();
+    const infoButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Show details for Flour"]',
+    );
+    act(() => infoButton?.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+
+    expect(document.body.textContent).toContain('This item is bought from Amazon.');
+    expect(document.body.textContent).toContain('This item was requested by alice.');
+    expect(document.body.textContent).toContain('Check to see if we have any.');
+    expect(
+      document.body.querySelector<HTMLAnchorElement>('a[href="/recipe/42"]')?.textContent,
+    ).toBe('Birthday Cake');
+    expect(
+      document.body.querySelector<HTMLAnchorElement>('a[href="/ingredient/1"]')?.textContent,
+    ).toBe('more recipes');
+  });
+
+  it('opens ingredient details after a touch long press', () => {
+    vi.useFakeTimers();
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <ShoppingList />
+        </MemoryRouter>,
+      );
+    });
+
+    const rowContent = container.querySelector('.shopping-list-swipe-content');
+    act(() => {
+      dispatchPointer(rowContent!, 'pointerdown', 140, 10);
+      vi.advanceTimersByTime(500);
+    });
+
+    expect(document.body.querySelector('.modal-title')?.textContent).toBe('Flour');
+    expect((rowContent as HTMLDivElement).style.transform).toBe('translateX(0px)');
   });
 
   it('does not start a swipe when using desktop row actions', () => {

@@ -14,6 +14,7 @@ export interface ShoppingListEntry {
   unit_name?: string | null;
   food: Food | null;
   checked: boolean;
+  created_by?: { username: string } | null;
   ingredient_note?: string | null;
   list_recipe_data?: {
     recipe_data: {
