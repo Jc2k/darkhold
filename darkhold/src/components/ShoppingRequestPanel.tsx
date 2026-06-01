@@ -26,6 +26,22 @@ function isAdHocFood(food: ShoppingRequestFood): food is AdHocFood {
   return 'customOption' in food && food.customOption;
 }
 
+type ParsedIngredientResponse = {
+  ingredient?: {
+    food?: { id: number; name: string };
+    unit?: {
+      id: number;
+      name: string;
+      plural_name?: string | null;
+      description?: string | null;
+      base_unit?: string;
+      open_data_slug?: string;
+    } | null;
+    amount?: number;
+    note?: string;
+  };
+};
+
 export function isUpSwipe(deltaX: number, deltaY: number): boolean {
   return deltaY <= -SWIPE_THRESHOLD_PX && Math.abs(deltaY) > Math.abs(deltaX);
 }
@@ -76,13 +92,44 @@ export function ShoppingRequestPanel() {
   const addRequest = useMutation({
     mutationFn: (foods: ShoppingRequestFood[]) =>
       Promise.all(
-        foods.map((food) =>
-          apiPost<ShoppingListEntry>('/shopping-list-entry/', {
-            food: isAdHocFood(food) ? { name: food.name } : food,
+        foods.map(async (food) => {
+          if (isAdHocFood(food)) {
+            const ingredientParserData = await apiPost<ParsedIngredientResponse>(
+              '/ingredient-parser/post/',
+              {
+                ingredient: food.name,
+              },
+            );
+            const parsedIngredient = ingredientParserData.ingredient;
+            const parsedFood = parsedIngredient?.food;
+            if (
+              typeof parsedFood?.id !== 'number' ||
+              !Number.isFinite(parsedFood.id) ||
+              typeof parsedFood.name !== 'string' ||
+              parsedFood.name.length === 0
+            ) {
+              throw new Error(
+                `Ingredient parse failed for "${food.name}": unexpected parser response`,
+              );
+            }
+            const parsedAmount =
+              typeof parsedIngredient?.amount === 'number' &&
+              Number.isFinite(parsedIngredient.amount)
+                ? parsedIngredient.amount
+                : 1;
+            return apiPost<ShoppingListEntry>('/shopping-list-entry/', {
+              food: { id: parsedFood.id, name: parsedFood.name },
+              amount: parsedAmount,
+              unit: parsedIngredient?.unit ?? null,
+              note: typeof parsedIngredient?.note === 'string' ? parsedIngredient.note : '',
+            });
+          }
+          return apiPost<ShoppingListEntry>('/shopping-list-entry/', {
+            food,
             amount: 1,
-            unit: isAdHocFood(food) ? { name: 'g' } : null,
-          }),
-        ),
+            unit: null,
+          });
+        }),
       ),
     onMutate: () => setRequestError(null),
     onSuccess: (createdEntries) => {
