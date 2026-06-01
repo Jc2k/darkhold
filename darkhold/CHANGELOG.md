@@ -1,3 +1,10 @@
+## [1.97.1](https://github.com/Jc2k/darkhold/compare/v1.97.0...v1.97.1) (2026-06-01)
+
+
+### Bug Fixes
+
+* include food name in shopping list entry payload ([65f343d](https://github.com/Jc2k/darkhold/commit/65f343dfe5aad8467ce92fe4f95113c97b2bf549))
+
 # [1.97.0](https://github.com/Jc2k/darkhold/compare/v1.96.0...v1.97.0) (2026-06-01)
 
 
