@@ -1,3 +1,10 @@
+## [1.91.1](https://github.com/Jc2k/darkhold/compare/v1.91.0...v1.91.1) (2026-06-01)
+
+
+### Bug Fixes
+
+* **shopping-list:** prevent selection during long press ([e8627ed](https://github.com/Jc2k/darkhold/commit/e8627ed7db390b5a1dc787ff19e81776dd5d0f24))
+
 # [1.91.0](https://github.com/Jc2k/darkhold/compare/v1.90.0...v1.91.0) (2026-06-01)
 
 
