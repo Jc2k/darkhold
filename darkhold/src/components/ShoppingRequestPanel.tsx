@@ -7,6 +7,7 @@ import { apiPost, searchFoods } from '../api/client';
 import { invalidateCacheQueries } from '../hooks/useCacheInvalidation';
 import { AsyncTypeaheadFilter, type FilterOption } from './AsyncTypeaheadFilter';
 import { NoTokenAlert } from './NoTokenAlert';
+import { SpeechRecognitionButton } from './SpeechRecognitionButton';
 import type { ShoppingListEntry } from '../hooks/useShoppingListEntries';
 
 const SWIPE_THRESHOLD_PX = 60;
@@ -107,6 +108,10 @@ export function ShoppingRequestPanel() {
     setSelectedFoods([]);
   };
 
+  const stageSpokenFood = (name: string) => {
+    stageSelectedFoods([{ customOption: true, id: `speech-${name.toLocaleLowerCase()}`, name }]);
+  };
+
   const removePendingFood = (foodId: number | string) => {
     setPendingFoods((current) => current.filter((food) => food.id !== foodId));
     closeSwipeAction();
@@ -157,6 +162,10 @@ export function ShoppingRequestPanel() {
               multiple={false}
               disabled={!hasPersonalToken || addRequest.isPending}
               allowNew
+            />
+            <SpeechRecognitionButton
+              disabled={!hasPersonalToken || addRequest.isPending}
+              onResult={stageSpokenFood}
             />
             {pendingFoods.length > 0 && (
               <ListGroup className="mb-3">

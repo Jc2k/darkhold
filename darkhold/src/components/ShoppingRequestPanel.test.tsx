@@ -40,6 +40,14 @@ vi.mock('./NoTokenAlert', () => ({
   NoTokenAlert: () => <div>no-token</div>,
 }));
 
+vi.mock('./SpeechRecognitionButton', () => ({
+  SpeechRecognitionButton: ({ onResult }: { onResult: (transcript: string) => void }) => (
+    <button type="button" onClick={() => onResult('Milk')}>
+      Speak milk
+    </button>
+  ),
+}));
+
 vi.mock('./AsyncTypeaheadFilter', () => ({
   AsyncTypeaheadFilter: ({
     allowNew,
@@ -228,6 +236,29 @@ describe('ShoppingRequestPanel', () => {
     act(() => findButton('Select tomatoes')?.click());
     act(() => findButton('Submit requests')?.click());
     expect(mutateMock).toHaveBeenCalledWith([{ id: 12, name: 'Tomatoes' }]);
+  });
+
+  it('queues spoken foods through the existing pending request flow', () => {
+    act(() => {
+      root.render(
+        <MemoryRouter initialEntries={['/?add=request']}>
+          <ShoppingRequestPanel />
+        </MemoryRouter>,
+      );
+    });
+
+    const findButton = (label: string) =>
+      [...document.querySelectorAll('button')].find(
+        (button) => button.textContent?.trim() === label,
+      );
+
+    act(() => findButton('Speak milk')?.click());
+    expect(document.body.textContent).toContain('Milk');
+
+    act(() => findButton('Submit requests')?.click());
+    expect(mutateMock).toHaveBeenCalledWith([
+      { customOption: true, id: 'speech-milk', name: 'Milk' },
+    ]);
   });
 
   it('deletes a pending food after a full left swipe', () => {
