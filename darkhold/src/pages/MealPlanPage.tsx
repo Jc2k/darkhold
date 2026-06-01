@@ -2120,7 +2120,7 @@ export function MealPlanPage() {
               </Button>
             </ButtonGroup>
             <Button
-              variant={assistantMode ? 'secondary' : 'outline-secondary'}
+              variant="secondary"
               style={{ minHeight: 44, padding: '0 0.75rem' }}
               onClick={() => {
                 void handleAssistantToggle();

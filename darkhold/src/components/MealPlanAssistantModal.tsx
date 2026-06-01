@@ -87,7 +87,7 @@ function AlternativeRecipePreview({
           </Badge>
           {onSelect && (
             <Button
-              variant="outline-secondary"
+              variant="secondary"
               size="sm"
               disabled={isSwitching}
               aria-label={`Use ${recipe.name} instead`}

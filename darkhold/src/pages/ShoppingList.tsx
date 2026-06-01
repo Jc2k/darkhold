@@ -475,7 +475,7 @@ export function ShoppingList() {
           </ButtonGroup>
         </div>
         <Button
-          variant="outline-danger"
+          variant="danger"
           style={TOOLBAR_BUTTON_STYLE}
           onClick={() => clearAll(entries)}
           disabled={isClearing || !hasPersonalToken}
@@ -734,7 +734,7 @@ export function ShoppingList() {
                             <InfoCircle aria-hidden="true" />
                           </Button>
                           <Button
-                            variant="outline-secondary"
+                            variant="secondary"
                             size="sm"
                             onClick={() => toggleToCheck(agg.entries)}
                             disabled={isPending || !toCheckList || !hasPersonalToken}
@@ -743,7 +743,7 @@ export function ShoppingList() {
                             <QuestionCircleFill aria-hidden="true" />
                           </Button>
                           <Button
-                            variant="outline-success"
+                            variant="success"
                             size="sm"
                             onClick={() => toggleChecked(agg.entries, !agg.allChecked)}
                             disabled={isPending || !hasPersonalToken}
