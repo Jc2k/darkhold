@@ -1,3 +1,15 @@
+# [1.92.0](https://github.com/Jc2k/darkhold/compare/v1.91.2...v1.92.0) (2026-06-01)
+
+
+### Bug Fixes
+
+* **ui:** use filled variants for mutation buttons ([d23b36c](https://github.com/Jc2k/darkhold/commit/d23b36c7da74d645d046ba06cb446a812c5a5cc8))
+
+
+### Features
+
+* **meal-plan:** initialise add modal from shopping list week ([c54b94c](https://github.com/Jc2k/darkhold/commit/c54b94cae522082445640b1a89172de0a98d12cd))
+
 ## [1.91.2](https://github.com/Jc2k/darkhold/compare/v1.91.1...v1.91.2) (2026-06-01)
 
 
