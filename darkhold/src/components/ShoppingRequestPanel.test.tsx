@@ -75,6 +75,7 @@ describe('ShoppingRequestPanel', () => {
   const actGlobal = globalThis as ReactActGlobal;
 
   beforeEach(() => {
+    vi.useFakeTimers();
     actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
     container = document.createElement('div');
     document.body.appendChild(container);
@@ -96,7 +97,11 @@ describe('ShoppingRequestPanel', () => {
   });
 
   afterEach(() => {
-    act(() => root.unmount());
+    act(() => {
+      root.unmount();
+      vi.runOnlyPendingTimers();
+    });
+    vi.useRealTimers();
     container.remove();
     localStorage.clear();
     delete actGlobal.IS_REACT_ACT_ENVIRONMENT;

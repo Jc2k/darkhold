@@ -18,6 +18,11 @@ import { BookDetail } from './pages/BookDetail';
 import { GasMarks } from './pages/GasMarks';
 import { UnitConverter } from './pages/UnitConverter';
 import { RiceCooking } from './pages/RiceCooking';
+import { Housekeeping } from './pages/Housekeeping';
+import { OrphanedIngredients } from './pages/OrphanedIngredients';
+import { HistoricCookLogs } from './pages/HistoricCookLogs';
+import { RecipeCreationDates } from './pages/RecipeCreationDates';
+import { SuperuserGuard } from './components/SuperuserGuard';
 import { LoadingMascot } from './components/LoadingMascot';
 import { useAppConfig } from './hooks/useAppConfig';
 import { apiGet } from './api/client';
@@ -174,6 +179,46 @@ const router = createBrowserRouter([
       {
         path: 'utilities/rice-cooking',
         element: <RiceCooking />,
+      },
+      {
+        path: 'housekeeping',
+        element: (
+          <AuthGuard>
+            <SuperuserGuard>
+              <Housekeeping />
+            </SuperuserGuard>
+          </AuthGuard>
+        ),
+      },
+      {
+        path: 'housekeeping/orphaned-ingredients',
+        element: (
+          <AuthGuard>
+            <SuperuserGuard>
+              <OrphanedIngredients />
+            </SuperuserGuard>
+          </AuthGuard>
+        ),
+      },
+      {
+        path: 'housekeeping/historic-cook-logs',
+        element: (
+          <AuthGuard>
+            <SuperuserGuard>
+              <HistoricCookLogs />
+            </SuperuserGuard>
+          </AuthGuard>
+        ),
+      },
+      {
+        path: 'housekeeping/recipe-creation-dates',
+        element: (
+          <AuthGuard>
+            <SuperuserGuard>
+              <RecipeCreationDates />
+            </SuperuserGuard>
+          </AuthGuard>
+        ),
       },
     ],
   },
