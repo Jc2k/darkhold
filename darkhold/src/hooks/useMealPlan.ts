@@ -3,7 +3,7 @@ import { apiGet, apiPost, apiPatch, apiDelete } from '../api/client';
 import type { MealPlan, PaginatedResponse } from '../api/tandoor-types';
 import { broadcastInvalidation } from './useInvalidationSocket';
 import type { UpSoonData } from './useUpSoon';
-import { formatDate } from '../utils/dateUtils';
+import { formatDate, isMealPlanDateInPast } from '../utils/dateUtils';
 import { MEAL_PLAN_GC_TIME, MEAL_PLAN_STALE_TIME } from '../utils/cacheConfig';
 import { removeMealPlanFromCaches, updateMealPlanCaches } from '../utils/mealPlanCache';
 import {
@@ -68,7 +68,13 @@ export function useUpdateMealPlan() {
 export function useCreateMealPlan() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: Partial<MealPlan>) => apiPost<MealPlan>('/meal-plan/', data),
+    mutationFn: (data: Partial<MealPlan>) =>
+      apiPost<MealPlan>('/meal-plan/', {
+        ...data,
+        ...(data.addshopping === undefined
+          ? {}
+          : { addshopping: data.addshopping && !isMealPlanDateInPast(data.from_date ?? '') }),
+      }),
     onSuccess: async (result, variables) => {
       updateMealPlanCaches(qc, result);
       const redirectWeekPath = getMealPlanWeekPathFromDateString(result.from_date);
