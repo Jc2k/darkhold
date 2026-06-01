@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
+import { formatDate } from './dateUtils';
 import {
   getCurrentMealPlanWeekPath,
   getMealPlanRedirectWeekQueryOptions,
   getLockedMealPlanWeekPath,
   getMealPlanWeekPathFromDateString,
+  getMealPlanWeekStartFromShoppingListEntries,
   invalidateAndRefreshMealPlanRedirectWeek,
   MEAL_PLAN_REDIRECT_WEEK_QUERY_KEY,
   MEAL_PLAN_REDIRECT_WEEK_STALE_TIME,
@@ -28,6 +30,35 @@ describe('getMealPlanWeekPathFromDateString', () => {
 
   it('returns null for invalid date values', () => {
     expect(getMealPlanWeekPathFromDateString('not-a-date')).toBeNull();
+  });
+});
+
+describe('getMealPlanWeekStartFromShoppingListEntries', () => {
+  const now = new Date('2026-05-27T10:30:00Z');
+
+  it('returns null when no shopping list exists', () => {
+    expect(getMealPlanWeekStartFromShoppingListEntries([], now)).toBeNull();
+  });
+
+  it('uses the first dated entry because shopping-list cache entries are newest first', () => {
+    const weekStart = getMealPlanWeekStartFromShoppingListEntries(
+      [
+        { id: 2, list_recipe_data: { meal_plan_data: { from_date: '2026-06-03' } } },
+        { id: 1, list_recipe_data: { meal_plan_data: { from_date: '2026-05-20' } } },
+      ],
+      now,
+    );
+
+    expect(formatDate(weekStart!)).toBe('2026-05-30');
+  });
+
+  it('falls back to the current week for a shopping list without meal-plan metadata', () => {
+    const weekStart = getMealPlanWeekStartFromShoppingListEntries(
+      [{ id: 1, list_recipe_data: null }],
+      now,
+    );
+
+    expect(formatDate(weekStart!)).toBe('2026-05-23');
   });
 });
 

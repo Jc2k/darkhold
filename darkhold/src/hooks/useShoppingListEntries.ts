@@ -46,6 +46,7 @@ export async function fetchAllShoppingListEntries(): Promise<ShoppingListEntry[]
 
   while (hasNext) {
     const data = await apiGet<PaginatedResponse<ShoppingListEntry>>('/shopping-list-entry/', {
+      ordering: '-created_at',
       page_size: 100,
       page,
     });

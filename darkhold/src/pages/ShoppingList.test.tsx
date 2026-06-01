@@ -355,10 +355,12 @@ describe('ShoppingList', () => {
       { id: 2, food: { ...makeFood(), id: 2, name: 'Milk' }, checked: true },
     ]);
     expect(apiGetMock).toHaveBeenNthCalledWith(1, '/shopping-list-entry/', {
+      ordering: '-created_at',
       page_size: 100,
       page: 1,
     });
     expect(apiGetMock).toHaveBeenNthCalledWith(2, '/shopping-list-entry/', {
+      ordering: '-created_at',
       page_size: 100,
       page: 2,
     });
@@ -370,6 +372,7 @@ describe('ShoppingList', () => {
 
     await expect(fetchAllShoppingListEntries()).rejects.toThrow('API error 500');
     expect(apiGetMock).toHaveBeenCalledWith('/shopping-list-entry/', {
+      ordering: '-created_at',
       page_size: 100,
       page: 1,
     });

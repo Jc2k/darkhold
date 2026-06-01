@@ -32,6 +32,24 @@ export function getCurrentMealPlanWeekPath(now: Date = new Date()): string {
   return `/meal-plan/${formatDate(getMealPlanWeekStartSaturday(now))}`;
 }
 
+export function getMealPlanWeekStartFromShoppingListEntries(
+  entries: RedirectShoppingListEntry[],
+  now: Date = new Date(),
+): Date | null {
+  if (entries.length === 0) return null;
+
+  const latestMealPlanDate = entries
+    .map(getFromDateFromEntry)
+    .find((fromDate): fromDate is string => fromDate !== null);
+  if (!latestMealPlanDate) return getMealPlanWeekStartSaturday(now);
+
+  const rawDate = latestMealPlanDate.includes('T')
+    ? latestMealPlanDate.split('T')[0]
+    : latestMealPlanDate;
+  const parsedDate = parseLocalDate(rawDate);
+  return getMealPlanWeekStartSaturday(parsedDate ?? now);
+}
+
 export function getMealPlanWeekPathFromDateString(fromDate: string): string | null {
   const rawDate = fromDate.includes('T') ? fromDate.split('T')[0] : fromDate;
   const mealPlanDate = parseLocalDate(rawDate);
@@ -61,8 +79,8 @@ export async function getLockedMealPlanWeekPath(
         (entry) => getFromDateFromEntry(entry) != null,
       );
       if (latestWithMealPlan) {
-        const fromDate = getFromDateFromEntry(latestWithMealPlan)!;
-        return getMealPlanWeekPathFromDateString(fromDate) ?? fallback;
+        const weekStart = getMealPlanWeekStartFromShoppingListEntries([latestWithMealPlan], now);
+        return weekStart ? `/meal-plan/${formatDate(weekStart)}` : fallback;
       }
 
       if (!shoppingList.next) break;
