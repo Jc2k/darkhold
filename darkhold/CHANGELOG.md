@@ -1,3 +1,15 @@
+# [1.96.0](https://github.com/Jc2k/darkhold/compare/v1.95.0...v1.96.0) (2026-06-01)
+
+
+### Bug Fixes
+
+* enhance README with additional project details ([981230d](https://github.com/Jc2k/darkhold/commit/981230d1f98ab2a779af7b5e3f67c367b0b088d8))
+
+
+### Features
+
+* merge pull request [#352](https://github.com/Jc2k/darkhold/issues/352) from Jc2k/copilot/new-apple-shortcuts-workflow ([08f4899](https://github.com/Jc2k/darkhold/commit/08f4899f79ce1e995b3bb671b938be80f8815ebf))
+
 # [1.95.0](https://github.com/Jc2k/darkhold/compare/v1.94.0...v1.95.0) (2026-06-01)
 
 
