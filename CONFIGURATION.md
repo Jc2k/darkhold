@@ -33,31 +33,21 @@ tandoor_default_token: "<your-read-only-api-token>"
 
 Personal tokens (set on the Settings page) always take precedence, so the per-user write path still uses the correct token for attribution.  The default token itself is never sent to the browser; it lives only in the server-side nginx configuration.
 
-### Write Token (Siri / Apple Shortcuts)
-
-A second, dedicated **write token** lets external clients — such as a HomePod speaking through an Apple Shortcut — add items to the Tandoor shopping list without exposing the default read-only token.
-
-```yaml
-tandoor_write_token: "<your-write-api-token>"
-```
-
-When set, the add-on exposes the endpoint `POST /add-to-shopping-list` (see [Siri Shopping List](#siri--homepod-shopping-list) below).  The endpoint only accepts requests that carry this exact token in the `Authorization` header, so it is safe to store in an Apple Shortcut on a trusted device.
-
-Generate a Tandoor token with sufficient write permissions at **Tandoor → User menu → API Token**.
-
 ## Siri / HomePod Shopping List
 
-With the write token configured you can say **"Hey Siri, add milk to the shopping list"** on a HomePod, iPhone, or any Apple device and have the item appear in Tandoor instantly.
+You can say **"Hey Siri, add milk to the shopping list"** on a HomePod, iPhone, or any Apple device and have the item appear in Tandoor instantly.
 
 ### How it works
 
 1. Siri passes the spoken item name to an Apple Shortcut installed on your iPhone.
-2. The shortcut makes a `POST /add-to-shopping-list` request to the Darkhold add-on.
-3. Darkhold finds or creates the matching Tandoor food entry and adds it to the shopping list.
+2. The shortcut makes a `POST /add-to-shopping-list` request to the Darkhold add-on, including your Tandoor API token in the `Authorization` header.
+3. Darkhold passes that token through to Tandoor to find or create the matching food entry and add it to the shopping list.
 
 HomePod triggers shortcuts that are installed on an iPhone sharing the same Apple ID.
 
 ### Setting up the Apple Shortcut
+
+First, generate a Tandoor token with write permissions at **Tandoor → User menu → API Token**.
 
 1. Open the **Shortcuts** app on your iPhone (iOS 16+).
 2. Tap **+** to create a new shortcut.
@@ -75,7 +65,7 @@ HomePod triggers shortcuts that are installed on an iPhone sharing the same Appl
      *(replace `<YOUR_HA_IP>` with your Home Assistant IP address, e.g. `192.168.1.10`)*
    - Method: `POST`
    - Headers:
-     - `Authorization` → `Bearer <your-write-token>`
+     - `Authorization` → `Bearer <your-tandoor-api-token>`
      - `Content-Type` → `application/json`
    - Request Body: *JSON*  
      Key: `item` → Value: **Item** (the variable from Action 1)
@@ -100,12 +90,12 @@ on any HomePod, iPhone, iPad, or Mac that shares your Apple ID.  HomePod will co
 | Field | Value |
 |---|---|
 | **Endpoint** | `POST /add-to-shopping-list` |
-| **Authentication** | `Authorization: Bearer <your-write-token>` |
+| **Authentication** | `Authorization: Bearer <your-tandoor-api-token>` |
 | **Request body** | `{ "item": "milk" }` |
 | **Success response** | `200 { "success": true, "item": "milk" }` |
-| **Error responses** | `400` bad request · `401` wrong token · `503` token not configured · `502` Tandoor error |
+| **Error responses** | `400` bad request · `401` missing authorization · `502` Tandoor error |
 
-The endpoint first searches for an existing Tandoor food entry whose name matches exactly (case-insensitive); if none is found it creates a new food entry before adding the shopping list entry.
+The endpoint passes the supplied token directly to Tandoor, so the shopping list entry is attributed to the owner of that token.  The endpoint first searches for an existing Tandoor food entry whose name matches exactly (case-insensitive); if none is found it creates a new food entry before adding the shopping list entry.
 
 ## iCloud Calendar Feeds
 

@@ -704,37 +704,25 @@ export async function findOrCreateFood(
  * Handle POST /add-to-shopping-list.
  *
  * Expects JSON body: { "item": "<item name>" }
- * Requires an Authorization: ****** header matching TANDOOR_WRITE_TOKEN.
+ * The Authorization: ****** header must be present; the token is
+ * passed directly to Tandoor API calls so callers (e.g. Siri shortcuts) supply
+ * their own Tandoor API token rather than a separately configured write token.
  *
- * The writeToken and tandoorUrl parameters default to their environment-variable
- * values but can be overridden in tests.
+ * The tandoorUrl parameter defaults to its environment-variable value but can
+ * be overridden in tests.
  */
 export async function handleAddToShoppingList(
   req: Request,
-  writeToken = Deno.env.get('TANDOOR_WRITE_TOKEN') ?? '',
   tandoorUrl = Deno.env.get('TANDOOR_URL') ?? 'http://tandoor:8080',
 ): Promise<Response> {
-  if (!writeToken) {
-    return new Response(JSON.stringify({ error: 'Write token not configured' }), {
-      status: 503,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
-
   const authHeader = req.headers.get('Authorization');
-  const expectedAuth = 'Bearer ' + writeToken;
-  const enc = new TextEncoder();
-  const authBytes = enc.encode(authHeader ?? '');
-  const expectedBytes = enc.encode(expectedAuth);
-  let diff = authBytes.length ^ expectedBytes.length;
-  const len = Math.max(authBytes.length, expectedBytes.length);
-  for (let i = 0; i < len; i++) diff |= (authBytes[i] ?? 0) ^ (expectedBytes[i] ?? 0);
-  if (diff !== 0) {
+  if (!authHeader?.startsWith('Bearer ')) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
       headers: { 'Content-Type': 'application/json' },
     });
   }
+  const token = authHeader.slice('Bearer '.length);
 
   let body: Record<string, unknown>;
   try {
@@ -756,12 +744,12 @@ export async function handleAddToShoppingList(
 
   const itemName = item.trim();
   const tandoorHeaders = {
-    Authorization: 'Bearer ' + writeToken,
+    Authorization: 'Bearer ' + token,
     'Content-Type': 'application/json',
   };
 
   try {
-    const foodId = await findOrCreateFood(tandoorUrl, writeToken, itemName);
+    const foodId = await findOrCreateFood(tandoorUrl, token, itemName);
 
     const entryRes = await fetch(tandoorUrl + '/api/shopping-list-entry/', {
       method: 'POST',

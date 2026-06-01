@@ -825,20 +825,7 @@ Deno.test('clampWeatherForecastRange trims old weather requests to two months of
 // ---------------------------------------------------------------------------
 
 const TEST_TOKEN = 'test-token';
-const WRONG_AUTH = 'Bearer ' + 'wrong-token';
 const CORRECT_AUTH = 'Bearer ' + TEST_TOKEN;
-
-Deno.test('handleAddToShoppingList returns 503 when write token not configured', async () => {
-  const req = new Request('http://localhost/add-to-shopping-list', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ item: 'apples' }),
-  });
-  const res = await handleAddToShoppingList(req, '', 'http://tandoor:8080');
-  if (res.status !== 503) throw new Error(`expected 503, got ${res.status}`);
-  const body = (await res.json()) as { error: string };
-  if (!body.error.includes('not configured')) throw new Error(`unexpected error: ${body.error}`);
-});
 
 Deno.test('handleAddToShoppingList returns 401 when Authorization header is missing', async () => {
   const req = new Request('http://localhost/add-to-shopping-list', {
@@ -846,17 +833,7 @@ Deno.test('handleAddToShoppingList returns 401 when Authorization header is miss
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ item: 'apples' }),
   });
-  const res = await handleAddToShoppingList(req, TEST_TOKEN, 'http://tandoor:8080');
-  if (res.status !== 401) throw new Error(`expected 401, got ${res.status}`);
-});
-
-Deno.test('handleAddToShoppingList returns 401 when token is wrong', async () => {
-  const req = new Request('http://localhost/add-to-shopping-list', {
-    method: 'POST',
-    headers: { Authorization: WRONG_AUTH, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ item: 'apples' }),
-  });
-  const res = await handleAddToShoppingList(req, TEST_TOKEN, 'http://tandoor:8080');
+  const res = await handleAddToShoppingList(req, 'http://tandoor:8080');
   if (res.status !== 401) throw new Error(`expected 401, got ${res.status}`);
 });
 
@@ -866,7 +843,7 @@ Deno.test('handleAddToShoppingList returns 400 when item field is missing', asyn
     headers: { Authorization: CORRECT_AUTH, 'Content-Type': 'application/json' },
     body: JSON.stringify({}),
   });
-  const res = await handleAddToShoppingList(req, TEST_TOKEN, 'http://tandoor:8080');
+  const res = await handleAddToShoppingList(req, 'http://tandoor:8080');
   if (res.status !== 400) throw new Error(`expected 400, got ${res.status}`);
 });
 
@@ -876,7 +853,7 @@ Deno.test('handleAddToShoppingList returns 400 when item is blank', async () => 
     headers: { Authorization: CORRECT_AUTH, 'Content-Type': 'application/json' },
     body: JSON.stringify({ item: '   ' }),
   });
-  const res = await handleAddToShoppingList(req, TEST_TOKEN, 'http://tandoor:8080');
+  const res = await handleAddToShoppingList(req, 'http://tandoor:8080');
   if (res.status !== 400) throw new Error(`expected 400, got ${res.status}`);
 });
 
@@ -886,7 +863,7 @@ Deno.test('handleAddToShoppingList returns 400 when body is not valid JSON', asy
     headers: { Authorization: CORRECT_AUTH, 'Content-Type': 'application/json' },
     body: 'not json',
   });
-  const res = await handleAddToShoppingList(req, TEST_TOKEN, 'http://tandoor:8080');
+  const res = await handleAddToShoppingList(req, 'http://tandoor:8080');
   if (res.status !== 400) throw new Error(`expected 400, got ${res.status}`);
 });
 
@@ -922,7 +899,7 @@ Deno.test('handleAddToShoppingList adds item that already exists in food databas
       headers: { Authorization: CORRECT_AUTH, 'Content-Type': 'application/json' },
       body: JSON.stringify({ item: 'apples' }),
     });
-    const res = await handleAddToShoppingList(req, TEST_TOKEN, 'http://tandoor:8080');
+    const res = await handleAddToShoppingList(req, 'http://tandoor:8080');
 
     if (res.status !== 200) throw new Error(`expected 200, got ${res.status}`);
     const body = (await res.json()) as { success: boolean; item: string };
@@ -980,7 +957,7 @@ Deno.test('handleAddToShoppingList creates new food entry when none found', asyn
       headers: { Authorization: CORRECT_AUTH, 'Content-Type': 'application/json' },
       body: JSON.stringify({ item: 'dragon fruit' }),
     });
-    const res = await handleAddToShoppingList(req, TEST_TOKEN, 'http://tandoor:8080');
+    const res = await handleAddToShoppingList(req, 'http://tandoor:8080');
 
     if (res.status !== 200) throw new Error(`expected 200, got ${res.status}`);
 
@@ -1004,7 +981,7 @@ Deno.test('handleAddToShoppingList returns 502 when Tandoor food search fails', 
       headers: { Authorization: CORRECT_AUTH, 'Content-Type': 'application/json' },
       body: JSON.stringify({ item: 'apples' }),
     });
-    const res = await handleAddToShoppingList(req, TEST_TOKEN, 'http://tandoor:8080');
+    const res = await handleAddToShoppingList(req, 'http://tandoor:8080');
     if (res.status !== 502) throw new Error(`expected 502, got ${res.status}`);
   } finally {
     globalThis.fetch = originalFetch;
