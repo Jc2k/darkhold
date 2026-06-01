@@ -1,3 +1,14 @@
+## [1.97.3](https://github.com/Jc2k/darkhold/compare/v1.97.2...v1.97.3) (2026-06-01)
+
+
+### Bug Fixes
+
+* **shopping:** clarify parser validation failure ([8ca345c](https://github.com/Jc2k/darkhold/commit/8ca345ce3c5eabfc6f903f30750cd344cbe95de5))
+* **shopping:** harden parsed food response validation ([12f6183](https://github.com/Jc2k/darkhold/commit/12f61832960749364064831a9dc49a9740d53d5b))
+* **shopping:** include ingredient name in parse error ([e374a67](https://github.com/Jc2k/darkhold/commit/e374a675451e863d7bfe63a48e115a631d699ab3))
+* **shopping:** parse ad-hoc requests with ingredient parser ([5712ae8](https://github.com/Jc2k/darkhold/commit/5712ae80ac4b0dc6f6e71f790446cc047dd667c6))
+* **shopping:** parse ad-hoc shopping requests before create ([8bff807](https://github.com/Jc2k/darkhold/commit/8bff807b520ebd844296bfa18cead960cdd9c483))
+
 ## [1.97.2](https://github.com/Jc2k/darkhold/compare/v1.97.1...v1.97.2) (2026-06-01)
 
 
