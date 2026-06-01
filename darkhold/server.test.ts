@@ -994,9 +994,11 @@ Deno.test('handleAddToShoppingList forwards parsed amount and unit to shopping e
       amount?: number;
       unit?: { id?: number; name?: string } | null;
     };
-    if (entryBody.food?.id !== 1149) throw new Error(`expected food id 1149, got ${entryBody.food?.id}`);
+    if (entryBody.food?.id !== 1149)
+      throw new Error(`expected food id 1149, got ${entryBody.food?.id}`);
     if (entryBody.amount !== 100) throw new Error(`expected amount 100, got ${entryBody.amount}`);
-    if (entryBody.unit?.id !== 13) throw new Error(`expected unit id 13, got ${entryBody.unit?.id}`);
+    if (entryBody.unit?.id !== 13)
+      throw new Error(`expected unit id 13, got ${entryBody.unit?.id}`);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -1019,8 +1021,8 @@ Deno.test('handleAddToShoppingList notifies clients on successful add', async ()
             },
           }),
           {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
           },
         ),
       );
