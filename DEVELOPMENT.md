@@ -33,7 +33,7 @@ The setup phase must be able to reach the npm registry and at least one Deno bin
 
 ## GitHub Copilot coding agent
 
-GitHub Copilot coding agent automatically runs [`.github/workflows/copilot-setup-steps.yml`](.github/workflows/copilot-setup-steps.yml). That workflow selects Node.js and invokes the same `./setup.sh` entrypoint used by Codex cloud and local development.
+GitHub Copilot coding agent automatically runs [`.github/workflows/copilot-setup-steps.yml`](.github/workflows/copilot-setup-steps.yml). That workflow selects Node.js and invokes the same `./setup.sh` entrypoint used by Codex cloud and local development. Repository-specific Copilot instructions live in [`.github/copilot-instructions.md`](.github/copilot-instructions.md); keep commit-message guidance there so the hosted agent can apply it consistently.
 
 GitHub's hosted Copilot customization surface is its setup-steps workflow and runner selection. A GHCR development image would add another environment definition without being directly reusable as the standard hosted Codex or Copilot environment. If Darkhold later needs OS-level packages that are expensive to install on every task, a pre-provisioned self-hosted Copilot runner and a separately managed Codex environment are the appropriate next step.
 
