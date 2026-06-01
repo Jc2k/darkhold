@@ -131,13 +131,14 @@ export function useAddToUpSoon() {
       await qc.cancelQueries({ queryKey: ['up-soon'] });
       const previous = qc.getQueryData<UpSoonData | null>(['up-soon']);
       if (previous) {
-        qc.setQueryData<UpSoonData | null>(['up-soon'], {
+        const next: UpSoonData = {
           ...previous,
           entries: [
             ...previous.entries,
             { entryId: -1, recipeId, recipe: { id: recipeId, name: '', created_by: 0 } },
           ],
-        });
+        };
+        qc.setQueryData(['up-soon'], next);
       }
       return { previous };
     },
@@ -164,10 +165,11 @@ export function useRemoveFromUpSoon() {
       await qc.cancelQueries({ queryKey: ['up-soon'] });
       const previous = qc.getQueryData<UpSoonData | null>(['up-soon']);
       if (previous) {
-        qc.setQueryData<UpSoonData | null>(['up-soon'], {
+        const next: UpSoonData = {
           ...previous,
           entries: previous.entries.filter((e) => e.recipeId !== recipeId),
-        });
+        };
+        qc.setQueryData(['up-soon'], next);
       }
       return { previous };
     },
