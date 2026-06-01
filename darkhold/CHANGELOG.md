@@ -1,3 +1,17 @@
+# [1.95.0](https://github.com/Jc2k/darkhold/compare/v1.94.0...v1.95.0) (2026-06-01)
+
+
+### Bug Fixes
+
+* better wording ([1fea0b3](https://github.com/Jc2k/darkhold/commit/1fea0b35370160aca807fcba61adad85e79ad93e))
+* **server:** timing-safe token comparison and suppress error detail in 502 response ([6bf7298](https://github.com/Jc2k/darkhold/commit/6bf72989be1429493322c06c657f0b8a25e1ea96))
+
+
+### Features
+
+* broadcast shopping-list invalidation after add-to-shopping-list ([a209099](https://github.com/Jc2k/darkhold/commit/a209099340f439e1cfde3981dc2752861c428ba7))
+* **server:** add Siri/HomePod shopping list endpoint with write token ([3ea0189](https://github.com/Jc2k/darkhold/commit/3ea0189a0950fc9079f4ce1846d26dbf067a0e68))
+
 # [1.94.0](https://github.com/Jc2k/darkhold/compare/v1.93.0...v1.94.0) (2026-06-01)
 
 
