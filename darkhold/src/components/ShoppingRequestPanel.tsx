@@ -166,7 +166,7 @@ export function ShoppingRequestPanel() {
                   allowNew
                 />
               </div>
-              <div className="flex-shrink-0 mb-2">
+              <div className="flex-shrink-0">
                 <SpeechRecognitionButton
                   disabled={!hasPersonalToken || addRequest.isPending}
                   onResult={stageSpokenFood}
