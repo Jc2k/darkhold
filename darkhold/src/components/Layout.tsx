@@ -21,6 +21,7 @@ import {
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import { useInvalidationSocket } from '../hooks/useInvalidationSocket';
 import { ShoppingRequestPanel } from './ShoppingRequestPanel';
+import { useSuperuser } from '../hooks/useSuperuser';
 
 const navItems = [
   { to: '/dashboard', Icon: RocketTakeoff, label: 'Dashboard' },
@@ -30,7 +31,7 @@ const navItems = [
   { to: '/shopping', Icon: Cart4, label: 'Shopping' },
 ];
 
-const menuItems = [
+const commonMenuItems = [
   { to: '/shopping?add=request', icon: '✏️', label: 'Add Shopping Request' },
   { to: '/settings', icon: '⚙️', label: 'Settings' },
   { to: '/utilities/gas-marks', icon: '🔥', label: 'Gas Marks' },
@@ -43,6 +44,10 @@ export function Layout() {
   const isFetching = useIsFetching();
   const queryClient = useQueryClient();
   const [showMenu, setShowMenu] = useState(false);
+  const { data: isSuperuser } = useSuperuser();
+  const menuItems = isSuperuser
+    ? [...commonMenuItems, { to: '/housekeeping', icon: '🧹', label: 'Housekeeping' }]
+    : commonMenuItems;
 
   const handleRefresh = useCallback(() => {
     queryClient.refetchQueries();
