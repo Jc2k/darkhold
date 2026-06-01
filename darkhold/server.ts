@@ -722,7 +722,14 @@ export async function handleAddToShoppingList(
   }
 
   const authHeader = req.headers.get('Authorization');
-  if (!authHeader || authHeader !== 'Bearer ' + writeToken) {
+  const expectedAuth = 'Bearer ' + writeToken;
+  const enc = new TextEncoder();
+  const authBytes = enc.encode(authHeader ?? '');
+  const expectedBytes = enc.encode(expectedAuth);
+  let diff = authBytes.length ^ expectedBytes.length;
+  const len = Math.max(authBytes.length, expectedBytes.length);
+  for (let i = 0; i < len; i++) diff |= (authBytes[i] ?? 0) ^ (expectedBytes[i] ?? 0);
+  if (diff !== 0) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
       headers: { 'Content-Type': 'application/json' },
@@ -770,9 +777,8 @@ export async function handleAddToShoppingList(
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
     console.error('Add to shopping list error:', err);
-    return new Response(JSON.stringify({ error: message }), {
+    return new Response(JSON.stringify({ error: 'Failed to add item to shopping list' }), {
       status: 502,
       headers: { 'Content-Type': 'application/json' },
     });
