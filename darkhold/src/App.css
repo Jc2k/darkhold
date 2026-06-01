@@ -70,12 +70,13 @@
 
 /* iOS Safari automatically zooms focused editable controls when their computed text size is below
    16px. Keep touch-device controls at that threshold app-wide so compact Bootstrap controls and
-   typeahead-generated inputs do not zoom the viewport on focus. */
+   typeahead-generated inputs do not zoom the viewport on focus. The important flag prevents more
+   specific component-library selectors from restoring a smaller font size. */
 @media (pointer: coarse) {
   input,
   textarea,
   select {
-    font-size: 16px;
+    font-size: 16px !important;
   }
 }
 
