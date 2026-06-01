@@ -8,6 +8,7 @@ import {
 } from '../api/housekeeping';
 import { HousekeepingProgress } from '../components/HousekeepingProgress';
 import { HousekeepingSelection } from '../components/HousekeepingSelection';
+import { downloadRecipeCreationDateScript } from '../utils/recipeCreationDateScript';
 import { proxyMediaUrl } from '../utils/mediaUrl';
 
 function displayDate(value: string) {
@@ -42,9 +43,11 @@ export function RecipeCreationDates() {
       <h1 className="h3 mt-2">Fix historic recipe creation dates</h1>
       <p>Find recipes whose earliest cook log predates the recipe creation timestamp.</p>
       <Alert variant="warning">
-        Preview only: upstream Tandoor marks recipe <code>created_at</code> as read-only in its REST
-        API, so Darkhold cannot safely apply these corrections. Use this review list to make the
-        corresponding database corrections in Tandoor.
+        Upstream Tandoor marks recipe <code>created_at</code> as read-only in its REST API, so
+        Darkhold cannot apply these corrections directly. Download a dry-run Django script for the
+        selected recipes, create a backup, and run the script from Tandoor's <code>manage.py</code>
+        directory. Review its output before changing <code>APPLY = False</code> to{' '}
+        <code>APPLY = True</code> and running it again.
       </Alert>
       {error && <Alert variant="danger">{error}</Alert>}
       <Button onClick={scan} disabled={scanning}>
@@ -63,6 +66,17 @@ export function RecipeCreationDates() {
                 selected={selected}
                 onChange={setSelected}
               />
+              <Button
+                className="mb-3"
+                disabled={selected.size === 0}
+                onClick={() =>
+                  downloadRecipeCreationDateScript(
+                    candidates.filter((candidate) => selected.has(candidate.recipeId)),
+                  )
+                }
+              >
+                Download Django script ({selected.size})
+              </Button>
               <div className="d-grid gap-2">
                 {candidates.map((candidate) => (
                   <Card key={candidate.recipeId}>
