@@ -1079,6 +1079,13 @@ Deno.test(
       });
 
       if (res.status !== 502) throw new Error(`expected 502, got ${res.status}`);
+      const body = (await res.json()) as { error?: string; details?: string };
+      if (body.error !== 'Failed to add item to shopping list') {
+        throw new Error(`unexpected error message: ${body.error}`);
+      }
+      if (!body.details?.includes('Food search failed: HTTP 500; Internal Server Error')) {
+        throw new Error(`expected upstream error details, got: ${body.details}`);
+      }
       if (notifyCalled) throw new Error('expected notifyClients NOT to be called on failure');
     } finally {
       globalThis.fetch = originalFetch;

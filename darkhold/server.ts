@@ -677,7 +677,7 @@ export async function findOrCreateFood(
 
   const searchRes = await fetch(searchUrl, { headers });
   if (!searchRes.ok) {
-    throw new Error('Food search failed: HTTP ' + searchRes.status);
+    throw formatFetchError('Food search failed', searchRes.status, await searchRes.text());
   }
   const searchData = (await searchRes.json()) as { results?: Array<{ id: number; name: string }> };
   const results = searchData.results ?? [];
@@ -694,7 +694,7 @@ export async function findOrCreateFood(
     body: JSON.stringify({ name }),
   });
   if (!createRes.ok) {
-    throw new Error('Food creation failed: HTTP ' + createRes.status);
+    throw formatFetchError('Food creation failed', createRes.status, await createRes.text());
   }
   const created = (await createRes.json()) as { id: number };
   return created.id;
@@ -781,7 +781,11 @@ export async function handleAddToShoppingList(
       body: JSON.stringify({ food: { id: foodId }, amount: 1, unit: null }),
     });
     if (!entryRes.ok) {
-      throw new Error('Shopping list entry creation failed: HTTP ' + entryRes.status);
+      throw formatFetchError(
+        'Shopping list entry creation failed',
+        entryRes.status,
+        await entryRes.text(),
+      );
     }
 
     notifyClients();
@@ -791,7 +795,8 @@ export async function handleAddToShoppingList(
     });
   } catch (err) {
     console.error('Add to shopping list error:', err);
-    return new Response(JSON.stringify({ error: 'Failed to add item to shopping list' }), {
+    const details = err instanceof Error ? err.message : String(err);
+    return new Response(JSON.stringify({ error: 'Failed to add item to shopping list', details }), {
       status: 502,
       headers: { 'Content-Type': 'application/json' },
     });
