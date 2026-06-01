@@ -1,3 +1,11 @@
+## [1.88.5](https://github.com/Jc2k/darkhold/compare/v1.88.4...v1.88.5) (2026-06-01)
+
+
+### Bug Fixes
+
+* **ui:** prevent touch form control focus zoom ([5732afc](https://github.com/Jc2k/darkhold/commit/5732afca2dfe7c88b7d7c3c1f55567a5e4abd057))
+* **ui:** remove shopping request handle label ([b782e4e](https://github.com/Jc2k/darkhold/commit/b782e4e9a457c6b12b244213cdff51d48f7b8a6d))
+
 ## [1.88.4](https://github.com/Jc2k/darkhold/compare/v1.88.3...v1.88.4) (2026-06-01)
 
 
