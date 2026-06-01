@@ -660,10 +660,147 @@ async function handleWeatherForecast(req: Request): Promise<Response> {
 }
 
 // ---------------------------------------------------------------------------
-// WebSocket broadcast server
+// Shopping list "add item" endpoint
+// ---------------------------------------------------------------------------
+
+/**
+ * Find a food entry in Tandoor by name (exact case-insensitive match), or
+ * create a new one if no exact match exists.  Returns the food item's ID.
+ */
+export async function findOrCreateFood(
+  tandoorUrl: string,
+  token: string,
+  name: string,
+): Promise<number> {
+  const searchUrl = tandoorUrl + '/api/food/?query=' + encodeURIComponent(name) + '&page_size=10';
+  const headers = { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' };
+
+  const searchRes = await fetch(searchUrl, { headers });
+  if (!searchRes.ok) {
+    throw new Error('Food search failed: HTTP ' + searchRes.status);
+  }
+  const searchData = (await searchRes.json()) as { results?: Array<{ id: number; name: string }> };
+  const results = searchData.results ?? [];
+
+  // Prefer an exact case-insensitive match so repeated Siri requests reuse the same food entry.
+  const lower = name.toLowerCase();
+  const exact = results.find((f) => f.name.toLowerCase() === lower);
+  if (exact) return exact.id;
+
+  // Create a new food entry with the given name.
+  const createRes = await fetch(tandoorUrl + '/api/food/', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ name }),
+  });
+  if (!createRes.ok) {
+    throw new Error('Food creation failed: HTTP ' + createRes.status);
+  }
+  const created = (await createRes.json()) as { id: number };
+  return created.id;
+}
+
+// ---------------------------------------------------------------------------
+// WebSocket broadcast server – client registry (declared here so that
+// handleAddToShoppingList can reference broadcastToAllClients as its default)
 // ---------------------------------------------------------------------------
 
 const clients = new Set<WebSocket>();
+
+/** Send a raw message string to every currently-open WebSocket client. */
+export function broadcastToAllClients(message: string): void {
+  for (const client of clients) {
+    if (client.readyState === WebSocket.OPEN) {
+      try {
+        client.send(message);
+      } catch {
+        clients.delete(client);
+      }
+    }
+  }
+}
+
+/**
+ * Handle POST /add-to-shopping-list.
+ *
+ * Expects JSON body: { "item": "<item name>" }
+ * Requires an `Authorization: ****** header; the token is
+ * passed directly to Tandoor API calls so callers (e.g. Siri shortcuts) supply
+ * their own Tandoor API token rather than a separately configured write token.
+ *
+ * The tandoorUrl parameter defaults to its environment-variable value but can
+ * be overridden in tests.  The notifyClients callback is called on success to
+ * push a shopping-list invalidation to all connected WebSocket clients; it can
+ * be replaced in tests to observe or suppress the broadcast.
+ */
+export async function handleAddToShoppingList(
+  req: Request,
+  tandoorUrl = Deno.env.get('TANDOOR_URL') ?? 'http://tandoor:8080',
+  notifyClients: () => void = () =>
+    broadcastToAllClients(JSON.stringify({ type: 'invalidate', queryKey: 'shopping-list' })),
+): Promise<Response> {
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+  const token = authHeader.slice('Bearer '.length);
+
+  let body: Record<string, unknown>;
+  try {
+    body = (await req.json()) as Record<string, unknown>;
+  } catch {
+    return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  const item = body.item;
+  if (typeof item !== 'string' || item.trim().length === 0) {
+    return new Response(
+      JSON.stringify({ error: 'item field is required and must be a non-empty string' }),
+      { status: 400, headers: { 'Content-Type': 'application/json' } },
+    );
+  }
+
+  const itemName = item.trim();
+  const tandoorHeaders = {
+    Authorization: 'Bearer ' + token,
+    'Content-Type': 'application/json',
+  };
+
+  try {
+    const foodId = await findOrCreateFood(tandoorUrl, token, itemName);
+
+    const entryRes = await fetch(tandoorUrl + '/api/shopping-list-entry/', {
+      method: 'POST',
+      headers: tandoorHeaders,
+      body: JSON.stringify({ food: { id: foodId }, amount: 1, unit: null, checked: false }),
+    });
+    if (!entryRes.ok) {
+      throw new Error('Shopping list entry creation failed: HTTP ' + entryRes.status);
+    }
+
+    notifyClients();
+    return new Response(JSON.stringify({ success: true, item: itemName }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (err) {
+    console.error('Add to shopping list error:', err);
+    return new Response(JSON.stringify({ error: 'Failed to add item to shopping list' }), {
+      status: 502,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// WebSocket broadcast server
+// ---------------------------------------------------------------------------
 
 Deno.serve({ port: 8098, hostname: '127.0.0.1' }, async (req: Request): Promise<Response> => {
   const url = new URL(req.url);
@@ -673,6 +810,9 @@ Deno.serve({ port: 8098, hostname: '127.0.0.1' }, async (req: Request): Promise<
   }
   if (url.pathname === '/weather-forecast' && req.method === 'GET') {
     return handleWeatherForecast(req);
+  }
+  if (url.pathname === '/add-to-shopping-list' && req.method === 'POST') {
+    return handleAddToShoppingList(req);
   }
 
   if (req.headers.get('upgrade')?.toLowerCase() !== 'websocket') {

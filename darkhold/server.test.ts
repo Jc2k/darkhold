@@ -6,8 +6,11 @@
  */
 
 import {
+  broadcastToAllClients,
   clampWeatherForecastRange,
   fetchFeedEvents,
+  findOrCreateFood,
+  handleAddToShoppingList,
   parseOpenMeteoDaily,
   parseIcal,
   parseICalFeeds,
@@ -816,4 +819,281 @@ Deno.test('clampWeatherForecastRange trims old weather requests to two months of
   if (!range) throw new Error('expected range');
   if (range.fromDate !== '2026-03-15') throw new Error(`unexpected start date: ${range.fromDate}`);
   if (range.toDate !== '2026-03-20') throw new Error(`unexpected end date: ${range.toDate}`);
+});
+
+// ---------------------------------------------------------------------------
+// handleAddToShoppingList tests
+// ---------------------------------------------------------------------------
+
+const TEST_TOKEN = 'test-token';
+const CORRECT_AUTH = 'Bearer ' + TEST_TOKEN;
+
+Deno.test('handleAddToShoppingList returns 401 when Authorization header is missing', async () => {
+  const req = new Request('http://localhost/add-to-shopping-list', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ item: 'apples' }),
+  });
+  const res = await handleAddToShoppingList(req, 'http://tandoor:8080');
+  if (res.status !== 401) throw new Error(`expected 401, got ${res.status}`);
+});
+
+Deno.test('handleAddToShoppingList returns 400 when item field is missing', async () => {
+  const req = new Request('http://localhost/add-to-shopping-list', {
+    method: 'POST',
+    headers: { Authorization: CORRECT_AUTH, 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
+  });
+  const res = await handleAddToShoppingList(req, 'http://tandoor:8080');
+  if (res.status !== 400) throw new Error(`expected 400, got ${res.status}`);
+});
+
+Deno.test('handleAddToShoppingList returns 400 when item is blank', async () => {
+  const req = new Request('http://localhost/add-to-shopping-list', {
+    method: 'POST',
+    headers: { Authorization: CORRECT_AUTH, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ item: '   ' }),
+  });
+  const res = await handleAddToShoppingList(req, 'http://tandoor:8080');
+  if (res.status !== 400) throw new Error(`expected 400, got ${res.status}`);
+});
+
+Deno.test('handleAddToShoppingList returns 400 when body is not valid JSON', async () => {
+  const req = new Request('http://localhost/add-to-shopping-list', {
+    method: 'POST',
+    headers: { Authorization: CORRECT_AUTH, 'Content-Type': 'application/json' },
+    body: 'not json',
+  });
+  const res = await handleAddToShoppingList(req, 'http://tandoor:8080');
+  if (res.status !== 400) throw new Error(`expected 400, got ${res.status}`);
+});
+
+Deno.test('handleAddToShoppingList adds item that already exists in food database', async () => {
+  const originalFetch = globalThis.fetch;
+  const captured: Request[] = [];
+
+  globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+    const r = new Request(input, init);
+    captured.push(r);
+    if (r.url.includes('/api/food/') && r.method === 'GET') {
+      return Promise.resolve(
+        new Response(JSON.stringify({ results: [{ id: 42, name: 'apples' }] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    }
+    if (r.url.includes('/api/shopping-list-entry/') && r.method === 'POST') {
+      return Promise.resolve(
+        new Response(JSON.stringify({ id: 1, food: { id: 42 }, checked: false }), {
+          status: 201,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    }
+    throw new Error('unexpected fetch: ' + r.url);
+  }) as typeof fetch;
+
+  try {
+    const req = new Request('http://localhost/add-to-shopping-list', {
+      method: 'POST',
+      headers: { Authorization: CORRECT_AUTH, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ item: 'apples' }),
+    });
+    const res = await handleAddToShoppingList(req, 'http://tandoor:8080');
+
+    if (res.status !== 200) throw new Error(`expected 200, got ${res.status}`);
+    const body = (await res.json()) as { success: boolean; item: string };
+    if (!body.success) throw new Error('expected success: true');
+    if (body.item !== 'apples') throw new Error(`expected item: apples, got ${body.item}`);
+
+    const foodSearchReq = captured.find((r) => r.url.includes('/api/food/') && r.method === 'GET');
+    if (!foodSearchReq) throw new Error('expected food search request');
+    const entryReq = captured.find(
+      (r) => r.url.includes('/api/shopping-list-entry/') && r.method === 'POST',
+    );
+    if (!entryReq) throw new Error('expected shopping list entry creation request');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+Deno.test('handleAddToShoppingList creates new food entry when none found', async () => {
+  const originalFetch = globalThis.fetch;
+  const captured: Request[] = [];
+
+  globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+    const r = new Request(input, init);
+    captured.push(r);
+    if (r.url.includes('/api/food/') && r.method === 'GET') {
+      return Promise.resolve(
+        new Response(JSON.stringify({ results: [] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    }
+    if (r.url.includes('/api/food/') && r.method === 'POST') {
+      return Promise.resolve(
+        new Response(JSON.stringify({ id: 99, name: 'dragon fruit' }), {
+          status: 201,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    }
+    if (r.url.includes('/api/shopping-list-entry/') && r.method === 'POST') {
+      return Promise.resolve(
+        new Response(JSON.stringify({ id: 2, food: { id: 99 }, checked: false }), {
+          status: 201,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    }
+    throw new Error('unexpected fetch: ' + r.url);
+  }) as typeof fetch;
+
+  try {
+    const req = new Request('http://localhost/add-to-shopping-list', {
+      method: 'POST',
+      headers: { Authorization: CORRECT_AUTH, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ item: 'dragon fruit' }),
+    });
+    const res = await handleAddToShoppingList(req, 'http://tandoor:8080');
+
+    if (res.status !== 200) throw new Error(`expected 200, got ${res.status}`);
+
+    const foodCreateReq = captured.find((r) => r.url.includes('/api/food/') && r.method === 'POST');
+    if (!foodCreateReq) throw new Error('expected food create request');
+    const bodyText = await foodCreateReq.text();
+    if (!bodyText.includes('dragon fruit')) throw new Error('expected food name in create body');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+Deno.test('handleAddToShoppingList notifies clients on successful add', async () => {
+  const originalFetch = globalThis.fetch;
+
+  globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+    const r = new Request(input, init);
+    if (r.url.includes('/api/food/') && r.method === 'GET') {
+      return Promise.resolve(
+        new Response(JSON.stringify({ results: [{ id: 42, name: 'apples' }] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    }
+    if (r.url.includes('/api/shopping-list-entry/') && r.method === 'POST') {
+      return Promise.resolve(
+        new Response(JSON.stringify({ id: 1, food: { id: 42 }, checked: false }), {
+          status: 201,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    }
+    throw new Error('unexpected fetch: ' + r.url);
+  }) as typeof fetch;
+
+  try {
+    let notifyCalled = false;
+    const req = new Request('http://localhost/add-to-shopping-list', {
+      method: 'POST',
+      headers: { Authorization: CORRECT_AUTH, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ item: 'apples' }),
+    });
+    const res = await handleAddToShoppingList(req, 'http://tandoor:8080', () => {
+      notifyCalled = true;
+    });
+
+    if (res.status !== 200) throw new Error(`expected 200, got ${res.status}`);
+    if (!notifyCalled) throw new Error('expected notifyClients to be called on success');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+Deno.test(
+  'handleAddToShoppingList does not notify clients when Tandoor request fails',
+  async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (() =>
+      Promise.resolve(new Response('Internal Server Error', { status: 500 }))) as typeof fetch;
+
+    try {
+      let notifyCalled = false;
+      const req = new Request('http://localhost/add-to-shopping-list', {
+        method: 'POST',
+        headers: { Authorization: CORRECT_AUTH, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item: 'apples' }),
+      });
+      const res = await handleAddToShoppingList(req, 'http://tandoor:8080', () => {
+        notifyCalled = true;
+      });
+
+      if (res.status !== 502) throw new Error(`expected 502, got ${res.status}`);
+      if (notifyCalled) throw new Error('expected notifyClients NOT to be called on failure');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  },
+);
+
+// ---------------------------------------------------------------------------
+// findOrCreateFood tests
+// ---------------------------------------------------------------------------
+
+Deno.test('findOrCreateFood returns id of exact case-insensitive match', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (() =>
+    Promise.resolve(
+      new Response(
+        JSON.stringify({
+          results: [
+            { id: 5, name: 'Apple Pie' },
+            { id: 7, name: 'Apples' },
+          ],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      ),
+    )) as typeof fetch;
+
+  try {
+    const id = await findOrCreateFood('http://tandoor:8080', 'tok', 'apples');
+    if (id !== 7) throw new Error(`expected id 7, got ${id}`);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+Deno.test('findOrCreateFood creates food when no exact match exists', async () => {
+  const originalFetch = globalThis.fetch;
+  let postCalled = false;
+
+  globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+    const r = new Request(input, init);
+    if (r.method === 'GET') {
+      return Promise.resolve(
+        new Response(JSON.stringify({ results: [{ id: 5, name: 'Apple Pie' }] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    }
+    postCalled = true;
+    return Promise.resolve(
+      new Response(JSON.stringify({ id: 99, name: 'apples' }), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+  }) as typeof fetch;
+
+  try {
+    const id = await findOrCreateFood('http://tandoor:8080', 'tok', 'apples');
+    if (!postCalled) throw new Error('expected POST to create food');
+    if (id !== 99) throw new Error(`expected id 99, got ${id}`);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
