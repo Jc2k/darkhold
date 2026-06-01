@@ -1,3 +1,15 @@
+# [1.91.0](https://github.com/Jc2k/darkhold/compare/v1.90.0...v1.91.0) (2026-06-01)
+
+
+### Bug Fixes
+
+* **shopping-list:** show contributing recipes in info panel ([9495205](https://github.com/Jc2k/darkhold/commit/949520586e60b5afbaee97b6be4eb1e40fdf9ea6))
+
+
+### Features
+
+* **housekeeping:** add recipe date repair script download ([802ca07](https://github.com/Jc2k/darkhold/commit/802ca07cab6ff0e9b238336150d64eca24618c5f))
+
 # [1.90.0](https://github.com/Jc2k/darkhold/compare/v1.89.0...v1.90.0) (2026-06-01)
 
 
