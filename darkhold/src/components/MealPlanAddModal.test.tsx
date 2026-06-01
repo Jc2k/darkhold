@@ -17,6 +17,7 @@ const { useQueryMock, useQueryClientMock, fetchQueryMock, createMealPlanMock, ap
   }));
 
 vi.mock('@tanstack/react-query', () => ({
+  queryOptions: (options: unknown) => options,
   useQuery: useQueryMock,
   useQueryClient: useQueryClientMock,
 }));
@@ -124,6 +125,51 @@ describe('MealPlanAddModal', () => {
       }),
     );
     expect(onHide).toHaveBeenCalled();
+  });
+
+  it('initialises the date picker from the shopping-list meal-plan week', async () => {
+    useQueryMock.mockImplementation(({ queryKey }: MockQueryOptions) => {
+      if (queryKey[0] === 'recipe') {
+        return { data: { id: 1, steps: [] } };
+      }
+      if (queryKey[0] === 'meal-types') {
+        return { data: { results: [{ id: 1, name: 'Breakfast' }] } };
+      }
+      if (queryKey[0] === 'keyword-name-by-id') {
+        return { data: { 10: 'Breakfast' } };
+      }
+      if (queryKey[0] === 'shopping-list') {
+        return {
+          data: [
+            {
+              id: 1,
+              list_recipe_data: { meal_plan_data: { from_date: '2026-05-31T12:00:00Z' } },
+            },
+          ],
+        };
+      }
+      return { data: undefined };
+    });
+    const recipe = { id: 1, name: 'Eggs', servings: 2, keywords: [10] } as unknown as Recipe;
+
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <MealPlanAddModal recipe={recipe} onHide={vi.fn()} />
+        </MemoryRouter>,
+      );
+    });
+
+    const addButton = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Add to Plan',
+    );
+    await act(async () => {
+      addButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(createMealPlanMock.mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ from_date: '2026-05-30' }),
+    );
   });
 
   it('fetches all keyword pages into an id-to-name map', async () => {

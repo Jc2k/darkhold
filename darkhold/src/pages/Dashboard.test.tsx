@@ -415,4 +415,81 @@ describe('Dashboard', () => {
     expect(note?.textContent).toContain('Use the leftover chicken');
     expect(note?.closest('.recipe-card')).not.toBeNull();
   });
+  it('shows the shopping-list planning week with meal planner and shopping links', () => {
+    useUpSoonDataMock.mockReturnValue({ data: null, isLoading: false, isError: false });
+    useQueryMock.mockImplementation(({ queryKey }: { queryKey: string[] }) => {
+      if (queryKey[0] === 'shopping-list') {
+        return {
+          data: [
+            {
+              id: 2,
+              food: null,
+              checked: false,
+              list_recipe_data: {
+                recipe_data: { name: 'Next dinner' },
+                meal_plan_data: { from_date: '2026-05-27' },
+              },
+            },
+            {
+              id: 1,
+              food: null,
+              checked: false,
+              list_recipe_data: {
+                recipe_data: { name: 'Previous dinner' },
+                meal_plan_data: { from_date: '2026-05-20' },
+              },
+            },
+          ],
+          isLoading: false,
+          isError: false,
+        };
+      }
+
+      if (
+        queryKey[0] === 'recipes' ||
+        queryKey[0] === 'meal-plan' ||
+        queryKey[0] === 'recently-viewed'
+      ) {
+        return { data: { results: [] }, isLoading: false, isError: false };
+      }
+
+      if (queryKey[0] === 'keywords') {
+        return { data: null, isLoading: false, isError: false };
+      }
+
+      return { data: undefined, isLoading: false, isError: false };
+    });
+
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <Dashboard />
+        </MemoryRouter>,
+      );
+    });
+
+    expect(container.textContent).toContain(
+      'Meal planning in progress for Sat 23 May to Fri 29 May',
+    );
+    expect(container.querySelector('a[aria-label="Open meal planner"]')?.getAttribute('href')).toBe(
+      '/meal-plan/2026-05-23',
+    );
+    expect(
+      container.querySelector('a[aria-label="Open shopping list"]')?.getAttribute('href'),
+    ).toBe('/shopping');
+  });
+
+  it('does not show a planning alert without shopping-list entries', () => {
+    useUpSoonDataMock.mockReturnValue({ data: null, isLoading: false, isError: false });
+
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <Dashboard />
+        </MemoryRouter>,
+      );
+    });
+
+    expect(container.textContent).not.toContain('Meal planning in progress');
+  });
 });

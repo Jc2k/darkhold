@@ -10,10 +10,12 @@ import type {
   PaginatedResponse,
 } from '../api/tandoor-types';
 import { useCreateMealPlan } from '../hooks/useMealPlan';
+import { getShoppingListEntriesQueryOptions } from '../hooks/useShoppingListEntries';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiGet } from '../api/client';
 import { deriveMealType } from '../utils/mealUtils';
 import { formatDate, formatMonthYear, getWeekStartingSaturday } from '../utils/dateUtils';
+import { getMealPlanWeekStartFromShoppingListEntries } from '../utils/mealPlanRedirect';
 
 interface SubRecipeLink {
   recipeId: number;
@@ -56,13 +58,39 @@ export async function fetchKeywordNameById(): Promise<Record<number, string>> {
 
 export function MealPlanAddModal({ recipe, keywordNameById, onHide }: Props) {
   const queryClient = useQueryClient();
-  const [weekOffset, setWeekOffset] = useState(0);
-  const days = getWeekStartingSaturday(weekOffset);
+  const [weekStart, setWeekStart] = useState<Date>(() => getWeekStartingSaturday(0)[0]);
+  const days = useMemo(
+    () =>
+      Array.from({ length: 7 }, (_, index) => {
+        const day = new Date(weekStart);
+        day.setDate(weekStart.getDate() + index);
+        return day;
+      }),
+    [weekStart],
+  );
   const [selectedDate, setSelectedDate] = useState<Date>(() => getWeekStartingSaturday(0)[0]);
   const [servings, setServings] = useState<number>(recipe?.servings ?? 1);
   const [note, setNote] = useState('');
   const [subRecipeToggles, setSubRecipeToggles] = useState<Record<number, boolean>>({});
   const hasPersonalToken = Boolean(localStorage.getItem('tandoor_token'));
+  const { data: shoppingListEntries } = useQuery({
+    ...getShoppingListEntriesQueryOptions(),
+    enabled: !!recipe,
+  });
+  const shoppingListPlanningWeekStart = useMemo(
+    () => getMealPlanWeekStartFromShoppingListEntries(shoppingListEntries ?? []),
+    [shoppingListEntries],
+  );
+  const shoppingListPlanningWeekStartString = shoppingListPlanningWeekStart
+    ? formatDate(shoppingListPlanningWeekStart)
+    : null;
+
+  useEffect(() => {
+    if (!recipe) return;
+    const initialWeekStart = shoppingListPlanningWeekStart ?? getWeekStartingSaturday(0)[0];
+    setWeekStart(initialWeekStart);
+    setSelectedDate(initialWeekStart);
+  }, [recipe?.id, shoppingListPlanningWeekStartString]);
 
   useEffect(() => {
     if (recipe) {
@@ -242,7 +270,13 @@ export function MealPlanAddModal({ recipe, keywordNameById, onHide }: Props) {
             <Button
               size="sm"
               variant="outline-secondary"
-              onClick={() => setWeekOffset((w) => w - 1)}
+              onClick={() =>
+                setWeekStart((currentWeekStart) => {
+                  const previousWeekStart = new Date(currentWeekStart);
+                  previousWeekStart.setDate(currentWeekStart.getDate() - 7);
+                  return previousWeekStart;
+                })
+              }
               aria-label="Previous week"
             >
               ‹
@@ -269,7 +303,13 @@ export function MealPlanAddModal({ recipe, keywordNameById, onHide }: Props) {
             <Button
               size="sm"
               variant="outline-secondary"
-              onClick={() => setWeekOffset((w) => w + 1)}
+              onClick={() =>
+                setWeekStart((currentWeekStart) => {
+                  const nextWeekStart = new Date(currentWeekStart);
+                  nextWeekStart.setDate(currentWeekStart.getDate() + 7);
+                  return nextWeekStart;
+                })
+              }
               aria-label="Next week"
             >
               ›
