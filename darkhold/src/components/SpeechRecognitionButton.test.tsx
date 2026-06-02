@@ -108,12 +108,15 @@ describe('SpeechRecognitionButton', () => {
     const recognition = MockSpeechRecognition.instances[0];
 
     const visibilityStateDescriptor = Object.getOwnPropertyDescriptor(document, 'visibilityState');
-    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
-    act(() => document.dispatchEvent(new Event('visibilitychange')));
-    if (visibilityStateDescriptor) {
-      Object.defineProperty(document, 'visibilityState', visibilityStateDescriptor);
-    } else {
-      Reflect.deleteProperty(document, 'visibilityState');
+    try {
+      Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+      act(() => document.dispatchEvent(new Event('visibilitychange')));
+    } finally {
+      if (visibilityStateDescriptor) {
+        Object.defineProperty(document, 'visibilityState', visibilityStateDescriptor);
+      } else {
+        Reflect.deleteProperty(document, 'visibilityState');
+      }
     }
 
     expect(recognition.stop).toHaveBeenCalledOnce();

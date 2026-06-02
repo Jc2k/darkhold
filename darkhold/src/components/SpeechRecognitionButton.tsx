@@ -97,6 +97,7 @@ export function SpeechRecognitionButton({
       recognition.onresult = null;
       recognition.stop();
       setIsListening(false);
+      setError(null);
     };
 
     document.addEventListener('visibilitychange', stopForVisibilityChange);
