@@ -586,6 +586,14 @@ body {
   box-shadow: inset 0 0 0 2px var(--bs-primary);
 }
 
+/* Touch users can open recipe decision information with a long press, so omit the redundant
+   overlay action on coarse-pointer devices to keep recipe images uncluttered. */
+@media (pointer: coarse) {
+  .recipe-card-info-button {
+    display: none;
+  }
+}
+
 .recipe-card-info-fact {
   font-size: 0.8rem;
   padding: 0.55em 0.7em;
