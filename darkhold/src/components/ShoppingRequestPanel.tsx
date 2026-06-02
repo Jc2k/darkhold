@@ -54,6 +54,7 @@ export function ShoppingRequestPanel() {
   const [openSwipeFoodId, setOpenSwipeFoodId] = useState<number | string | null>(null);
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [requestError, setRequestError] = useState<string | null>(null);
+  const [speechError, setSpeechError] = useState<string | null>(null);
   const handleSwipeStart = useRef<{ pointerId: number; x: number; y: number } | null>(null);
   const rowSwipeStart = useRef<{
     foodId: number | string;
@@ -86,6 +87,7 @@ export function ShoppingRequestPanel() {
     setSelectedFoods([]);
     setPendingFoods([]);
     setRequestError(null);
+    setSpeechError(null);
     closeSwipeAction();
   };
 
@@ -217,9 +219,15 @@ export function ShoppingRequestPanel() {
                 <SpeechRecognitionButton
                   disabled={!hasPersonalToken || addRequest.isPending}
                   onResult={stageSpokenFood}
+                  onErrorChange={setSpeechError}
                 />
               </div>
             </div>
+            {speechError && (
+              <Alert variant="danger" className="py-1 px-2 mt-2 mb-3 small">
+                {speechError}
+              </Alert>
+            )}
             {pendingFoods.length > 0 && (
               <ListGroup className="mb-3">
                 {pendingFoods.map((food) => {

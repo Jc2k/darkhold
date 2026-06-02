@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Button, Spinner } from 'react-bootstrap';
+import { Button, Spinner } from 'react-bootstrap';
 import { MicFill } from 'react-bootstrap-icons';
 
 type SpeechRecognitionResultEvent = Event & {
@@ -34,6 +34,7 @@ type SpeechRecognitionWindow = Window &
 interface SpeechRecognitionButtonProps {
   disabled?: boolean;
   onResult: (transcript: string) => void;
+  onErrorChange?: (error: string | null) => void;
 }
 
 function getSpeechRecognitionConstructor(): SpeechRecognitionConstructor | undefined {
@@ -57,13 +58,16 @@ function getSpeechRecognitionErrorMessage(error: string): string {
 export function SpeechRecognitionButton({
   disabled = false,
   onResult,
+  onErrorChange,
 }: SpeechRecognitionButtonProps) {
   const [SpeechRecognition] = useState(() => getSpeechRecognitionConstructor());
   const [isListening, setIsListening] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const onResultRef = useRef(onResult);
+  const onErrorChangeRef = useRef(onErrorChange);
   onResultRef.current = onResult;
+  onErrorChangeRef.current = onErrorChange;
 
   useEffect(
     () => () => {
@@ -77,6 +81,32 @@ export function SpeechRecognitionButton({
     },
     [],
   );
+
+  useEffect(() => {
+    onErrorChangeRef.current?.(error);
+  }, [error]);
+
+  useEffect(() => {
+    const stopForVisibilityChange = () => {
+      if (document.visibilityState !== 'hidden') return;
+      const recognition = recognitionRef.current;
+      recognitionRef.current = null;
+      if (!recognition) return;
+      recognition.onend = null;
+      recognition.onerror = null;
+      recognition.onresult = null;
+      recognition.stop();
+      setIsListening(false);
+      setError(null);
+    };
+
+    document.addEventListener('visibilitychange', stopForVisibilityChange);
+    window.addEventListener('pagehide', stopForVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', stopForVisibilityChange);
+      window.removeEventListener('pagehide', stopForVisibilityChange);
+    };
+  }, []);
 
   if (!SpeechRecognition) return null;
 
@@ -123,7 +153,6 @@ export function SpeechRecognitionButton({
       <Button
         type="button"
         variant="danger"
-        size="sm"
         onClick={isListening ? stopListening : startListening}
         disabled={disabled}
         aria-pressed={isListening}
@@ -144,11 +173,6 @@ export function SpeechRecognitionButton({
           'Voice input is not listening.'
         )}
       </span>
-      {error && (
-        <Alert variant="danger" className="py-1 px-2 mt-2 mb-0 small">
-          {error}
-        </Alert>
-      )}
     </>
   );
 }
