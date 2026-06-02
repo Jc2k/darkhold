@@ -1,3 +1,11 @@
+## [1.97.4](https://github.com/Jc2k/darkhold/compare/v1.97.3...v1.97.4) (2026-06-02)
+
+
+### Bug Fixes
+
+* **shopping:** move speech errors below typeahead ([5a97106](https://github.com/Jc2k/darkhold/commit/5a971068a7ef28d4240a7a39add37ff05b69803f))
+* **shopping:** reset speech state on app background ([c9b4fc5](https://github.com/Jc2k/darkhold/commit/c9b4fc57c690139f3f07e0eef49b6faffd8272eb))
+
 ## [1.97.3](https://github.com/Jc2k/darkhold/compare/v1.97.2...v1.97.3) (2026-06-01)
 
 
