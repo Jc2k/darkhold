@@ -50,7 +50,7 @@ export function RecipeCard({
   return (
     <>
       <Card
-        className={`h-100 recipe-card${longPressPending ? ' long-press-pending' : ''}`}
+        className={`h-100 recipe-card recipe-card-long-press${longPressPending ? ' long-press-pending' : ''}`}
         style={{ cursor: 'pointer' }}
         onClickCapture={(event) => {
           if (!longPressTriggered.current) return;
