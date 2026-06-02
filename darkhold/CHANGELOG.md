@@ -1,3 +1,10 @@
+# [1.100.0](https://github.com/Jc2k/darkhold/compare/v1.99.0...v1.100.0) (2026-06-02)
+
+
+### Features
+
+* **shopping:** add selective list deletion options ([e9d0b6a](https://github.com/Jc2k/darkhold/commit/e9d0b6a8f4ace90928c8fdc290c409ea079880ff))
+
 # [1.99.0](https://github.com/Jc2k/darkhold/compare/v1.98.2...v1.99.0) (2026-06-02)
 
 
