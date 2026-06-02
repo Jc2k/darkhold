@@ -547,9 +547,15 @@ export function Dashboard() {
   const currentWeekMealPlan = useMealPlan(currentWeekStart, addDays(currentWeekStart, 6));
   const nextWeekMealPlan = useMealPlan(nextWeekStart, addDays(nextWeekStart, 6));
   const { data: shoppingListEntries = [] } = useQuery(getShoppingListEntriesQueryOptions());
+  const shoppingListEntriesWithMealPlan = useMemo(
+    () =>
+      shoppingListEntries.filter((entry) => entry.list_recipe_data?.meal_plan_data?.from_date != null),
+    [shoppingListEntries],
+  );
   const shoppingListPlanningWeekStart = useMemo(
-    () => getMealPlanWeekStartFromShoppingListEntries(shoppingListEntries, currentWeekStart),
-    [currentWeekStart, shoppingListEntries],
+    () =>
+      getMealPlanWeekStartFromShoppingListEntries(shoppingListEntriesWithMealPlan, currentWeekStart),
+    [currentWeekStart, shoppingListEntriesWithMealPlan],
   );
   const shoppingListPlanningWeekEnd = shoppingListPlanningWeekStart
     ? addDays(shoppingListPlanningWeekStart, 6)

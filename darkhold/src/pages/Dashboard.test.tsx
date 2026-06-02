@@ -492,4 +492,57 @@ describe('Dashboard', () => {
 
     expect(container.textContent).not.toContain('Meal planning in progress');
   });
+
+  it('does not show a planning alert for shopping-list entries without meal-plan links', () => {
+    useUpSoonDataMock.mockReturnValue({ data: null, isLoading: false, isError: false });
+    useQueryMock.mockImplementation(({ queryKey }: { queryKey: string[] }) => {
+      if (queryKey[0] === 'shopping-list') {
+        return {
+          data: [
+            {
+              id: 2,
+              food: null,
+              checked: false,
+              list_recipe_data: null,
+            },
+            {
+              id: 1,
+              food: null,
+              checked: false,
+              list_recipe_data: {
+                recipe_data: { name: 'Unlinked dinner' },
+                meal_plan_data: null,
+              },
+            },
+          ],
+          isLoading: false,
+          isError: false,
+        };
+      }
+
+      if (
+        queryKey[0] === 'recipes' ||
+        queryKey[0] === 'meal-plan' ||
+        queryKey[0] === 'recently-viewed'
+      ) {
+        return { data: { results: [] }, isLoading: false, isError: false };
+      }
+
+      if (queryKey[0] === 'keywords') {
+        return { data: null, isLoading: false, isError: false };
+      }
+
+      return { data: undefined, isLoading: false, isError: false };
+    });
+
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <Dashboard />
+        </MemoryRouter>,
+      );
+    });
+
+    expect(container.textContent).not.toContain('Meal planning in progress');
+  });
 });
