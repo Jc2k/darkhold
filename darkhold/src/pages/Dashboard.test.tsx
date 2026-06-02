@@ -117,7 +117,7 @@ describe('Dashboard', () => {
     useUpSoonDataMock.mockReturnValue({ data: null, isLoading: false, isError: false });
     useQueryMock.mockImplementation(({ queryKey }: { queryKey: string[] }) => {
       if (queryKey[0] === 'keywords' && queryKey[1] === 'by-name') {
-        const keywordIds: Record<string, number> = { pasta: 10, rice: 11, bowls: 12 };
+        const keywordIds: Record<string, number> = { pasta: 10, rice: 11, bowl: 12 };
         const id = keywordIds[queryKey[2]];
         return { data: id ? { id, name: queryKey[2] } : null, isLoading: false, isError: false };
       }
