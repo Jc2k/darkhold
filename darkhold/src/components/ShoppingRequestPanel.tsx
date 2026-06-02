@@ -7,7 +7,10 @@ import { apiPost, searchFoods } from '../api/client';
 import { invalidateCacheQueries } from '../hooks/useCacheInvalidation';
 import { AsyncTypeaheadFilter, type FilterOption } from './AsyncTypeaheadFilter';
 import { NoTokenAlert } from './NoTokenAlert';
-import { SpeechRecognitionButton } from './SpeechRecognitionButton';
+import {
+  SpeechRecognitionButton,
+  type SpeechRecognitionButtonHandle,
+} from './SpeechRecognitionButton';
 import type { ShoppingListEntry } from '../hooks/useShoppingListEntries';
 
 const SWIPE_THRESHOLD_PX = 60;
@@ -56,6 +59,7 @@ export function ShoppingRequestPanel() {
   const [requestError, setRequestError] = useState<string | null>(null);
   const [speechError, setSpeechError] = useState<string | null>(null);
   const [speechInterimResult, setSpeechInterimResult] = useState<string | null>(null);
+  const speechRecognitionButtonRef = useRef<SpeechRecognitionButtonHandle>(null);
   const handleSwipeStart = useRef<{ pointerId: number; x: number; y: number } | null>(null);
   const rowSwipeStart = useRef<{
     foodId: number | string;
@@ -80,6 +84,8 @@ export function ShoppingRequestPanel() {
   };
 
   const close = () => {
+    // Release the browser speech session before the offcanvas exit transition starts.
+    speechRecognitionButtonRef.current?.reset();
     setSearchParams((current) => {
       const next = new URLSearchParams(current);
       next.delete('add');
@@ -219,6 +225,7 @@ export function ShoppingRequestPanel() {
               </div>
               <div className="flex-shrink-0 mb-2">
                 <SpeechRecognitionButton
+                  ref={speechRecognitionButtonRef}
                   disabled={!hasPersonalToken || addRequest.isPending}
                   onResult={stageSpokenFood}
                   onErrorChange={setSpeechError}

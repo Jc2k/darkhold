@@ -1,4 +1,4 @@
-import { act } from 'react';
+import { act, createRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SpeechRecognitionButton } from './SpeechRecognitionButton';
@@ -142,6 +142,20 @@ describe('SpeechRecognitionButton', () => {
     expect(onErrorChange).toHaveBeenLastCalledWith(
       'Microphone access was denied. Allow access in your browser settings and try again.',
     );
+  });
+
+  it('aborts listening when its owner resets it before closing', () => {
+    vi.stubGlobal('webkitSpeechRecognition', MockSpeechRecognition);
+    const ref = createRef<{ reset: () => void }>();
+    act(() => root.render(<SpeechRecognitionButton ref={ref} onResult={vi.fn()} />));
+    act(() => container.querySelector<HTMLButtonElement>('button')?.click());
+    const recognition = MockSpeechRecognition.instances[0];
+
+    act(() => ref.current?.reset());
+
+    expect(recognition.abort).toHaveBeenCalledOnce();
+    expect(recognition.stop).not.toHaveBeenCalled();
+    expect(container.textContent).not.toContain('Listening for one shopping item');
   });
 
   it('aborts listening on pagehide even before the visibility state changes', () => {
