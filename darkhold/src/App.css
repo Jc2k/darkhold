@@ -2,8 +2,8 @@
   --app-mobile-tabs-height: 4rem;
 }
 
-/* Shared app chrome uses one sizing rhythm: 44px minimum touch targets, visible labels in primary
-   mobile navigation, and Bootstrap theme tokens instead of one-off palette values. */
+/* Shared app chrome uses one sizing rhythm: 44px minimum touch targets, accessible names for
+   icon-only mobile navigation, and Bootstrap theme tokens instead of one-off palette values. */
 .app-icon-button {
   display: inline-flex;
   width: 2.75rem;
@@ -31,10 +31,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.2rem;
   padding: 0.35rem 0.15rem;
-  font-size: 0.68rem;
-  line-height: 1;
 }
 
 .app-mobile-tab svg {
