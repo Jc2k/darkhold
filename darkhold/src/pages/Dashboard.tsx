@@ -549,12 +549,17 @@ export function Dashboard() {
   const { data: shoppingListEntries = [] } = useQuery(getShoppingListEntriesQueryOptions());
   const shoppingListEntriesWithMealPlan = useMemo(
     () =>
-      shoppingListEntries.filter((entry) => entry.list_recipe_data?.meal_plan_data?.from_date != null),
+      shoppingListEntries.filter(
+        (entry) => entry.list_recipe_data?.meal_plan_data?.from_date != null,
+      ),
     [shoppingListEntries],
   );
   const shoppingListPlanningWeekStart = useMemo(
     () =>
-      getMealPlanWeekStartFromShoppingListEntries(shoppingListEntriesWithMealPlan, currentWeekStart),
+      getMealPlanWeekStartFromShoppingListEntries(
+        shoppingListEntriesWithMealPlan,
+        currentWeekStart,
+      ),
     [currentWeekStart, shoppingListEntriesWithMealPlan],
   );
   const shoppingListPlanningWeekEnd = shoppingListPlanningWeekStart
