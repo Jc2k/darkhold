@@ -1,3 +1,10 @@
+## [1.97.6](https://github.com/Jc2k/darkhold/compare/v1.97.5...v1.97.6) (2026-06-02)
+
+
+### Bug Fixes
+
+* **shopping:** restore voice input after app switching ([e7cfc0a](https://github.com/Jc2k/darkhold/commit/e7cfc0afe4ca96a3a06559917e0dcf6e011a7f2c))
+
 ## [1.97.5](https://github.com/Jc2k/darkhold/compare/v1.97.4...v1.97.5) (2026-06-02)
 
 
