@@ -255,7 +255,6 @@ export function ShoppingRequestPanel() {
                         tabIndex={isOpen && swipeOffset < 0 ? 0 : -1}
                       >
                         <Trash3 aria-hidden="true" />
-                        <span>Delete</span>
                       </Button>
                       <div
                         className="shopping-list-swipe-content d-flex align-items-center justify-content-between gap-2 py-2 px-3"

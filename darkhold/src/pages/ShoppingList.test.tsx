@@ -742,7 +742,7 @@ describe('ShoppingList', () => {
     expect(container.textContent).not.toContain('Swipe right to mark an item bought');
   });
 
-  it('labels the swipe action for a To Check item as To Buy', () => {
+  it('keeps the swipe action for a To Check item icon-only', () => {
     useQueryMock.mockImplementation(({ queryKey }: { queryKey: string[] }) => {
       if (queryKey[0] === 'shopping-list') {
         return {
@@ -772,7 +772,7 @@ describe('ShoppingList', () => {
     const action = container.querySelector<HTMLButtonElement>(
       'button[aria-label="Return Flour from To Check"]',
     );
-    expect(action?.textContent).toBe('To Buy');
+    expect(action?.textContent).toBe('');
   });
 
   it('reveals the To Check action after swiping an item left', () => {
