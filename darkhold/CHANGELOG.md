@@ -1,3 +1,10 @@
+## [1.98.2](https://github.com/Jc2k/darkhold/compare/v1.98.1...v1.98.2) (2026-06-02)
+
+
+### Bug Fixes
+
+* **ui:** align recipe info modal actions ([774c308](https://github.com/Jc2k/darkhold/commit/774c308cf8e724f14459562b49d2229c50754d12))
+
 ## [1.98.1](https://github.com/Jc2k/darkhold/compare/v1.98.0...v1.98.1) (2026-06-02)
 
 
