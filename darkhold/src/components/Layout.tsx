@@ -157,7 +157,6 @@ export function Layout() {
               }
             >
               <Icon aria-hidden="true" />
-              <span>{label}</span>
             </NavLink>
           ))}
         </div>
