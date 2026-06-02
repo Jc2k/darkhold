@@ -18,6 +18,7 @@ type ReactActGlobal = typeof globalThis & {
 };
 
 vi.mock('@tanstack/react-query', () => ({
+  queryOptions: (options: unknown) => options,
   useQuery: useQueryMock,
   useMutation: useMutationMock,
   useQueryClient: useQueryClientMock,
@@ -43,12 +44,13 @@ vi.mock('../components/NoTokenAlert', () => ({
   NoTokenAlert: () => <div>no-token</div>,
 }));
 
-import { apiGet } from '../api/client';
+import { apiDelete, apiGet } from '../api/client';
 import {
   ShoppingList,
   addShoppingListToEntries,
   fetchAllShoppingListEntries,
   formatAmount,
+  getShoppingListEntriesToClear,
   isFullLeftSwipe,
   isFullRightSwipe,
   isInShoppingList,
@@ -187,6 +189,24 @@ describe('ShoppingList', () => {
         },
       }),
     ).toBe('2 cup');
+  });
+
+  it('selects entries for each shopping-list delete action', () => {
+    const entries = [
+      { id: 1, food: makeFood(), checked: false },
+      {
+        id: 2,
+        food: makeFood(),
+        checked: true,
+        list_recipe_data: { recipe_data: { name: 'Cake' } },
+      },
+      { id: 3, food: makeFood(), checked: true },
+    ];
+
+    expect(getShoppingListEntriesToClear(entries, 'all')).toEqual(entries);
+    expect(getShoppingListEntriesToClear(entries, 'requests')).toEqual([entries[0], entries[2]]);
+    expect(getShoppingListEntriesToClear(entries, 'meal-plan-ingredients')).toEqual([entries[1]]);
+    expect(getShoppingListEntriesToClear(entries, 'checked')).toEqual([entries[1], entries[2]]);
   });
 
   it('marks manual requests with a pencil and groups them first in recipe view', () => {
@@ -631,6 +651,9 @@ describe('ShoppingList', () => {
     expect(
       container.querySelector('button[aria-label="Clear shopping list"] .bi-trash3'),
     ).not.toBeNull();
+    expect(
+      container.querySelector('button[aria-label="Choose shopping list items to delete"]'),
+    ).not.toBeNull();
 
     act(() => {
       toBuyButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -644,6 +667,66 @@ describe('ShoppingList', () => {
     expect(toBuyButton?.getAttribute('aria-pressed')).toBe('false');
     expect(toBuyButton?.querySelector('.bi-basket3')).not.toBeNull();
     expect(toCheckButton?.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('deletes only manual requests from the delete dropdown and invalidates cached views', async () => {
+    const setQueryData = vi.fn();
+    const invalidateQueries = vi.fn();
+    const fetchQuery = vi.fn().mockResolvedValue('/meal-plan/2026-05-30');
+    useQueryClientMock.mockReturnValue({ setQueryData, invalidateQueries, fetchQuery });
+    useQueryMock.mockImplementation(({ queryKey }: { queryKey: string[] }) => {
+      if (queryKey[0] === 'shopping-list') {
+        return {
+          data: [
+            { id: 1, food: makeFood(), checked: false },
+            {
+              id: 2,
+              food: makeFood(),
+              checked: true,
+              list_recipe_data: { recipe_data: { name: 'Cake' } },
+            },
+          ],
+          isLoading: false,
+          isError: false,
+        };
+      }
+      return { data: { id: 7, name: 'To Check' }, isLoading: false, isError: false };
+    });
+    vi.stubGlobal('confirm', vi.fn().mockReturnValue(true));
+    vi.mocked(apiDelete).mockResolvedValue(undefined);
+
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <ShoppingList />
+        </MemoryRouter>,
+      );
+    });
+
+    const deleteMenuToggle = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Choose shopping list items to delete"]',
+    );
+    act(() => {
+      deleteMenuToggle?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(document.body.textContent).toContain('Delete requests');
+    expect(document.body.textContent).toContain('Delete meal plan ingredients');
+    expect(document.body.textContent).toContain('Delete checked');
+    const deleteRequests = Array.from(
+      document.body.querySelectorAll<HTMLButtonElement>('.dropdown-item'),
+    ).find((item) => item.textContent === 'Delete requests');
+    await act(async () => {
+      deleteRequests?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(window.confirm).toHaveBeenCalledWith('Remove 1 item selected by “Delete requests”?');
+    expect(apiDelete).toHaveBeenCalledTimes(1);
+    expect(apiDelete).toHaveBeenCalledWith('/shopping-list-entry/1/');
+    expect(setQueryData).toHaveBeenCalledWith(['shopping-list'], expect.any(Function));
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['shopping-list'] });
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['meal-plan-redirect-week-path'] });
   });
 
   it('does not show swipe guidance', () => {

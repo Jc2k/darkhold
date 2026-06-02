@@ -1,6 +1,15 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faAmazon } from '@fortawesome/free-brands-svg-icons';
-import { ListGroup, Alert, Badge, Spinner, Button, ButtonGroup, Modal } from 'react-bootstrap';
+import {
+  ListGroup,
+  Alert,
+  Badge,
+  Spinner,
+  Button,
+  ButtonGroup,
+  Dropdown,
+  Modal,
+} from 'react-bootstrap';
 import {
   Basket3,
   Basket3Fill,
@@ -77,6 +86,24 @@ export function removeShoppingListEntries(
   entryIds: Set<number>,
 ): ShoppingEntry[] {
   return entries.filter((entry) => !entryIds.has(entry.id));
+}
+
+export type ShoppingListClearTarget = 'all' | 'requests' | 'meal-plan-ingredients' | 'checked';
+
+export function getShoppingListEntriesToClear(
+  entries: ShoppingEntry[],
+  target: ShoppingListClearTarget,
+): ShoppingEntry[] {
+  switch (target) {
+    case 'requests':
+      return entries.filter((entry) => !getRecipeName(entry));
+    case 'meal-plan-ingredients':
+      return entries.filter((entry) => Boolean(getRecipeName(entry)));
+    case 'checked':
+      return entries.filter((entry) => entry.checked);
+    case 'all':
+      return entries;
+  }
 }
 
 export function updateShoppingListEntries(
@@ -357,21 +384,31 @@ export function ShoppingList() {
     });
   };
 
-  const clearAll = (entries: ShoppingEntry[]) => {
+  const clearEntries = (entries: ShoppingEntry[], target: ShoppingListClearTarget) => {
     if (!hasPersonalToken) return;
-    if (
-      !window.confirm(
-        `Remove all ${entries.length} item${entries.length !== 1 ? 's' : ''} from your shopping list?`,
-      )
-    ) {
+    const entriesToClear = getShoppingListEntriesToClear(entries, target);
+    const itemCount = `${entriesToClear.length} item${entriesToClear.length !== 1 ? 's' : ''}`;
+    const confirmation =
+      target === 'all'
+        ? `Remove all ${itemCount} from your shopping list?`
+        : `Remove ${itemCount} selected by “${
+            target === 'requests'
+              ? 'Delete requests'
+              : target === 'meal-plan-ingredients'
+                ? 'Delete meal plan ingredients'
+                : 'Delete checked'
+          }”?`;
+    if (!window.confirm(confirmation)) {
       return;
     }
     setIsClearing(true);
     setClearError(null);
-    Promise.allSettled(entries.map((entry) => apiDelete(`/shopping-list-entry/${entry.id}/`)))
+    Promise.allSettled(
+      entriesToClear.map((entry) => apiDelete(`/shopping-list-entry/${entry.id}/`)),
+    )
       .then((results) => {
         const removedIds = new Set(
-          entries
+          entriesToClear
             .filter((_entry, index) => results[index].status === 'fulfilled')
             .map((entry) => entry.id),
         );
@@ -477,22 +514,53 @@ export function ShoppingList() {
             </Button>
           </ButtonGroup>
         </div>
-        <Button
-          variant="danger"
-          style={TOOLBAR_BUTTON_STYLE}
-          onClick={() => clearAll(entries)}
-          disabled={isClearing || !hasPersonalToken}
-          aria-label="Clear shopping list"
-        >
-          {isClearing ? (
-            <>
-              <Spinner animation="border" size="sm" className="me-1" />
-              Clearing…
-            </>
-          ) : (
-            <Trash3 aria-hidden="true" />
-          )}
-        </Button>
+        <Dropdown as={ButtonGroup}>
+          <Button
+            variant="danger"
+            style={TOOLBAR_BUTTON_STYLE}
+            onClick={() => clearEntries(entries, 'all')}
+            disabled={isClearing || !hasPersonalToken}
+            aria-label="Clear shopping list"
+          >
+            {isClearing ? (
+              <>
+                <Spinner animation="border" size="sm" className="me-1" />
+                Clearing…
+              </>
+            ) : (
+              <Trash3 aria-hidden="true" />
+            )}
+          </Button>
+          <Dropdown.Toggle
+            split
+            variant="danger"
+            style={{ minHeight: 44, minWidth: 44 }}
+            disabled={isClearing || !hasPersonalToken}
+            aria-label="Choose shopping list items to delete"
+          />
+          <Dropdown.Menu align="end">
+            <Dropdown.Item
+              onClick={() => clearEntries(entries, 'requests')}
+              disabled={getShoppingListEntriesToClear(entries, 'requests').length === 0}
+            >
+              Delete requests
+            </Dropdown.Item>
+            <Dropdown.Item
+              onClick={() => clearEntries(entries, 'meal-plan-ingredients')}
+              disabled={
+                getShoppingListEntriesToClear(entries, 'meal-plan-ingredients').length === 0
+              }
+            >
+              Delete meal plan ingredients
+            </Dropdown.Item>
+            <Dropdown.Item
+              onClick={() => clearEntries(entries, 'checked')}
+              disabled={getShoppingListEntriesToClear(entries, 'checked').length === 0}
+            >
+              Delete checked
+            </Dropdown.Item>
+          </Dropdown.Menu>
+        </Dropdown>
       </div>
       <p className="text-muted small mb-3">
         {remainingCount} item{remainingCount !== 1 ? 's' : ''} remaining of {entries.length} item
