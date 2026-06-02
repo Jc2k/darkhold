@@ -55,6 +55,7 @@ export function ShoppingRequestPanel() {
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [requestError, setRequestError] = useState<string | null>(null);
   const [speechError, setSpeechError] = useState<string | null>(null);
+  const [speechInterimResult, setSpeechInterimResult] = useState<string | null>(null);
   const handleSwipeStart = useRef<{ pointerId: number; x: number; y: number } | null>(null);
   const rowSwipeStart = useRef<{
     foodId: number | string;
@@ -88,6 +89,7 @@ export function ShoppingRequestPanel() {
     setPendingFoods([]);
     setRequestError(null);
     setSpeechError(null);
+    setSpeechInterimResult(null);
     closeSwipeAction();
   };
 
@@ -201,7 +203,7 @@ export function ShoppingRequestPanel() {
           <Offcanvas.Body>
             {!hasPersonalToken && <NoTokenAlert />}
             {requestError && <Alert variant="danger">{requestError}</Alert>}
-            <div className="d-flex align-items-end gap-2 mb-2">
+            <div className="shopping-request-input-row d-flex align-items-end gap-2 mb-2">
               <div className="flex-grow-1">
                 <AsyncTypeaheadFilter
                   id="shopping-list-request-food"
@@ -209,7 +211,7 @@ export function ShoppingRequestPanel() {
                   selected={selectedFoods}
                   onSearch={searchFoods}
                   onChange={stageSelectedFoods}
-                  placeholder="Search foods…"
+                  placeholder={speechInterimResult ?? 'Search foods…'}
                   multiple={false}
                   disabled={!hasPersonalToken || addRequest.isPending}
                   allowNew
@@ -220,6 +222,7 @@ export function ShoppingRequestPanel() {
                   disabled={!hasPersonalToken || addRequest.isPending}
                   onResult={stageSpokenFood}
                   onErrorChange={setSpeechError}
+                  onInterimResultChange={setSpeechInterimResult}
                 />
               </div>
             </div>

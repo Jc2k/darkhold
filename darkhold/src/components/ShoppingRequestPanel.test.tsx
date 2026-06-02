@@ -44,9 +44,11 @@ vi.mock('./SpeechRecognitionButton', () => ({
   SpeechRecognitionButton: ({
     onResult,
     onErrorChange,
+    onInterimResultChange,
   }: {
     onResult: (transcript: string) => void;
     onErrorChange?: (error: string | null) => void;
+    onInterimResultChange?: (transcript: string | null) => void;
   }) => (
     <>
       <button type="button" onClick={() => onResult('Milk')}>
@@ -54,6 +56,9 @@ vi.mock('./SpeechRecognitionButton', () => ({
       </button>
       <button type="button" onClick={() => onErrorChange?.('Mock speech error')}>
         Trigger speech error
+      </button>
+      <button type="button" onClick={() => onInterimResultChange?.('hot')}>
+        Speak partial hot
       </button>
     </>
   ),
@@ -63,12 +68,15 @@ vi.mock('./AsyncTypeaheadFilter', () => ({
   AsyncTypeaheadFilter: ({
     allowNew,
     onChange,
+    placeholder,
   }: {
     allowNew?: boolean;
+    placeholder?: string;
     onChange: (foods: Array<{ id: number | string; name: string; customOption?: true }>) => void;
   }) => (
     <>
       <span>{allowNew ? 'New foods enabled' : 'New foods disabled'}</span>
+      <span>Placeholder: {placeholder}</span>
       <button type="button" onClick={() => onChange([{ id: 12, name: 'Tomatoes' }])}>
         Select tomatoes
       </button>
@@ -296,6 +304,25 @@ describe('ShoppingRequestPanel', () => {
     expect(mutateMock).toHaveBeenCalledWith([
       { customOption: true, id: 'speech-milk', name: 'Milk' },
     ]);
+  });
+
+  it('shows interim speech as typeahead placeholder progress', () => {
+    act(() => {
+      root.render(
+        <MemoryRouter initialEntries={['/?add=request']}>
+          <ShoppingRequestPanel />
+        </MemoryRouter>,
+      );
+    });
+
+    const findButton = (label: string) =>
+      [...document.querySelectorAll('button')].find(
+        (button) => button.textContent?.trim() === label,
+      );
+
+    expect(document.body.textContent).toContain('Placeholder: Search foods…');
+    act(() => findButton('Speak partial hot')?.click());
+    expect(document.body.textContent).toContain('Placeholder: hot');
   });
 
   it('renders speech errors below the input row without affecting the typeahead controls', () => {
