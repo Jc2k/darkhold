@@ -1,3 +1,13 @@
+## [1.100.1](https://github.com/Jc2k/darkhold/compare/v1.100.0...v1.100.1) (2026-06-02)
+
+
+### Bug Fixes
+
+* **dashboard:** rename bowls shelf ([e82d9e6](https://github.com/Jc2k/darkhold/commit/e82d9e6a1a5b08f90c235b5bd0161d86772690b5))
+* **dashboard:** use bowl shelf tag ([acbcc6c](https://github.com/Jc2k/darkhold/commit/acbcc6c863e3c6edd1fd22ff8dddf063b56c40dc))
+* **shopping:** release speech recognition when closing panel ([90c2e49](https://github.com/Jc2k/darkhold/commit/90c2e49ca082485985e37742a41eebaf00869034))
+* **ui:** hide recipe info action on touch devices ([06a022f](https://github.com/Jc2k/darkhold/commit/06a022f2c814a4f7052372977bce6e0b4cf361b8))
+
 # [1.100.0](https://github.com/Jc2k/darkhold/compare/v1.99.0...v1.100.0) (2026-06-02)
 
 
