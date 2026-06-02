@@ -41,10 +41,21 @@ vi.mock('./NoTokenAlert', () => ({
 }));
 
 vi.mock('./SpeechRecognitionButton', () => ({
-  SpeechRecognitionButton: ({ onResult }: { onResult: (transcript: string) => void }) => (
-    <button type="button" onClick={() => onResult('Milk')}>
-      Speak milk
-    </button>
+  SpeechRecognitionButton: ({
+    onResult,
+    onErrorChange,
+  }: {
+    onResult: (transcript: string) => void;
+    onErrorChange?: (error: string | null) => void;
+  }) => (
+    <>
+      <button type="button" onClick={() => onResult('Milk')}>
+        Speak milk
+      </button>
+      <button type="button" onClick={() => onErrorChange?.('Mock speech error')}>
+        Trigger speech error
+      </button>
+    </>
   ),
 }));
 
@@ -285,6 +296,25 @@ describe('ShoppingRequestPanel', () => {
     expect(mutateMock).toHaveBeenCalledWith([
       { customOption: true, id: 'speech-milk', name: 'Milk' },
     ]);
+  });
+
+  it('renders speech errors below the input row without affecting the typeahead controls', () => {
+    act(() => {
+      root.render(
+        <MemoryRouter initialEntries={['/?add=request']}>
+          <ShoppingRequestPanel />
+        </MemoryRouter>,
+      );
+    });
+
+    const findButton = (label: string) =>
+      [...document.querySelectorAll('button')].find(
+        (button) => button.textContent?.trim() === label,
+      );
+
+    act(() => findButton('Trigger speech error')?.click());
+    expect(document.body.textContent).toContain('Mock speech error');
+    expect(document.body.textContent).toContain('New foods enabled');
   });
 
   it('deletes a pending food after a full left swipe', () => {

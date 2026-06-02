@@ -86,13 +86,40 @@ describe('SpeechRecognitionButton', () => {
 
   it('stops listening and shows a useful message when microphone access is denied', () => {
     vi.stubGlobal('webkitSpeechRecognition', MockSpeechRecognition);
-    act(() => root.render(<SpeechRecognitionButton onResult={vi.fn()} />));
+    const onErrorChange = vi.fn();
+    act(() =>
+      root.render(<SpeechRecognitionButton onResult={vi.fn()} onErrorChange={onErrorChange} />),
+    );
     act(() => container.querySelector<HTMLButtonElement>('button')?.click());
     const recognition = MockSpeechRecognition.instances[0];
 
     act(() => recognition.onerror?.({ error: 'not-allowed' } as RecognitionErrorEvent));
 
     expect(recognition.stop).toHaveBeenCalledOnce();
-    expect(container.textContent).toContain('Microphone access was denied');
+    expect(onErrorChange).toHaveBeenLastCalledWith(
+      'Microphone access was denied. Allow access in your browser settings and try again.',
+    );
+  });
+
+  it('stops listening when the app is hidden so voice input can be restarted', () => {
+    vi.stubGlobal('webkitSpeechRecognition', MockSpeechRecognition);
+    act(() => root.render(<SpeechRecognitionButton onResult={vi.fn()} />));
+    act(() => container.querySelector<HTMLButtonElement>('button')?.click());
+    const recognition = MockSpeechRecognition.instances[0];
+
+    const visibilityStateDescriptor = Object.getOwnPropertyDescriptor(document, 'visibilityState');
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+    act(() => document.dispatchEvent(new Event('visibilitychange')));
+    if (visibilityStateDescriptor) {
+      Object.defineProperty(document, 'visibilityState', visibilityStateDescriptor);
+    } else {
+      Reflect.deleteProperty(document, 'visibilityState');
+    }
+
+    expect(recognition.stop).toHaveBeenCalledOnce();
+
+    act(() => container.querySelector<HTMLButtonElement>('button')?.click());
+    expect(MockSpeechRecognition.instances).toHaveLength(2);
+    expect(MockSpeechRecognition.instances[1]?.start).toHaveBeenCalledOnce();
   });
 });
