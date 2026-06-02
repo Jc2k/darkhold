@@ -113,7 +113,7 @@ describe('Dashboard', () => {
     delete actGlobal.IS_REACT_ACT_ENVIRONMENT;
   });
 
-  it('includes rice and bowls tag shelves alongside pasta', () => {
+  it('includes rice and bowl tag shelves alongside pasta', () => {
     useUpSoonDataMock.mockReturnValue({ data: null, isLoading: false, isError: false });
     useQueryMock.mockImplementation(({ queryKey }: { queryKey: string[] }) => {
       if (queryKey[0] === 'keywords' && queryKey[1] === 'by-name') {
@@ -159,7 +159,7 @@ describe('Dashboard', () => {
 
     expect(container.textContent).toContain('🍝 Pasta');
     expect(container.textContent).toContain('🍚 Rice');
-    expect(container.textContent).toContain('🥣 Bowls');
+    expect(container.textContent).toContain('🥣 Bowl');
     expect(container.querySelector('a[href="/search?keywords=11"]')?.textContent).toContain(
       'See all',
     );
