@@ -366,6 +366,8 @@ const TAG_SHELF_CONFIGS: TagShelfConfig[] = [
   { tag: 'Adam', title: 'Adam', emoji: '👨‍🍳' },
   { tag: 'soy-free', title: 'Soy Free', emoji: '🌱' },
   { tag: 'pasta', title: 'Pasta', emoji: '🍝' },
+  { tag: 'rice', title: 'Rice', emoji: '🍚' },
+  { tag: 'bowls', title: 'Bowls', emoji: '🥣' },
 ];
 
 function TagShelf({
