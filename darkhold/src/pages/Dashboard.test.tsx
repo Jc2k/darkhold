@@ -113,6 +113,61 @@ describe('Dashboard', () => {
     delete actGlobal.IS_REACT_ACT_ENVIRONMENT;
   });
 
+  it('includes rice and bowls tag shelves alongside pasta', () => {
+    useUpSoonDataMock.mockReturnValue({ data: null, isLoading: false, isError: false });
+    useQueryMock.mockImplementation(({ queryKey }: { queryKey: string[] }) => {
+      if (queryKey[0] === 'keywords' && queryKey[1] === 'by-name') {
+        const keywordIds: Record<string, number> = { pasta: 10, rice: 11, bowls: 12 };
+        const id = keywordIds[queryKey[2]];
+        return { data: id ? { id, name: queryKey[2] } : null, isLoading: false, isError: false };
+      }
+
+      if (queryKey[0] === 'recipes' && queryKey[1] === 'tag') {
+        return {
+          data: {
+            results: [
+              { id: queryKey[2], name: `${queryKey[2]} recipe`, created_by: 1, keywords: [] },
+            ],
+          },
+          isLoading: false,
+          isError: false,
+        };
+      }
+
+      if (
+        queryKey[0] === 'recipes' ||
+        queryKey[0] === 'meal-plan' ||
+        queryKey[0] === 'recently-viewed'
+      ) {
+        return { data: { results: [] }, isLoading: false, isError: false };
+      }
+
+      if (queryKey[0] === 'keywords') {
+        return { data: null, isLoading: false, isError: false };
+      }
+
+      return { data: undefined, isLoading: false, isError: false };
+    });
+
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <Dashboard />
+        </MemoryRouter>,
+      );
+    });
+
+    expect(container.textContent).toContain('🍝 Pasta');
+    expect(container.textContent).toContain('🍚 Rice');
+    expect(container.textContent).toContain('🥣 Bowls');
+    expect(container.querySelector('a[href="/search?keywords=11"]')?.textContent).toContain(
+      'See all',
+    );
+    expect(container.querySelector('a[href="/search?keywords=12"]')?.textContent).toContain(
+      'See all',
+    );
+  });
+
   it('links the Up Soon shelf to the Up Soon book detail page', () => {
     useUpSoonDataMock.mockReturnValue({
       data: {
