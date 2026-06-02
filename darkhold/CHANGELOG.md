@@ -1,3 +1,10 @@
+# [1.99.0](https://github.com/Jc2k/darkhold/compare/v1.98.2...v1.99.0) (2026-06-02)
+
+
+### Features
+
+* **recipes:** speed up all recipes and add row gestures ([22db7bd](https://github.com/Jc2k/darkhold/commit/22db7bd411b8b242503e58be1c37101ebbff38a5))
+
 ## [1.98.2](https://github.com/Jc2k/darkhold/compare/v1.98.1...v1.98.2) (2026-06-02)
 
 
