@@ -573,3 +573,12 @@ body {
 .shopping-request-voice-button {
   width: 2.375rem;
 }
+
+.long-press-pending {
+  box-shadow: inset 0 0 0 2px var(--bs-primary);
+}
+
+.recipe-card-info-fact {
+  font-size: 0.8rem;
+  padding: 0.55em 0.7em;
+}

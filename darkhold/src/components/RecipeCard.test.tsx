@@ -15,6 +15,11 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
+vi.mock('./RecipeCardInfoModal', () => ({
+  RecipeCardInfoModal: ({ show }: { show: boolean }) =>
+    show ? <div data-testid="recipe-card-info-modal" /> : null,
+}));
+
 vi.mock('./UpSoonButton', () => ({
   UpSoonButton: ({ style }: { style?: React.CSSProperties }) => (
     <div data-testid="up-soon-button" style={style} />
@@ -35,6 +40,21 @@ const recipeFixture: Recipe = {
   image: null,
   rating: null,
 };
+
+function dispatchTouchPointer(
+  element: Element,
+  type: string,
+  options: { x?: number; y?: number } = {},
+) {
+  const event = new Event(type, { bubbles: true });
+  Object.defineProperties(event, {
+    pointerType: { value: 'touch' },
+    pointerId: { value: 1 },
+    clientX: { value: options.x ?? 0 },
+    clientY: { value: options.y ?? 0 },
+  });
+  element.dispatchEvent(event);
+}
 
 function renderRecipeCard(root: ReturnType<typeof createRoot>, imageOverlayAction?: ReactNode) {
   act(() => {
@@ -65,6 +85,7 @@ describe('RecipeCard', () => {
       root.unmount();
     });
     container.remove();
+    vi.useRealTimers();
     delete actGlobal.IS_REACT_ACT_ENVIRONMENT;
   });
 
@@ -76,5 +97,18 @@ describe('RecipeCard', () => {
   it('does not render image overlay action when not provided', () => {
     renderRecipeCard(root);
     expect(container.querySelector('[data-testid="overlay-action"]')).toBeNull();
+  });
+
+  it('opens decision information after a touch long press', () => {
+    vi.useFakeTimers();
+    renderRecipeCard(root);
+    const card = container.querySelector('.recipe-card')!;
+
+    act(() => {
+      dispatchTouchPointer(card, 'pointerdown');
+      vi.advanceTimersByTime(500);
+    });
+
+    expect(container.querySelector('[data-testid="recipe-card-info-modal"]')).not.toBeNull();
   });
 });

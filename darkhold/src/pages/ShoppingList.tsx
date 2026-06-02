@@ -31,6 +31,7 @@ import {
   invalidateAndRefreshMealPlanRedirectWeek,
   MEAL_PLAN_REDIRECT_WEEK_BROADCAST_KEY,
 } from '../utils/mealPlanRedirect';
+import { hasLongPressMoved, LONG_PRESS_DELAY_MS } from '../utils/longPress';
 
 export { fetchAllShoppingListEntries } from '../hooks/useShoppingListEntries';
 
@@ -39,8 +40,6 @@ const SWIPE_THRESHOLD_PX = 60;
 const SWIPE_ACTION_WIDTH_PX = 104;
 const FULL_SWIPE_THRESHOLD_PX = SWIPE_ACTION_WIDTH_PX * 2;
 const TOOLBAR_BUTTON_STYLE = { minHeight: 44, padding: '0 1rem' };
-const LONG_PRESS_DELAY_MS = 500;
-const LONG_PRESS_MOVE_TOLERANCE_PX = 10;
 
 export function isInShoppingList(entry: ShoppingEntry, listName: string): boolean {
   return entry.shopping_lists?.some((list) => list.name === listName) ?? false;
@@ -630,10 +629,7 @@ export function ShoppingList() {
                           if (start?.key !== rowKey || start.pointerId !== event.pointerId) return;
                           const deltaX = event.clientX - start.x;
                           const deltaY = event.clientY - start.y;
-                          if (
-                            Math.abs(deltaX) > LONG_PRESS_MOVE_TOLERANCE_PX ||
-                            Math.abs(deltaY) > LONG_PRESS_MOVE_TOLERANCE_PX
-                          ) {
+                          if (hasLongPressMoved(deltaX, deltaY)) {
                             clearLongPress();
                           }
                           if (Math.abs(deltaX) <= Math.abs(deltaY)) return;
