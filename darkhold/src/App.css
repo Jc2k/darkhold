@@ -574,6 +574,14 @@ body {
   width: 2.375rem;
 }
 
+/* Recipe cards open their decision information on touch long press. Suppress the competing
+   iOS image callout and text-selection gestures across that interactive surface. */
+.recipe-card-long-press {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 .long-press-pending {
   box-shadow: inset 0 0 0 2px var(--bs-primary);
 }
