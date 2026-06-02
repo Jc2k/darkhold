@@ -1,3 +1,12 @@
+## [1.97.5](https://github.com/Jc2k/darkhold/compare/v1.97.4...v1.97.5) (2026-06-02)
+
+
+### Bug Fixes
+
+* **dashboard:** ignore unlinked shopping items for planning alert ([3729be9](https://github.com/Jc2k/darkhold/commit/3729be9b77543626dcc47234b7890da1dd129c93))
+* **dashboard:** require meal-plan linked shopping entries for planning alert ([851c370](https://github.com/Jc2k/darkhold/commit/851c37077310aa85282d6a9d468cb0f2adf58975))
+* **shopping:** recover speech input after app switches ([10cb46b](https://github.com/Jc2k/darkhold/commit/10cb46bffd2013bb4f41dac02824b3a8c8817a31))
+
 ## [1.97.4](https://github.com/Jc2k/darkhold/compare/v1.97.3...v1.97.4) (2026-06-02)
 
 
