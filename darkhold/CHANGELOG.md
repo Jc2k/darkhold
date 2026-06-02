@@ -1,3 +1,10 @@
+## [1.100.2](https://github.com/Jc2k/darkhold/compare/v1.100.1...v1.100.2) (2026-06-02)
+
+
+### Bug Fixes
+
+* **shopping-list:** compact delete dropdown toggle ([339c432](https://github.com/Jc2k/darkhold/commit/339c432163c0a7460291656102ef9309a0f85190))
+
 ## [1.100.1](https://github.com/Jc2k/darkhold/compare/v1.100.0...v1.100.1) (2026-06-02)
 
 
