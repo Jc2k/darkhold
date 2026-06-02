@@ -6,10 +6,11 @@ import { useUpSoonForRecipe } from '../hooks/useUpSoon';
 interface Props {
   recipeId: number;
   style?: React.CSSProperties;
+  className?: string;
   showLabel?: boolean;
 }
 
-export function UpSoonButton({ recipeId, style, showLabel = false }: Props) {
+export function UpSoonButton({ recipeId, style, className, showLabel = false }: Props) {
   const hasPersonalToken = Boolean(localStorage.getItem('tandoor_token'));
   const { isLoading, isInUpSoon, isPending, toggle } = useUpSoonForRecipe(recipeId);
 
@@ -33,6 +34,7 @@ export function UpSoonButton({ recipeId, style, showLabel = false }: Props) {
           variant="outline-secondary"
           size="sm"
           style={style}
+          className={className}
           onClick={(e) => e.stopPropagation()}
           aria-label="Add to Up Soon"
         >
@@ -48,6 +50,7 @@ export function UpSoonButton({ recipeId, style, showLabel = false }: Props) {
       variant={isInUpSoon ? 'warning' : 'secondary'}
       size="sm"
       style={style}
+      className={className}
       onClick={(e) => {
         e.stopPropagation();
         toggle();

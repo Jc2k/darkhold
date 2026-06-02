@@ -1,5 +1,5 @@
 import { Badge, Button, Modal, Spinner } from 'react-bootstrap';
-import { CalendarPlus, JournalText } from 'react-bootstrap-icons';
+import { JournalRichtext, Plus } from 'react-bootstrap-icons';
 import { Link } from 'react-router-dom';
 import type { Keyword, Recipe } from '../api/tandoor-types';
 import { useRecipeCardInfo } from '../hooks/useRecipeCardInfo';
@@ -97,23 +97,27 @@ export function RecipeCardInfoModal({ recipe, show, onHide, onAddToMealPlan }: P
           )}
         </section>
       </Modal.Body>
-      <Modal.Footer className="justify-content-start">
-        <UpSoonButton recipeId={recipe.id} showLabel />
+      <Modal.Footer className="justify-content-start gap-2">
+        <UpSoonButton recipeId={recipe.id} className="app-icon-button" />
         {onAddToMealPlan && (
           <Button
             variant="success"
+            className="app-icon-button"
             onClick={() => {
               onHide();
               onAddToMealPlan(recipe);
             }}
           >
-            <CalendarPlus className="me-2" aria-hidden="true" />
-            Add to meal plan
+            <Plus aria-hidden="true" />
           </Button>
         )}
-        <Link to={`/recipe/${recipe.id}`} className="btn btn-outline-primary" onClick={onHide}>
-          <JournalText className="me-2" aria-hidden="true" />
-          Full recipe
+        <Link
+          to={`/recipe/${recipe.id}`}
+          className="btn btn-outline-primary app-icon-button"
+          onClick={onHide}
+          aria-label="View full recipe"
+        >
+          <JournalRichtext aria-hidden="true" />
         </Link>
       </Modal.Footer>
     </Modal>
