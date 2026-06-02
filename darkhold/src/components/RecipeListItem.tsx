@@ -1,8 +1,11 @@
-import { memo } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { ListGroup, Button } from 'react-bootstrap';
+import { Plus } from 'react-bootstrap-icons';
 import { useNavigate } from 'react-router-dom';
 import type { Recipe } from '../api/tandoor-types';
 import { addToMealPlanButtonStyle } from '../utils/buttonStyles';
+import { hasLongPressMoved, LONG_PRESS_DELAY_MS } from '../utils/longPress';
+import { RecipeCardInfoModal } from './RecipeCardInfoModal';
 import { UpSoonButton } from './UpSoonButton';
 
 interface Props {
@@ -10,36 +13,162 @@ interface Props {
   onAddToMealPlan?: (recipe: Recipe) => void;
 }
 
+const SWIPE_ACTION_WIDTH_PX = 52;
+const OPEN_SWIPE_WIDTH_PX = SWIPE_ACTION_WIDTH_PX * 2;
+const FULL_SWIPE_THRESHOLD_PX = OPEN_SWIPE_WIDTH_PX * 2;
+
 export const RecipeListItem = memo(function RecipeListItem({ recipe, onAddToMealPlan }: Props) {
   const navigate = useNavigate();
+  const [showInfo, setShowInfo] = useState(false);
+  const [swipeOffset, setSwipeOffset] = useState(0);
+  const [longPressPending, setLongPressPending] = useState(false);
+  const pointerStart = useRef<{ pointerId: number; x: number; y: number } | null>(null);
+  const longPressTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suppressClick = useRef(false);
+
+  const clearLongPress = () => {
+    if (longPressTimeout.current) clearTimeout(longPressTimeout.current);
+    longPressTimeout.current = null;
+    setLongPressPending(false);
+  };
+
+  useEffect(
+    () => () => {
+      if (longPressTimeout.current) clearTimeout(longPressTimeout.current);
+    },
+    [],
+  );
+
+  const openMealPlan = () => {
+    setSwipeOffset(0);
+    onAddToMealPlan?.(recipe);
+  };
+
   return (
-    <ListGroup.Item
-      action
-      onClick={() => navigate(`/recipe/${recipe.id}`)}
-      className="d-flex justify-content-between align-items-center"
-    >
-      <span>{recipe.name}</span>
-      <div
-        className="d-flex align-items-center gap-2"
-        onClick={(e) => e.stopPropagation()}
-        onPointerDown={(e) => e.stopPropagation()}
-      >
-        {recipe.cooking_time != null && (
-          <small className="text-muted">{recipe.cooking_time} min</small>
-        )}
-        <UpSoonButton recipeId={recipe.id} style={{ ...addToMealPlanButtonStyle, flexShrink: 0 }} />
-        {onAddToMealPlan && (
-          <Button
-            variant="success"
-            size="sm"
-            style={{ ...addToMealPlanButtonStyle, flexShrink: 0 }}
-            onClick={() => onAddToMealPlan(recipe)}
-            aria-label="Add to meal plan"
+    <>
+      <ListGroup.Item className="recipe-list-swipe-item p-0">
+        <div className="recipe-list-swipe-shell">
+          <div className="recipe-list-swipe-actions">
+            {onAddToMealPlan && (
+              <Button
+                variant="success"
+                className={`recipe-list-swipe-action rounded-0${swipeOffset <= -FULL_SWIPE_THRESHOLD_PX ? ' recipe-list-swipe-action-ready' : ''}`}
+                onClick={openMealPlan}
+                aria-label={`Add ${recipe.name} to meal plan`}
+                tabIndex={swipeOffset < 0 ? 0 : -1}
+              >
+                <Plus aria-hidden="true" />
+              </Button>
+            )}
+            <UpSoonButton recipeId={recipe.id} />
+          </div>
+          <div
+            className={`recipe-list-swipe-content d-flex justify-content-between align-items-center px-3 py-2${longPressPending ? ' recipe-list-long-press-pending' : ''}`}
+            style={{ transform: `translateX(${swipeOffset}px)` }}
+            onClickCapture={(event) => {
+              if (!suppressClick.current) return;
+              event.preventDefault();
+              event.stopPropagation();
+              suppressClick.current = false;
+            }}
+            role="button"
+            tabIndex={0}
+            onClick={() => navigate(`/recipe/${recipe.id}`)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') navigate(`/recipe/${recipe.id}`);
+            }}
+            onPointerDown={(event) => {
+              if (event.target instanceof Element && event.target.closest('a, button')) return;
+              if (event.pointerType === 'mouse' && event.button !== 0) return;
+              pointerStart.current = {
+                pointerId: event.pointerId,
+                x: event.clientX,
+                y: event.clientY,
+              };
+              suppressClick.current = false;
+              if (event.pointerType !== 'mouse') {
+                clearLongPress();
+                setLongPressPending(true);
+                longPressTimeout.current = setTimeout(() => {
+                  suppressClick.current = true;
+                  longPressTimeout.current = null;
+                  setLongPressPending(false);
+                  setSwipeOffset(0);
+                  setShowInfo(true);
+                }, LONG_PRESS_DELAY_MS);
+              }
+              event.currentTarget.setPointerCapture?.(event.pointerId);
+            }}
+            onPointerMove={(event) => {
+              const start = pointerStart.current;
+              if (!start || start.pointerId !== event.pointerId) return;
+              const deltaX = event.clientX - start.x;
+              const deltaY = event.clientY - start.y;
+              if (hasLongPressMoved(deltaX, deltaY)) clearLongPress();
+              if (Math.abs(deltaX) <= Math.abs(deltaY) || deltaX > 0) return;
+              suppressClick.current = true;
+              setSwipeOffset(deltaX);
+            }}
+            onPointerUp={(event) => {
+              const start = pointerStart.current;
+              pointerStart.current = null;
+              clearLongPress();
+              if (!start || start.pointerId !== event.pointerId) return;
+              const deltaX = event.clientX - start.x;
+              const deltaY = event.clientY - start.y;
+              if (deltaX <= -FULL_SWIPE_THRESHOLD_PX && Math.abs(deltaX) > Math.abs(deltaY)) {
+                openMealPlan();
+              } else if (deltaX < -SWIPE_ACTION_WIDTH_PX && Math.abs(deltaX) > Math.abs(deltaY)) {
+                setSwipeOffset(-OPEN_SWIPE_WIDTH_PX);
+              } else {
+                setSwipeOffset(0);
+              }
+            }}
+            onPointerCancel={() => {
+              pointerStart.current = null;
+              suppressClick.current = false;
+              clearLongPress();
+              setSwipeOffset(0);
+            }}
           >
-            +
-          </Button>
-        )}
-      </div>
-    </ListGroup.Item>
+            <span>{recipe.name}</span>
+            <div className="d-flex align-items-center gap-2">
+              {recipe.cooking_time != null && (
+                <small className="text-muted">{recipe.cooking_time} min</small>
+              )}
+              <div
+                className="recipe-list-row-actions align-items-center gap-2"
+                onClick={(event) => event.stopPropagation()}
+                onPointerDown={(event) => event.stopPropagation()}
+              >
+                <UpSoonButton
+                  recipeId={recipe.id}
+                  style={{ ...addToMealPlanButtonStyle, flexShrink: 0 }}
+                />
+                {onAddToMealPlan && (
+                  <Button
+                    variant="success"
+                    size="sm"
+                    style={{ ...addToMealPlanButtonStyle, flexShrink: 0 }}
+                    onClick={openMealPlan}
+                    aria-label="Add to meal plan"
+                  >
+                    <Plus aria-hidden="true" />
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </ListGroup.Item>
+      {showInfo && (
+        <RecipeCardInfoModal
+          recipe={recipe}
+          show
+          onHide={() => setShowInfo(false)}
+          onAddToMealPlan={onAddToMealPlan}
+        />
+      )}
+    </>
   );
 });

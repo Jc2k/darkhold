@@ -590,3 +590,57 @@ body {
   font-size: 0.8rem;
   padding: 0.55em 0.7em;
 }
+
+/* Recipe list rows mirror the shopping-list touch interactions: desktop actions appear on hover,
+   while coarse pointers reveal icon-only actions by swiping left. */
+.recipe-list-swipe-shell {
+  position: relative;
+  overflow: hidden;
+}
+
+.recipe-list-swipe-content {
+  position: relative;
+  z-index: 1;
+  min-height: 3.25rem;
+  background: var(--bs-list-group-bg);
+  touch-action: pan-y;
+  transition: transform 180ms ease-out;
+  -webkit-touch-callout: none;
+}
+
+.recipe-list-swipe-actions {
+  position: absolute;
+  inset-block: 0;
+  right: 0;
+  display: flex;
+}
+
+.recipe-list-swipe-action,
+.recipe-list-swipe-actions > .btn {
+  display: inline-flex;
+  width: 3.25rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0;
+}
+
+.recipe-list-swipe-action-ready {
+  filter: brightness(0.85);
+}
+
+.recipe-list-row-actions {
+  display: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .recipe-list-swipe-item:hover .recipe-list-row-actions,
+  .recipe-list-swipe-item:focus-within .recipe-list-row-actions {
+    display: flex;
+  }
+}
+
+.recipe-list-long-press-pending {
+  background: var(--bs-secondary-bg);
+  user-select: none;
+  -webkit-user-select: none;
+}
