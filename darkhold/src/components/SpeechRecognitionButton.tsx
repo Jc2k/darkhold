@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Button, Spinner } from 'react-bootstrap';
 import { MicFill } from 'react-bootstrap-icons';
 
@@ -43,6 +43,10 @@ interface SpeechRecognitionButtonProps {
   onInterimResultChange?: (transcript: string | null) => void;
 }
 
+export interface SpeechRecognitionButtonHandle {
+  reset: () => void;
+}
+
 function getSpeechRecognitionConstructor(): SpeechRecognitionConstructor | undefined {
   const speechWindow = window as SpeechRecognitionWindow;
   return speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
@@ -61,12 +65,13 @@ function getSpeechRecognitionErrorMessage(error: string): string {
   return 'Speech recognition failed. Please try again or type the item instead.';
 }
 
-export function SpeechRecognitionButton({
-  disabled = false,
-  onResult,
-  onErrorChange,
-  onInterimResultChange,
-}: SpeechRecognitionButtonProps) {
+export const SpeechRecognitionButton = forwardRef<
+  SpeechRecognitionButtonHandle,
+  SpeechRecognitionButtonProps
+>(function SpeechRecognitionButton(
+  { disabled = false, onResult, onErrorChange, onInterimResultChange },
+  ref,
+) {
   const [SpeechRecognition] = useState(() => getSpeechRecognitionConstructor());
   const [isListening, setIsListening] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -98,11 +103,20 @@ export function SpeechRecognitionButton({
     if (stoppedRecognition) releaseRecognition(stoppedRecognition, true);
   };
 
+  const resetSpeechRecognition = () => {
+    const recognition = recognitionRef.current;
+    if (recognition) releaseRecognition(recognition, true);
+    abortStoppedRecognition();
+    onInterimResultChangeRef.current?.(null);
+    setIsListening(false);
+    setError(null);
+  };
+
+  useImperativeHandle(ref, () => ({ reset: resetSpeechRecognition }));
+
   useEffect(
     () => () => {
-      const recognition = recognitionRef.current;
-      if (recognition) releaseRecognition(recognition, true);
-      abortStoppedRecognition();
+      resetSpeechRecognition();
     },
     [],
   );
@@ -112,14 +126,6 @@ export function SpeechRecognitionButton({
   }, [error]);
 
   useEffect(() => {
-    const resetSpeechRecognition = () => {
-      const recognition = recognitionRef.current;
-      if (recognition) releaseRecognition(recognition, true);
-      abortStoppedRecognition();
-      onInterimResultChangeRef.current?.(null);
-      setIsListening(false);
-      setError(null);
-    };
     const resetForVisibilityChange = () => {
       if (document.visibilityState === 'hidden') resetSpeechRecognition();
     };
@@ -218,4 +224,4 @@ export function SpeechRecognitionButton({
       </span>
     </>
   );
-}
+});
