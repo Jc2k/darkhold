@@ -17,6 +17,13 @@ import {
   CalendarDay,
   Cart4,
   JournalRichtext,
+  PencilSquare,
+  Gear,
+  Fire,
+  Rulers,
+  CupHot,
+  Tools,
+  List,
 } from 'react-bootstrap-icons';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import { useInvalidationSocket } from '../hooks/useInvalidationSocket';
@@ -32,11 +39,11 @@ const navItems = [
 ];
 
 const commonMenuItems = [
-  { to: '/shopping?add=request', icon: '✏️', label: 'Add Shopping Request' },
-  { to: '/settings', icon: '⚙️', label: 'Settings' },
-  { to: '/utilities/gas-marks', icon: '🔥', label: 'Gas Marks' },
-  { to: '/utilities/unit-converter', icon: '📐', label: 'Unit Converter' },
-  { to: '/utilities/rice-cooking', icon: '🍚', label: 'Rice Cooking' },
+  { to: '/shopping?add=request', Icon: PencilSquare, label: 'Add Shopping Request' },
+  { to: '/settings', Icon: Gear, label: 'Settings' },
+  { to: '/utilities/gas-marks', Icon: Fire, label: 'Gas Marks' },
+  { to: '/utilities/unit-converter', Icon: Rulers, label: 'Unit Converter' },
+  { to: '/utilities/rice-cooking', Icon: CupHot, label: 'Rice Cooking' },
 ];
 
 export function Layout() {
@@ -46,7 +53,7 @@ export function Layout() {
   const [showMenu, setShowMenu] = useState(false);
   const { data: isSuperuser } = useSuperuser();
   const menuItems = isSuperuser
-    ? [...commonMenuItems, { to: '/housekeeping', icon: '🧹', label: 'Housekeeping' }]
+    ? [...commonMenuItems, { to: '/housekeeping', Icon: Tools, label: 'Housekeeping' }]
     : commonMenuItems;
 
   const handleRefresh = useCallback(() => {
@@ -83,10 +90,19 @@ export function Layout() {
             ))}
           </Nav>
           <Nav>
-            <NavDropdown title="☰ Menu" id="desktop-menu-dropdown" align="end">
-              {menuItems.map(({ to, icon, label }) => (
+            <NavDropdown
+              title={
+                <span className="d-inline-flex align-items-center gap-1">
+                  <List aria-hidden="true" /> Menu
+                </span>
+              }
+              id="desktop-menu-dropdown"
+              align="end"
+            >
+              {menuItems.map(({ to, Icon, label }) => (
                 <NavDropdown.Item key={to} as={NavLink} to={to}>
-                  {icon} {label}
+                  <Icon className="me-2" aria-hidden="true" />
+                  {label}
                 </NavDropdown.Item>
               ))}
             </NavDropdown>
@@ -111,11 +127,10 @@ export function Layout() {
         <button
           type="button"
           aria-label="Menu"
-          className="ms-auto text-white border-0 bg-transparent"
-          style={{ fontSize: '1.5rem' }}
+          className="app-icon-button ms-auto text-white border-0 bg-transparent"
           onClick={() => setShowMenu(true)}
         >
-          ☰
+          <List aria-hidden="true" />
         </button>
       </Navbar>
 
@@ -128,7 +143,7 @@ export function Layout() {
 
       {/* Bottom tab bar - mobile */}
       <nav
-        className="d-md-none fixed-bottom bg-dark border-top border-secondary"
+        className="app-mobile-tabs d-md-none fixed-bottom bg-dark border-top border-secondary"
         style={{ zIndex: 1030, paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         <div className="d-flex">
@@ -138,11 +153,11 @@ export function Layout() {
               to={to}
               aria-label={label}
               className={({ isActive }) =>
-                `flex-fill text-center py-2 text-decoration-none ${isActive ? 'text-white fw-semibold' : 'text-secondary'}`
+                `app-mobile-tab flex-fill text-center text-decoration-none ${isActive ? 'text-white fw-semibold' : 'text-secondary'}`
               }
-              style={{ fontSize: '1.5rem' }}
             >
-              <Icon />
+              <Icon aria-hidden="true" />
+              <span>{label}</span>
             </NavLink>
           ))}
         </div>
@@ -162,7 +177,7 @@ export function Layout() {
         </Offcanvas.Header>
         <Offcanvas.Body className="p-0">
           <ListGroup variant="flush">
-            {menuItems.map(({ to, icon, label }) => (
+            {menuItems.map(({ to, Icon, label }) => (
               <ListGroup.Item
                 key={to}
                 action
@@ -171,7 +186,8 @@ export function Layout() {
                 className="bg-dark text-white border-secondary"
                 onClick={() => setShowMenu(false)}
               >
-                {icon} {label}
+                <Icon className="me-2" aria-hidden="true" />
+                {label}
               </ListGroup.Item>
             ))}
           </ListGroup>

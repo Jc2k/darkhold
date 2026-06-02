@@ -1,3 +1,4 @@
+import { Sliders } from 'react-bootstrap-icons';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Form, Row, Col, Spinner, Alert, Button, Collapse } from 'react-bootstrap';
 import { useSearchParams } from 'react-router-dom';
@@ -223,7 +224,7 @@ export function Search() {
               aria-controls="advanced-filters"
               title="Advanced filters"
             >
-              ☰
+              <Sliders aria-hidden="true" />
             </Button>
           </Col>
         </Row>

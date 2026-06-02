@@ -107,3 +107,13 @@ Useful implementation points:
 - `darkhold/src/hooks/useInvalidationSocket.ts` — shared websocket lifecycle, cross-client invalidation handling, and reconnect-wide stale marking.
 - `darkhold/src/hooks/useShoppingListEntries.ts`, `darkhold/src/hooks/useMealPlan.ts`, and `darkhold/src/hooks/useUpSoon.ts` — examples of reusable cached fetch hooks and mutation cache updates.
 - `darkhold/src/utils/mealPlanCache.ts` — example of updating all cached variants of a ranged resource after mutation.
+
+## UI design system
+
+- Prefer React Bootstrap components and `react-bootstrap-icons` over hand-written SVG paths, Unicode symbols, or emoji for interface controls and navigation. Emoji are acceptable only as decorative content where their platform-dependent appearance is intentional.
+- Use Bootstrap theme variables (`--bs-*`) for interface colors so surfaces, borders, text, and placeholders stay coherent. Avoid hard-coded hex values unless representing data or a documented brand color.
+- Keep mobile primary navigation labels visible. Icons supplement text; they do not replace it for app-level destinations.
+- Make touch targets at least `44px` high and wide where practical. Shared app chrome belongs in `darkhold/src/App.css`; do not accumulate one-off inline sizes for repeated controls.
+- Preserve a visible keyboard focus state for custom interactive elements. Use semantic Bootstrap controls where possible and provide accessible names for icon-only controls.
+- Prefer CSS media queries for responsive layout. Account for safe-area insets in fixed mobile chrome and ensure page padding clears fixed navigation.
+- Reuse shared CSS classes for repeated UI patterns such as image placeholders, navigation tabs, and icon buttons. Prefer Bootstrap spacing utilities for one-off spacing.

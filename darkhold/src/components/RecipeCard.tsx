@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Card, Button } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
-import { Plus } from 'react-bootstrap-icons';
+import { EggFried, Plus } from 'react-bootstrap-icons';
 import type { Recipe, Keyword } from '../api/tandoor-types';
 import { TagBadge } from './TagBadge';
 import { proxyMediaUrl } from '../utils/mediaUrl';
@@ -20,8 +20,6 @@ interface Props {
 }
 
 const IMAGE_HEIGHT = 180;
-const PLACEHOLDER_BG = '#d0d0d0';
-const PLACEHOLDER_ICON_COLOR = '#a0a0a0';
 
 export function RecipeCard({
   recipe,
@@ -50,26 +48,11 @@ export function RecipeCard({
           <div
             role="img"
             aria-label="No image available"
-            style={{
-              height: IMAGE_HEIGHT,
-              background: PLACEHOLDER_BG,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
+            className="recipe-image-placeholder"
+            style={{ height: IMAGE_HEIGHT }}
             onClick={() => navigate(destination)}
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="72"
-              height="72"
-              viewBox="0 0 24 24"
-              fill={PLACEHOLDER_ICON_COLOR}
-              aria-hidden="true"
-            >
-              {/* Pizza slice */}
-              <path d="M12 2C6.48 2 2 6.48 2 12h10V2zm0 0c5.52 0 10 4.48 10 10h-10V2zM2 12c0 5.52 4.48 10 10 10L12 12H2z" />
-            </svg>
+            <EggFried size={72} aria-hidden="true" />
           </div>
         )}
         {onAddToMealPlan && (
