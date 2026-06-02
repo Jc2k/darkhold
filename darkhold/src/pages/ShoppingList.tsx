@@ -534,7 +534,7 @@ export function ShoppingList() {
           <Dropdown.Toggle
             split
             variant="danger"
-            style={{ minHeight: 44, minWidth: 44 }}
+            style={{ minHeight: 44 }}
             disabled={isClearing || !hasPersonalToken}
             aria-label="Choose shopping list items to delete"
           />
