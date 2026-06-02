@@ -7,9 +7,13 @@ type ReactActGlobal = typeof globalThis & {
   IS_REACT_ACT_ENVIRONMENT?: boolean;
 };
 
+type RecognitionResult = ArrayLike<{ transcript: string }> & {
+  isFinal: boolean;
+};
+
 type RecognitionEvent = Event & {
   resultIndex: number;
-  results: ArrayLike<ArrayLike<{ transcript: string }>>;
+  results: ArrayLike<RecognitionResult>;
 };
 
 type RecognitionErrorEvent = Event & {
@@ -76,13 +80,51 @@ describe('SpeechRecognitionButton', () => {
     act(() =>
       recognition.onresult?.({
         resultIndex: 0,
-        results: [[{ transcript: '  Milk  ' }]],
+        results: [Object.assign([{ transcript: '  Milk  ' }], { isFinal: true })],
       } as unknown as RecognitionEvent),
     );
 
     expect(onResult).toHaveBeenCalledWith('Milk');
     expect(recognition.stop).toHaveBeenCalledOnce();
     expect(container.textContent).not.toContain('Listening for one shopping item');
+  });
+
+  it('reports interim text as progress but waits for the final shopping item', () => {
+    vi.stubGlobal('webkitSpeechRecognition', MockSpeechRecognition);
+    const onResult = vi.fn();
+    const onInterimResultChange = vi.fn();
+    act(() =>
+      root.render(
+        <SpeechRecognitionButton
+          onResult={onResult}
+          onInterimResultChange={onInterimResultChange}
+        />,
+      ),
+    );
+    act(() => container.querySelector<HTMLButtonElement>('button')?.click());
+    const recognition = MockSpeechRecognition.instances[0];
+
+    act(() =>
+      recognition.onresult?.({
+        resultIndex: 0,
+        results: [Object.assign([{ transcript: 'hot' }], { isFinal: false })],
+      } as unknown as RecognitionEvent),
+    );
+
+    expect(onInterimResultChange).toHaveBeenLastCalledWith('hot');
+    expect(onResult).not.toHaveBeenCalled();
+    expect(recognition.stop).not.toHaveBeenCalled();
+
+    act(() =>
+      recognition.onresult?.({
+        resultIndex: 0,
+        results: [Object.assign([{ transcript: 'hot sauce' }], { isFinal: true })],
+      } as unknown as RecognitionEvent),
+    );
+
+    expect(onResult).toHaveBeenCalledWith('hot sauce');
+    expect(onInterimResultChange).toHaveBeenLastCalledWith(null);
+    expect(recognition.stop).toHaveBeenCalledOnce();
   });
 
   it('stops listening and shows a useful message when microphone access is denied', () => {
@@ -112,6 +154,22 @@ describe('SpeechRecognitionButton', () => {
 
     expect(recognition.abort).toHaveBeenCalledOnce();
     expect(recognition.stop).not.toHaveBeenCalled();
+  });
+
+  it('aborts a previously stopped recognizer on pagehide before starting again', () => {
+    vi.stubGlobal('webkitSpeechRecognition', MockSpeechRecognition);
+    act(() => root.render(<SpeechRecognitionButton onResult={vi.fn()} />));
+    act(() => container.querySelector<HTMLButtonElement>('button')?.click());
+    const recognition = MockSpeechRecognition.instances[0];
+    act(() => container.querySelector<HTMLButtonElement>('button')?.click());
+    expect(recognition.stop).toHaveBeenCalledOnce();
+
+    act(() => window.dispatchEvent(new Event('pagehide')));
+
+    expect(recognition.abort).toHaveBeenCalledOnce();
+    act(() => container.querySelector<HTMLButtonElement>('button')?.click());
+    expect(MockSpeechRecognition.instances).toHaveLength(2);
+    expect(MockSpeechRecognition.instances[1]?.start).toHaveBeenCalledOnce();
   });
 
   it('stops listening when the app is hidden so voice input can be restarted', () => {

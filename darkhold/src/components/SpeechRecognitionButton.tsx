@@ -2,9 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import { Button, Spinner } from 'react-bootstrap';
 import { MicFill } from 'react-bootstrap-icons';
 
+type SpeechRecognitionResult = ArrayLike<{ transcript: string }> & {
+  isFinal: boolean;
+};
+
 type SpeechRecognitionResultEvent = Event & {
   resultIndex: number;
-  results: ArrayLike<ArrayLike<{ transcript: string }>>;
+  results: ArrayLike<SpeechRecognitionResult>;
 };
 
 type SpeechRecognitionErrorEvent = Event & {
@@ -36,6 +40,7 @@ interface SpeechRecognitionButtonProps {
   disabled?: boolean;
   onResult: (transcript: string) => void;
   onErrorChange?: (error: string | null) => void;
+  onInterimResultChange?: (transcript: string | null) => void;
 }
 
 function getSpeechRecognitionConstructor(): SpeechRecognitionConstructor | undefined {
@@ -60,18 +65,23 @@ export function SpeechRecognitionButton({
   disabled = false,
   onResult,
   onErrorChange,
+  onInterimResultChange,
 }: SpeechRecognitionButtonProps) {
   const [SpeechRecognition] = useState(() => getSpeechRecognitionConstructor());
   const [isListening, setIsListening] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
+  const stoppedRecognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const onResultRef = useRef(onResult);
   const onErrorChangeRef = useRef(onErrorChange);
+  const onInterimResultChangeRef = useRef(onInterimResultChange);
   onResultRef.current = onResult;
   onErrorChangeRef.current = onErrorChange;
+  onInterimResultChangeRef.current = onInterimResultChange;
 
   const releaseRecognition = (recognition: SpeechRecognitionInstance, abort = false) => {
     if (recognitionRef.current === recognition) recognitionRef.current = null;
+    if (stoppedRecognitionRef.current === recognition) stoppedRecognitionRef.current = null;
     recognition.onend = null;
     recognition.onerror = null;
     recognition.onresult = null;
@@ -79,13 +89,20 @@ export function SpeechRecognitionButton({
       recognition.abort();
     } else {
       recognition.stop();
+      stoppedRecognitionRef.current = recognition;
     }
+  };
+
+  const abortStoppedRecognition = () => {
+    const stoppedRecognition = stoppedRecognitionRef.current;
+    if (stoppedRecognition) releaseRecognition(stoppedRecognition, true);
   };
 
   useEffect(
     () => () => {
       const recognition = recognitionRef.current;
       if (recognition) releaseRecognition(recognition, true);
+      abortStoppedRecognition();
     },
     [],
   );
@@ -98,6 +115,8 @@ export function SpeechRecognitionButton({
     const resetSpeechRecognition = () => {
       const recognition = recognitionRef.current;
       if (recognition) releaseRecognition(recognition, true);
+      abortStoppedRecognition();
+      onInterimResultChangeRef.current?.(null);
       setIsListening(false);
       setError(null);
     };
@@ -118,21 +137,36 @@ export function SpeechRecognitionButton({
   const stopListening = () => {
     const recognition = recognitionRef.current;
     if (recognition) releaseRecognition(recognition);
+    onInterimResultChangeRef.current?.(null);
     setIsListening(false);
   };
 
   const startListening = () => {
     setError(null);
+    abortStoppedRecognition();
     const recognition = new SpeechRecognition();
     recognition.continuous = false;
     recognition.interimResults = true;
     recognition.lang = navigator.language;
     recognition.maxAlternatives = 1;
     recognition.onresult = (event) => {
-      const transcript = event.results[event.resultIndex]?.[0]?.transcript.trim();
-      if (transcript) onResultRef.current(transcript);
-      // Explicitly stop after one item so Safari releases the microphone promptly.
-      stopListening();
+      const finalTranscripts: string[] = [];
+      const interimTranscripts: string[] = [];
+      for (let index = event.resultIndex; index < event.results.length; index += 1) {
+        const result = event.results[index];
+        const transcript = result?.[0]?.transcript.trim();
+        if (!transcript) continue;
+        (result.isFinal ? finalTranscripts : interimTranscripts).push(transcript);
+      }
+
+      const finalTranscript = finalTranscripts.join(' ').trim();
+      if (finalTranscript) {
+        onResultRef.current(finalTranscript);
+        // Explicitly stop after one final item so Safari releases the microphone promptly.
+        stopListening();
+      } else {
+        onInterimResultChangeRef.current?.(interimTranscripts.join(' ').trim() || null);
+      }
     };
     recognition.onerror = (event) => {
       setError(getSpeechRecognitionErrorMessage(event.error));
@@ -140,6 +174,8 @@ export function SpeechRecognitionButton({
     };
     recognition.onend = () => {
       if (recognitionRef.current === recognition) recognitionRef.current = null;
+      stoppedRecognitionRef.current = recognition;
+      onInterimResultChangeRef.current?.(null);
       setIsListening(false);
     };
     recognitionRef.current = recognition;
@@ -158,6 +194,8 @@ export function SpeechRecognitionButton({
       <Button
         type="button"
         variant="danger"
+        size="sm"
+        className="shopping-request-voice-button"
         onClick={isListening ? stopListening : startListening}
         disabled={disabled}
         aria-pressed={isListening}

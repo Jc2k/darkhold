@@ -503,3 +503,12 @@ body {
   gap: 0.5rem;
   margin-bottom: 0.5rem;
 }
+
+.shopping-request-input-row .form-control,
+.shopping-request-voice-button {
+  height: 2.125rem;
+}
+
+.shopping-request-voice-button {
+  width: 2.125rem;
+}
