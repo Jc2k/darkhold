@@ -1,3 +1,10 @@
+## [1.98.1](https://github.com/Jc2k/darkhold/compare/v1.98.0...v1.98.1) (2026-06-02)
+
+
+### Bug Fixes
+
+* **ui:** suppress recipe card touch callouts ([4231ecc](https://github.com/Jc2k/darkhold/commit/4231ecc396b50d3daa74de39d5e1a6fe9df4b304))
+
 # [1.98.0](https://github.com/Jc2k/darkhold/compare/v1.97.6...v1.98.0) (2026-06-02)
 
 
