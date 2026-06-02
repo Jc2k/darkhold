@@ -1,3 +1,11 @@
+# [1.98.0](https://github.com/Jc2k/darkhold/compare/v1.97.6...v1.98.0) (2026-06-02)
+
+
+### Features
+
+* **dashboard:** add rice and bowls shelves ([4df9963](https://github.com/Jc2k/darkhold/commit/4df9963b321f82353307690c9a29c63ce0cd3fc4))
+* **recipes:** add long-press decision details ([1f11331](https://github.com/Jc2k/darkhold/commit/1f11331b25e33d55a5055ab78ca68516305a0431))
+
 ## [1.97.6](https://github.com/Jc2k/darkhold/compare/v1.97.5...v1.97.6) (2026-06-02)
 
 
