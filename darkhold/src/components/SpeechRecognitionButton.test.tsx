@@ -25,6 +25,7 @@ class MockSpeechRecognition {
   onend: (() => void) | null = null;
   onerror: ((event: RecognitionErrorEvent) => void) | null = null;
   onresult: ((event: RecognitionEvent) => void) | null = null;
+  abort = vi.fn();
   start = vi.fn();
   stop = vi.fn();
 
@@ -101,6 +102,18 @@ describe('SpeechRecognitionButton', () => {
     );
   });
 
+  it('aborts listening on pagehide even before the visibility state changes', () => {
+    vi.stubGlobal('webkitSpeechRecognition', MockSpeechRecognition);
+    act(() => root.render(<SpeechRecognitionButton onResult={vi.fn()} />));
+    act(() => container.querySelector<HTMLButtonElement>('button')?.click());
+    const recognition = MockSpeechRecognition.instances[0];
+
+    act(() => window.dispatchEvent(new Event('pagehide')));
+
+    expect(recognition.abort).toHaveBeenCalledOnce();
+    expect(recognition.stop).not.toHaveBeenCalled();
+  });
+
   it('stops listening when the app is hidden so voice input can be restarted', () => {
     vi.stubGlobal('webkitSpeechRecognition', MockSpeechRecognition);
     act(() => root.render(<SpeechRecognitionButton onResult={vi.fn()} />));
@@ -119,7 +132,8 @@ describe('SpeechRecognitionButton', () => {
       }
     }
 
-    expect(recognition.stop).toHaveBeenCalledOnce();
+    expect(recognition.abort).toHaveBeenCalledOnce();
+    expect(recognition.stop).not.toHaveBeenCalled();
 
     act(() => container.querySelector<HTMLButtonElement>('button')?.click());
     expect(MockSpeechRecognition.instances).toHaveLength(2);

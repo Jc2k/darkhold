@@ -19,6 +19,7 @@ type SpeechRecognitionInstance = {
   onend: (() => void) | null;
   onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
   onresult: ((event: SpeechRecognitionResultEvent) => void) | null;
+  abort: () => void;
   start: () => void;
   stop: () => void;
 };
@@ -69,15 +70,22 @@ export function SpeechRecognitionButton({
   onResultRef.current = onResult;
   onErrorChangeRef.current = onErrorChange;
 
+  const releaseRecognition = (recognition: SpeechRecognitionInstance, abort = false) => {
+    if (recognitionRef.current === recognition) recognitionRef.current = null;
+    recognition.onend = null;
+    recognition.onerror = null;
+    recognition.onresult = null;
+    if (abort) {
+      recognition.abort();
+    } else {
+      recognition.stop();
+    }
+  };
+
   useEffect(
     () => () => {
       const recognition = recognitionRef.current;
-      recognitionRef.current = null;
-      if (!recognition) return;
-      recognition.onend = null;
-      recognition.onerror = null;
-      recognition.onresult = null;
-      recognition.stop();
+      if (recognition) releaseRecognition(recognition, true);
     },
     [],
   );
@@ -87,32 +95,29 @@ export function SpeechRecognitionButton({
   }, [error]);
 
   useEffect(() => {
-    const stopForVisibilityChange = () => {
-      if (document.visibilityState !== 'hidden') return;
+    const resetSpeechRecognition = () => {
       const recognition = recognitionRef.current;
-      recognitionRef.current = null;
-      if (!recognition) return;
-      recognition.onend = null;
-      recognition.onerror = null;
-      recognition.onresult = null;
-      recognition.stop();
+      if (recognition) releaseRecognition(recognition, true);
       setIsListening(false);
       setError(null);
     };
+    const resetForVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') resetSpeechRecognition();
+    };
 
-    document.addEventListener('visibilitychange', stopForVisibilityChange);
-    window.addEventListener('pagehide', stopForVisibilityChange);
+    document.addEventListener('visibilitychange', resetForVisibilityChange);
+    window.addEventListener('pagehide', resetSpeechRecognition);
     return () => {
-      document.removeEventListener('visibilitychange', stopForVisibilityChange);
-      window.removeEventListener('pagehide', stopForVisibilityChange);
+      document.removeEventListener('visibilitychange', resetForVisibilityChange);
+      window.removeEventListener('pagehide', resetSpeechRecognition);
     };
   }, []);
 
   if (!SpeechRecognition) return null;
 
   const stopListening = () => {
-    recognitionRef.current?.stop();
-    recognitionRef.current = null;
+    const recognition = recognitionRef.current;
+    if (recognition) releaseRecognition(recognition);
     setIsListening(false);
   };
 
