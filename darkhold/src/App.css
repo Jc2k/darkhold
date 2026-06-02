@@ -1,3 +1,55 @@
+:root {
+  --app-mobile-tabs-height: 4rem;
+}
+
+/* Shared app chrome uses one sizing rhythm: 44px minimum touch targets, visible labels in primary
+   mobile navigation, and Bootstrap theme tokens instead of one-off palette values. */
+.app-icon-button {
+  display: inline-flex;
+  width: 2.75rem;
+  height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--bs-border-radius);
+  font-size: 1.5rem;
+}
+
+.app-icon-button:focus-visible,
+.app-mobile-tab:focus-visible {
+  outline: 2px solid var(--bs-focus-ring-color);
+  outline-offset: -3px;
+}
+
+.app-mobile-tabs {
+  min-height: var(--app-mobile-tabs-height);
+}
+
+.app-mobile-tab {
+  display: flex;
+  min-width: 0;
+  min-height: var(--app-mobile-tabs-height);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  padding: 0.35rem 0.15rem;
+  font-size: 0.68rem;
+  line-height: 1;
+}
+
+.app-mobile-tab svg {
+  width: 1.35rem;
+  height: 1.35rem;
+}
+
+.recipe-image-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bs-secondary-bg);
+  color: var(--bs-secondary-color);
+}
+
 .hide-scrollbar {
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -18,7 +70,7 @@
 .refresh-throbber {
   position: fixed;
   right: 1rem;
-  bottom: calc(56px + env(safe-area-inset-bottom) + 8px);
+  bottom: calc(var(--app-mobile-tabs-height) + env(safe-area-inset-bottom) + 8px);
   z-index: 1031;
   pointer-events: none;
 }
@@ -30,7 +82,9 @@
 }
 
 .page-content {
-  padding-bottom: calc(3rem + env(safe-area-inset-bottom)) !important;
+  padding-bottom: calc(
+    var(--app-mobile-tabs-height) + 1rem + env(safe-area-inset-bottom)
+  ) !important;
 }
 
 .all-recipes-section-heading {
@@ -466,7 +520,7 @@ body {
   .shopping-list-request-handle {
     position: fixed;
     right: 50%;
-    bottom: calc(56px + env(safe-area-inset-bottom));
+    bottom: calc(var(--app-mobile-tabs-height) + env(safe-area-inset-bottom));
     z-index: 1029;
     display: flex;
     width: 9rem;
@@ -504,11 +558,18 @@ body {
   margin-bottom: 0.5rem;
 }
 
+/* Keep standard editable controls and their adjacent action buttons on the same baseline. Compact
+   `.form-control-sm` / `.form-select-sm` variants remain available for intentionally dense layouts. */
+.form-control:not(.form-control-sm),
+.form-select:not(.form-select-sm) {
+  min-height: 2.375rem;
+}
+
 .shopping-request-input-row .form-control,
 .shopping-request-voice-button {
-  height: 2.125rem;
+  height: 2.375rem;
 }
 
 .shopping-request-voice-button {
-  width: 2.125rem;
+  width: 2.375rem;
 }

@@ -31,6 +31,7 @@ import {
   Stars,
   Magic,
   CalendarDate,
+  EggFried,
 } from 'react-bootstrap-icons';
 import { proxyMediaUrl } from '../utils/mediaUrl';
 import {
@@ -142,8 +143,6 @@ const compactTitleButtonStyle: React.CSSProperties = {
   height: compactTitleButtonSizePx,
   fontSize: compactTitleButtonFontSize,
 };
-const PLACEHOLDER_BG = '#d0d0d0';
-const PLACEHOLDER_ICON_COLOR = '#a0a0a0';
 
 /**
  * Use dedicated mouse + touch sensors to avoid iPad Safari touch drags being
@@ -170,10 +169,10 @@ function ThumbnailPlaceholder({
     <div
       role="img"
       aria-label="No image available"
+      className="recipe-image-placeholder"
       style={{
         width: '100%',
         height: '100%',
-        background: PLACEHOLDER_BG,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -183,16 +182,7 @@ function ThumbnailPlaceholder({
       }}
       {...restDragProps}
     >
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="22"
-        height="22"
-        viewBox="0 0 24 24"
-        fill={PLACEHOLDER_ICON_COLOR}
-        aria-hidden="true"
-      >
-        <path d="M12 2C6.48 2 2 6.48 2 12h10V2zm0 0c5.52 0 10 4.48 10 10h-10V2zM2 12c0 5.52 4.48 10 10 10L12 12H2z" />
-      </svg>
+      <EggFried size={22} aria-hidden="true" />
     </div>
   );
 }
