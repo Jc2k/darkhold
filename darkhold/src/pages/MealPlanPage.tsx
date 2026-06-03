@@ -74,7 +74,7 @@ import type {
   WeatherDisruptionBand,
 } from '../hooks/useWeatherForecast';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiGet, apiDelete } from '../api/client';
+import { apiGet, apiPost, apiDelete } from '../api/client';
 import { invalidateCacheQueries } from '../hooks/useCacheInvalidation';
 import type {
   MealPlan,
@@ -842,6 +842,8 @@ interface AddMealModalProps {
   initialMealTypeId?: number;
 }
 
+type RecipeSearchOption = Recipe & { customOption?: boolean };
+
 interface SubRecipeLink {
   recipeId: number;
   recipeName: string;
@@ -855,21 +857,22 @@ interface ResolvedRecipeSelection {
 
 export function AddMealModal({ date, onHide, mealTypes, initialMealTypeId }: AddMealModalProps) {
   const [isSearching, setIsSearching] = useState(false);
-  const [recipeOptions, setRecipeOptions] = useState<Recipe[]>([]);
+  const [recipeOptions, setRecipeOptions] = useState<RecipeSearchOption[]>([]);
   const [searchError, setSearchError] = useState(false);
-  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+  const [selectedRecipe, setSelectedRecipe] = useState<RecipeSearchOption | null>(null);
   const [selectedMealTypeId, setSelectedMealTypeId] = useState<number | undefined>(undefined);
   const [isResolvingRecipeSelection, setIsResolvingRecipeSelection] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [servings, setServings] = useState(1);
   const [note, setNote] = useState('');
   const createMeal = useCreateMealPlan();
+  const queryClient = useQueryClient();
   const defaultMealTypeId = initialMealTypeId ?? mealTypes[0]?.id;
   const [subRecipeLinks, setSubRecipeLinks] = useState<SubRecipeLink[] | null>(null);
   const [subRecipeToggles, setSubRecipeToggles] = useState<Record<number, boolean>>({});
   const recipeSelectionRequestIdRef = useRef(0);
   const recipeSelectionPromiseRef = useRef<Promise<ResolvedRecipeSelection> | null>(null);
-  const selectedRecipeRef = useRef<Recipe | null>(null);
+  const selectedRecipeRef = useRef<RecipeSearchOption | null>(null);
   const selectedMealTypeIdRef = useRef<number | undefined>(undefined);
   const subRecipeLinksRef = useRef<SubRecipeLink[] | null>(null);
   const subRecipeTogglesRef = useRef<Record<number, boolean>>({});
@@ -906,7 +909,7 @@ export function AddMealModal({ date, onHide, mealTypes, initialMealTypeId }: Add
     }
   };
 
-  const handleSelectRecipe = async (selected: Recipe[]) => {
+  const handleSelectRecipe = async (selected: RecipeSearchOption[]) => {
     const requestId = ++recipeSelectionRequestIdRef.current;
     const r = selected[0] ?? null;
     setSelectedRecipe(r);
@@ -920,6 +923,18 @@ export function AddMealModal({ date, onHide, mealTypes, initialMealTypeId }: Add
     }
 
     setServings(r.servings ?? 1);
+
+    if (r.customOption) {
+      recipeSelectionPromiseRef.current = Promise.resolve({
+        mealTypeId: initialMealTypeId ?? mealTypes[0]?.id,
+        subRecipeLinks: [],
+      });
+      setIsResolvingRecipeSelection(false);
+      setSubRecipeLinks([]);
+      setSelectedMealTypeId(initialMealTypeId ?? mealTypes[0]?.id);
+      return;
+    }
+
     setIsResolvingRecipeSelection(true);
     setSubRecipeLinks(null);
     setSelectedMealTypeId(undefined);
@@ -1011,8 +1026,20 @@ export function AddMealModal({ date, onHide, mealTypes, initialMealTypeId }: Add
         subRecipeLinksRef.current ?? resolvedSelection?.subRecipeLinks ?? [];
       if (!resolvedRecipe || !resolvedMealTypeId) return;
 
+      const mealPlanRecipe = resolvedRecipe.customOption
+        ? await apiPost<Recipe>('/recipe/', {
+            name: resolvedRecipe.name.trim(),
+            servings,
+          })
+        : resolvedRecipe;
+
+      if (resolvedRecipe.customOption) {
+        setRecipeOptions((current) => [mealPlanRecipe, ...current]);
+        invalidateCacheQueries(queryClient, 'recipes', 'all-recipes', 'recipe');
+      }
+
       await createMeal.mutateAsync({
-        recipe: resolvedRecipe.id as unknown as Recipe,
+        recipe: mealPlanRecipe.id as unknown as Recipe,
         meal_type: resolvedMealTypeId as unknown as MealType,
         from_date: date,
         servings,
@@ -1054,16 +1081,24 @@ export function AddMealModal({ date, onHide, mealTypes, initialMealTypeId }: Add
             isLoading={isSearching}
             labelKey="name"
             minLength={1}
+            allowNew={(results, state) => results.length === 0 && state.text.trim().length > 0}
+            newSelectionPrefix="Create new recipe: "
             options={recipeOptions}
             selected={selectedRecipe ? [selectedRecipe] : []}
             onSearch={handleRecipeSearch}
             onChange={(opts) => {
-              void handleSelectRecipe(opts as Recipe[]).catch((error) => {
+              void handleSelectRecipe(opts as RecipeSearchOption[]).catch((error) => {
                 console.warn('Failed to resolve meal type for selected recipe', error);
               });
             }}
             placeholder="Type to search…"
           />
+          {selectedRecipe?.customOption && (
+            <Alert variant="info" className="py-1 px-2 mt-1 mb-0 small">
+              A new placeholder recipe named “{selectedRecipe.name}” will be created when you add it
+              to the meal plan.
+            </Alert>
+          )}
           {searchError && (
             <Alert variant="danger" className="py-1 px-2 mt-1 mb-0 small">
               Failed to load recipes.
