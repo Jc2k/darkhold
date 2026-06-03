@@ -406,7 +406,7 @@
   }
 
   .meal-plan-page .meal-plan-entry-cell:hover .meal-plan-empty-cell-add,
-  .meal-plan-page .meal-plan-empty-cell-add:focus {
+  .meal-plan-page .meal-plan-empty-cell-add:focus-visible {
     opacity: 1;
     pointer-events: auto;
   }
