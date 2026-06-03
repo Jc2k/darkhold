@@ -640,7 +640,6 @@ export function ShoppingList() {
                         tabIndex={openSwipeKey === rowKey && swipeOffset > 0 ? 0 : -1}
                       >
                         <PlusCircle aria-hidden="true" />
-                        <span>{agg.allChecked ? 'To Buy' : 'Bought'}</span>
                       </Button>
                       <Button
                         variant="secondary"
@@ -656,7 +655,6 @@ export function ShoppingList() {
                         tabIndex={openSwipeKey === rowKey && swipeOffset < 0 ? 0 : -1}
                       >
                         <QuestionCircleFill aria-hidden="true" />
-                        <span>{isToCheck ? 'To Buy' : 'To Check'}</span>
                       </Button>
                       <div
                         className={`shopping-list-swipe-content d-flex align-items-center gap-2 py-2 px-3${

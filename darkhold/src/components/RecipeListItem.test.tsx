@@ -16,7 +16,7 @@ vi.mock('./RecipeCardInfoModal', () => ({
 }));
 
 vi.mock('./UpSoonButton', () => ({
-  UpSoonButton: () => <button aria-label="Add to Up Soon">Up soon</button>,
+  UpSoonButton: () => <button aria-label="Add to Up Soon" />,
 }));
 
 import { RecipeListItem } from './RecipeListItem';
@@ -76,7 +76,7 @@ describe('RecipeListItem', () => {
     });
 
     expect((content as HTMLDivElement).style.transform).toBe('translateX(-104px)');
-    expect(container.querySelector('.recipe-list-swipe-actions')?.textContent).toBe('Up soon');
+    expect(container.querySelector('.recipe-list-swipe-actions')?.textContent).toBe('');
   });
 
   it('opens the meal-plan modal action after a full left swipe', () => {

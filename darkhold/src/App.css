@@ -455,15 +455,17 @@ body {
   inset-block: 0;
   display: flex;
   width: 6.5rem;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.1rem;
   border: 0;
-  font-size: 0.75rem;
   transition:
     width 180ms ease-out,
     filter 120ms ease-in-out;
+}
+
+.shopping-list-swipe-action > svg {
+  width: 1.75rem;
+  height: 1.75rem;
 }
 
 .shopping-list-swipe-action-buy {
@@ -627,6 +629,11 @@ body {
   align-items: center;
   justify-content: center;
   border-radius: 0;
+}
+
+.recipe-list-swipe-actions svg {
+  width: 1.5rem;
+  height: 1.5rem;
 }
 
 .recipe-list-swipe-action-ready {
