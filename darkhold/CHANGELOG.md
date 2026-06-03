@@ -1,3 +1,10 @@
+# [1.101.0](https://github.com/Jc2k/darkhold/compare/v1.100.2...v1.101.0) (2026-06-03)
+
+
+### Features
+
+* **meal-plan:** create placeholder recipes from planner search ([e0a208a](https://github.com/Jc2k/darkhold/commit/e0a208a0928cb0137718072d120203795b2fe219))
+
 ## [1.100.2](https://github.com/Jc2k/darkhold/compare/v1.100.1...v1.100.2) (2026-06-02)
 
 
