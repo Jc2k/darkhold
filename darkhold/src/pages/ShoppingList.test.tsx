@@ -280,6 +280,144 @@ describe('ShoppingList', () => {
     expect(container.querySelector('[aria-label="Amazon"]')).toBeTruthy();
   });
 
+  it('shows meal plan recipes without shopping entries in a blank recipes category section', () => {
+    useQueryMock.mockImplementation(({ queryKey }: { queryKey: string[] }) => {
+      if (queryKey[0] === 'shopping-list') {
+        return {
+          data: [
+            {
+              id: 1,
+              amount: 1,
+              unit_name: 'cup',
+              food: makeFood(),
+              checked: false,
+              list_recipe_data: {
+                recipe: 10,
+                recipe_data: { name: 'Cake' },
+                meal_plan_data: { from_date: '2026-06-01' },
+              },
+            },
+          ],
+          isLoading: false,
+          isError: false,
+        };
+      }
+      if (queryKey[0] === 'meal-plan') {
+        return {
+          data: {
+            count: 2,
+            next: null,
+            previous: null,
+            results: [
+              { id: 100, recipe: { id: 10, name: 'Cake', created_by: 1 }, from_date: '2026-06-01' },
+              {
+                id: 101,
+                recipe: { id: 20, name: 'Plain Toast', created_by: 1 },
+                from_date: '2026-06-02',
+              },
+            ],
+          },
+          isLoading: false,
+          isError: false,
+        };
+      }
+      return { data: { id: 7, name: 'To Check' }, isLoading: false, isError: false };
+    });
+
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <ShoppingList />
+        </MemoryRouter>,
+      );
+    });
+
+    expect(container.textContent).toContain('Blank Recipes');
+    expect(container.textContent).toContain('Plain Toast');
+    expect(container.textContent).toContain('This recipe was blank.');
+    expect(container.querySelector('a[href="/recipe/20"]')?.textContent).toBe('Plain Toast');
+    expect(container.querySelector('button[aria-label="Show details for Plain Toast"]')).toBeNull();
+    expect(container.textContent).toContain('Flour');
+  });
+
+  it('orders blank recipes with recipe groups by meal-plan date and shows a blank warning', () => {
+    useQueryMock.mockImplementation(({ queryKey }: { queryKey: string[] }) => {
+      if (queryKey[0] === 'shopping-list') {
+        return {
+          data: [
+            {
+              id: 1,
+              amount: 1,
+              unit_name: 'cup',
+              food: makeFood(),
+              checked: false,
+              list_recipe_data: {
+                recipe: 10,
+                recipe_data: { name: 'Dinner Recipe' },
+                meal_plan_data: { from_date: '2026-06-03T18:00:00' },
+              },
+            },
+          ],
+          isLoading: false,
+          isError: false,
+        };
+      }
+      if (queryKey[0] === 'meal-plan') {
+        return {
+          data: {
+            count: 3,
+            next: null,
+            previous: null,
+            results: [
+              {
+                id: 101,
+                recipe: { id: 20, name: 'Blank Brunch', created_by: 1 },
+                from_date: '2026-06-03T10:00:00',
+              },
+              {
+                id: 100,
+                recipe: { id: 10, name: 'Dinner Recipe', created_by: 1 },
+                from_date: '2026-06-03T18:00:00',
+              },
+              {
+                id: 102,
+                recipe: { id: 30, name: 'Blank Next Day', created_by: 1 },
+                from_date: '2026-06-04T12:00:00',
+              },
+            ],
+          },
+          isLoading: false,
+          isError: false,
+        };
+      }
+      return { data: { id: 7, name: 'To Check' }, isLoading: false, isError: false };
+    });
+
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <ShoppingList />
+        </MemoryRouter>,
+      );
+    });
+
+    const viewRecipeButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Show recipe groups"]',
+    );
+    act(() => {
+      viewRecipeButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    const groupNames = Array.from(container.querySelectorAll('h6')).map((node) =>
+      node.childNodes[0]?.textContent?.trim(),
+    );
+    expect(groupNames).toEqual(['Blank Brunch', 'Dinner Recipe', 'Blank Next Day']);
+    expect(container.textContent).toContain('This recipe was blank.');
+    expect(
+      container.querySelector('button[aria-label="Show details for Blank Brunch"]'),
+    ).toBeNull();
+  });
+
   it('detects horizontal left swipes beyond the movement threshold', () => {
     expect(isLeftSwipe(-60, 5)).toBe(true);
     expect(isLeftSwipe(-59, 5)).toBe(false);

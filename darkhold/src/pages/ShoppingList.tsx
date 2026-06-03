@@ -23,12 +23,17 @@ import {
   Trash3,
 } from 'react-bootstrap-icons';
 import { Link } from 'react-router-dom';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiPatch, apiDelete, apiGet, apiPost } from '../api/client';
 import { invalidateCacheQueries } from '../hooks/useCacheInvalidation';
 import { broadcastInvalidation } from '../hooks/useInvalidationSocket';
-import type { Food, ShoppingList as TandoorShoppingList } from '../api/tandoor-types';
+import type {
+  Food,
+  MealPlan,
+  Recipe,
+  ShoppingList as TandoorShoppingList,
+} from '../api/tandoor-types';
 import { LoadingMascot } from '../components/LoadingMascot';
 import { NoTokenAlert } from '../components/NoTokenAlert';
 import { formatFraction } from '../utils/fractions';
@@ -41,6 +46,9 @@ import {
   MEAL_PLAN_REDIRECT_WEEK_BROADCAST_KEY,
 } from '../utils/mealPlanRedirect';
 import { hasLongPressMoved, LONG_PRESS_DELAY_MS } from '../utils/longPress';
+import { useMealPlan } from '../hooks/useMealPlan';
+import { getMealPlanWeekStartSaturday } from '../utils/dateUtils';
+import { getMealPlanWeekStartFromShoppingListEntries } from '../utils/mealPlanRedirect';
 
 export { fetchAllShoppingListEntries } from '../hooks/useShoppingListEntries';
 
@@ -132,6 +140,12 @@ interface ShoppingListRecipe {
   name: string;
 }
 
+interface PlannedRecipe {
+  id: number | null;
+  name: string;
+  fromDate: string | null;
+}
+
 interface AggregatedIngredient {
   food: Food | null;
   entries: ShoppingEntry[];
@@ -145,6 +159,59 @@ interface IngredientInfo {
   isToCheck: boolean;
   recipes: ShoppingListRecipe[];
   requestedBy: string[];
+}
+
+function addDays(date: Date, days: number): Date {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function normalizeDateString(value: string | null | undefined): string | null {
+  if (!value) return null;
+  return value.includes('T') ? value.split('T')[0] : value;
+}
+
+function getMealPlanRecipe(entry: MealPlan): PlannedRecipe {
+  const recipe = typeof entry.recipe === 'object' ? (entry.recipe as Recipe) : null;
+  return {
+    id: recipe?.id ?? (typeof entry.recipe === 'number' ? entry.recipe : null),
+    name: recipe?.name ?? `Recipe #${entry.recipe}`,
+    fromDate: entry.from_date ?? null,
+  };
+}
+
+function getShoppingEntryRecipeKey(entry: ShoppingEntry): string | null {
+  const recipe = getRecipe(entry);
+  if (!recipe) return null;
+  const fromDate = normalizeDateString(getRecipeFromDate(entry));
+  if (recipe.id != null && fromDate) return `${recipe.id}:${fromDate}`;
+  if (recipe.id != null) return `${recipe.id}:unknown`;
+  return `${recipe.name}:${fromDate ?? 'unknown'}`;
+}
+
+function getPlannedRecipeKey(recipe: PlannedRecipe): string {
+  const fromDate = normalizeDateString(recipe.fromDate);
+  if (recipe.id != null && fromDate) return `${recipe.id}:${fromDate}`;
+  if (recipe.id != null) return `${recipe.id}:unknown`;
+  return `${recipe.name}:${fromDate ?? 'unknown'}`;
+}
+
+function getBlankRecipes(
+  mealPlanEntries: MealPlan[],
+  shoppingEntries: ShoppingEntry[],
+): PlannedRecipe[] {
+  const representedRecipeKeys = new Set(
+    shoppingEntries.map(getShoppingEntryRecipeKey).filter((key): key is string => key !== null),
+  );
+  const seenBlankRecipeKeys = new Set<string>();
+
+  return mealPlanEntries.map(getMealPlanRecipe).filter((recipe) => {
+    const key = getPlannedRecipeKey(recipe);
+    if (representedRecipeKeys.has(key) || seenBlankRecipeKeys.has(key)) return false;
+    seenBlankRecipeKeys.add(key);
+    return true;
+  });
 }
 
 function getRecipeFromDate(entry: ShoppingEntry): string | null {
@@ -209,7 +276,16 @@ function aggregateByIngredient(entries: ShoppingEntry[]): AggregatedIngredient[]
   return Array.from(map.values());
 }
 
-function groupByRecipe(entries: ShoppingEntry[]): Record<string, ShoppingEntry[]> {
+interface RecipeDisplayGroup {
+  name: string;
+  entries: ShoppingEntry[];
+  blankRecipe?: PlannedRecipe;
+}
+
+function groupByRecipe(
+  entries: ShoppingEntry[],
+  blankRecipes: PlannedRecipe[] = [],
+): RecipeDisplayGroup[] {
   type RecipeGroup = {
     name: string;
     entries: ShoppingEntry[];
@@ -232,19 +308,33 @@ function groupByRecipe(entries: ShoppingEntry[]): Record<string, ShoppingEntry[]
     }
   });
 
-  return Object.fromEntries(
-    Array.from(groups.values())
-      .sort((a, b) => {
-        if (a.name === 'Requests' && b.name !== 'Requests') return -1;
-        if (b.name === 'Requests' && a.name !== 'Requests') return 1;
-        if (a.fromDate && b.fromDate) return a.fromDate.localeCompare(b.fromDate);
-        if (a.fromDate) return -1;
-        if (b.fromDate) return 1;
-        if (a.firstIndex !== b.firstIndex) return a.firstIndex - b.firstIndex;
-        return a.name.localeCompare(b.name);
-      })
-      .map((group) => [group.name, group.entries]),
-  );
+  const blankGroups: RecipeGroup[] = blankRecipes.map((recipe, index) => ({
+    name: recipe.name,
+    entries: [],
+    firstIndex: entries.length + index,
+    fromDate: recipe.fromDate,
+  }));
+
+  return [...Array.from(groups.values()), ...blankGroups]
+    .sort((a, b) => {
+      if (a.name === 'Requests' && b.name !== 'Requests') return -1;
+      if (b.name === 'Requests' && a.name !== 'Requests') return 1;
+      if (a.fromDate && b.fromDate) return a.fromDate.localeCompare(b.fromDate);
+      if (a.fromDate) return -1;
+      if (b.fromDate) return 1;
+      if (a.firstIndex !== b.firstIndex) return a.firstIndex - b.firstIndex;
+      return a.name.localeCompare(b.name);
+    })
+    .map((group) => ({
+      name: group.name,
+      entries: group.entries,
+      blankRecipe:
+        group.entries.length === 0
+          ? blankRecipes.find(
+              (recipe) => recipe.name === group.name && recipe.fromDate === group.fromDate,
+            )
+          : undefined,
+    }));
 }
 
 export function ShoppingList() {
@@ -272,6 +362,14 @@ export function ShoppingList() {
   const hasPersonalToken = Boolean(localStorage.getItem('tandoor_token'));
 
   const { data, isLoading, isError } = useShoppingListEntries();
+  const mealPlanWeekStart = useMemo(
+    () =>
+      getMealPlanWeekStartFromShoppingListEntries(data ?? []) ??
+      getMealPlanWeekStartSaturday(new Date()),
+    [data],
+  );
+  const mealPlanWeekEnd = useMemo(() => addDays(mealPlanWeekStart, 6), [mealPlanWeekStart]);
+  const { data: mealPlanData } = useMealPlan(mealPlanWeekStart, mealPlanWeekEnd);
 
   const { data: toCheckList } = useQuery({
     queryKey: ['shopping-list-to-check'],
@@ -446,12 +544,15 @@ export function ShoppingList() {
   }
 
   const entries = data ?? [];
+  const mealPlanEntries = mealPlanData?.results ?? [];
+  const blankRecipes = getBlankRecipes(mealPlanEntries, entries);
   const visibleEntries = entries.filter(
     (entry) =>
       (filter !== 'to-buy' || !entry.checked) &&
       (filter !== 'to-check' || isInShoppingList(entry, TO_CHECK_LIST_NAME)),
   );
-  if (entries.length === 0) {
+  const visibleBlankRecipes = blankRecipes;
+  if (entries.length === 0 && visibleBlankRecipes.length === 0) {
     return (
       <div
         className="d-flex flex-column align-items-center justify-content-center"
@@ -467,10 +568,10 @@ export function ShoppingList() {
 
   const groups = groupByCategory(visibleEntries);
   const categoryNames = Object.keys(groups).filter((k) => groups[k].length > 0);
-  const recipeGroups = groupByRecipe(visibleEntries);
-  const recipeNames = Object.keys(recipeGroups).filter((k) => recipeGroups[k].length > 0);
+  const recipeGroups = groupByRecipe(visibleEntries, visibleBlankRecipes);
   const remainingCount = entries.filter((entry) => !entry.checked).length;
-  const visibleGroupNames = viewMode === 'recipe' ? recipeNames : categoryNames;
+  const visibleGroupNames =
+    viewMode === 'recipe' ? recipeGroups.map((group) => group.name) : categoryNames;
 
   return (
     <div className="pt-2">
@@ -585,14 +686,16 @@ export function ShoppingList() {
         </Alert>
       )}
 
-      {visibleGroupNames.length === 0 && (
+      {visibleGroupNames.length === 0 && visibleBlankRecipes.length === 0 && (
         <Alert variant="light" className="border">
           No items match the current filters. Turn off a filter to show more shopping list items.
         </Alert>
       )}
 
       {visibleGroupNames.map((groupName) => {
-        const groupedEntries = viewMode === 'recipe' ? recipeGroups[groupName] : groups[groupName];
+        const recipeGroup = recipeGroups.find((group) => group.name === groupName);
+        const groupedEntries =
+          viewMode === 'recipe' ? (recipeGroup?.entries ?? []) : groups[groupName];
         const aggregated = aggregateByIngredient(groupedEntries);
         return (
           <div key={groupName} className="mb-4">
@@ -606,6 +709,11 @@ export function ShoppingList() {
               </Badge>
             </h6>
             <ListGroup variant="flush" className="border rounded">
+              {viewMode === 'recipe' && recipeGroup?.blankRecipe && (
+                <ListGroup.Item className="py-2 px-3">
+                  <span className="text-muted">This recipe was blank.</span>
+                </ListGroup.Item>
+              )}
               {aggregated.map((agg) => {
                 const foodName = agg.food?.name ?? 'Unknown item';
                 const notes = [
@@ -849,6 +957,32 @@ export function ShoppingList() {
           </div>
         );
       })}
+
+      {viewMode === 'category' && visibleBlankRecipes.length > 0 && (
+        <div className="mb-4">
+          <h6
+            className="text-muted text-uppercase mb-1"
+            style={{ fontSize: '0.75rem', letterSpacing: '0.05em' }}
+          >
+            Blank Recipes
+            <Badge bg="secondary" className="ms-2">
+              {visibleBlankRecipes.length}
+            </Badge>
+          </h6>
+          <ListGroup variant="flush" className="border rounded">
+            {visibleBlankRecipes.map((recipe) => (
+              <ListGroup.Item key={getPlannedRecipeKey(recipe)} className="py-2 px-3">
+                {recipe.id != null ? (
+                  <Link to={`/recipe/${recipe.id}`}>{recipe.name}</Link>
+                ) : (
+                  recipe.name
+                )}
+                <span className="text-muted small ms-2">This recipe was blank.</span>
+              </ListGroup.Item>
+            ))}
+          </ListGroup>
+        </div>
+      )}
 
       <Modal show={ingredientInfo != null} onHide={() => setIngredientInfo(null)} centered>
         <Modal.Header closeButton>
