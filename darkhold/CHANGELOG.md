@@ -1,3 +1,15 @@
+# [1.104.0](https://github.com/Jc2k/darkhold/compare/v1.103.0...v1.104.0) (2026-06-03)
+
+
+### Bug Fixes
+
+* **ui:** hide meal plan add button after mouse click ([a3dc1e1](https://github.com/Jc2k/darkhold/commit/a3dc1e194ec0fabb6d36b0aa992d05efd95ca633))
+
+
+### Features
+
+* **shopping:** show meal plan notes on shopping list ([4352ee8](https://github.com/Jc2k/darkhold/commit/4352ee813b760091e569718dfb9e42a61ada437c))
+
 # [1.103.0](https://github.com/Jc2k/darkhold/compare/v1.102.1...v1.103.0) (2026-06-03)
 
 
