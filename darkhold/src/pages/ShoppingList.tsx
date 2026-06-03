@@ -692,6 +692,31 @@ export function ShoppingList() {
         </Alert>
       )}
 
+      {viewMode === 'category' && visibleBlankRecipes.length > 0 && (
+        <div className="mb-4">
+          <h6
+            className="text-muted text-uppercase mb-1"
+            style={{ fontSize: '0.75rem', letterSpacing: '0.05em' }}
+          >
+            Blank recipes
+            <Badge bg="secondary" className="ms-2">
+              {visibleBlankRecipes.length}
+            </Badge>
+          </h6>
+          <ListGroup variant="flush" className="border rounded">
+            {visibleBlankRecipes.map((recipe) => (
+              <ListGroup.Item key={getPlannedRecipeKey(recipe)} className="py-2 px-3">
+                {recipe.id != null ? (
+                  <Link to={`/recipe/${recipe.id}`}>{recipe.name}</Link>
+                ) : (
+                  recipe.name
+                )}
+              </ListGroup.Item>
+            ))}
+          </ListGroup>
+        </div>
+      )}
+
       {visibleGroupNames.map((groupName) => {
         const recipeGroup = recipeGroups.find((group) => group.name === groupName);
         const groupedEntries =
@@ -708,281 +733,258 @@ export function ShoppingList() {
                 {aggregated.length}
               </Badge>
             </h6>
-            <ListGroup variant="flush" className="border rounded">
-              {viewMode === 'recipe' && recipeGroup?.blankRecipe && (
-                <ListGroup.Item className="py-2 px-3">
-                  <span className="text-muted">This recipe was blank.</span>
-                </ListGroup.Item>
-              )}
-              {aggregated.map((agg) => {
-                const foodName = agg.food?.name ?? 'Unknown item';
-                const notes = [
-                  ...new Set(agg.entries.map((e) => e.ingredient_note).filter(Boolean)),
-                ];
-                const isPending = agg.entries.some((e) => pendingIds.has(e.id));
-                const isManualRequest = agg.entries.some((entry) => !getRecipeName(entry));
-                const isAmazon = agg.entries.some((entry) => isInShoppingList(entry, 'Amazon'));
-                const rowKey =
-                  agg.food?.id != null
-                    ? `food-${agg.food.id}`
-                    : `entries-${agg.entries.map((entry) => entry.id).join('-')}`;
-                const isToCheck = agg.entries.every((entry) =>
-                  isInShoppingList(entry, TO_CHECK_LIST_NAME),
-                );
-                const quantityParts = agg.entries
-                  .map((entry) => ({
-                    id: entry.id,
-                    text: formatAmount(entry),
-                    checked: entry.checked,
-                  }))
-                  .filter((part) => part.text);
+            {viewMode === 'recipe' && recipeGroup?.blankRecipe ? (
+              <p className="text-muted mb-0">This recipe was blank.</p>
+            ) : (
+              <ListGroup variant="flush" className="border rounded">
+                {aggregated.map((agg) => {
+                  const foodName = agg.food?.name ?? 'Unknown item';
+                  const notes = [
+                    ...new Set(agg.entries.map((e) => e.ingredient_note).filter(Boolean)),
+                  ];
+                  const isPending = agg.entries.some((e) => pendingIds.has(e.id));
+                  const isManualRequest = agg.entries.some((entry) => !getRecipeName(entry));
+                  const isAmazon = agg.entries.some((entry) => isInShoppingList(entry, 'Amazon'));
+                  const rowKey =
+                    agg.food?.id != null
+                      ? `food-${agg.food.id}`
+                      : `entries-${agg.entries.map((entry) => entry.id).join('-')}`;
+                  const isToCheck = agg.entries.every((entry) =>
+                    isInShoppingList(entry, TO_CHECK_LIST_NAME),
+                  );
+                  const quantityParts = agg.entries
+                    .map((entry) => ({
+                      id: entry.id,
+                      text: formatAmount(entry),
+                      checked: entry.checked,
+                    }))
+                    .filter((part) => part.text);
 
-                return (
-                  <ListGroup.Item
-                    key={rowKey}
-                    className={`shopping-list-swipe-item p-0${
-                      draggingSwipeKey === rowKey ? ' shopping-list-swipe-item-dragging' : ''
-                    }`}
-                  >
-                    <div className="shopping-list-swipe-shell">
-                      <Button
-                        variant="success"
-                        className={`shopping-list-swipe-action shopping-list-swipe-action-buy rounded-0${
-                          openSwipeKey === rowKey && swipeOffset >= FULL_SWIPE_THRESHOLD_PX
-                            ? ' shopping-list-swipe-action-ready'
-                            : ''
-                        }`}
-                        style={{ width: Math.max(swipeOffset, SWIPE_ACTION_WIDTH_PX) }}
-                        onClick={() => toggleChecked(agg.entries, !agg.allChecked)}
-                        disabled={isPending || !hasPersonalToken}
-                        aria-label={
-                          agg.allChecked ? `Mark ${foodName} to buy` : `Mark ${foodName} bought`
-                        }
-                        tabIndex={openSwipeKey === rowKey && swipeOffset > 0 ? 0 : -1}
-                      >
-                        <PlusCircle aria-hidden="true" />
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        className={`shopping-list-swipe-action shopping-list-swipe-action-check rounded-0${
-                          openSwipeKey === rowKey && swipeOffset <= -FULL_SWIPE_THRESHOLD_PX
-                            ? ' shopping-list-swipe-action-ready'
-                            : ''
-                        }`}
-                        style={{ width: Math.max(-swipeOffset, SWIPE_ACTION_WIDTH_PX) }}
-                        onClick={() => toggleToCheck(agg.entries)}
-                        disabled={isPending || !toCheckList || !hasPersonalToken}
-                        aria-label={`${isToCheck ? 'Return' : 'Send'} ${foodName} ${isToCheck ? 'from' : 'to'} To Check`}
-                        tabIndex={openSwipeKey === rowKey && swipeOffset < 0 ? 0 : -1}
-                      >
-                        <QuestionCircleFill aria-hidden="true" />
-                      </Button>
-                      <div
-                        className={`shopping-list-swipe-content d-flex align-items-center gap-2 py-2 px-3${
-                          longPressKey === rowKey ? ' shopping-list-long-press-pending' : ''
-                        }${draggingSwipeKey === rowKey ? ' shopping-list-swipe-content-dragging' : ''}`}
-                        style={{
-                          transform: `translateX(${openSwipeKey === rowKey ? swipeOffset : 0}px)`,
-                        }}
-                        onPointerDown={(event) => {
-                          if (
-                            event.target instanceof Element &&
-                            event.target.closest('a, button')
-                          ) {
-                            return;
+                  return (
+                    <ListGroup.Item
+                      key={rowKey}
+                      className={`shopping-list-swipe-item p-0${
+                        draggingSwipeKey === rowKey ? ' shopping-list-swipe-item-dragging' : ''
+                      }`}
+                    >
+                      <div className="shopping-list-swipe-shell">
+                        <Button
+                          variant="success"
+                          className={`shopping-list-swipe-action shopping-list-swipe-action-buy rounded-0${
+                            openSwipeKey === rowKey && swipeOffset >= FULL_SWIPE_THRESHOLD_PX
+                              ? ' shopping-list-swipe-action-ready'
+                              : ''
+                          }`}
+                          style={{ width: Math.max(swipeOffset, SWIPE_ACTION_WIDTH_PX) }}
+                          onClick={() => toggleChecked(agg.entries, !agg.allChecked)}
+                          disabled={isPending || !hasPersonalToken}
+                          aria-label={
+                            agg.allChecked ? `Mark ${foodName} to buy` : `Mark ${foodName} bought`
                           }
-                          if (event.pointerType === 'mouse' && event.button !== 0) return;
-                          swipeStart.current = {
-                            key: rowKey,
-                            pointerId: event.pointerId,
-                            x: event.clientX,
-                            y: event.clientY,
-                            initialOffset: openSwipeKey === rowKey ? swipeOffset : 0,
-                          };
-                          setDraggingSwipeKey(rowKey);
-                          longPressTriggered.current = false;
-                          if (event.pointerType !== 'mouse') {
-                            clearLongPress();
-                            setLongPressKey(rowKey);
-                            longPressTimeout.current = setTimeout(() => {
-                              longPressTriggered.current = true;
-                              longPressTimeout.current = null;
-                              closeSwipeAction();
-                              openIngredientInfo(agg);
-                            }, LONG_PRESS_DELAY_MS);
-                          }
-                          event.currentTarget.setPointerCapture?.(event.pointerId);
-                        }}
-                        onPointerMove={(event) => {
-                          const start = swipeStart.current;
-                          if (start?.key !== rowKey || start.pointerId !== event.pointerId) return;
-                          const deltaX = event.clientX - start.x;
-                          const deltaY = event.clientY - start.y;
-                          if (hasLongPressMoved(deltaX, deltaY)) {
-                            clearLongPress();
-                          }
-                          if (Math.abs(deltaX) <= Math.abs(deltaY)) return;
-                          setOpenSwipeKey(rowKey);
-                          setSwipeOffset(start.initialOffset + deltaX);
-                        }}
-                        onPointerUp={(event) => {
-                          const start = swipeStart.current;
-                          swipeStart.current = null;
-                          setDraggingSwipeKey(null);
-                          clearLongPress();
-                          if (start?.key !== rowKey || start.pointerId !== event.pointerId) return;
-                          if (longPressTriggered.current) {
+                          tabIndex={openSwipeKey === rowKey && swipeOffset > 0 ? 0 : -1}
+                        >
+                          <PlusCircle aria-hidden="true" />
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          className={`shopping-list-swipe-action shopping-list-swipe-action-check rounded-0${
+                            openSwipeKey === rowKey && swipeOffset <= -FULL_SWIPE_THRESHOLD_PX
+                              ? ' shopping-list-swipe-action-ready'
+                              : ''
+                          }`}
+                          style={{ width: Math.max(-swipeOffset, SWIPE_ACTION_WIDTH_PX) }}
+                          onClick={() => toggleToCheck(agg.entries)}
+                          disabled={isPending || !toCheckList || !hasPersonalToken}
+                          aria-label={`${isToCheck ? 'Return' : 'Send'} ${foodName} ${isToCheck ? 'from' : 'to'} To Check`}
+                          tabIndex={openSwipeKey === rowKey && swipeOffset < 0 ? 0 : -1}
+                        >
+                          <QuestionCircleFill aria-hidden="true" />
+                        </Button>
+                        <div
+                          className={`shopping-list-swipe-content d-flex align-items-center gap-2 py-2 px-3${
+                            longPressKey === rowKey ? ' shopping-list-long-press-pending' : ''
+                          }${draggingSwipeKey === rowKey ? ' shopping-list-swipe-content-dragging' : ''}`}
+                          style={{
+                            transform: `translateX(${openSwipeKey === rowKey ? swipeOffset : 0}px)`,
+                          }}
+                          onPointerDown={(event) => {
+                            if (
+                              event.target instanceof Element &&
+                              event.target.closest('a, button')
+                            ) {
+                              return;
+                            }
+                            if (event.pointerType === 'mouse' && event.button !== 0) return;
+                            swipeStart.current = {
+                              key: rowKey,
+                              pointerId: event.pointerId,
+                              x: event.clientX,
+                              y: event.clientY,
+                              initialOffset: openSwipeKey === rowKey ? swipeOffset : 0,
+                            };
+                            setDraggingSwipeKey(rowKey);
                             longPressTriggered.current = false;
-                            return;
-                          }
-                          const deltaX = event.clientX - start.x;
-                          const deltaY = event.clientY - start.y;
-                          const finalOffset = start.initialOffset + deltaX;
-                          if (isFullLeftSwipe(finalOffset, deltaY)) toggleToCheck(agg.entries);
-                          else if (isFullRightSwipe(finalOffset, deltaY))
-                            toggleChecked(agg.entries, !agg.allChecked);
-                          else if (isLeftSwipe(finalOffset, deltaY)) {
+                            if (event.pointerType !== 'mouse') {
+                              clearLongPress();
+                              setLongPressKey(rowKey);
+                              longPressTimeout.current = setTimeout(() => {
+                                longPressTriggered.current = true;
+                                longPressTimeout.current = null;
+                                closeSwipeAction();
+                                openIngredientInfo(agg);
+                              }, LONG_PRESS_DELAY_MS);
+                            }
+                            event.currentTarget.setPointerCapture?.(event.pointerId);
+                          }}
+                          onPointerMove={(event) => {
+                            const start = swipeStart.current;
+                            if (start?.key !== rowKey || start.pointerId !== event.pointerId)
+                              return;
+                            const deltaX = event.clientX - start.x;
+                            const deltaY = event.clientY - start.y;
+                            if (hasLongPressMoved(deltaX, deltaY)) {
+                              clearLongPress();
+                            }
+                            if (Math.abs(deltaX) <= Math.abs(deltaY)) return;
                             setOpenSwipeKey(rowKey);
-                            setSwipeOffset(-SWIPE_ACTION_WIDTH_PX);
-                          } else if (isRightSwipe(finalOffset, deltaY)) {
-                            setOpenSwipeKey(rowKey);
-                            setSwipeOffset(SWIPE_ACTION_WIDTH_PX);
-                          } else closeSwipeAction();
-                        }}
-                        onPointerCancel={() => {
-                          swipeStart.current = null;
-                          longPressTriggered.current = false;
-                          clearLongPress();
-                          closeSwipeAction();
-                        }}
-                      >
-                        <div className="flex-grow-1">
-                          {quantityParts.length > 0 && (
-                            <span className="me-1 text-muted small">
-                              {quantityParts.map((part, index) => (
-                                <span
-                                  key={part.id}
-                                  className={part.checked ? 'text-decoration-line-through' : ''}
+                            setSwipeOffset(start.initialOffset + deltaX);
+                          }}
+                          onPointerUp={(event) => {
+                            const start = swipeStart.current;
+                            swipeStart.current = null;
+                            setDraggingSwipeKey(null);
+                            clearLongPress();
+                            if (start?.key !== rowKey || start.pointerId !== event.pointerId)
+                              return;
+                            if (longPressTriggered.current) {
+                              longPressTriggered.current = false;
+                              return;
+                            }
+                            const deltaX = event.clientX - start.x;
+                            const deltaY = event.clientY - start.y;
+                            const finalOffset = start.initialOffset + deltaX;
+                            if (isFullLeftSwipe(finalOffset, deltaY)) toggleToCheck(agg.entries);
+                            else if (isFullRightSwipe(finalOffset, deltaY))
+                              toggleChecked(agg.entries, !agg.allChecked);
+                            else if (isLeftSwipe(finalOffset, deltaY)) {
+                              setOpenSwipeKey(rowKey);
+                              setSwipeOffset(-SWIPE_ACTION_WIDTH_PX);
+                            } else if (isRightSwipe(finalOffset, deltaY)) {
+                              setOpenSwipeKey(rowKey);
+                              setSwipeOffset(SWIPE_ACTION_WIDTH_PX);
+                            } else closeSwipeAction();
+                          }}
+                          onPointerCancel={() => {
+                            swipeStart.current = null;
+                            longPressTriggered.current = false;
+                            clearLongPress();
+                            closeSwipeAction();
+                          }}
+                        >
+                          <div className="flex-grow-1">
+                            {quantityParts.length > 0 && (
+                              <span className="me-1 text-muted small">
+                                {quantityParts.map((part, index) => (
+                                  <span
+                                    key={part.id}
+                                    className={part.checked ? 'text-decoration-line-through' : ''}
+                                  >
+                                    {index > 0 && <span>{' + '}</span>}
+                                    {part.text}
+                                  </span>
+                                ))}
+                              </span>
+                            )}
+                            <span
+                              className={
+                                agg.allChecked ? 'text-decoration-line-through text-muted' : ''
+                              }
+                            >
+                              {foodName}
+                            </span>
+                            {notes.map((note) => (
+                              <span key={note} className="text-muted small ms-1">
+                                ({note})
+                              </span>
+                            ))}
+                            {viewMode === 'category' && agg.recipes.length > 1 && (
+                              <span className="ms-2">
+                                <Badge
+                                  bg="secondary"
+                                  style={{ fontSize: '0.65rem', cursor: 'default' }}
+                                  title={agg.recipes.map((recipe) => recipe.name).join('\n')}
                                 >
-                                  {index > 0 && <span>{' + '}</span>}
-                                  {part.text}
-                                </span>
-                              ))}
-                            </span>
+                                  {agg.recipes.length} recipes
+                                </Badge>
+                              </span>
+                            )}
+                          </div>
+                          {isManualRequest && (
+                            <PencilFill
+                              className="text-muted flex-shrink-0"
+                              aria-label="Added manually"
+                              title="Added manually"
+                            />
                           )}
-                          <span
-                            className={
-                              agg.allChecked ? 'text-decoration-line-through text-muted' : ''
-                            }
-                          >
-                            {foodName}
-                          </span>
-                          {notes.map((note) => (
-                            <span key={note} className="text-muted small ms-1">
-                              ({note})
-                            </span>
-                          ))}
-                          {viewMode === 'category' && agg.recipes.length > 1 && (
-                            <span className="ms-2">
-                              <Badge
-                                bg="secondary"
-                                style={{ fontSize: '0.65rem', cursor: 'default' }}
-                                title={agg.recipes.map((recipe) => recipe.name).join('\n')}
-                              >
-                                {agg.recipes.length} recipes
-                              </Badge>
-                            </span>
+                          {isAmazon && (
+                            <FontAwesomeIcon
+                              icon={faAmazon}
+                              className="text-muted flex-shrink-0"
+                              aria-label="Amazon"
+                              title="Amazon"
+                            />
+                          )}
+                          {isToCheck && (
+                            <QuestionCircleFill
+                              className="shopping-list-to-check-indicator text-secondary flex-shrink-0"
+                              aria-label="To Check"
+                            />
+                          )}
+                          <div className="shopping-list-row-actions flex-shrink-0">
+                            <Button
+                              variant="outline-secondary"
+                              size="sm"
+                              onClick={() => openIngredientInfo(agg)}
+                              aria-label={`Show details for ${foodName}`}
+                            >
+                              <InfoCircle aria-hidden="true" />
+                            </Button>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => toggleToCheck(agg.entries)}
+                              disabled={isPending || !toCheckList || !hasPersonalToken}
+                              aria-label={`${isToCheck ? 'Return' : 'Send'} ${foodName} ${isToCheck ? 'from' : 'to'} To Check`}
+                            >
+                              <QuestionCircleFill aria-hidden="true" />
+                            </Button>
+                            <Button
+                              variant="success"
+                              size="sm"
+                              onClick={() => toggleChecked(agg.entries, !agg.allChecked)}
+                              disabled={isPending || !hasPersonalToken}
+                              aria-label={
+                                agg.allChecked
+                                  ? `Mark ${foodName} to buy`
+                                  : `Mark ${foodName} bought`
+                              }
+                            >
+                              <PlusCircle aria-hidden="true" />
+                            </Button>
+                          </div>
+                          {isPending && (
+                            <Spinner animation="border" size="sm" className="flex-shrink-0" />
                           )}
                         </div>
-                        {isManualRequest && (
-                          <PencilFill
-                            className="text-muted flex-shrink-0"
-                            aria-label="Added manually"
-                            title="Added manually"
-                          />
-                        )}
-                        {isAmazon && (
-                          <FontAwesomeIcon
-                            icon={faAmazon}
-                            className="text-muted flex-shrink-0"
-                            aria-label="Amazon"
-                            title="Amazon"
-                          />
-                        )}
-                        {isToCheck && (
-                          <QuestionCircleFill
-                            className="shopping-list-to-check-indicator text-secondary flex-shrink-0"
-                            aria-label="To Check"
-                          />
-                        )}
-                        <div className="shopping-list-row-actions flex-shrink-0">
-                          <Button
-                            variant="outline-secondary"
-                            size="sm"
-                            onClick={() => openIngredientInfo(agg)}
-                            aria-label={`Show details for ${foodName}`}
-                          >
-                            <InfoCircle aria-hidden="true" />
-                          </Button>
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => toggleToCheck(agg.entries)}
-                            disabled={isPending || !toCheckList || !hasPersonalToken}
-                            aria-label={`${isToCheck ? 'Return' : 'Send'} ${foodName} ${isToCheck ? 'from' : 'to'} To Check`}
-                          >
-                            <QuestionCircleFill aria-hidden="true" />
-                          </Button>
-                          <Button
-                            variant="success"
-                            size="sm"
-                            onClick={() => toggleChecked(agg.entries, !agg.allChecked)}
-                            disabled={isPending || !hasPersonalToken}
-                            aria-label={
-                              agg.allChecked ? `Mark ${foodName} to buy` : `Mark ${foodName} bought`
-                            }
-                          >
-                            <PlusCircle aria-hidden="true" />
-                          </Button>
-                        </div>
-                        {isPending && (
-                          <Spinner animation="border" size="sm" className="flex-shrink-0" />
-                        )}
                       </div>
-                    </div>
-                  </ListGroup.Item>
-                );
-              })}
-            </ListGroup>
+                    </ListGroup.Item>
+                  );
+                })}
+              </ListGroup>
+            )}
           </div>
         );
       })}
-
-      {viewMode === 'category' && visibleBlankRecipes.length > 0 && (
-        <div className="mb-4">
-          <h6
-            className="text-muted text-uppercase mb-1"
-            style={{ fontSize: '0.75rem', letterSpacing: '0.05em' }}
-          >
-            Blank Recipes
-            <Badge bg="secondary" className="ms-2">
-              {visibleBlankRecipes.length}
-            </Badge>
-          </h6>
-          <ListGroup variant="flush" className="border rounded">
-            {visibleBlankRecipes.map((recipe) => (
-              <ListGroup.Item key={getPlannedRecipeKey(recipe)} className="py-2 px-3">
-                {recipe.id != null ? (
-                  <Link to={`/recipe/${recipe.id}`}>{recipe.name}</Link>
-                ) : (
-                  recipe.name
-                )}
-                <span className="text-muted small ms-2">This recipe was blank.</span>
-              </ListGroup.Item>
-            ))}
-          </ListGroup>
-        </div>
-      )}
 
       <Modal show={ingredientInfo != null} onHide={() => setIngredientInfo(null)} centered>
         <Modal.Header closeButton>

@@ -332,9 +332,12 @@ describe('ShoppingList', () => {
       );
     });
 
-    expect(container.textContent).toContain('Blank Recipes');
+    const groupNames = Array.from(container.querySelectorAll('h6')).map((node) =>
+      node.childNodes[0]?.textContent?.trim(),
+    );
+    expect(groupNames).toEqual(['Blank recipes', 'Baking']);
     expect(container.textContent).toContain('Plain Toast');
-    expect(container.textContent).toContain('This recipe was blank.');
+    expect(container.textContent).not.toContain('This recipe was blank.');
     expect(container.querySelector('a[href="/recipe/20"]')?.textContent).toBe('Plain Toast');
     expect(container.querySelector('button[aria-label="Show details for Plain Toast"]')).toBeNull();
     expect(container.textContent).toContain('Flour');
@@ -412,7 +415,12 @@ describe('ShoppingList', () => {
       node.childNodes[0]?.textContent?.trim(),
     );
     expect(groupNames).toEqual(['Blank Brunch', 'Dinner Recipe', 'Blank Next Day']);
-    expect(container.textContent).toContain('This recipe was blank.');
+    const blankBrunchSection = Array.from(container.querySelectorAll('div.mb-4')).find(
+      (section) =>
+        section.querySelector('h6')?.childNodes[0]?.textContent?.trim() === 'Blank Brunch',
+    );
+    expect(blankBrunchSection?.querySelector('p')?.textContent).toBe('This recipe was blank.');
+    expect(blankBrunchSection?.querySelector('.list-group')).toBeNull();
     expect(
       container.querySelector('button[aria-label="Show details for Blank Brunch"]'),
     ).toBeNull();
