@@ -143,6 +143,7 @@ interface PlannedRecipe {
   id: number | null;
   name: string;
   fromDate: string | null;
+  note: string | null;
 }
 
 interface AggregatedIngredient {
@@ -171,12 +172,18 @@ function normalizeDateString(value: string | null | undefined): string | null {
   return value.includes('T') ? value.split('T')[0] : value;
 }
 
+function getMealPlanNote(entry: MealPlan): string | null {
+  const note = entry.note?.trim();
+  return note ? note : null;
+}
+
 function getMealPlanRecipe(entry: MealPlan): PlannedRecipe {
   const recipe = typeof entry.recipe === 'object' ? (entry.recipe as Recipe) : null;
   return {
     id: recipe?.id ?? (typeof entry.recipe === 'number' ? entry.recipe : null),
     name: recipe?.name ?? `Recipe #${entry.recipe}`,
     fromDate: entry.from_date ?? null,
+    note: getMealPlanNote(entry),
   };
 }
 
@@ -276,27 +283,59 @@ function aggregateByIngredient(entries: ShoppingEntry[]): AggregatedIngredient[]
 }
 
 interface RecipeDisplayGroup {
+  id: number | null;
   name: string;
   entries: ShoppingEntry[];
+  notes: string[];
   blankRecipe?: PlannedRecipe;
 }
 
 function groupByRecipe(
   entries: ShoppingEntry[],
   blankRecipes: PlannedRecipe[] = [],
+  mealPlanEntries: MealPlan[] = [],
 ): RecipeDisplayGroup[] {
   type RecipeGroup = {
+    id: number | null;
     name: string;
     entries: ShoppingEntry[];
     firstIndex: number;
     fromDate: string | null;
+    notes: string[];
   };
+
+  const plannedRecipes = mealPlanEntries.map(getMealPlanRecipe);
+  const notesForRecipe = (recipe: ShoppingListRecipe, fromDate: string | null): string[] => [
+    ...new Set(
+      plannedRecipes
+        .filter(
+          (plannedRecipe) =>
+            plannedRecipe.note &&
+            (recipe.id != null && plannedRecipe.id != null
+              ? plannedRecipe.id === recipe.id
+              : plannedRecipe.name === recipe.name) &&
+            (!fromDate ||
+              !plannedRecipe.fromDate ||
+              normalizeDateString(plannedRecipe.fromDate) === normalizeDateString(fromDate)),
+        )
+        .map((plannedRecipe) => plannedRecipe.note)
+        .filter((note): note is string => Boolean(note)),
+    ),
+  ];
 
   const groups = new Map<string, RecipeGroup>();
   entries.forEach((entry, index) => {
-    const key = getRecipeName(entry) ?? 'Requests';
+    const recipe = getRecipe(entry);
+    const key = recipe?.name ?? 'Requests';
     if (!groups.has(key)) {
-      groups.set(key, { name: key, entries: [], firstIndex: index, fromDate: null });
+      groups.set(key, {
+        id: recipe?.id ?? null,
+        name: key,
+        entries: [],
+        firstIndex: index,
+        fromDate: null,
+        notes: [],
+      });
     }
     const group = groups.get(key)!;
     group.entries.push(entry);
@@ -307,11 +346,18 @@ function groupByRecipe(
     }
   });
 
+  for (const group of groups.values()) {
+    if (group.name === 'Requests') continue;
+    group.notes = notesForRecipe({ id: group.id, name: group.name }, group.fromDate);
+  }
+
   const blankGroups: RecipeGroup[] = blankRecipes.map((recipe, index) => ({
+    id: recipe.id,
     name: recipe.name,
     entries: [],
     firstIndex: entries.length + index,
     fromDate: recipe.fromDate,
+    notes: recipe.note ? [recipe.note] : [],
   }));
 
   return [...Array.from(groups.values()), ...blankGroups]
@@ -325,8 +371,10 @@ function groupByRecipe(
       return a.name.localeCompare(b.name);
     })
     .map((group) => ({
+      id: group.id,
       name: group.name,
       entries: group.entries,
+      notes: group.notes,
       blankRecipe:
         group.entries.length === 0
           ? blankRecipes.find(
@@ -566,7 +614,10 @@ export function ShoppingList() {
 
   const groups = groupByCategory(visibleEntries);
   const categoryNames = Object.keys(groups).filter((k) => groups[k].length > 0);
-  const recipeGroups = groupByRecipe(visibleEntries, visibleBlankRecipes);
+  const recipeGroups = groupByRecipe(visibleEntries, visibleBlankRecipes, mealPlanEntries);
+  const noteRecipeGroups = groupByRecipe(entries, visibleBlankRecipes, mealPlanEntries).filter(
+    (group) => group.blankRecipe || group.notes.length > 0,
+  );
   const remainingCount = entries.filter((entry) => !entry.checked).length;
   const visibleGroupNames =
     viewMode === 'recipe' ? recipeGroups.map((group) => group.name) : categoryNames;
@@ -684,30 +735,40 @@ export function ShoppingList() {
         </Alert>
       )}
 
-      {visibleGroupNames.length === 0 && visibleBlankRecipes.length === 0 && (
+      {visibleGroupNames.length === 0 && noteRecipeGroups.length === 0 && (
         <Alert variant="light" className="border">
           No items match the current filters. Turn off a filter to show more shopping list items.
         </Alert>
       )}
 
-      {viewMode === 'category' && visibleBlankRecipes.length > 0 && (
+      {viewMode === 'category' && noteRecipeGroups.length > 0 && (
         <div className="mb-4">
           <h6
             className="text-muted text-uppercase mb-1"
             style={{ fontSize: '0.75rem', letterSpacing: '0.05em' }}
           >
-            Blank recipes
+            Notes
             <Badge bg="secondary" className="ms-2">
-              {visibleBlankRecipes.length}
+              {noteRecipeGroups.length}
             </Badge>
           </h6>
           <ListGroup variant="flush" className="border rounded">
-            {visibleBlankRecipes.map((recipe) => (
-              <ListGroup.Item key={getPlannedRecipeKey(recipe)} className="py-2 px-3">
-                {recipe.id != null ? (
-                  <Link to={`/recipe/${recipe.id}`}>{recipe.name}</Link>
-                ) : (
-                  recipe.name
+            {noteRecipeGroups.map((group) => (
+              <ListGroup.Item key={`${group.name}-${group.id ?? 'unknown'}`} className="py-2 px-3">
+                <div>
+                  {group.id != null ? (
+                    <Link to={`/recipe/${group.id}`}>{group.name}</Link>
+                  ) : (
+                    group.name
+                  )}
+                </div>
+                {group.notes.map((note) => (
+                  <div key={note} className="text-muted small">
+                    {note}
+                  </div>
+                ))}
+                {group.blankRecipe && (
+                  <div className="text-muted small">This recipe has no ingredients.</div>
                 )}
               </ListGroup.Item>
             ))}
@@ -731,8 +792,17 @@ export function ShoppingList() {
                 {aggregated.length}
               </Badge>
             </h6>
+            {viewMode === 'recipe' && recipeGroup?.notes.length ? (
+              <div className="mb-2">
+                {recipeGroup.notes.map((note) => (
+                  <p key={note} className="text-muted small mb-1">
+                    {note}
+                  </p>
+                ))}
+              </div>
+            ) : null}
             {viewMode === 'recipe' && recipeGroup?.blankRecipe ? (
-              <p className="text-muted mb-0">This recipe was blank.</p>
+              <p className="text-muted mb-0">This recipe has no ingredients.</p>
             ) : (
               <ListGroup variant="flush" className="border rounded">
                 {aggregated.map((agg) => {

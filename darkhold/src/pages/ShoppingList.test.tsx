@@ -301,7 +301,7 @@ describe('ShoppingList', () => {
     expect(container.querySelector('[aria-label="Amazon"]')).toBeTruthy();
   });
 
-  it('shows meal plan recipes without shopping entries in a blank recipes category section', () => {
+  it('shows meal plan recipes without shopping entries in a notes category section', () => {
     useQueryMock.mockImplementation(({ queryKey }: { queryKey: string[] }) => {
       if (queryKey[0] === 'shopping-list') {
         return {
@@ -356,15 +356,15 @@ describe('ShoppingList', () => {
     const groupNames = Array.from(container.querySelectorAll('h6')).map((node) =>
       node.childNodes[0]?.textContent?.trim(),
     );
-    expect(groupNames).toEqual(['Blank recipes', 'Baking']);
+    expect(groupNames).toEqual(['Notes', 'Baking']);
     expect(container.textContent).toContain('Plain Toast');
-    expect(container.textContent).not.toContain('This recipe was blank.');
+    expect(container.textContent).toContain('This recipe has no ingredients.');
     expect(container.querySelector('a[href="/recipe/20"]')?.textContent).toBe('Plain Toast');
     expect(container.querySelector('button[aria-label="Show details for Plain Toast"]')).toBeNull();
     expect(container.textContent).toContain('Flour');
   });
 
-  it('orders blank recipes with recipe groups by meal-plan date and shows a blank warning', () => {
+  it('orders recipes with notes by meal-plan date and shows no ingredients notes', () => {
     useQueryMock.mockImplementation(({ queryKey }: { queryKey: string[] }) => {
       if (queryKey[0] === 'shopping-list') {
         return {
@@ -397,16 +397,19 @@ describe('ShoppingList', () => {
                 id: 101,
                 recipe: { id: 20, name: 'Blank Brunch', created_by: 1 },
                 from_date: '2026-06-03T10:00:00',
+                note: 'Serve with jam.',
               },
               {
                 id: 100,
                 recipe: { id: 10, name: 'Dinner Recipe', created_by: 1 },
                 from_date: '2026-06-03T18:00:00',
+                note: 'Double the sauce.',
               },
               {
                 id: 102,
                 recipe: { id: 30, name: 'Blank Next Day', created_by: 1 },
                 from_date: '2026-06-04T12:00:00',
+                note: 'Pack leftovers.',
               },
             ],
           },
@@ -425,6 +428,15 @@ describe('ShoppingList', () => {
       );
     });
 
+    const categoryText = container.textContent ?? '';
+    expect(categoryText.indexOf('Blank Brunch')).toBeLessThan(
+      categoryText.indexOf('Dinner Recipe'),
+    );
+    expect(categoryText.indexOf('Dinner Recipe')).toBeLessThan(
+      categoryText.indexOf('Blank Next Day'),
+    );
+    expect(categoryText).toContain('Double the sauce.');
+
     const viewRecipeButton = container.querySelector<HTMLButtonElement>(
       'button[aria-label="Show recipe groups"]',
     );
@@ -440,11 +452,20 @@ describe('ShoppingList', () => {
       (section) =>
         section.querySelector('h6')?.childNodes[0]?.textContent?.trim() === 'Blank Brunch',
     );
-    expect(blankBrunchSection?.querySelector('p')?.textContent).toBe('This recipe was blank.');
+    const blankBrunchNotes = Array.from(blankBrunchSection?.querySelectorAll('p') ?? []).map(
+      (node) => node.textContent,
+    );
+    expect(blankBrunchNotes).toEqual(['Serve with jam.', 'This recipe has no ingredients.']);
     expect(blankBrunchSection?.querySelector('.list-group')).toBeNull();
     expect(
       container.querySelector('button[aria-label="Show details for Blank Brunch"]'),
     ).toBeNull();
+    const dinnerSection = Array.from(container.querySelectorAll('div.mb-4')).find(
+      (section) =>
+        section.querySelector('h6')?.childNodes[0]?.textContent?.trim() === 'Dinner Recipe',
+    );
+    const dinnerText = dinnerSection?.textContent ?? '';
+    expect(dinnerText.indexOf('Double the sauce.')).toBeLessThan(dinnerText.indexOf('Flour'));
   });
 
   it('detects horizontal left swipes beyond the movement threshold', () => {
