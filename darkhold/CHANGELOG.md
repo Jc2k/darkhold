@@ -1,3 +1,15 @@
+# [1.103.0](https://github.com/Jc2k/darkhold/compare/v1.102.1...v1.103.0) (2026-06-03)
+
+
+### Bug Fixes
+
+* **meal-plan:** include steps for placeholder recipes ([67f3ed3](https://github.com/Jc2k/darkhold/commit/67f3ed3906a5d07840c37965367f955f762d00c2))
+
+
+### Features
+
+* **meal-plan:** show add action for empty desktop cells ([1e41e78](https://github.com/Jc2k/darkhold/commit/1e41e7885dbc0e9497c408bd1ea06b307849989d))
+
 ## [1.102.1](https://github.com/Jc2k/darkhold/compare/v1.102.0...v1.102.1) (2026-06-03)
 
 
