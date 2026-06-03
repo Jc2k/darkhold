@@ -1,3 +1,10 @@
+## [1.104.1](https://github.com/Jc2k/darkhold/compare/v1.104.0...v1.104.1) (2026-06-03)
+
+
+### Bug Fixes
+
+* **meal-assistant:** skip precalculation fallback scoring ([221f305](https://github.com/Jc2k/darkhold/commit/221f3056b92495c70e22f682be7186cb97f0f91a))
+
 # [1.104.0](https://github.com/Jc2k/darkhold/compare/v1.103.0...v1.104.0) (2026-06-03)
 
 
