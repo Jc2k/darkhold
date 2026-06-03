@@ -1,3 +1,12 @@
+## [1.102.1](https://github.com/Jc2k/darkhold/compare/v1.102.0...v1.102.1) (2026-06-03)
+
+
+### Bug Fixes
+
+* **recipes:** smooth recipe list swipes ([7adf413](https://github.com/Jc2k/darkhold/commit/7adf413d654b0c07a0041e08a3f494ff0f6f6c3d))
+* **shopping-list:** simplify blank recipe display ([bf43d57](https://github.com/Jc2k/darkhold/commit/bf43d57fb58077fad65e0cc38ee65141983742b8))
+* **shopping:** stop to-check refresh ping-pong ([3ee8e99](https://github.com/Jc2k/darkhold/commit/3ee8e995f0705eaa833215d7a72340586bf7826a))
+
 # [1.102.0](https://github.com/Jc2k/darkhold/compare/v1.101.1...v1.102.0) (2026-06-03)
 
 
