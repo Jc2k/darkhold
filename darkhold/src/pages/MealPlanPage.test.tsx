@@ -582,6 +582,7 @@ describe('AddMealModal', () => {
     expect(apiPostMock).toHaveBeenCalledWith('/recipe/', {
       name: 'Freezer Surprise',
       servings: 1,
+      steps: [],
     });
     expect(createMealPlanMock.mutateAsync).toHaveBeenCalledWith(
       expect.objectContaining({

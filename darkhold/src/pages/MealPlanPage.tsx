@@ -1030,6 +1030,7 @@ export function AddMealModal({ date, onHide, mealTypes, initialMealTypeId }: Add
         ? await apiPost<Recipe>('/recipe/', {
             name: resolvedRecipe.name.trim(),
             servings,
+            steps: [],
           })
         : resolvedRecipe;
 
