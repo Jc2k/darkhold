@@ -91,6 +91,48 @@ describe('RecipeListItem', () => {
     expect((content as HTMLDivElement).style.transform).toBe('translateX(0px)');
   });
 
+  it('continues dragging from the revealed swipe offset instead of snapping back', () => {
+    const content = container.querySelector('.recipe-list-swipe-content')!;
+    act(() => {
+      dispatchTouchPointer(content, 'pointerdown', 140, 10);
+      dispatchTouchPointer(content, 'pointermove', 40, 12);
+      dispatchTouchPointer(content, 'pointerup', 40, 12);
+    });
+
+    expect((content as HTMLDivElement).style.transform).toBe('translateX(-104px)');
+
+    act(() => {
+      dispatchTouchPointer(content, 'pointerdown', 140, 10);
+      dispatchTouchPointer(content, 'pointermove', 110, 12);
+    });
+
+    expect(content.classList.contains('recipe-list-swipe-content-dragging')).toBe(true);
+    expect((content as HTMLDivElement).style.transform).toBe('translateX(-134px)');
+
+    act(() => {
+      dispatchTouchPointer(content, 'pointerup', 110, 12);
+    });
+
+    expect((content as HTMLDivElement).style.transform).toBe('translateX(-104px)');
+  });
+
+  it('closes a revealed swipe action when dragged back to the right', () => {
+    const content = container.querySelector('.recipe-list-swipe-content')!;
+    act(() => {
+      dispatchTouchPointer(content, 'pointerdown', 140, 10);
+      dispatchTouchPointer(content, 'pointermove', 40, 12);
+      dispatchTouchPointer(content, 'pointerup', 40, 12);
+    });
+
+    act(() => {
+      dispatchTouchPointer(content, 'pointerdown', 40, 10);
+      dispatchTouchPointer(content, 'pointermove', 140, 12);
+      dispatchTouchPointer(content, 'pointerup', 140, 12);
+    });
+
+    expect((content as HTMLDivElement).style.transform).toBe('translateX(0px)');
+  });
+
   it('opens recipe-card decision information after a touch long press', () => {
     vi.useFakeTimers();
     const content = container.querySelector('.recipe-list-swipe-content')!;

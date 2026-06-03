@@ -623,6 +623,15 @@ body {
   -webkit-touch-callout: none;
 }
 
+.recipe-list-swipe-content-dragging {
+  transition: none;
+}
+
+.recipe-list-swipe-item-dragging .recipe-list-swipe-action,
+.recipe-list-swipe-item-dragging .recipe-list-swipe-actions > .btn {
+  transition: none;
+}
+
 .recipe-list-swipe-actions {
   position: absolute;
   inset-block: 0;
