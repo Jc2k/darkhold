@@ -27,7 +27,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiPatch, apiDelete, apiGet, apiPost } from '../api/client';
 import { invalidateCacheQueries } from '../hooks/useCacheInvalidation';
-import { broadcastInvalidation } from '../hooks/useInvalidationSocket';
 import type {
   Food,
   MealPlan,
@@ -377,10 +376,9 @@ export function ShoppingList() {
       const shoppingList = await apiPost<TandoorShoppingList>('/shopping-list/', {
         name: TO_CHECK_LIST_NAME,
       });
-      // The POST is an idempotent get-or-create request. The accepted result is
-      // already the local query value; notify peers without invalidating this
-      // active query and causing an immediate get-or-create loop.
-      broadcastInvalidation('shopping-list-to-check');
+      // This POST is an idempotent get-or-create request. Do not broadcast from
+      // the query function: another active shopping-list view would invalidate,
+      // refetch, and broadcast the same query again.
       return shoppingList;
     },
     enabled: hasPersonalToken,

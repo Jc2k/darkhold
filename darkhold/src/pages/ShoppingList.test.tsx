@@ -44,7 +44,8 @@ vi.mock('../components/NoTokenAlert', () => ({
   NoTokenAlert: () => <div>no-token</div>,
 }));
 
-import { apiDelete, apiGet } from '../api/client';
+import { apiDelete, apiGet, apiPost } from '../api/client';
+import { broadcastInvalidation } from '../hooks/useInvalidationSocket';
 import {
   ShoppingList,
   addShoppingListToEntries,
@@ -154,6 +155,26 @@ describe('ShoppingList', () => {
     vi.unstubAllGlobals();
     vi.clearAllMocks();
     vi.useRealTimers();
+  });
+
+  it('does not broadcast while ensuring the To Check list exists', async () => {
+    vi.mocked(apiPost).mockResolvedValue({ id: 7, name: 'To Check' });
+
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <ShoppingList />
+        </MemoryRouter>,
+      );
+    });
+
+    const toCheckQuery = useQueryMock.mock.calls
+      .map(([options]) => options as { queryKey: string[]; queryFn: () => Promise<unknown> })
+      .find((options) => options.queryKey[0] === 'shopping-list-to-check');
+
+    await expect(toCheckQuery?.queryFn()).resolves.toEqual({ id: 7, name: 'To Check' });
+    expect(apiPost).toHaveBeenCalledWith('/shopping-list/', { name: 'To Check' });
+    expect(broadcastInvalidation).not.toHaveBeenCalled();
   });
 
   it('hides quantities and units for manual requests', () => {
