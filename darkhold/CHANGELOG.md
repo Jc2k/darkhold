@@ -1,3 +1,10 @@
+# [1.102.0](https://github.com/Jc2k/darkhold/compare/v1.101.1...v1.102.0) (2026-06-03)
+
+
+### Features
+
+* **shopping-list:** show blank meal plan recipes ([061adc5](https://github.com/Jc2k/darkhold/commit/061adc53fcae0be581e4b56c7058f5fd28212db3))
+
 ## [1.101.1](https://github.com/Jc2k/darkhold/compare/v1.101.0...v1.101.1) (2026-06-03)
 
 
