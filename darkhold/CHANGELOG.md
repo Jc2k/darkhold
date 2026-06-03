@@ -1,3 +1,10 @@
+## [1.101.1](https://github.com/Jc2k/darkhold/compare/v1.101.0...v1.101.1) (2026-06-03)
+
+
+### Bug Fixes
+
+* **ui:** smooth shopping swipe dragging ([1e23581](https://github.com/Jc2k/darkhold/commit/1e2358189db3c1ca03b1bfcb87b6005a9b1e3982))
+
 # [1.101.0](https://github.com/Jc2k/darkhold/compare/v1.100.2...v1.101.0) (2026-06-03)
 
 
