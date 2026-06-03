@@ -1,4 +1,4 @@
-import { act, type RefCallback } from 'react';
+import { act, type ComponentProps, type RefCallback } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MealType, Recipe } from '../api/tandoor-types';
@@ -9,6 +9,7 @@ const {
   useSensorsMock,
   createMealPlanMock,
   apiGetMock,
+  apiPostMock,
   asyncTypeaheadState,
 } = vi.hoisted(() => ({
   useDroppableMock: vi.fn(),
@@ -19,9 +20,14 @@ const {
     isPending: false,
   },
   apiGetMock: vi.fn(),
+  apiPostMock: vi.fn(),
   asyncTypeaheadState: {
     selected: [] as Recipe[],
-    latestProps: null as null | { onChange?: (selected: Recipe[]) => void },
+    latestProps: null as null | {
+      allowNew?: (results: unknown[], state: { text: string }) => boolean;
+      newSelectionPrefix?: string;
+      onChange?: (selected: Recipe[]) => void;
+    },
   },
 }));
 
@@ -52,11 +58,16 @@ vi.mock('../hooks/useMealPlan', () => ({
 
 vi.mock('../api/client', () => ({
   apiGet: apiGetMock,
+  apiPost: apiPostMock,
   apiDelete: vi.fn(),
 }));
 
 vi.mock('react-bootstrap-typeahead', () => ({
-  AsyncTypeahead: (props: { onChange?: (selected: Recipe[]) => void }) => {
+  AsyncTypeahead: (props: {
+    allowNew?: (results: unknown[], state: { text: string }) => boolean;
+    newSelectionPrefix?: string;
+    onChange?: (selected: Recipe[]) => void;
+  }) => {
     asyncTypeaheadState.latestProps = props;
     return (
       <button
@@ -71,6 +82,7 @@ vi.mock('react-bootstrap-typeahead', () => ({
   },
 }));
 
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MouseSensor, TouchSensor, type Collision } from '@dnd-kit/core';
 import { DroppableTableRow } from './DroppableTableRow';
 import {
@@ -431,6 +443,7 @@ describe('date jump helper', () => {
 describe('AddMealModal', () => {
   let container: HTMLDivElement;
   let root: ReturnType<typeof createRoot>;
+  let queryClient: QueryClient;
   const actGlobal = globalThis as ReactActGlobal;
 
   beforeEach(() => {
@@ -438,9 +451,11 @@ describe('AddMealModal', () => {
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
+    queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     createMealPlanMock.mutateAsync.mockClear();
     createMealPlanMock.isPending = false;
     apiGetMock.mockReset();
+    apiPostMock.mockReset();
     asyncTypeaheadState.selected = [];
     asyncTypeaheadState.latestProps = null;
   });
@@ -453,6 +468,14 @@ describe('AddMealModal', () => {
     delete actGlobal.IS_REACT_ACT_ENVIRONMENT;
   });
 
+  function renderAddMealModal(props: ComponentProps<typeof AddMealModal>) {
+    root.render(
+      <QueryClientProvider client={queryClient}>
+        <AddMealModal {...props} />
+      </QueryClientProvider>,
+    );
+  }
+
   it('awaits in-flight recipe details on submit without refetching', async () => {
     const deferredRecipe = createDeferred<Recipe>();
     apiGetMock.mockImplementation((path: string) => {
@@ -461,13 +484,11 @@ describe('AddMealModal', () => {
     });
 
     act(() => {
-      root.render(
-        <AddMealModal
-          date="2026-05-30"
-          onHide={vi.fn()}
-          mealTypes={[{ id: 2, name: 'Dinner' } as MealType]}
-        />,
-      );
+      renderAddMealModal({
+        date: '2026-05-30',
+        onHide: vi.fn(),
+        mealTypes: [{ id: 2, name: 'Dinner' } as MealType],
+      });
     });
 
     asyncTypeaheadState.selected = [{ id: 1, name: 'Lasagne', servings: 4 } as Recipe];
@@ -513,6 +534,63 @@ describe('AddMealModal', () => {
     );
   });
 
+  it('creates a placeholder recipe from an unmatched typeahead selection before adding it', async () => {
+    apiPostMock.mockResolvedValue({ id: 7, name: 'Freezer Surprise', servings: 1 });
+
+    act(() => {
+      renderAddMealModal({
+        date: '2026-05-30',
+        onHide: vi.fn(),
+        mealTypes: [{ id: 2, name: 'Dinner' } as MealType],
+      });
+    });
+
+    expect(asyncTypeaheadState.latestProps?.newSelectionPrefix).toBe('Create new recipe: ');
+    expect(asyncTypeaheadState.latestProps?.allowNew?.([], { text: 'Freezer Surprise' })).toBe(
+      true,
+    );
+    expect(
+      asyncTypeaheadState.latestProps?.allowNew?.([{ id: 1, name: 'Freezer Surprise' }], {
+        text: 'Freezer Surprise',
+      }),
+    ).toBe(false);
+
+    asyncTypeaheadState.selected = [
+      { customOption: true, name: 'Freezer Surprise' } as unknown as Recipe,
+    ];
+
+    await act(async () => {
+      Array.from(document.querySelectorAll('button'))
+        .find((button) => button.textContent?.trim() === 'Select recipe')
+        ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(document.body.textContent).toContain(
+      'A new placeholder recipe named “Freezer Surprise” will be created',
+    );
+
+    const addButton = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Add',
+    ) as HTMLButtonElement;
+
+    expect(addButton.disabled).toBe(false);
+
+    await act(async () => {
+      addButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(apiPostMock).toHaveBeenCalledWith('/recipe/', {
+      name: 'Freezer Surprise',
+      servings: 1,
+    });
+    expect(createMealPlanMock.mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recipe: 7,
+        meal_type: 2,
+      }),
+    );
+  });
+
   it('ignores stale recipe detail responses from older selections', async () => {
     const firstDeferred = createDeferred<Recipe>();
     apiGetMock.mockImplementation((path: string) => {
@@ -529,18 +607,14 @@ describe('AddMealModal', () => {
     });
 
     act(() => {
-      root.render(
-        <AddMealModal
-          date="2026-05-30"
-          onHide={vi.fn()}
-          mealTypes={
-            [
-              { id: 1, name: 'Breakfast' },
-              { id: 2, name: 'Dinner' },
-            ] as MealType[]
-          }
-        />,
-      );
+      renderAddMealModal({
+        date: '2026-05-30',
+        onHide: vi.fn(),
+        mealTypes: [
+          { id: 1, name: 'Breakfast' },
+          { id: 2, name: 'Dinner' },
+        ] as MealType[],
+      });
     });
 
     const selectRecipeButton = Array.from(document.querySelectorAll('button')).find(
@@ -603,18 +677,14 @@ describe('AddMealModal', () => {
     });
 
     act(() => {
-      root.render(
-        <AddMealModal
-          date="2026-05-30"
-          onHide={vi.fn()}
-          mealTypes={
-            [
-              { id: 1, name: 'Breakfast' },
-              { id: 2, name: 'Dinner' },
-            ] as MealType[]
-          }
-        />,
-      );
+      renderAddMealModal({
+        date: '2026-05-30',
+        onHide: vi.fn(),
+        mealTypes: [
+          { id: 1, name: 'Breakfast' },
+          { id: 2, name: 'Dinner' },
+        ] as MealType[],
+      });
     });
 
     const selectRecipeButton = Array.from(document.querySelectorAll('button')).find(
