@@ -450,6 +450,14 @@ body {
   transition: transform 180ms ease-out;
 }
 
+.shopping-list-swipe-content-dragging {
+  transition: none;
+}
+
+.shopping-list-swipe-item-dragging .shopping-list-swipe-action {
+  transition: none;
+}
+
 .shopping-list-swipe-action {
   position: absolute;
   inset-block: 0;

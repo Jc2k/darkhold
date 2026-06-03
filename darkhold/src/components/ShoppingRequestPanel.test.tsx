@@ -344,6 +344,59 @@ describe('ShoppingRequestPanel', () => {
     expect(document.body.textContent).toContain('New foods enabled');
   });
 
+  it('continues request-row dragging from the revealed swipe offset', () => {
+    act(() => {
+      root.render(
+        <MemoryRouter initialEntries={['/?add=request']}>
+          <ShoppingRequestPanel />
+        </MemoryRouter>,
+      );
+    });
+
+    const selectTomatoes = [...document.querySelectorAll('button')].find(
+      (button) => button.textContent?.trim() === 'Select tomatoes',
+    );
+    act(() => selectTomatoes?.click());
+    const row = document.querySelector('.shopping-list-swipe-content');
+    const action = document.querySelector<HTMLButtonElement>(
+      'button[aria-label="Remove Tomatoes"]',
+    );
+    expect(row).toBeTruthy();
+
+    const dispatchPointer = (
+      type: 'pointerdown' | 'pointermove' | 'pointerup',
+      clientX: number,
+    ) => {
+      const event = new MouseEvent(type, { bubbles: true, clientX, clientY: 10 });
+      Object.defineProperties(event, {
+        pointerId: { value: 1 },
+        pointerType: { value: 'touch' },
+      });
+      row?.dispatchEvent(event);
+    };
+
+    act(() => {
+      dispatchPointer('pointerdown', 140);
+      dispatchPointer('pointermove', 50);
+      dispatchPointer('pointerup', 50);
+    });
+    expect((row as HTMLDivElement).style.transform).toBe('translateX(-104px)');
+
+    act(() => {
+      dispatchPointer('pointerdown', 140);
+      dispatchPointer('pointermove', 120);
+    });
+
+    expect(row?.classList.contains('shopping-list-swipe-content-dragging')).toBe(true);
+    expect((row as HTMLDivElement).style.transform).toBe('translateX(-124px)');
+    expect(action?.style.width).toBe('124px');
+
+    act(() => {
+      dispatchPointer('pointerup', 120);
+    });
+    expect((row as HTMLDivElement).style.transform).toBe('translateX(-104px)');
+  });
+
   it('deletes a pending food after a full left swipe', () => {
     act(() => {
       root.render(

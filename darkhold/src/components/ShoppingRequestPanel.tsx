@@ -55,6 +55,7 @@ export function ShoppingRequestPanel() {
   const [selectedFoods, setSelectedFoods] = useState<FilterOption[]>([]);
   const [pendingFoods, setPendingFoods] = useState<ShoppingRequestFood[]>([]);
   const [openSwipeFoodId, setOpenSwipeFoodId] = useState<number | string | null>(null);
+  const [draggingSwipeFoodId, setDraggingSwipeFoodId] = useState<number | string | null>(null);
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [requestError, setRequestError] = useState<string | null>(null);
   const [speechError, setSpeechError] = useState<string | null>(null);
@@ -66,12 +67,14 @@ export function ShoppingRequestPanel() {
     pointerId: number;
     x: number;
     y: number;
+    initialOffset: number;
   } | null>(null);
   const hasPersonalToken = Boolean(localStorage.getItem('tandoor_token'));
   const isOpen = searchParams.get('add') === 'request';
 
   const closeSwipeAction = () => {
     setOpenSwipeFoodId(null);
+    setDraggingSwipeFoodId(null);
     setSwipeOffset(0);
   };
 
@@ -245,7 +248,9 @@ export function ShoppingRequestPanel() {
                   return (
                     <ListGroup.Item
                       key={food.id}
-                      className="shopping-list-swipe-shell shopping-request-swipe-item p-0"
+                      className={`shopping-list-swipe-shell shopping-request-swipe-item p-0${
+                        draggingSwipeFoodId === food.id ? ' shopping-list-swipe-item-dragging' : ''
+                      }`}
                     >
                       <Button
                         type="button"
@@ -264,7 +269,11 @@ export function ShoppingRequestPanel() {
                         <Trash3 aria-hidden="true" />
                       </Button>
                       <div
-                        className="shopping-list-swipe-content d-flex align-items-center justify-content-between gap-2 py-2 px-3"
+                        className={`shopping-list-swipe-content d-flex align-items-center justify-content-between gap-2 py-2 px-3${
+                          draggingSwipeFoodId === food.id
+                            ? ' shopping-list-swipe-content-dragging'
+                            : ''
+                        }`}
                         style={{ transform: `translateX(${isOpen ? swipeOffset : 0}px)` }}
                         onPointerDown={(event) => {
                           if (
@@ -279,34 +288,38 @@ export function ShoppingRequestPanel() {
                             pointerId: event.pointerId,
                             x: event.clientX,
                             y: event.clientY,
+                            initialOffset: openSwipeFoodId === food.id ? swipeOffset : 0,
                           };
+                          setDraggingSwipeFoodId(food.id);
                           event.currentTarget.setPointerCapture?.(event.pointerId);
                         }}
                         onPointerMove={(event) => {
                           const start = rowSwipeStart.current;
                           if (start?.foodId !== food.id || start.pointerId !== event.pointerId)
                             return;
-                          const deltaX = Math.min(0, event.clientX - start.x);
+                          const deltaX = event.clientX - start.x;
                           const deltaY = event.clientY - start.y;
                           if (Math.abs(deltaX) <= Math.abs(deltaY)) return;
                           setOpenSwipeFoodId(food.id);
-                          setSwipeOffset(deltaX);
+                          setSwipeOffset(Math.min(0, start.initialOffset + deltaX));
                         }}
                         onPointerUp={(event) => {
                           const start = rowSwipeStart.current;
                           rowSwipeStart.current = null;
+                          setDraggingSwipeFoodId(null);
                           if (start?.foodId !== food.id || start.pointerId !== event.pointerId)
                             return;
                           const deltaX = event.clientX - start.x;
                           const deltaY = event.clientY - start.y;
+                          const finalOffset = Math.min(0, start.initialOffset + deltaX);
                           if (
-                            deltaX <= -FULL_SWIPE_THRESHOLD_PX &&
-                            Math.abs(deltaX) > Math.abs(deltaY)
+                            finalOffset <= -FULL_SWIPE_THRESHOLD_PX &&
+                            Math.abs(finalOffset) > Math.abs(deltaY)
                           ) {
                             removePendingFood(food.id);
                           } else if (
-                            deltaX <= -SWIPE_THRESHOLD_PX &&
-                            Math.abs(deltaX) > Math.abs(deltaY)
+                            finalOffset <= -SWIPE_THRESHOLD_PX &&
+                            Math.abs(finalOffset) > Math.abs(deltaY)
                           ) {
                             setOpenSwipeFoodId(food.id);
                             setSwipeOffset(-SWIPE_ACTION_WIDTH_PX);
