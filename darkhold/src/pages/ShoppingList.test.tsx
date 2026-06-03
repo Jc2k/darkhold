@@ -800,6 +800,42 @@ describe('ShoppingList', () => {
     expect((rowContent as HTMLDivElement).style.transform).toBe('translateX(-104px)');
   });
 
+  it('continues dragging from the revealed swipe offset instead of snapping back', () => {
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <ShoppingList />
+        </MemoryRouter>,
+      );
+    });
+
+    const rowContent = container.querySelector('.shopping-list-swipe-content');
+    const action = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Send Flour to To Check"]',
+    );
+
+    act(() => {
+      dispatchPointer(rowContent!, 'pointerdown', 140, 10);
+      dispatchPointer(rowContent!, 'pointermove', 50, 12);
+      dispatchPointer(rowContent!, 'pointerup', 50, 12);
+    });
+    expect((rowContent as HTMLDivElement).style.transform).toBe('translateX(-104px)');
+
+    act(() => {
+      dispatchPointer(rowContent!, 'pointerdown', 140, 10);
+      dispatchPointer(rowContent!, 'pointermove', 120, 12);
+    });
+
+    expect(rowContent?.classList.contains('shopping-list-swipe-content-dragging')).toBe(true);
+    expect((rowContent as HTMLDivElement).style.transform).toBe('translateX(-124px)');
+    expect(action?.style.width).toBe('124px');
+
+    act(() => {
+      dispatchPointer(rowContent!, 'pointerup', 120, 12);
+    });
+    expect((rowContent as HTMLDivElement).style.transform).toBe('translateX(-104px)');
+  });
+
   it('expands and triggers the To Check action when an item is swiped fully left', () => {
     act(() => {
       root.render(

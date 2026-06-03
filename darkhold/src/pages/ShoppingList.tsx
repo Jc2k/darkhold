@@ -253,12 +253,19 @@ export function ShoppingList() {
   const [isClearing, setIsClearing] = useState(false);
   const [clearError, setClearError] = useState<string | null>(null);
   const [moveError, setMoveError] = useState<string | null>(null);
-  const swipeStart = useRef<{ key: string; pointerId: number; x: number; y: number } | null>(null);
+  const swipeStart = useRef<{
+    key: string;
+    pointerId: number;
+    x: number;
+    y: number;
+    initialOffset: number;
+  } | null>(null);
   const longPressTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressTriggered = useRef(false);
   const [longPressKey, setLongPressKey] = useState<string | null>(null);
   const [ingredientInfo, setIngredientInfo] = useState<IngredientInfo | null>(null);
   const [openSwipeKey, setOpenSwipeKey] = useState<string | null>(null);
+  const [draggingSwipeKey, setDraggingSwipeKey] = useState<string | null>(null);
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [viewMode, setViewMode] = useState<'category' | 'recipe'>('category');
   const [filter, setFilter] = useState<'to-check' | 'to-buy' | null>(null);
@@ -364,6 +371,7 @@ export function ShoppingList() {
 
   const closeSwipeAction = () => {
     setOpenSwipeKey(null);
+    setDraggingSwipeKey(null);
     setSwipeOffset(0);
   };
 
@@ -622,7 +630,12 @@ export function ShoppingList() {
                   .filter((part) => part.text);
 
                 return (
-                  <ListGroup.Item key={rowKey} className="shopping-list-swipe-item p-0">
+                  <ListGroup.Item
+                    key={rowKey}
+                    className={`shopping-list-swipe-item p-0${
+                      draggingSwipeKey === rowKey ? ' shopping-list-swipe-item-dragging' : ''
+                    }`}
+                  >
                     <div className="shopping-list-swipe-shell">
                       <Button
                         variant="success"
@@ -659,7 +672,7 @@ export function ShoppingList() {
                       <div
                         className={`shopping-list-swipe-content d-flex align-items-center gap-2 py-2 px-3${
                           longPressKey === rowKey ? ' shopping-list-long-press-pending' : ''
-                        }`}
+                        }${draggingSwipeKey === rowKey ? ' shopping-list-swipe-content-dragging' : ''}`}
                         style={{
                           transform: `translateX(${openSwipeKey === rowKey ? swipeOffset : 0}px)`,
                         }}
@@ -676,7 +689,9 @@ export function ShoppingList() {
                             pointerId: event.pointerId,
                             x: event.clientX,
                             y: event.clientY,
+                            initialOffset: openSwipeKey === rowKey ? swipeOffset : 0,
                           };
+                          setDraggingSwipeKey(rowKey);
                           longPressTriggered.current = false;
                           if (event.pointerType !== 'mouse') {
                             clearLongPress();
@@ -700,11 +715,12 @@ export function ShoppingList() {
                           }
                           if (Math.abs(deltaX) <= Math.abs(deltaY)) return;
                           setOpenSwipeKey(rowKey);
-                          setSwipeOffset(deltaX);
+                          setSwipeOffset(start.initialOffset + deltaX);
                         }}
                         onPointerUp={(event) => {
                           const start = swipeStart.current;
                           swipeStart.current = null;
+                          setDraggingSwipeKey(null);
                           clearLongPress();
                           if (start?.key !== rowKey || start.pointerId !== event.pointerId) return;
                           if (longPressTriggered.current) {
@@ -713,13 +729,14 @@ export function ShoppingList() {
                           }
                           const deltaX = event.clientX - start.x;
                           const deltaY = event.clientY - start.y;
-                          if (isFullLeftSwipe(deltaX, deltaY)) toggleToCheck(agg.entries);
-                          else if (isFullRightSwipe(deltaX, deltaY))
+                          const finalOffset = start.initialOffset + deltaX;
+                          if (isFullLeftSwipe(finalOffset, deltaY)) toggleToCheck(agg.entries);
+                          else if (isFullRightSwipe(finalOffset, deltaY))
                             toggleChecked(agg.entries, !agg.allChecked);
-                          else if (isLeftSwipe(deltaX, deltaY)) {
+                          else if (isLeftSwipe(finalOffset, deltaY)) {
                             setOpenSwipeKey(rowKey);
                             setSwipeOffset(-SWIPE_ACTION_WIDTH_PX);
-                          } else if (isRightSwipe(deltaX, deltaY)) {
+                          } else if (isRightSwipe(finalOffset, deltaY)) {
                             setOpenSwipeKey(rowKey);
                             setSwipeOffset(SWIPE_ACTION_WIDTH_PX);
                           } else closeSwipeAction();
