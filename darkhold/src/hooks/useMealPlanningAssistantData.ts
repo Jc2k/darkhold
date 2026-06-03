@@ -1,18 +1,13 @@
 import { queryOptions } from '@tanstack/react-query';
 import { apiGet } from '../api/client';
-import type {
-  Food,
-  Keyword,
-  MealPlan,
-  PaginatedResponse,
-  Recipe,
-  SupermarketCategory,
-} from '../api/tandoor-types';
+import type { Keyword, MealPlan, PaginatedResponse, Recipe } from '../api/tandoor-types';
 import { fetchUpSoonData } from './useUpSoon';
 import { formatDate } from '../utils/dateUtils';
+import {
+  isMealAssistantPrecalculation,
+  type MealAssistantPrecalculation,
+} from '../utils/mealAssistantPrecalculation';
 
-const HISTORY_LOOKBACK_DAYS = 365;
-const HISTORY_LOOKAHEAD_DAYS = 14;
 const MEAL_PLANNING_ASSISTANT_STALE_TIME_MS = 1000 * 60 * 30;
 const MEAL_PLANNING_ASSISTANT_GC_TIME_MS = 1000 * 60 * 60;
 
@@ -22,6 +17,7 @@ export interface MealPlanningAssistantData {
   historicalMeals: MealPlan[];
   upSoonRecipeIds: number[];
   produceFoodNames: string[];
+  precalculation?: MealAssistantPrecalculation;
 }
 
 async function fetchAllPages<T>(
@@ -46,6 +42,16 @@ async function fetchAllPages<T>(
   return all;
 }
 
+async function fetchMealAssistantPrecalculation(): Promise<MealAssistantPrecalculation | null> {
+  const res = await fetch('/meal-assistant-precalculation.json', {
+    headers: { Accept: 'application/json' },
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`Precalculation fetch failed ${res.status}`);
+  const payload: unknown = await res.json();
+  return isMealAssistantPrecalculation(payload) ? payload : null;
+}
+
 async function fetchKeywordNameById(): Promise<Record<number, string>> {
   const keywords = await fetchAllPages<Keyword>('/keyword/');
   return keywords.reduce<Record<number, string>>((acc, keyword) => {
@@ -54,49 +60,43 @@ async function fetchKeywordNameById(): Promise<Record<number, string>> {
   }, {});
 }
 
-export async function fetchProduceFoodNames(categoryName: string): Promise<string[]> {
-  const normalizedCategoryName = categoryName.trim().toLowerCase();
-  if (!normalizedCategoryName) return [];
-
-  const categories = await fetchAllPages<SupermarketCategory>('/supermarket-category/');
-  const category = categories.find(
-    (cat) => cat.name.trim().toLowerCase() === normalizedCategoryName,
-  );
-  if (!category) return [];
-
-  const foods = await fetchAllPages<Food>('/food/', { supermarket_category: category.id });
-  return foods.map((food) => food.name.trim().toLowerCase()).filter(Boolean);
-}
-
 export async function fetchMealPlanningAssistantData(
-  weekStart: Date,
-  weekEnd: Date,
-  produceCategoryName?: string,
+  _weekStart: Date,
+  _weekEnd: Date,
+  _produceCategoryName?: string,
 ): Promise<MealPlanningAssistantData> {
-  const historyStart = new Date(weekStart);
-  historyStart.setDate(historyStart.getDate() - HISTORY_LOOKBACK_DAYS);
+  const [precalculation, upSoonData] = await Promise.all([
+    fetchMealAssistantPrecalculation().catch(() => null),
+    fetchUpSoonData(),
+  ]);
 
-  const historyEnd = new Date(weekEnd);
-  historyEnd.setDate(historyEnd.getDate() + HISTORY_LOOKAHEAD_DAYS);
+  if (precalculation) {
+    return {
+      recipes: precalculation.recipes,
+      keywordNameById: precalculation.keywordNameById,
+      historicalMeals: precalculation.mealHistory.map((entry, index) => ({
+        id: index + 1,
+        recipe: entry.recipeId,
+        meal_type: 0,
+        from_date: entry.date,
+      })),
+      upSoonRecipeIds: upSoonData?.entries.map((entry) => entry.recipeId) ?? [],
+      produceFoodNames: precalculation.produceFoodNames,
+      precalculation,
+    };
+  }
 
-  const [recipes, keywordNameById, historicalMeals, upSoonData, produceFoodNames] =
-    await Promise.all([
-      fetchAllPages<Recipe>('/recipe/'),
-      fetchKeywordNameById(),
-      fetchAllPages<MealPlan>('/meal-plan/', {
-        from_date: formatDate(historyStart),
-        to_date: formatDate(historyEnd),
-      }),
-      fetchUpSoonData(),
-      produceCategoryName ? fetchProduceFoodNames(produceCategoryName) : Promise.resolve([]),
-    ]);
+  const [recipes, keywordNameById] = await Promise.all([
+    fetchAllPages<Recipe>('/recipe/'),
+    fetchKeywordNameById(),
+  ]);
 
   return {
     recipes,
     keywordNameById,
-    historicalMeals,
+    historicalMeals: [],
     upSoonRecipeIds: upSoonData?.entries.map((entry) => entry.recipeId) ?? [],
-    produceFoodNames,
+    produceFoodNames: [],
   };
 }
 

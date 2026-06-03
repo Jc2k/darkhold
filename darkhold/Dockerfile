@@ -25,6 +25,8 @@ ARG TARGETPLATFORM
 WORKDIR /app
 COPY package.json deno.json deno.lock* ./
 COPY server.ts ./
+COPY src/api ./src/api
+COPY src/utils ./src/utils
 # Reuse the npm packages already downloaded in the builder stage.
 COPY --from=builder /app/node_modules/ical.js /app/node_modules/ical.js
 COPY --from=builder /app/node_modules/tsdav /app/node_modules/tsdav
@@ -40,8 +42,9 @@ RUN set -e; \
       --node-modules-dir=manual \
       --target "$DENO_TARGET" \
       --allow-net \
-      --allow-read=/package.json \
-      --allow-env=ICAL_FEEDS,WEATHER_LATITUDE,WEATHER_LONGITUDE,WEATHER_TIMEZONE,TANDOOR_URL \
+      --allow-read=/package.json,/data \
+      --allow-env=ICAL_FEEDS,WEATHER_LATITUDE,WEATHER_LONGITUDE,WEATHER_TIMEZONE,TANDOOR_URL,TANDOOR_DEFAULT_TOKEN,MEAL_ASSISTANT_PRODUCE_CATEGORY,MEAL_ASSISTANT_PRECALCULATION_PATH \
+      --allow-write=/data \
       --output /app/server server.ts
 
 # Stage 4: Serve with nginx

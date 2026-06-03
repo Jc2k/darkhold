@@ -1,25 +1,29 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fetchProduceFoodNames } from './useMealPlanningAssistantData';
+import { fetchMealPlanningAssistantData } from './useMealPlanningAssistantData';
+import type { MealAssistantPrecalculation } from '../utils/mealAssistantPrecalculation';
 
-function makeCategoriesResponse(categories: Array<{ id: number; name: string }>) {
+function page<T>(results: T[]) {
   return {
-    count: categories.length,
+    count: results.length,
     next: null,
     previous: null,
-    results: categories,
+    results,
   };
 }
 
-function makeFoodsResponse(foods: Array<{ id: number; name: string }>, next = false) {
+function response(body: unknown, status = 200): Response {
   return {
-    count: foods.length,
-    next: next ? 'http://example.com/api/food/?page=2' : null,
-    previous: null,
-    results: foods.map((f) => ({ id: f.id, name: f.name, created_by: 1 })),
-  };
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => body,
+  } as Response;
 }
 
-describe('fetchProduceFoodNames', () => {
+function pathnameOf(input: RequestInfo | URL): string {
+  return new URL(String(input), window.location.origin).pathname;
+}
+
+describe('fetchMealPlanningAssistantData', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn());
   });
@@ -28,101 +32,86 @@ describe('fetchProduceFoodNames', () => {
     vi.unstubAllGlobals();
   });
 
-  it('returns empty array when category name is empty', async () => {
-    const result = await fetchProduceFoodNames('');
-    expect(result).toEqual([]);
-    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  it('uses the precalculation payload when available', async () => {
+    const precalculation: MealAssistantPrecalculation = {
+      schemaVersion: 1,
+      generatedAt: '2026-06-03T00:00:00.000Z',
+      recipes: [{ id: 1, name: 'Chilli', created_by: 1, image: '/recipe.jpg' }],
+      keywordNameById: { 10: 'Dinner' },
+      produceFoodNames: ['courgette'],
+      produceRecipeIds: { courgette: [1] },
+      mealHistory: [
+        {
+          recipeId: 1,
+          date: '2026-01-02',
+          day: 5,
+          weekend: false,
+          season: 'winter',
+        },
+      ],
+      recipeInsights: {
+        '1': {
+          totalCookCount: 1,
+          weekdayCookCount: 1,
+          weekendCookCount: 0,
+          days: {},
+          seasons: {},
+          produce: ['courgette'],
+        },
+      },
+    };
+
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      const pathname = pathnameOf(input);
+      if (pathname === '/meal-assistant-precalculation.json') return response(precalculation);
+      if (pathname === '/api/recipe-book/') return response(page([]));
+      throw new Error(`Unexpected fetch: ${String(input)}`);
+    });
+
+    const result = await fetchMealPlanningAssistantData(
+      new Date('2026-06-06T00:00:00'),
+      new Date('2026-06-12T00:00:00'),
+      'Produce',
+    );
+
+    expect(result.recipes).toEqual(precalculation.recipes);
+    expect(result.keywordNameById).toEqual(precalculation.keywordNameById);
+    expect(result.produceFoodNames).toEqual(['courgette']);
+    expect(result.precalculation).toBe(precalculation);
+    expect(result.historicalMeals).toEqual([
+      { id: 1, recipe: 1, meal_type: 0, from_date: '2026-01-02' },
+    ]);
   });
 
-  it('returns empty array when the category is not found', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce({
-      ok: true,
-      json: async () => makeCategoriesResponse([{ id: 1, name: 'Dairy' }]),
-    } as Response);
+  it('does not fallback to historical or produce fan-out when the precalculation is missing', async () => {
+    const fetchedPaths: string[] = [];
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      const pathname = pathnameOf(input);
+      fetchedPaths.push(pathname);
+      if (pathname === '/meal-assistant-precalculation.json') return response({}, 404);
+      if (pathname === '/api/recipe-book/') return response(page([]));
+      if (pathname === '/api/recipe/') {
+        return response(page([{ id: 1, name: 'Chilli', created_by: 1, image: '/recipe.jpg' }]));
+      }
+      if (pathname === '/api/keyword/') return response(page([{ id: 10, name: 'Dinner' }]));
+      throw new Error(`Unexpected fetch: ${String(input)}`);
+    });
 
-    const result = await fetchProduceFoodNames('Produce');
-    expect(result).toEqual([]);
-  });
+    const result = await fetchMealPlanningAssistantData(
+      new Date('2026-06-06T00:00:00'),
+      new Date('2026-06-12T00:00:00'),
+      'Produce',
+    );
 
-  it('returns food names (lowercased) from the matching category (case-insensitive match)', async () => {
-    vi.mocked(fetch)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () =>
-          makeCategoriesResponse([
-            { id: 5, name: 'Produce' },
-            { id: 6, name: 'Dairy' },
-          ]),
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () =>
-          makeFoodsResponse([
-            { id: 10, name: 'Aubergine' },
-            { id: 11, name: 'Courgette' },
-            { id: 12, name: 'Leek' },
-          ]),
-      } as Response);
-
-    const result = await fetchProduceFoodNames('produce');
-    expect(result).toEqual(['aubergine', 'courgette', 'leek']);
-  });
-
-  it('trims whitespace from category name before matching', async () => {
-    vi.mocked(fetch)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => makeCategoriesResponse([{ id: 3, name: 'Produce' }]),
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => makeFoodsResponse([{ id: 10, name: 'Broccoli' }]),
-      } as Response);
-
-    const result = await fetchProduceFoodNames('  Produce  ');
-    expect(result).toEqual(['broccoli']);
-  });
-
-  it('paginates through multiple pages of foods', async () => {
-    vi.mocked(fetch)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => makeCategoriesResponse([{ id: 5, name: 'Produce' }]),
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => makeFoodsResponse([{ id: 10, name: 'Aubergine' }], true),
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => makeFoodsResponse([{ id: 11, name: 'Courgette' }]),
-      } as Response);
-
-    const result = await fetchProduceFoodNames('Produce');
-    expect(result).toEqual(['aubergine', 'courgette']);
-  });
-
-  it('paginates through multiple pages of categories when necessary', async () => {
-    vi.mocked(fetch)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          count: 2,
-          next: 'http://example.com/api/supermarket-category/?page=2',
-          previous: null,
-          results: [{ id: 1, name: 'Dairy' }],
-        }),
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => makeCategoriesResponse([{ id: 5, name: 'Produce' }]),
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => makeFoodsResponse([{ id: 10, name: 'Kale' }]),
-      } as Response);
-
-    const result = await fetchProduceFoodNames('Produce');
-    expect(result).toEqual(['kale']);
+    expect(result.recipes).toEqual([
+      { id: 1, name: 'Chilli', created_by: 1, image: '/recipe.jpg' },
+    ]);
+    expect(result.keywordNameById).toEqual({ 10: 'Dinner' });
+    expect(result.historicalMeals).toEqual([]);
+    expect(result.produceFoodNames).toEqual([]);
+    expect(result.precalculation).toBeUndefined();
+    expect(fetchedPaths).not.toContain('/api/meal-plan/');
+    expect(fetchedPaths).not.toContain('/api/supermarket-category/');
+    expect(fetchedPaths).not.toContain('/api/food/');
   });
 });

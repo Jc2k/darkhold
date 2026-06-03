@@ -2017,6 +2017,7 @@ export function MealPlanPage() {
             dinnerTime: dinnerMealType?.time,
             specialDates: configuredSpecialDates,
             produceFoodNames: assistantData.produceFoodNames,
+            precalculation: assistantData.precalculation,
           })
         : { slots: [], issues: [] };
       const lunchPlan = lunchMealTypeId
@@ -2036,6 +2037,7 @@ export function MealPlanPage() {
             dinnerTime: lunchMealType?.time,
             specialDates: configuredSpecialDates,
             produceFoodNames: assistantData.produceFoodNames,
+            precalculation: assistantData.precalculation,
           })
         : { slots: [], issues: [] };
       const plansToCreate = [
