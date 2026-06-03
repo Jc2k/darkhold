@@ -6,6 +6,10 @@ import type {
 } from '../hooks/useCalendarEvents';
 import type { WeatherByDate, WeatherDayForecast } from '../hooks/useWeatherForecast';
 import { formatDate, parseLocalDate } from './dateUtils';
+import type {
+  MealAssistantPrecalculation,
+  MealAssistantRecipeInsight,
+} from './mealAssistantPrecalculation';
 import { RECENTLY_ADDED_DAYS } from './recentRecipes';
 
 export const UNSUITABLE_DINNER_TAG_FRAGMENTS = [
@@ -102,6 +106,7 @@ export interface MealAssistantInput {
     reason: string;
   }>;
   produceFoodNames?: readonly string[];
+  precalculation?: MealAssistantPrecalculation;
 }
 
 interface ScoringContext {
@@ -109,11 +114,10 @@ interface ScoringContext {
   role: MealAssistantRole;
   upSoonRecipeIds: Set<number>;
   regularRecipeIds: Set<number>;
-  recipeDayCounts: Map<number, Map<number, number>>;
-  recipeSeasonCounts: Map<number, Map<string, number>>;
   weekTagCounts: Map<string, number>;
   weekProduceCounts: Map<string, number>;
   produceFoodNames: readonly string[];
+  precalculation?: MealAssistantPrecalculation;
 }
 
 interface SlotRole {
@@ -301,6 +305,30 @@ function getSeasonKey(date: Date): string {
   return 'autumn';
 }
 
+function getPrecalculatedRecipeInsight(
+  precalculation: MealAssistantPrecalculation | undefined,
+  recipeId: number,
+): MealAssistantRecipeInsight | undefined {
+  return precalculation?.recipeInsights[String(recipeId)];
+}
+
+function getPrecalculatedProduceTags(
+  recipe: Recipe,
+  precalculation: MealAssistantPrecalculation | undefined,
+): string[] | undefined {
+  const insight = getPrecalculatedRecipeInsight(precalculation, recipe.id);
+  return insight?.produce;
+}
+
+function mealHistoryToMealPlans(precalculation: MealAssistantPrecalculation): MealPlan[] {
+  return precalculation.mealHistory.map((entry, index) => ({
+    id: index + 1,
+    recipe: entry.recipeId,
+    meal_type: 0,
+    from_date: entry.date,
+  }));
+}
+
 function countRecipesWithinWindow(
   entries: MealPlan[],
   fromDate: Date,
@@ -316,33 +344,6 @@ function countRecipesWithinWindow(
     const mealTime = mealDate.getTime();
     if (mealTime < fromMs || mealTime > toMs) continue;
     counts.set(recipeId, (counts.get(recipeId) ?? 0) + 1);
-  }
-  return counts;
-}
-
-function buildHistoricalDayCounts(entries: MealPlan[]): Map<number, Map<number, number>> {
-  const counts = new Map<number, Map<number, number>>();
-  for (const entry of entries) {
-    const recipeId = recipeIdOf(entry);
-    const mealDate = parseMealDate(entry);
-    if (!recipeId || !mealDate) continue;
-    const byDay = counts.get(recipeId) ?? new Map<number, number>();
-    byDay.set(mealDate.getDay(), (byDay.get(mealDate.getDay()) ?? 0) + 1);
-    counts.set(recipeId, byDay);
-  }
-  return counts;
-}
-
-function buildHistoricalSeasonCounts(entries: MealPlan[]): Map<number, Map<string, number>> {
-  const counts = new Map<number, Map<string, number>>();
-  for (const entry of entries) {
-    const recipeId = recipeIdOf(entry);
-    const mealDate = parseMealDate(entry);
-    if (!recipeId || !mealDate) continue;
-    const season = getSeasonKey(mealDate);
-    const bySeason = counts.get(recipeId) ?? new Map<string, number>();
-    bySeason.set(season, (bySeason.get(season) ?? 0) + 1);
-    counts.set(recipeId, bySeason);
   }
   return counts;
 }
@@ -379,15 +380,33 @@ export function getRecipeProduceTags(
   );
 }
 
+function getRecipeProduceTagsForScoring(
+  recipe: Recipe,
+  keywordNameById: Record<number, string>,
+  produceFoodNames: readonly string[],
+  precalculation?: MealAssistantPrecalculation,
+): string[] {
+  return (
+    getPrecalculatedProduceTags(recipe, precalculation) ??
+    getRecipeProduceTags(recipe, keywordNameById, produceFoodNames)
+  );
+}
+
 function buildWeekProduceCounts(
   entries: MealPlan[],
   keywordNameById: Record<number, string>,
   produceFoodNames: readonly string[],
+  precalculation?: MealAssistantPrecalculation,
 ): Map<string, number> {
   const counts = new Map<string, number>();
   for (const entry of entries) {
     if (typeof entry.recipe !== 'object' || !entry.recipe) continue;
-    for (const produce of getRecipeProduceTags(entry.recipe, keywordNameById, produceFoodNames)) {
+    for (const produce of getRecipeProduceTagsForScoring(
+      entry.recipe,
+      keywordNameById,
+      produceFoodNames,
+      precalculation,
+    )) {
       counts.set(produce, (counts.get(produce) ?? 0) + 1);
     }
   }
@@ -399,9 +418,15 @@ function updateWeekProduceCounts(
   recipe: Recipe,
   keywordNameById: Record<number, string>,
   produceFoodNames: readonly string[],
+  precalculation?: MealAssistantPrecalculation,
 ): Map<string, number> {
   const next = new Map(counts);
-  for (const produce of getRecipeProduceTags(recipe, keywordNameById, produceFoodNames)) {
+  for (const produce of getRecipeProduceTagsForScoring(
+    recipe,
+    keywordNameById,
+    produceFoodNames,
+    precalculation,
+  )) {
     next.set(produce, (next.get(produce) ?? 0) + 1);
   }
   return next;
@@ -735,14 +760,29 @@ function scoreRecipe(
     }
   }
 
-  const dayCount = context.recipeDayCounts.get(recipe.id)?.get(dateDay) ?? 0;
-  if (dayCount > 0) {
+  const insight = getPrecalculatedRecipeInsight(context.precalculation, recipe.id);
+  const dayTrend = insight?.days[String(dateDay)];
+  if (dayTrend) {
     components.push({
       key: 'day-fit',
-      label: 'Fits the day',
-      score: Math.min(12, dayCount * 4),
-      detail: `Seen ${dayCount} time${dayCount === 1 ? '' : 's'} on this weekday before.`,
+      label: 'Best weekday',
+      score: dayTrend.score,
+      detail: `Historically ${Math.round(dayTrend.share * 100)}% of cooks were on this weekday (${dayTrend.count}/${dayTrend.total}).`,
     });
+  }
+
+  if (parsedDate && insight) {
+    const weekendTrend =
+      parsedDate.getDay() === 0 || parsedDate.getDay() === 6 ? insight.weekend : insight.weekday;
+    if (weekendTrend) {
+      components.push({
+        key: 'week-part-fit',
+        label:
+          parsedDate.getDay() === 0 || parsedDate.getDay() === 6 ? 'Weekend fit' : 'Weekday fit',
+        score: weekendTrend.score,
+        detail: `Historically ${Math.round(weekendTrend.share * 100)}% of cooks landed in this part of the week.`,
+      });
+    }
   }
 
   if (season) {
@@ -758,15 +798,30 @@ function scoreRecipe(
         detail: 'Recipe tags line up with the current season.',
       });
     }
-    const seasonCount = context.recipeSeasonCounts.get(recipe.id)?.get(season) ?? 0;
-    if (seasonCount > 0) {
+    const seasonTrend = insight?.seasons[season as keyof typeof insight.seasons];
+    if (seasonTrend) {
       components.push({
         key: 'season-history',
         label: 'Seasonal history',
-        score: Math.min(8, seasonCount * 2),
-        detail: `Often cooked in this season (${seasonCount} historical match${seasonCount === 1 ? '' : 'es'}).`,
+        score: seasonTrend.score,
+        detail: `Historically ${Math.round(seasonTrend.share * 100)}% of cooks were in ${season} (${seasonTrend.count}/${seasonTrend.total}).`,
       });
     }
+  }
+
+  if (insight?.nutrition && insight.nutrition.score !== 0) {
+    const nutrition = insight.nutrition;
+    const details = [
+      nutrition.proteinG == null ? null : `${nutrition.proteinG}g protein`,
+      nutrition.caloriesKcal == null ? null : `${nutrition.caloriesKcal} kcal`,
+    ].filter((value): value is string => value != null);
+    components.push({
+      key: 'nutrition-precalc',
+      label: 'Nutrition balance',
+      score: nutrition.score,
+      detail:
+        details.length > 0 ? details.join(' · ') : 'Nutrition signal from calculated recipe data.',
+    });
   }
 
   for (const trackedTag of Object.keys(CATEGORY_ROLE_TAGS)) {
@@ -866,7 +921,8 @@ export function swapMealAssistantSelection(
 
 export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistantPlan {
   const planType = input.planType ?? 'dinner';
-  const keywordNameById = input.keywordNameById ?? {};
+  const precalculation = input.precalculation;
+  const keywordNameById = input.keywordNameById ?? precalculation?.keywordNameById ?? {};
   const upSoonRecipeIds = new Set(input.upSoonRecipeIds ?? []);
   const calendarEventsByDate = input.calendarEventsByDate ?? {};
   const weatherByDate = input.weatherByDate ?? {};
@@ -885,8 +941,15 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
 
   const recentWindowStart = addDays(input.weekStart, -RECENT_WINDOW_DAYS);
   const recentWindowEnd = addDays(input.weekEnd, RECENT_WINDOW_DAYS);
+  const historicalMeals =
+    input.historicalMeals.length > 0
+      ? input.historicalMeals
+      : precalculation
+        ? mealHistoryToMealPlans(precalculation)
+        : [];
+
   const recentCounts = countRecipesWithinWindow(
-    input.historicalMeals,
+    historicalMeals,
     recentWindowStart,
     recentWindowEnd,
   );
@@ -895,7 +958,7 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
   const regularWindowStart = addDays(input.weekStart, -REGULAR_WINDOW_DAYS);
   const regularWindowEnd = addDays(input.weekStart, -1);
   const recentRegularCounts = countRecipesWithinWindow(
-    input.historicalMeals,
+    historicalMeals,
     regularWindowStart,
     regularWindowEnd,
   );
@@ -907,16 +970,12 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
       .map(([recipeId]) => recipeId),
   );
 
-  const historicalPastMeals = input.historicalMeals.filter((entry) => {
-    const mealDate = parseMealDate(entry);
-    return mealDate ? mealDate.getTime() < input.weekStart.getTime() : false;
-  });
-
-  const baseRecipes = input.recipes.filter((recipe) =>
+  const recipes = input.recipes.length > 0 ? input.recipes : (precalculation?.recipes ?? []);
+  const baseRecipes = recipes.filter((recipe) =>
     recipePassesBaseFilters(recipe, keywordNameById, recentRecipeIds, planType),
   );
   const recentTakeawayMeals = countRecipesWithinWindow(
-    input.historicalMeals,
+    historicalMeals,
     addDays(input.weekEnd, -TAKEAWAY_LOOKBACK_DAYS),
     input.weekEnd,
   );
@@ -924,7 +983,7 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
     planType === 'dinner' &&
     baseRecipes.some((recipe) => isTakeawayRecipe(recipe, keywordNameById)) &&
     ![...recentTakeawayMeals.keys()].some((recipeId) => {
-      const recipe = input.recipes.find((candidate) => candidate.id === recipeId);
+      const recipe = recipes.find((candidate) => candidate.id === recipeId);
       return recipe ? isTakeawayRecipe(recipe, keywordNameById) : false;
     });
 
@@ -940,14 +999,13 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
     specialDateReasonsByDate,
   );
 
-  const recipeDayCounts = buildHistoricalDayCounts(historicalPastMeals);
-  const recipeSeasonCounts = buildHistoricalSeasonCounts(historicalPastMeals);
   let weekTagCounts = buildWeekTagCounts(input.existingWeekMeals, keywordNameById);
-  const produceFoodNames = input.produceFoodNames ?? [];
+  const produceFoodNames = input.produceFoodNames ?? precalculation?.produceFoodNames ?? [];
   let weekProduceCounts = buildWeekProduceCounts(
     input.existingWeekMeals,
     keywordNameById,
     produceFoodNames,
+    precalculation,
   );
   const usedRecipeIds = new Set(
     input.existingWeekMeals
@@ -985,11 +1043,10 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
           role: effectiveRole,
           upSoonRecipeIds,
           regularRecipeIds,
-          recipeDayCounts,
-          recipeSeasonCounts,
           weekTagCounts,
           weekProduceCounts,
           produceFoodNames,
+          precalculation,
         }),
       ),
     );
@@ -1026,6 +1083,7 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
       selected.recipe,
       keywordNameById,
       produceFoodNames,
+      precalculation,
     );
   }
 
