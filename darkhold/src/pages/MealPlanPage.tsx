@@ -835,6 +835,32 @@ function DroppableDay({ dateKey, children }: DroppableDayProps) {
   );
 }
 
+interface EmptyMealCellAddButtonProps {
+  dateKey: string;
+  mealType: MealType;
+  disabled: boolean;
+  onAddMeal: (date: string, mealTypeId?: number) => void;
+}
+
+function EmptyMealCellAddButton({
+  dateKey,
+  mealType,
+  disabled,
+  onAddMeal,
+}: EmptyMealCellAddButtonProps) {
+  return (
+    <Button
+      variant="outline-success"
+      className="meal-plan-empty-cell-add"
+      onClick={() => onAddMeal(dateKey, mealType.id)}
+      disabled={disabled}
+      aria-label={`Add ${mealType.name} on ${dateKey}`}
+    >
+      <Plus size={28} aria-hidden="true" />
+    </Button>
+  );
+}
+
 interface AddMealModalProps {
   date: string;
   onHide: () => void;
@@ -1471,6 +1497,14 @@ function MealPlanTableView({
                         className={`meal-plan-mobile-cell meal-plan-entry-cell align-top ${entries.length === 0 ? 'meal-plan-mobile-empty' : ''}`}
                       >
                         <DroppableDay dateKey={containerId}>
+                          {entries.length === 0 && (
+                            <EmptyMealCellAddButton
+                              dateKey={dateKey}
+                              mealType={mt}
+                              disabled={!hasPersonalToken}
+                              onAddMeal={onAddMeal}
+                            />
+                          )}
                           <SortableContext id={containerId} items={entries.map((e) => e.id)}>
                             {entries.map((entry) => {
                               const recipeId =
