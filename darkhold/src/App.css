@@ -148,6 +148,30 @@
 
 .meal-plan-page .meal-plan-day {
   min-height: 40px;
+  position: relative;
+}
+
+.meal-plan-page .meal-plan-empty-cell-add {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 1;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border-radius: 50%;
+  opacity: 0;
+  transform: translate(-50%, -50%);
+  transition:
+    opacity 0.15s ease-in-out,
+    background-color 0.15s ease-in-out,
+    border-color 0.15s ease-in-out,
+    color 0.15s ease-in-out;
 }
 
 .meal-plan-page .meal-plan-table {
@@ -376,6 +400,17 @@
 }
 
 @media (min-width: 1024px) {
+  .meal-plan-page .meal-plan-empty-cell-add {
+    display: inline-flex;
+    pointer-events: none;
+  }
+
+  .meal-plan-page .meal-plan-entry-cell:hover .meal-plan-empty-cell-add,
+  .meal-plan-page .meal-plan-empty-cell-add:focus {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
   .meal-plan-page .meal-plan-table-header-row {
     display: table-row;
   }
