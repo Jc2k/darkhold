@@ -14,6 +14,7 @@ interface Props {
 }
 
 const SWIPE_ACTION_WIDTH_PX = 52;
+const SWIPE_THRESHOLD_PX = 60;
 const OPEN_SWIPE_WIDTH_PX = SWIPE_ACTION_WIDTH_PX * 2;
 const FULL_SWIPE_THRESHOLD_PX = OPEN_SWIPE_WIDTH_PX * 2;
 
@@ -21,8 +22,14 @@ export const RecipeListItem = memo(function RecipeListItem({ recipe, onAddToMeal
   const navigate = useNavigate();
   const [showInfo, setShowInfo] = useState(false);
   const [swipeOffset, setSwipeOffset] = useState(0);
+  const [draggingSwipe, setDraggingSwipe] = useState(false);
   const [longPressPending, setLongPressPending] = useState(false);
-  const pointerStart = useRef<{ pointerId: number; x: number; y: number } | null>(null);
+  const pointerStart = useRef<{
+    pointerId: number;
+    x: number;
+    y: number;
+    initialOffset: number;
+  } | null>(null);
   const longPressTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressClick = useRef(false);
 
@@ -39,14 +46,21 @@ export const RecipeListItem = memo(function RecipeListItem({ recipe, onAddToMeal
     [],
   );
 
-  const openMealPlan = () => {
+  const closeSwipeAction = () => {
+    setDraggingSwipe(false);
     setSwipeOffset(0);
+  };
+
+  const openMealPlan = () => {
+    closeSwipeAction();
     onAddToMealPlan?.(recipe);
   };
 
   return (
     <>
-      <ListGroup.Item className="recipe-list-swipe-item p-0">
+      <ListGroup.Item
+        className={`recipe-list-swipe-item p-0${draggingSwipe ? ' recipe-list-swipe-item-dragging' : ''}`}
+      >
         <div className="recipe-list-swipe-shell">
           <div className="recipe-list-swipe-actions">
             {onAddToMealPlan && (
@@ -63,7 +77,7 @@ export const RecipeListItem = memo(function RecipeListItem({ recipe, onAddToMeal
             <UpSoonButton recipeId={recipe.id} />
           </div>
           <div
-            className={`recipe-list-swipe-content d-flex justify-content-between align-items-center px-3 py-2${longPressPending ? ' recipe-list-long-press-pending' : ''}`}
+            className={`recipe-list-swipe-content d-flex justify-content-between align-items-center px-3 py-2${longPressPending ? ' recipe-list-long-press-pending' : ''}${draggingSwipe ? ' recipe-list-swipe-content-dragging' : ''}`}
             style={{ transform: `translateX(${swipeOffset}px)` }}
             onClickCapture={(event) => {
               if (!suppressClick.current) return;
@@ -84,7 +98,9 @@ export const RecipeListItem = memo(function RecipeListItem({ recipe, onAddToMeal
                 pointerId: event.pointerId,
                 x: event.clientX,
                 y: event.clientY,
+                initialOffset: swipeOffset,
               };
+              setDraggingSwipe(true);
               suppressClick.current = false;
               if (event.pointerType !== 'mouse') {
                 clearLongPress();
@@ -93,7 +109,7 @@ export const RecipeListItem = memo(function RecipeListItem({ recipe, onAddToMeal
                   suppressClick.current = true;
                   longPressTimeout.current = null;
                   setLongPressPending(false);
-                  setSwipeOffset(0);
+                  closeSwipeAction();
                   setShowInfo(true);
                 }, LONG_PRESS_DELAY_MS);
               }
@@ -105,30 +121,38 @@ export const RecipeListItem = memo(function RecipeListItem({ recipe, onAddToMeal
               const deltaX = event.clientX - start.x;
               const deltaY = event.clientY - start.y;
               if (hasLongPressMoved(deltaX, deltaY)) clearLongPress();
-              if (Math.abs(deltaX) <= Math.abs(deltaY) || deltaX > 0) return;
+              if (Math.abs(deltaX) <= Math.abs(deltaY)) return;
               suppressClick.current = true;
-              setSwipeOffset(deltaX);
+              setSwipeOffset(Math.min(0, start.initialOffset + deltaX));
             }}
             onPointerUp={(event) => {
               const start = pointerStart.current;
               pointerStart.current = null;
+              setDraggingSwipe(false);
               clearLongPress();
               if (!start || start.pointerId !== event.pointerId) return;
               const deltaX = event.clientX - start.x;
               const deltaY = event.clientY - start.y;
-              if (deltaX <= -FULL_SWIPE_THRESHOLD_PX && Math.abs(deltaX) > Math.abs(deltaY)) {
+              const finalOffset = Math.min(0, start.initialOffset + deltaX);
+              if (
+                finalOffset <= -FULL_SWIPE_THRESHOLD_PX &&
+                Math.abs(finalOffset) > Math.abs(deltaY)
+              ) {
                 openMealPlan();
-              } else if (deltaX < -SWIPE_ACTION_WIDTH_PX && Math.abs(deltaX) > Math.abs(deltaY)) {
+              } else if (
+                finalOffset <= -SWIPE_THRESHOLD_PX &&
+                Math.abs(finalOffset) > Math.abs(deltaY)
+              ) {
                 setSwipeOffset(-OPEN_SWIPE_WIDTH_PX);
               } else {
-                setSwipeOffset(0);
+                closeSwipeAction();
               }
             }}
             onPointerCancel={() => {
               pointerStart.current = null;
               suppressClick.current = false;
               clearLongPress();
-              setSwipeOffset(0);
+              closeSwipeAction();
             }}
           >
             <span>{recipe.name}</span>
