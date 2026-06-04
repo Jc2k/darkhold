@@ -11,8 +11,9 @@ import {
   type MealAssistantRecipeClusterMembership,
   type MealAssistantSimilarRecipe,
 } from './recipeSimilarity.ts';
+import type { WeatherFeatures } from './weatherFeatures.ts';
 
-export const MEAL_ASSISTANT_PRECALCULATION_SCHEMA_VERSION = 4;
+export const MEAL_ASSISTANT_PRECALCULATION_SCHEMA_VERSION = 5;
 
 export type MealAssistantSeason = 'winter' | 'spring' | 'summer' | 'autumn';
 
@@ -45,6 +46,7 @@ export interface MealAssistantRecipeInsight {
   weekday?: MealAssistantTrend;
   days: Partial<Record<string, MealAssistantTrend>>;
   seasons: Partial<Record<MealAssistantSeason, MealAssistantTrend>>;
+  weather: Record<string, MealAssistantTrend>;
   produce: string[];
   nutrition?: MealAssistantNutritionSignal;
 }
@@ -78,6 +80,7 @@ export interface MealAssistantRecipeFeatures {
   complexityBucket: MealAssistantComplexityBucket;
   ingredientFoodIds: number[];
   ingredientFoodNames: string[];
+  weatherTags?: string[];
   cookingTimeMinutes?: number;
   waitingTimeMinutes?: number;
   totalTimeMinutes?: number;
@@ -100,6 +103,7 @@ export interface MealAssistantRecipeHistory {
 export interface MealAssistantRelationships {
   keywords: Record<string, number[]>;
   produce: Record<string, number[]>;
+  weather: Record<string, number[]>;
   flags: Record<string, number[]>;
 }
 
@@ -220,6 +224,7 @@ function createEmptyInsight(): MealAssistantRecipeInsight {
     weekendCookCount: 0,
     days: {},
     seasons: {},
+    weather: {},
     produce: [],
   };
 }
@@ -481,6 +486,9 @@ function isMealAssistantRecipeFeaturesRecord(
       (features.categories == null ||
         (Array.isArray(features.categories) &&
           features.categories.every((category) => typeof category === 'string'))) &&
+      (features.weatherTags == null ||
+        (Array.isArray(features.weatherTags) &&
+          features.weatherTags.every((weatherTag) => typeof weatherTag === 'string'))) &&
       Array.isArray(features.ingredientFoodIds) &&
       Array.isArray(features.ingredientFoodNames),
   );
@@ -542,10 +550,12 @@ export function buildMealAssistantPrecalculation(input: {
   mealPlans: MealPlan[];
   produceFoods?: readonly Pick<Food, 'id' | 'name'>[];
   produceFoodNames?: readonly string[];
+  weatherByDate?: Record<string, WeatherFeatures>;
   generatedAt?: string;
 }): MealAssistantPrecalculation {
   const produceFoods = normalizedProduceFoods(input);
   const produceFoodNames = compactSortedValues(produceFoods.map((food) => food.name));
+  const weatherByDate = input.weatherByDate ?? {};
   const mealHistory = buildMealHistory(input.mealPlans).sort((a, b) =>
     a.date.localeCompare(b.date),
   );
@@ -556,8 +566,10 @@ export function buildMealAssistantPrecalculation(input: {
   const relationships: MealAssistantRelationships = {
     keywords: {},
     produce: Object.fromEntries(produceFoodNames.map((name) => [name, [] as number[]])),
+    weather: {},
     flags: {},
   };
+  const recipeWeatherCounts = new Map<string, Map<string, number>>();
 
   for (const recipe of input.recipes) {
     const summary: MealAssistantRecipeSummary = {
@@ -593,6 +605,15 @@ export function buildMealAssistantPrecalculation(input: {
     history.seasonCounts[SEASON_INDEX[entry.season]] += 1;
     history.totalPlanCount += 1;
     recipeHistory[String(entry.recipeId)] = history;
+
+    const weather = weatherByDate[entry.date];
+    if (weather) {
+      const counts = recipeWeatherCounts.get(String(entry.recipeId)) ?? new Map<string, number>();
+      for (const tag of weather.tags) {
+        counts.set(tag, (counts.get(tag) ?? 0) + 1);
+      }
+      recipeWeatherCounts.set(String(entry.recipeId), counts);
+    }
   }
 
   for (const [recipeId, insight] of Object.entries(recipeInsights)) {
@@ -635,6 +656,17 @@ export function buildMealAssistantPrecalculation(input: {
         insight.seasons[season] = trend(count, insight.totalCookCount, 8);
       }
     }
+
+    for (const [weatherTag, count] of recipeWeatherCounts.get(recipeId) ?? new Map()) {
+      const share = insight.totalCookCount > 0 ? count / insight.totalCookCount : 0;
+      if (
+        insight.totalCookCount >= MIN_SEASON_TOTAL &&
+        count >= MIN_SEASON_COUNT &&
+        share >= MIN_SEASON_SHARE
+      ) {
+        insight.weather[weatherTag] = trend(count, insight.totalCookCount, 8);
+      }
+    }
   }
 
   for (const recipe of input.recipes) {
@@ -649,11 +681,15 @@ export function buildMealAssistantPrecalculation(input: {
     recipeInsights[String(recipe.id)].produce = produce;
     if (nutrition) recipeInsights[String(recipe.id)].nutrition = nutrition;
     for (const name of produce) addRelationship(relationships.produce, name, recipe.id);
+    const weatherTags = compactSortedValues(Object.keys(recipeInsights[String(recipe.id)].weather));
+    for (const weatherTag of weatherTags)
+      addRelationship(relationships.weather, weatherTag, recipe.id);
 
     recipeFeatures[String(recipe.id)] = {
       keywords: keywordNames,
       produce,
       ...(categoryNames.length > 0 ? { categories: categoryNames } : {}),
+      ...(weatherTags.length > 0 ? { weatherTags } : {}),
       stepCount: stats.stepCount,
       ingredientLineCount: stats.ingredientLineCount,
       distinctFoodCount: stats.distinctFoodCount,
@@ -692,12 +728,14 @@ export function buildMealAssistantPrecalculation(input: {
           ingredientFoodIds: features?.ingredientFoodIds ?? [],
           ingredientFoodNames: features?.ingredientFoodNames ?? [],
           categories: features?.categories,
+          weatherTags: features?.weatherTags,
         };
       }),
     );
 
   sortRelationshipIds(relationships.keywords);
   sortRelationshipIds(relationships.produce);
+  sortRelationshipIds(relationships.weather);
   sortRelationshipIds(relationships.flags);
   for (const history of Object.values(recipeHistory)) {
     history.dates.sort((a, b) => a - b);

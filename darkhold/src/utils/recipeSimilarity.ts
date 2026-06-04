@@ -5,6 +5,7 @@ export interface RecipeSimilarityInput {
   ingredientFoodIds: number[];
   ingredientFoodNames: string[];
   categories?: string[];
+  weatherTags?: string[];
 }
 
 export interface MealAssistantSimilarRecipe {
@@ -37,7 +38,7 @@ export interface RecipeSimilarityIndex {
 interface RecipeToken {
   key: string;
   label: string;
-  source: 'keyword' | 'ingredient' | 'food-id' | 'category' | 'name';
+  source: 'keyword' | 'ingredient' | 'food-id' | 'category' | 'weather' | 'name';
 }
 
 interface ClusterLabelTerm {
@@ -98,6 +99,13 @@ function buildRecipeTokens(recipe: RecipeSimilarityInput): Map<string, RecipeTok
       source: 'category',
     });
   }
+  for (const weatherTag of uniqueSortedStrings(recipe.weatherTags ?? [])) {
+    tokens.set(`weather:${weatherTag}`, {
+      key: `weather:${weatherTag}`,
+      label: weatherTag,
+      source: 'weather',
+    });
+  }
   for (const term of nameTerms(recipe.name)) {
     tokens.set(`name:${term}`, { key: `name:${term}`, label: term, source: 'name' });
   }
@@ -122,10 +130,12 @@ function tokenSourcePriority(source: RecipeToken['source']): number {
       return 1;
     case 'category':
       return 2;
-    case 'name':
+    case 'weather':
       return 3;
-    case 'food-id':
+    case 'name':
       return 4;
+    case 'food-id':
+      return 5;
   }
 }
 
@@ -162,6 +172,9 @@ function clusterLabelTerms(recipes: RecipeSimilarityInput[]): string[] {
     }
     for (const category of uniqueSortedStrings(recipe.categories ?? [])) {
       recipePriorities.set(category, Math.min(recipePriorities.get(category) ?? 2, 2));
+    }
+    for (const weatherTag of uniqueSortedStrings(recipe.weatherTags ?? [])) {
+      recipePriorities.set(weatherTag, Math.min(recipePriorities.get(weatherTag) ?? 3, 3));
     }
     for (const [label, priority] of recipePriorities.entries()) {
       addLabel(label, priority);

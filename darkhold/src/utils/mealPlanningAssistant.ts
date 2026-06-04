@@ -13,6 +13,7 @@ import type {
   MealAssistantRecipeInsight,
   MealAssistantRecipeSummary,
 } from './mealAssistantPrecalculation';
+import { deriveWeatherFeatures, weatherTagLabel } from './weatherFeatures';
 import { RECENTLY_ADDED_DAYS } from './recentRecipes';
 
 export const UNSUITABLE_DINNER_TAG_FRAGMENTS = [
@@ -27,9 +28,6 @@ export const UNSUITABLE_DINNER_TAG_FRAGMENTS = [
 const DEFAULT_DINNER_TIME_MINUTES = 18 * 60;
 const DINNER_WINDOW_MINUTES = 90;
 const LONG_EVENT_THRESHOLD_MINUTES = 120;
-const GOOD_WEATHER_MIN_TEMP_C = 20;
-const GOOD_WEATHER_MAX_PRECIP_PROBABILITY = 20;
-const GOOD_WEATHER_MAX_PRECIP_MM = 0.5;
 const RECENT_WINDOW_DAYS = 14;
 const REGULAR_WINDOW_DAYS = 42;
 const TAKEAWAY_LOOKBACK_DAYS = 21;
@@ -129,6 +127,7 @@ interface ScoringContext {
   weekProduceCounts: Map<string, number>;
   produceFoodNames: readonly string[];
   precalculation?: MealAssistantPrecalculation;
+  weatherTags?: string[];
 }
 
 interface SlotRole {
@@ -308,11 +307,8 @@ export function isGoodWeatherDay(
   const isWeekend = parsed.getDay() === 0 || parsed.getDay() === 6;
   const isPublicHoliday = publicHolidayDates.has(date);
   if (!isWeekend && !isPublicHoliday) return false;
-  return (
-    weather.tempMaxC >= GOOD_WEATHER_MIN_TEMP_C &&
-    weather.precipitationProbabilityMax <= GOOD_WEATHER_MAX_PRECIP_PROBABILITY &&
-    weather.precipitationSumMm <= GOOD_WEATHER_MAX_PRECIP_MM
-  );
+  const features = deriveWeatherFeatures(weather);
+  return features.outdoorSuitability === 'good';
 }
 
 function getSeasonKey(date: Date): string {
@@ -1014,6 +1010,31 @@ function scoreRecipe(
     });
   }
 
+  if (context.weatherTags && context.weatherTags.length > 0 && insight) {
+    const matchingWeatherTrends = context.weatherTags
+      .flatMap((tag) => {
+        const weatherTrend = insight.weather[tag];
+        return weatherTrend ? [{ tag, trend: weatherTrend }] : [];
+      })
+      .sort(
+        (left, right) => right.trend.score - left.trend.score || left.tag.localeCompare(right.tag),
+      )
+      .slice(0, 2);
+    if (matchingWeatherTrends.length > 0) {
+      components.push({
+        key: 'weather-history',
+        label: 'Weather fit',
+        score: Math.min(
+          14,
+          matchingWeatherTrends.reduce((total, match) => total + match.trend.score, 0),
+        ),
+        detail: `Historically suits ${matchingWeatherTrends
+          .map((match) => weatherTagLabel(match.tag))
+          .join(' and ')}.`,
+      });
+    }
+  }
+
   for (const trackedTag of Object.keys(CATEGORY_ROLE_TAGS)) {
     if (!recipeKeywords.has(trackedTag)) continue;
     const existingCount = context.weekTagCounts.get(trackedTag) ?? 0;
@@ -1320,6 +1341,9 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
             weekProduceCounts: state.weekProduceCounts,
             produceFoodNames,
             precalculation,
+            weatherTags: weatherByDate[slot.date]
+              ? deriveWeatherFeatures(weatherByDate[slot.date]).tags
+              : [],
           }),
         ),
       );
