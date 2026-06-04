@@ -773,7 +773,9 @@ Deno.test('parseOpenMeteoDaily defaults missing precipitation probability to zer
 
   if (days.length !== 1) throw new Error(`expected 1 day, got ${days.length}`);
   if (days[0].precipitationProbabilityMax !== 0) {
-    throw new Error(`expected zero precipitation probability, got ${days[0].precipitationProbabilityMax}`);
+    throw new Error(
+      `expected zero precipitation probability, got ${days[0].precipitationProbabilityMax}`,
+    );
   }
 });
 

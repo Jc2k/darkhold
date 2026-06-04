@@ -682,7 +682,8 @@ export function buildMealAssistantPrecalculation(input: {
     if (nutrition) recipeInsights[String(recipe.id)].nutrition = nutrition;
     for (const name of produce) addRelationship(relationships.produce, name, recipe.id);
     const weatherTags = compactSortedValues(Object.keys(recipeInsights[String(recipe.id)].weather));
-    for (const weatherTag of weatherTags) addRelationship(relationships.weather, weatherTag, recipe.id);
+    for (const weatherTag of weatherTags)
+      addRelationship(relationships.weather, weatherTag, recipe.id);
 
     recipeFeatures[String(recipe.id)] = {
       keywords: keywordNames,

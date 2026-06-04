@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { WeatherFeatureCache } from './weatherFeatureCache';
 import {
   coalesceDateRanges,
   createEmptyWeatherFeatureCache,
@@ -64,7 +65,7 @@ describe('weatherFeatureCache', () => {
       throw new Error(`Unexpected range ${fromDate}..${toDate}`);
     });
 
-    const cache = {
+    const cache: WeatherFeatureCache = {
       ...createEmptyWeatherFeatureCache('2026-01-01T00:00:00.000Z'),
       dates: {
         '2026-01-01': {

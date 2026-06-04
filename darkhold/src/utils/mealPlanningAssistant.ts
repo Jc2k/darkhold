@@ -1349,7 +1349,9 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
             weekProduceCounts: state.weekProduceCounts,
             produceFoodNames,
             precalculation,
-            weatherTags: weatherByDate[slot.date] ? deriveWeatherFeatures(weatherByDate[slot.date]).tags : [],
+            weatherTags: weatherByDate[slot.date]
+              ? deriveWeatherFeatures(weatherByDate[slot.date]).tags
+              : [],
           }),
         ),
       );

@@ -319,9 +319,9 @@ describe('mealPlanningAssistant', () => {
     const weatherMatchedRecipe = makeRecipe(1, 'Zesty Grill Plate');
     const fallbackRecipe = makeRecipe(2, 'Aardvark Stew');
     const historicalMeals = [
-      makeMealPlan(1, weatherMatchedRecipe, '2026-07-04'),
-      makeMealPlan(2, weatherMatchedRecipe, '2026-07-11'),
-      makeMealPlan(3, weatherMatchedRecipe, '2026-07-18'),
+      makeMealPlan(1, weatherMatchedRecipe, '2026-06-06'),
+      makeMealPlan(2, weatherMatchedRecipe, '2026-06-13'),
+      makeMealPlan(3, weatherMatchedRecipe, '2026-06-20'),
     ];
     const precalculation = buildMealAssistantPrecalculation({
       generatedAt: '2026-06-03T00:00:00.000Z',
@@ -329,7 +329,7 @@ describe('mealPlanningAssistant', () => {
       keywordNameById: {},
       mealPlans: historicalMeals,
       weatherByDate: {
-        '2026-07-04': {
+        '2026-06-06': {
           temperatureBand: 'hot',
           precipitationBand: 'dry',
           daylightHours: 16,
@@ -337,7 +337,7 @@ describe('mealPlanningAssistant', () => {
           outdoorSuitability: 'good',
           tags: ['hot-day', 'dry-day', 'long-daylight', 'outdoor-good'],
         },
-        '2026-07-11': {
+        '2026-06-13': {
           temperatureBand: 'hot',
           precipitationBand: 'dry',
           daylightHours: 16,
@@ -345,7 +345,7 @@ describe('mealPlanningAssistant', () => {
           outdoorSuitability: 'good',
           tags: ['hot-day', 'dry-day', 'long-daylight', 'outdoor-good'],
         },
-        '2026-07-18': {
+        '2026-06-20': {
           temperatureBand: 'hot',
           precipitationBand: 'dry',
           daylightHours: 16,

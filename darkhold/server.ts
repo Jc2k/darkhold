@@ -163,7 +163,9 @@ function historicalMealPlanDates(mealPlans: MealPlan[], today = new Date()): str
     .sort((left, right) => left.localeCompare(right));
 }
 
-async function readWeatherFeatureCache(): Promise<ReturnType<typeof createEmptyWeatherFeatureCache>> {
+async function readWeatherFeatureCache(): Promise<
+  ReturnType<typeof createEmptyWeatherFeatureCache>
+> {
   try {
     const body = await Deno.readTextFile(loadWeatherFeatureCachePath());
     const payload: unknown = JSON.parse(body);
@@ -272,10 +274,8 @@ async function writeMealAssistantPrecalculation(): Promise<void> {
   const requiredWeatherDates = historicalMealPlanDates(mealPlans);
   const nextWeatherCache =
     weatherConfig && requiredWeatherDates.length > 0
-      ? await extendWeatherFeatureCache(
-          weatherCache,
-          requiredWeatherDates,
-          (fromDate, toDate) => fetchWeatherFeatureRange(weatherConfig, fromDate, toDate),
+      ? await extendWeatherFeatureCache(weatherCache, requiredWeatherDates, (fromDate, toDate) =>
+          fetchWeatherFeatureRange(weatherConfig, fromDate, toDate),
         )
       : weatherCache;
 

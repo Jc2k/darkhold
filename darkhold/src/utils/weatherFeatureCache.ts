@@ -28,9 +28,7 @@ function addDays(date: string, offset: number): string {
   return new Date(parsed.getTime() + offset * DAY_MS).toISOString().slice(0, 10);
 }
 
-function sortedEntries(
-  dates: Record<string, WeatherFeatures>,
-): Array<[string, WeatherFeatures]> {
+function sortedEntries(dates: Record<string, WeatherFeatures>): Array<[string, WeatherFeatures]> {
   return Object.entries(dates).sort(([left], [right]) => left.localeCompare(right));
 }
 
@@ -55,10 +53,7 @@ export function isWeatherFeatureCache(value: unknown): value is WeatherFeatureCa
   );
 }
 
-export function normalizeCacheDates(
-  dates: Iterable<string>,
-  today = new Date(),
-): string[] {
+export function normalizeCacheDates(dates: Iterable<string>, today = new Date()): string[] {
   const todayStr = new Date(
     Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()),
   )

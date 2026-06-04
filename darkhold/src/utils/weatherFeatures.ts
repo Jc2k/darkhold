@@ -66,10 +66,9 @@ export function getTemperatureBand(tempMaxC: number): WeatherTemperatureBand {
   return 'hot';
 }
 
-export function getPrecipitationBand(day: Pick<
-  WeatherFeatureDay,
-  'precipitationSumMm' | 'precipitationProbabilityMax'
->): WeatherPrecipitationBand {
+export function getPrecipitationBand(
+  day: Pick<WeatherFeatureDay, 'precipitationSumMm' | 'precipitationProbabilityMax'>,
+): WeatherPrecipitationBand {
   if (
     day.precipitationSumMm >= WET_PRECIP_MM ||
     (day.precipitationProbabilityMax ?? 0) >= WET_PRECIP_PROBABILITY
@@ -130,6 +129,6 @@ export function weatherTagLabel(tag: string): string {
     case 'outdoor-poor':
       return 'indoor weather';
     default:
-      return tag.replaceAll('-', ' ');
+      return tag.replace(/-/g, ' ');
   }
 }
