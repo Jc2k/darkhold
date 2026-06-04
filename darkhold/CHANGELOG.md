@@ -1,3 +1,16 @@
+# [1.109.0](https://github.com/Jc2k/darkhold/compare/v1.108.0...v1.109.0) (2026-06-04)
+
+
+### Bug Fixes
+
+* **server:** add deno import extension for recipe similarity ([95eb38f](https://github.com/Jc2k/darkhold/commit/95eb38f6ec360793ed1094cd2e93c98e681ecc84))
+
+
+### Features
+
+* **meal-assistant:** add recipe similarity precalculation ([4438861](https://github.com/Jc2k/darkhold/commit/4438861dfe33245610390f4d8d6df52cc4f5f54b))
+* refactor buildMealAssistantPlan to use deterministic beam search ([0c5262a](https://github.com/Jc2k/darkhold/commit/0c5262af3efe4bf3564038b1c37869909daf7a07))
+
 # [1.108.0](https://github.com/Jc2k/darkhold/compare/v1.107.1...v1.108.0) (2026-06-04)
 
 
