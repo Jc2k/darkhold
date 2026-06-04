@@ -159,6 +159,7 @@ Deno.test('parseIcal parses a simple non-recurring event', () => {
     'BEGIN:VCALENDAR',
     'BEGIN:VEVENT',
     'SUMMARY:Team meeting',
+    'DESCRIPTION:Meet Bob at school',
     'DTSTART:20250507T100000Z',
     'DTEND:20250507T110000Z',
     'END:VEVENT',
@@ -171,9 +172,12 @@ Deno.test('parseIcal parses a simple non-recurring event', () => {
 
   if (events.length !== 1) throw new Error(`expected 1 event, got ${events.length}`);
   if (events[0].name !== 'Team meeting') throw new Error(`name: ${events[0].name}`);
+  if (events[0].description !== 'Meet Bob at school')
+    throw new Error(`description: ${events[0].description}`);
   if (events[0].allDay) throw new Error('should not be all-day');
   if (events[0].start !== '2025-05-07T10:00:00.000Z') throw new Error(`start: ${events[0].start}`);
   if (events[0].end !== '2025-05-07T11:00:00.000Z') throw new Error(`end: ${events[0].end}`);
+  if (events[0].recurring) throw new Error('should not be recurring');
 });
 
 Deno.test('parseIcal parses an all-day event', () => {
@@ -236,6 +240,7 @@ Deno.test('parseIcal expands recurring weekly event', () => {
   const dates = events.map((e) => e.start.split('T')[0]);
   if (!dates.includes('2025-05-05')) throw new Error('missing 2025-05-05');
   if (!dates.includes('2025-05-12')) throw new Error('missing 2025-05-12');
+  if (!events.every((event) => event.recurring)) throw new Error('expected recurring flag');
 });
 
 Deno.test('parseIcal keeps all-day Monday recurring dates on Monday', () => {

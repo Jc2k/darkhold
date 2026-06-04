@@ -11,9 +11,10 @@ import {
   type MealAssistantRecipeClusterMembership,
   type MealAssistantSimilarRecipe,
 } from './recipeSimilarity.ts';
+import type { CalendarFeatureDay } from './calendarFeatures.ts';
 import type { WeatherFeatures } from './weatherFeatures.ts';
 
-export const MEAL_ASSISTANT_PRECALCULATION_SCHEMA_VERSION = 5;
+export const MEAL_ASSISTANT_PRECALCULATION_SCHEMA_VERSION = 6;
 
 export type MealAssistantSeason = 'winter' | 'spring' | 'summer' | 'autumn';
 
@@ -47,6 +48,7 @@ export interface MealAssistantRecipeInsight {
   days: Partial<Record<string, MealAssistantTrend>>;
   seasons: Partial<Record<MealAssistantSeason, MealAssistantTrend>>;
   weather: Record<string, MealAssistantTrend>;
+  calendar: Record<string, MealAssistantTrend>;
   produce: string[];
   nutrition?: MealAssistantNutritionSignal;
 }
@@ -81,6 +83,7 @@ export interface MealAssistantRecipeFeatures {
   ingredientFoodIds: number[];
   ingredientFoodNames: string[];
   weatherTags?: string[];
+  calendarFeatures?: string[];
   cookingTimeMinutes?: number;
   waitingTimeMinutes?: number;
   totalTimeMinutes?: number;
@@ -104,6 +107,7 @@ export interface MealAssistantRelationships {
   keywords: Record<string, number[]>;
   produce: Record<string, number[]>;
   weather: Record<string, number[]>;
+  calendar: Record<string, number[]>;
   flags: Record<string, number[]>;
 }
 
@@ -129,6 +133,9 @@ const MIN_WEEKEND_SHARE = 0.65;
 const MIN_SEASON_TOTAL = 3;
 const MIN_SEASON_COUNT = 2;
 const MIN_SEASON_SHARE = 0.45;
+const MIN_CALENDAR_TOTAL = 2;
+const MIN_CALENDAR_COUNT = 2;
+const MIN_CALENDAR_SHARE = 0.4;
 const LOW_PROTEIN_THRESHOLD_G = 8;
 const HIGH_PROTEIN_THRESHOLD_G = 12;
 const HIGH_CALORIE_THRESHOLD_KCAL = 600;
@@ -199,18 +206,22 @@ function trend(count: number, total: number, maxScore: number): MealAssistantTre
   };
 }
 
-function buildMealHistory(entries: MealPlan[]): MealAssistantMealHistoryEntry[] {
+function buildMealHistory(
+  entries: MealPlan[],
+  publicHolidayDates: ReadonlySet<string> = new Set(),
+): MealAssistantMealHistoryEntry[] {
   return entries.flatMap((entry): MealAssistantMealHistoryEntry[] => {
     const recipeId = recipeIdOf(entry);
     const mealDate = parseMealDate(entry.from_date);
     if (!recipeId || !mealDate) return [];
+    const date = entry.from_date.includes('T') ? entry.from_date.split('T')[0] : entry.from_date;
     const day = mealDate.getDay();
     return [
       {
         recipeId,
-        date: entry.from_date.includes('T') ? entry.from_date.split('T')[0] : entry.from_date,
+        date,
         day,
-        weekend: day === 0 || day === 6,
+        weekend: day === 0 || day === 6 || publicHolidayDates.has(date),
         season: getMealAssistantSeason(mealDate),
       },
     ];
@@ -225,6 +236,7 @@ function createEmptyInsight(): MealAssistantRecipeInsight {
     days: {},
     seasons: {},
     weather: {},
+    calendar: {},
     produce: [],
   };
 }
@@ -489,6 +501,11 @@ function isMealAssistantRecipeFeaturesRecord(
       (features.weatherTags == null ||
         (Array.isArray(features.weatherTags) &&
           features.weatherTags.every((weatherTag) => typeof weatherTag === 'string'))) &&
+      (features.calendarFeatures == null ||
+        (Array.isArray(features.calendarFeatures) &&
+          features.calendarFeatures.every(
+            (calendarFeature) => typeof calendarFeature === 'string',
+          ))) &&
       Array.isArray(features.ingredientFoodIds) &&
       Array.isArray(features.ingredientFoodNames),
   );
@@ -551,12 +568,19 @@ export function buildMealAssistantPrecalculation(input: {
   produceFoods?: readonly Pick<Food, 'id' | 'name'>[];
   produceFoodNames?: readonly string[];
   weatherByDate?: Record<string, WeatherFeatures>;
+  calendarByDate?: Record<string, CalendarFeatureDay>;
   generatedAt?: string;
 }): MealAssistantPrecalculation {
   const produceFoods = normalizedProduceFoods(input);
   const produceFoodNames = compactSortedValues(produceFoods.map((food) => food.name));
   const weatherByDate = input.weatherByDate ?? {};
-  const mealHistory = buildMealHistory(input.mealPlans).sort((a, b) =>
+  const calendarByDate = input.calendarByDate ?? {};
+  const publicHolidayDates = new Set(
+    Object.entries(calendarByDate)
+      .filter(([, day]) => day.bankHoliday)
+      .map(([date]) => date),
+  );
+  const mealHistory = buildMealHistory(input.mealPlans, publicHolidayDates).sort((a, b) =>
     a.date.localeCompare(b.date),
   );
   const recipes: Record<string, MealAssistantRecipeSummary> = {};
@@ -567,9 +591,11 @@ export function buildMealAssistantPrecalculation(input: {
     keywords: {},
     produce: Object.fromEntries(produceFoodNames.map((name) => [name, [] as number[]])),
     weather: {},
+    calendar: {},
     flags: {},
   };
   const recipeWeatherCounts = new Map<string, Map<string, number>>();
+  const recipeCalendarCounts = new Map<string, Map<string, number>>();
 
   for (const recipe of input.recipes) {
     const summary: MealAssistantRecipeSummary = {
@@ -613,6 +639,15 @@ export function buildMealAssistantPrecalculation(input: {
         counts.set(tag, (counts.get(tag) ?? 0) + 1);
       }
       recipeWeatherCounts.set(String(entry.recipeId), counts);
+    }
+
+    const calendarDay = calendarByDate[entry.date];
+    if (calendarDay) {
+      const counts = recipeCalendarCounts.get(String(entry.recipeId)) ?? new Map<string, number>();
+      for (const featureKey of calendarDay.appointmentFeatures) {
+        counts.set(featureKey, (counts.get(featureKey) ?? 0) + 1);
+      }
+      recipeCalendarCounts.set(String(entry.recipeId), counts);
     }
   }
 
@@ -667,6 +702,17 @@ export function buildMealAssistantPrecalculation(input: {
         insight.weather[weatherTag] = trend(count, insight.totalCookCount, 8);
       }
     }
+
+    for (const [calendarFeature, count] of recipeCalendarCounts.get(recipeId) ?? new Map()) {
+      const share = insight.totalCookCount > 0 ? count / insight.totalCookCount : 0;
+      if (
+        insight.totalCookCount >= MIN_CALENDAR_TOTAL &&
+        count >= MIN_CALENDAR_COUNT &&
+        share >= MIN_CALENDAR_SHARE
+      ) {
+        insight.calendar[calendarFeature] = trend(count, insight.totalCookCount, 10);
+      }
+    }
   }
 
   for (const recipe of input.recipes) {
@@ -682,14 +728,20 @@ export function buildMealAssistantPrecalculation(input: {
     if (nutrition) recipeInsights[String(recipe.id)].nutrition = nutrition;
     for (const name of produce) addRelationship(relationships.produce, name, recipe.id);
     const weatherTags = compactSortedValues(Object.keys(recipeInsights[String(recipe.id)].weather));
+    const calendarFeatures = compactSortedValues(
+      recipeCalendarCounts.get(String(recipe.id))?.keys() ?? [],
+    );
     for (const weatherTag of weatherTags)
       addRelationship(relationships.weather, weatherTag, recipe.id);
+    for (const calendarFeature of calendarFeatures)
+      addRelationship(relationships.calendar, calendarFeature, recipe.id);
 
     recipeFeatures[String(recipe.id)] = {
       keywords: keywordNames,
       produce,
       ...(categoryNames.length > 0 ? { categories: categoryNames } : {}),
       ...(weatherTags.length > 0 ? { weatherTags } : {}),
+      ...(calendarFeatures.length > 0 ? { calendarFeatures } : {}),
       stepCount: stats.stepCount,
       ingredientLineCount: stats.ingredientLineCount,
       distinctFoodCount: stats.distinctFoodCount,
@@ -729,6 +781,7 @@ export function buildMealAssistantPrecalculation(input: {
           ingredientFoodNames: features?.ingredientFoodNames ?? [],
           categories: features?.categories,
           weatherTags: features?.weatherTags,
+          calendarFeatures: features?.calendarFeatures,
         };
       }),
     );
@@ -736,6 +789,7 @@ export function buildMealAssistantPrecalculation(input: {
   sortRelationshipIds(relationships.keywords);
   sortRelationshipIds(relationships.produce);
   sortRelationshipIds(relationships.weather);
+  sortRelationshipIds(relationships.calendar);
   sortRelationshipIds(relationships.flags);
   for (const history of Object.values(recipeHistory)) {
     history.dates.sort((a, b) => a - b);

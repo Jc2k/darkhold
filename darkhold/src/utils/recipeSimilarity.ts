@@ -1,3 +1,5 @@
+import { describeCalendarAppointmentFeature } from './calendarFeatures.ts';
+
 export interface RecipeSimilarityInput {
   id: number;
   name: string;
@@ -6,6 +8,7 @@ export interface RecipeSimilarityInput {
   ingredientFoodNames: string[];
   categories?: string[];
   weatherTags?: string[];
+  calendarFeatures?: string[];
 }
 
 export interface MealAssistantSimilarRecipe {
@@ -38,7 +41,7 @@ export interface RecipeSimilarityIndex {
 interface RecipeToken {
   key: string;
   label: string;
-  source: 'keyword' | 'ingredient' | 'food-id' | 'category' | 'weather' | 'name';
+  source: 'keyword' | 'ingredient' | 'food-id' | 'category' | 'weather' | 'calendar' | 'name';
 }
 
 interface ClusterLabelTerm {
@@ -106,6 +109,13 @@ function buildRecipeTokens(recipe: RecipeSimilarityInput): Map<string, RecipeTok
       source: 'weather',
     });
   }
+  for (const calendarFeature of uniqueSortedStrings(recipe.calendarFeatures ?? [])) {
+    tokens.set(`calendar:${calendarFeature}`, {
+      key: `calendar:${calendarFeature}`,
+      label: describeCalendarAppointmentFeature(calendarFeature),
+      source: 'calendar',
+    });
+  }
   for (const term of nameTerms(recipe.name)) {
     tokens.set(`name:${term}`, { key: `name:${term}`, label: term, source: 'name' });
   }
@@ -132,10 +142,12 @@ function tokenSourcePriority(source: RecipeToken['source']): number {
       return 2;
     case 'weather':
       return 3;
-    case 'name':
+    case 'calendar':
       return 4;
-    case 'food-id':
+    case 'name':
       return 5;
+    case 'food-id':
+      return 6;
   }
 }
 
@@ -175,6 +187,12 @@ function clusterLabelTerms(recipes: RecipeSimilarityInput[]): string[] {
     }
     for (const weatherTag of uniqueSortedStrings(recipe.weatherTags ?? [])) {
       recipePriorities.set(weatherTag, Math.min(recipePriorities.get(weatherTag) ?? 3, 3));
+    }
+    for (const calendarFeature of uniqueSortedStrings(recipe.calendarFeatures ?? [])) {
+      recipePriorities.set(
+        describeCalendarAppointmentFeature(calendarFeature),
+        Math.min(recipePriorities.get(describeCalendarAppointmentFeature(calendarFeature)) ?? 4, 4),
+      );
     }
     for (const [label, priority] of recipePriorities.entries()) {
       addLabel(label, priority);

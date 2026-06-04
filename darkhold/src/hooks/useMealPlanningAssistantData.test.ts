@@ -34,7 +34,7 @@ describe('fetchMealPlanningAssistantData', () => {
 
   it('uses the precalculation payload when available', async () => {
     const precalculation: MealAssistantPrecalculation = {
-      schemaVersion: 5,
+      schemaVersion: 6,
       generatedAt: '2026-06-03T00:00:00.000Z',
       keywordNameById: { 10: 'Dinner' },
       recipes: { '1': { id: 1, name: 'Chilli', image: '/recipe.jpg' } },
@@ -43,6 +43,7 @@ describe('fetchMealPlanningAssistantData', () => {
           keywords: ['dinner'],
           produce: ['courgette'],
           weatherTags: ['dry-day'],
+          calendarFeatures: ['bob|long'],
           stepCount: 0,
           ingredientLineCount: 0,
           distinctFoodCount: 0,
@@ -74,6 +75,7 @@ describe('fetchMealPlanningAssistantData', () => {
         keywords: { dinner: [1] },
         produce: { courgette: [1] },
         weather: { 'dry-day': [1] },
+        calendar: { 'bob|long': [1] },
         flags: { 'has-image': [1] },
       },
       recipeHistory: {
@@ -93,6 +95,7 @@ describe('fetchMealPlanningAssistantData', () => {
           days: {},
           seasons: {},
           weather: {},
+          calendar: {},
           produce: ['courgette'],
         },
       },

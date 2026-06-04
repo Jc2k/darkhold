@@ -13,6 +13,7 @@ import type {
   MealAssistantRecipeInsight,
   MealAssistantRecipeSummary,
 } from './mealAssistantPrecalculation';
+import { buildCalendarFeatureDay, describeCalendarAppointmentFeature } from './calendarFeatures';
 import { deriveWeatherFeatures, weatherTagLabel } from './weatherFeatures';
 import { RECENTLY_ADDED_DAYS } from './recentRecipes';
 
@@ -128,6 +129,7 @@ interface ScoringContext {
   produceFoodNames: readonly string[];
   precalculation?: MealAssistantPrecalculation;
   weatherTags?: string[];
+  calendarFeatures?: string[];
 }
 
 interface SlotRole {
@@ -1035,6 +1037,32 @@ function scoreRecipe(
     }
   }
 
+  if (context.calendarFeatures && context.calendarFeatures.length > 0 && insight) {
+    const matchingCalendarTrends = context.calendarFeatures
+      .flatMap((featureKey) => {
+        const calendarTrend = insight.calendar[featureKey];
+        return calendarTrend ? [{ featureKey, trend: calendarTrend }] : [];
+      })
+      .sort(
+        (left, right) =>
+          right.trend.score - left.trend.score || left.featureKey.localeCompare(right.featureKey),
+      )
+      .slice(0, 2);
+    if (matchingCalendarTrends.length > 0) {
+      components.push({
+        key: 'calendar-history',
+        label: 'Calendar fit',
+        score: Math.min(
+          14,
+          matchingCalendarTrends.reduce((total, match) => total + match.trend.score, 0),
+        ),
+        detail: `Historically common when ${matchingCalendarTrends
+          .map((match) => describeCalendarAppointmentFeature(match.featureKey))
+          .join(' and ')}.`,
+      });
+    }
+  }
+
   for (const trackedTag of Object.keys(CATEGORY_ROLE_TAGS)) {
     if (!recipeKeywords.has(trackedTag)) continue;
     const existingCount = context.weekTagCounts.get(trackedTag) ?? 0;
@@ -1328,6 +1356,10 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
         continue;
       }
 
+      const slotCalendarFeatures = buildCalendarFeatureDay(
+        calendarEventsByDate[slot.date] ?? [],
+      ).appointmentFeatures;
+
       const scoredCandidates = sortCandidates(
         fallbackCandidates.map((recipe) =>
           scoreRecipe(recipe, keywordNameById, {
@@ -1344,6 +1376,7 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
             weatherTags: weatherByDate[slot.date]
               ? deriveWeatherFeatures(weatherByDate[slot.date]).tags
               : [],
+            calendarFeatures: slotCalendarFeatures,
           }),
         ),
       );

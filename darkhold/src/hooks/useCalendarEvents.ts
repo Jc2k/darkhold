@@ -5,12 +5,14 @@ export type CalendarEventCategory = 'appointment' | 'bank-holiday' | 'context';
 
 export interface CalendarEvent {
   name: string;
+  description?: string;
   /** ISO 8601 UTC timestamp for timed events, or YYYY-MM-DD for all-day events */
   start: string;
   /** ISO 8601 UTC timestamp for timed events, or YYYY-MM-DD for all-day events */
   end?: string;
   allDay: boolean;
   category?: CalendarEventCategory;
+  recurring?: boolean;
 }
 
 export interface CalendarFeedError {

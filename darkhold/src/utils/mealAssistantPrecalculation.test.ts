@@ -138,7 +138,7 @@ describe('mealAssistantPrecalculation', () => {
     });
 
     expect(result.generatedAt).toBe('2026-06-03T00:00:00.000Z');
-    expect(result.schemaVersion).toBe(5);
+    expect(result.schemaVersion).toBe(6);
     expect(result.recipes['1']).toMatchObject({ id: 1, name: 'Chilli con carne' });
     expect(result.recipes['1']).not.toHaveProperty('food_properties');
     expect(result.recipeHistory['1']).toMatchObject({
@@ -205,6 +205,31 @@ describe('mealAssistantPrecalculation', () => {
       size: 1,
     });
     expect(isMealAssistantPrecalculation(result)).toBe(true);
+  });
+
+  it('treats historical bank holidays as weekend days and stores calendar features', () => {
+    const result = buildMealAssistantPrecalculation({
+      generatedAt: '2026-06-03T00:00:00.000Z',
+      keywordNameById: {},
+      recipes: [recipe(1, 'Family Traybake'), recipe(2, 'Plain Pasta')],
+      mealPlans: [mealPlan(1, 1, '2026-05-25'), mealPlan(2, 1, '2026-06-01')],
+      calendarByDate: {
+        '2026-05-25': {
+          bankHoliday: true,
+          appointmentFeatures: ['bob|long', 'school|long'],
+        },
+        '2026-06-01': {
+          bankHoliday: false,
+          appointmentFeatures: ['bob|long'],
+        },
+      },
+    });
+
+    expect(result.recipeInsights['1'].weekendCookCount).toBe(1);
+    expect(result.recipeInsights['1'].weekdayCookCount).toBe(1);
+    expect(result.recipeInsights['1'].calendar['bob|long']).toMatchObject({ count: 2, total: 2 });
+    expect(result.recipeFeatures['1'].calendarFeatures).toEqual(['bob|long', 'school|long']);
+    expect(result.relationships.calendar['bob|long']).toEqual([1]);
   });
 
   it('stores deterministic recipe similarities and cluster metadata', () => {
