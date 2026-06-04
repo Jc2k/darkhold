@@ -91,7 +91,20 @@ describe('mealAssistantPrecalculation', () => {
     expect(result.schemaVersion).toBe(3);
     expect(result.recipes['1']).toMatchObject({ id: 1, name: 'Chilli con carne' });
     expect(result.recipes['1']).not.toHaveProperty('food_properties');
-    expect(result.recipeHistory['1']).toMatchObject({ totalPlanCount: 4 });
+    expect(result.recipeHistory['1']).toMatchObject({
+      totalPlanCount: 4,
+      firstPlannedDate: 20455,
+      lastPlannedDate: 20476,
+      averageDaysBetweenPlans: 7,
+      medianDaysBetweenPlans: 7,
+    });
+    expect(result.recipeHistory['2']).toMatchObject({
+      totalPlanCount: 2,
+      firstPlannedDate: 20638,
+      lastPlannedDate: 20645,
+      averageDaysBetweenPlans: 7,
+      medianDaysBetweenPlans: 7,
+    });
     expect(result.recipeHistory['1'].dayCounts[5]).toBe(4);
     expect(result.recipeInsights['1'].days['5']).toMatchObject({ count: 4, total: 4 });
     expect(result.recipeInsights['1'].weekday).toMatchObject({ count: 4, total: 4 });

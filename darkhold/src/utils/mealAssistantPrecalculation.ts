@@ -84,7 +84,10 @@ export interface MealAssistantRecipeHistory {
   dayCounts: [number, number, number, number, number, number, number];
   seasonCounts: [number, number, number, number];
   totalPlanCount: number;
+  firstPlannedDate?: number;
   lastPlannedDate?: number;
+  averageDaysBetweenPlans?: number;
+  medianDaysBetweenPlans?: number;
 }
 
 export interface MealAssistantRelationships {
@@ -155,6 +158,20 @@ export function mealAssistantDayNumberToDate(dayNumber: number): string {
 
 function roundShare(value: number): number {
   return Math.round(value * 1000) / 1000;
+}
+
+function roundTo(value: number, fractionDigits: number): number {
+  const factor = 10 ** fractionDigits;
+  return Math.round(value * factor) / factor;
+}
+
+function median(numbers: number[]): number {
+  const sorted = numbers.slice().sort((left, right) => left - right);
+  const middle = Math.floor(sorted.length / 2);
+  if (sorted.length % 2 === 0) {
+    return (sorted[middle - 1] + sorted[middle]) / 2;
+  }
+  return sorted[middle];
 }
 
 function trend(count: number, total: number, maxScore: number): MealAssistantTrend {
@@ -496,7 +513,6 @@ export function buildMealAssistantPrecalculation(input: {
     const dayNumber = dateStringToDayNumber(entry.date);
     if (dayNumber != null) {
       history.dates.push(dayNumber);
-      history.lastPlannedDate = Math.max(history.lastPlannedDate ?? dayNumber, dayNumber);
     }
     history.dayCounts[entry.day] += 1;
     history.seasonCounts[SEASON_INDEX[entry.season]] += 1;
@@ -593,6 +609,17 @@ export function buildMealAssistantPrecalculation(input: {
   sortRelationshipIds(relationships.flags);
   for (const history of Object.values(recipeHistory)) {
     history.dates.sort((a, b) => a - b);
+    if (history.dates.length === 0) continue;
+    history.firstPlannedDate = history.dates[0];
+    history.lastPlannedDate = history.dates[history.dates.length - 1];
+    if (history.dates.length < 2) continue;
+    const dayDiffs: number[] = [];
+    for (let index = 1; index < history.dates.length; index += 1) {
+      dayDiffs.push(history.dates[index] - history.dates[index - 1]);
+    }
+    const average = dayDiffs.reduce((total, value) => total + value, 0) / dayDiffs.length;
+    history.averageDaysBetweenPlans = roundTo(average, 2);
+    history.medianDaysBetweenPlans = roundTo(median(dayDiffs), 2);
   }
 
   return {

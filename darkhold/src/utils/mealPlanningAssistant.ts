@@ -9,6 +9,7 @@ import { formatDate, parseLocalDate } from './dateUtils';
 import { mealAssistantDayNumberToDate } from './mealAssistantPrecalculation';
 import type {
   MealAssistantPrecalculation,
+  MealAssistantRecipeHistory,
   MealAssistantRecipeInsight,
   MealAssistantRecipeSummary,
 } from './mealAssistantPrecalculation';
@@ -38,6 +39,9 @@ const MIN_REGULAR_RECIPE_COUNT = 2;
 const SAME_CATEGORY_PENALTY_THRESHOLD = 2;
 const FNV_OFFSET_BASIS = 2166136261;
 const FNV_PRIME = 16777619;
+const DUE_AGAIN_MAX_SCORE = 12;
+const DUE_AGAIN_MIN_SCORE = 2;
+const DUE_AGAIN_SCORE_PER_CADENCE = 8;
 
 const CATEGORY_ROLE_TAGS = {
   pasta: ['pasta'],
@@ -116,6 +120,7 @@ interface ScoringContext {
   role: MealAssistantRole;
   upSoonRecipeIds: Set<number>;
   regularRecipeIds: Set<number>;
+  recipeHistoryById: Map<number, MealAssistantRecipeHistory>;
   weekTagCounts: Map<string, number>;
   weekProduceCounts: Map<string, number>;
   produceFoodNames: readonly string[];
@@ -199,6 +204,13 @@ function isCategoryRole(role: MealAssistantRole): role is keyof typeof CATEGORY_
 function parseMealDate(entry: Pick<MealPlan, 'from_date'>): Date | null {
   const value = entry.from_date.includes('T') ? entry.from_date.split('T')[0] : entry.from_date;
   return parseLocalDate(value);
+}
+
+function parseMealDayNumber(entry: Pick<MealPlan, 'from_date'>): number | null {
+  const value = entry.from_date.includes('T') ? entry.from_date.split('T')[0] : entry.from_date;
+  const [year, month, day] = value.split('-').map((part) => Number.parseInt(part, 10));
+  if (![year, month, day].every((part) => Number.isFinite(part))) return null;
+  return Math.floor(Date.UTC(year, month - 1, day) / (24 * 60 * 60 * 1000));
 }
 
 function addDays(date: Date, days: number): Date {
@@ -358,6 +370,66 @@ function mealHistoryToMealPlans(precalculation: MealAssistantPrecalculation): Me
       from_date: mealAssistantDayNumberToDate(dayNumber),
     })),
   );
+}
+
+function buildRecipeHistoryById(entries: MealPlan[]): Map<number, MealAssistantRecipeHistory> {
+  const dayNumbersByRecipe = new Map<number, number[]>();
+  for (const entry of entries) {
+    const recipeId = recipeIdOf(entry);
+    if (!recipeId) continue;
+    const dayNumber = parseMealDayNumber(entry);
+    if (dayNumber == null) continue;
+    const dayNumbers = dayNumbersByRecipe.get(recipeId) ?? [];
+    dayNumbers.push(dayNumber);
+    dayNumbersByRecipe.set(recipeId, dayNumbers);
+  }
+
+  const historyByRecipeId = new Map<number, MealAssistantRecipeHistory>();
+  for (const [recipeId, dayNumbers] of dayNumbersByRecipe.entries()) {
+    const sortedDayNumbers = dayNumbers.slice().sort((left, right) => left - right);
+    const dayCounts: MealAssistantRecipeHistory['dayCounts'] = [0, 0, 0, 0, 0, 0, 0];
+    const seasonCounts: MealAssistantRecipeHistory['seasonCounts'] = [0, 0, 0, 0];
+    for (const dayNumber of sortedDayNumbers) {
+      const date = parseLocalDate(mealAssistantDayNumberToDate(dayNumber));
+      if (!date) continue;
+      dayCounts[date.getDay()] += 1;
+      const month = date.getMonth() + 1;
+      const seasonIndex = month === 12 || month <= 2 ? 0 : month <= 5 ? 1 : month <= 8 ? 2 : 3;
+      seasonCounts[seasonIndex] += 1;
+    }
+    const dayDiffs = sortedDayNumbers.slice(1).map((day, index) => day - sortedDayNumbers[index]);
+    const averageDaysBetweenPlans =
+      dayDiffs.length > 0
+        ? Math.round((dayDiffs.reduce((total, value) => total + value, 0) / dayDiffs.length) * 100) /
+          100
+        : undefined;
+    const sortedDiffs = dayDiffs.slice().sort((left, right) => left - right);
+    const medianDaysBetweenPlans =
+      sortedDiffs.length === 0
+        ? undefined
+        : sortedDiffs.length % 2 === 0
+          ? (sortedDiffs[sortedDiffs.length / 2 - 1] + sortedDiffs[sortedDiffs.length / 2]) / 2
+          : sortedDiffs[Math.floor(sortedDiffs.length / 2)];
+    historyByRecipeId.set(recipeId, {
+      dates: sortedDayNumbers,
+      dayCounts,
+      seasonCounts,
+      totalPlanCount: sortedDayNumbers.length,
+      firstPlannedDate: sortedDayNumbers[0],
+      lastPlannedDate: sortedDayNumbers[sortedDayNumbers.length - 1],
+      averageDaysBetweenPlans,
+      medianDaysBetweenPlans:
+        medianDaysBetweenPlans == null ? undefined : Math.round(medianDaysBetweenPlans * 100) / 100,
+    });
+  }
+  return historyByRecipeId;
+}
+
+function getRecipeHistoryForScoring(
+  recipeId: number,
+  context: ScoringContext,
+): MealAssistantRecipeHistory | undefined {
+  return context.precalculation?.recipeHistory[String(recipeId)] ?? context.recipeHistoryById.get(recipeId);
 }
 
 function countRecipesWithinWindow(
@@ -792,6 +864,33 @@ function scoreRecipe(
   }
 
   const insight = getPrecalculatedRecipeInsight(context.precalculation, recipe.id);
+  const history = getRecipeHistoryForScoring(recipe.id, context);
+  const slotDayNumber = parseMealDayNumber({ from_date: context.date });
+  const cadenceDays = history?.medianDaysBetweenPlans ?? history?.averageDaysBetweenPlans;
+  if (
+    history &&
+    slotDayNumber != null &&
+    history.lastPlannedDate != null &&
+    cadenceDays != null &&
+    cadenceDays > 0
+  ) {
+    const daysSinceLastPlanned = slotDayNumber - history.lastPlannedDate;
+    if (daysSinceLastPlanned > cadenceDays) {
+      const overdueRatio = (daysSinceLastPlanned - cadenceDays) / cadenceDays;
+      const dueScore = Math.min(
+        DUE_AGAIN_MAX_SCORE,
+        Math.max(DUE_AGAIN_MIN_SCORE, Math.round(DUE_AGAIN_MIN_SCORE + overdueRatio * DUE_AGAIN_SCORE_PER_CADENCE)),
+      );
+      const cadenceLabel = history.medianDaysBetweenPlans != null ? 'median' : 'average';
+      components.push({
+        key: 'due-again',
+        label: 'Due again',
+        score: dueScore,
+        detail: `Last planned ${daysSinceLastPlanned} days ago; typical ${cadenceLabel} gap is ${cadenceDays} days.`,
+      });
+    }
+  }
+
   const dayTrend = insight?.days[String(dateDay)];
   if (dayTrend) {
     components.push({
@@ -1004,6 +1103,7 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
       )
       .map(([recipeId]) => recipeId),
   );
+  const recipeHistoryById = buildRecipeHistoryById(historicalMeals);
 
   const recipes = input.recipes.length > 0 ? input.recipes : precalculationRecipes(precalculation);
   const baseRecipes = recipes.filter((recipe) =>
@@ -1079,6 +1179,7 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
           role: effectiveRole,
           upSoonRecipeIds,
           regularRecipeIds,
+          recipeHistoryById,
           weekTagCounts,
           weekProduceCounts,
           produceFoodNames,
