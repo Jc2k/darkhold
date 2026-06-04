@@ -1,3 +1,10 @@
+# [1.106.0](https://github.com/Jc2k/darkhold/compare/v1.105.0...v1.106.0) (2026-06-04)
+
+
+### Features
+
+* **recipes:** add thumbnails to recipe list rows ([f6d7670](https://github.com/Jc2k/darkhold/commit/f6d7670acf600694897248f5efa4e4f0aec953de))
+
 # [1.105.0](https://github.com/Jc2k/darkhold/compare/v1.104.1...v1.105.0) (2026-06-04)
 
 
