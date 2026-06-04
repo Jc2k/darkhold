@@ -1,3 +1,11 @@
+# [1.108.0](https://github.com/Jc2k/darkhold/compare/v1.107.1...v1.108.0) (2026-06-04)
+
+
+### Features
+
+* **meal-assistant:** add cadence history and due scoring ([2da6f98](https://github.com/Jc2k/darkhold/commit/2da6f98e13bc95fe42ad819f65531bf914c117fd))
+* **meal-assistant:** score overdue recipes by cadence ([7e99315](https://github.com/Jc2k/darkhold/commit/7e99315ad160105719c267724f9b2cc2b0a85d24))
+
 ## [1.107.1](https://github.com/Jc2k/darkhold/compare/v1.107.0...v1.107.1) (2026-06-04)
 
 
