@@ -1,3 +1,10 @@
+## [1.107.1](https://github.com/Jc2k/darkhold/compare/v1.107.0...v1.107.1) (2026-06-04)
+
+
+### Bug Fixes
+
+* **meal-assistant:** match produce by ingredient food ids ([768393a](https://github.com/Jc2k/darkhold/commit/768393ad7f84056c7fbc7df8cd1d74aebd338a37))
+
 # [1.107.0](https://github.com/Jc2k/darkhold/compare/v1.106.1...v1.107.0) (2026-06-04)
 
 
