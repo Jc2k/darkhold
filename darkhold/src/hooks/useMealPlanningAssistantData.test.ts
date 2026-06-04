@@ -34,7 +34,7 @@ describe('fetchMealPlanningAssistantData', () => {
 
   it('uses the precalculation payload when available', async () => {
     const precalculation: MealAssistantPrecalculation = {
-      schemaVersion: 2,
+      schemaVersion: 3,
       generatedAt: '2026-06-03T00:00:00.000Z',
       keywordNameById: { 10: 'Dinner' },
       recipes: { '1': { id: 1, name: 'Chilli', image: '/recipe.jpg' } },
@@ -46,6 +46,9 @@ describe('fetchMealPlanningAssistantData', () => {
           ingredientLineCount: 0,
           distinctFoodCount: 0,
           complexityScore: 0,
+          complexityBucket: 'simple',
+          ingredientFoodIds: [],
+          ingredientFoodNames: [],
         },
       },
       relationships: {
