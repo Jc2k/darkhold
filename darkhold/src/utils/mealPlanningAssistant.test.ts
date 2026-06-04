@@ -387,6 +387,60 @@ describe('mealPlanningAssistant', () => {
     });
   });
 
+  it('weights recipes toward matching precalculated calendar history for live appointments', () => {
+    const calendarMatchedRecipe = makeRecipe(1, 'Bob Night Pasta');
+    const fallbackRecipe = makeRecipe(2, 'Aardvark Stew');
+    const precalculation = buildMealAssistantPrecalculation({
+      generatedAt: '2026-06-03T00:00:00.000Z',
+      recipes: [calendarMatchedRecipe, fallbackRecipe],
+      keywordNameById: {},
+      mealPlans: [
+        makeMealPlan(1, calendarMatchedRecipe, '2026-05-05'),
+        makeMealPlan(2, calendarMatchedRecipe, '2026-05-12'),
+      ],
+      calendarByDate: {
+        '2026-05-05': {
+          bankHoliday: false,
+          appointmentFeatures: ['bob|long'],
+        },
+        '2026-05-12': {
+          bankHoliday: false,
+          appointmentFeatures: ['bob|long'],
+        },
+      },
+    });
+
+    const plan = buildMealAssistantPlan({
+      weekStart: new Date('2026-07-20T00:00:00'),
+      weekEnd: new Date('2026-07-26T00:00:00'),
+      emptyDinnerDates: ['2026-07-22'],
+      existingWeekMeals: [],
+      historicalMeals: [],
+      recipes: [calendarMatchedRecipe, fallbackRecipe],
+      calendarEventsByDate: {
+        '2026-07-22': [
+          {
+            name: 'Dinner with Bob',
+            description: 'School pickup first',
+            start: '2026-07-22T16:00:00Z',
+            end: '2026-07-22T19:30:00Z',
+            allDay: false,
+            category: 'appointment',
+          },
+        ],
+      },
+      dinnerTime: '18:00',
+      precalculation,
+    });
+
+    expect(plan.slots[0]?.selected.recipe.name).toBe('Bob Night Pasta');
+    expect(
+      plan.slots[0]?.selected.components.find((component) => component.key === 'calendar-history'),
+    ).toMatchObject({
+      label: 'Calendar fit',
+    });
+  });
+
   it('prefers close alternatives from precalculated similarities', () => {
     const selectedRecipe = makeRecipe(1, 'Quick Pasta', [{ id: 10, name: 'Busy' }], {
       steps: [

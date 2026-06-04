@@ -11,6 +11,12 @@ import type {
   SupermarketCategory,
 } from './src/api/tandoor-types.d.ts';
 import { buildMealAssistantPrecalculation } from './src/utils/mealAssistantPrecalculation.ts';
+import { buildCalendarFeatureDay } from './src/utils/calendarFeatures.ts';
+import {
+  createEmptyCalendarFeatureCache,
+  extendCalendarFeatureCache,
+  isCalendarFeatureCache,
+} from './src/utils/calendarFeatureCache.ts';
 import {
   createEmptyWeatherFeatureCache,
   extendWeatherFeatureCache,
@@ -40,6 +46,10 @@ function loadMealAssistantPrecalculationPath(): string {
 
 function loadWeatherFeatureCachePath(): string {
   return safeGetEnv('WEATHER_FEATURE_CACHE_PATH') ?? DEFAULT_WEATHER_FEATURE_CACHE_PATH;
+}
+
+function loadCalendarFeatureCachePath(): string {
+  return safeGetEnv('CALENDAR_FEATURE_CACHE_PATH') ?? DEFAULT_CALENDAR_FEATURE_CACHE_PATH;
 }
 
 function getTandoorHeaders(): HeadersInit {
@@ -176,6 +186,19 @@ async function readWeatherFeatureCache(): Promise<
   }
 }
 
+async function readCalendarFeatureCache(): Promise<
+  ReturnType<typeof createEmptyCalendarFeatureCache>
+> {
+  try {
+    const body = await Deno.readTextFile(loadCalendarFeatureCachePath());
+    const payload: unknown = JSON.parse(body);
+    return isCalendarFeatureCache(payload) ? payload : createEmptyCalendarFeatureCache();
+  } catch (err) {
+    if (err instanceof Deno.errors.NotFound) return createEmptyCalendarFeatureCache();
+    throw err;
+  }
+}
+
 async function writeFileAtomically(path: string, body: string): Promise<void> {
   const lastSlash = path.lastIndexOf('/');
   const directory = lastSlash >= 0 ? path.slice(0, lastSlash) : '.';
@@ -254,6 +277,43 @@ async function fetchWeatherFeatureRange(
     .sort((left, right) => left.date.localeCompare(right.date));
 }
 
+function enumerateDateRange(fromDate: string, toDate: string): string[] {
+  const dates: string[] = [];
+  for (let date = new Date(`${fromDate}T00:00:00Z`); date <= new Date(`${toDate}T00:00:00Z`); ) {
+    dates.push(formatUtcDate(date));
+    date = new Date(date.getTime() + DAY_MS);
+  }
+  return dates;
+}
+
+async function fetchCalendarFeatureRange(fromDate: string, toDate: string) {
+  const rangeStart = new Date(`${fromDate}T00:00:00Z`);
+  const rangeEnd = new Date(`${toDate}T23:59:59Z`);
+  const feeds = loadICalFeeds().filter((feed) => (feed.category ?? 'appointment') !== 'context');
+  const eventsByDate = new Map<string, ParsedEvent[]>();
+
+  await Promise.allSettled(
+    feeds.map(async (feed) => {
+      try {
+        const events = await fetchFeedEvents(feed, rangeStart, rangeEnd);
+        for (const event of events) {
+          const date = event.start.includes('T') ? event.start.split('T')[0] : event.start;
+          const current = eventsByDate.get(date) ?? [];
+          current.push(event);
+          eventsByDate.set(date, current);
+        }
+      } catch (err) {
+        console.error(`Error fetching calendar feature feed "${feed.name}":`, err);
+      }
+    }),
+  );
+
+  return enumerateDateRange(fromDate, toDate).map((date) => ({
+    date,
+    ...buildCalendarFeatureDay(eventsByDate.get(date) ?? []),
+  }));
+}
+
 async function writeMealAssistantPrecalculation(): Promise<void> {
   if (!safeGetEnv('TANDOOR_DEFAULT_TOKEN')) {
     console.warn(
@@ -271,18 +331,33 @@ async function writeMealAssistantPrecalculation(): Promise<void> {
 
   const weatherConfig = loadWeatherConfig();
   const weatherCache = await readWeatherFeatureCache();
-  const requiredWeatherDates = historicalMealPlanDates(mealPlans);
+  const calendarCache = await readCalendarFeatureCache();
+  const requiredHistoricalDates = historicalMealPlanDates(mealPlans);
   const nextWeatherCache =
-    weatherConfig && requiredWeatherDates.length > 0
-      ? await extendWeatherFeatureCache(weatherCache, requiredWeatherDates, (fromDate, toDate) =>
+    weatherConfig && requiredHistoricalDates.length > 0
+      ? await extendWeatherFeatureCache(weatherCache, requiredHistoricalDates, (fromDate, toDate) =>
           fetchWeatherFeatureRange(weatherConfig, fromDate, toDate),
         )
       : weatherCache;
+  const nextCalendarCache =
+    requiredHistoricalDates.length > 0
+      ? await extendCalendarFeatureCache(
+          calendarCache,
+          requiredHistoricalDates,
+          fetchCalendarFeatureRange,
+        )
+      : calendarCache;
 
   if (nextWeatherCache !== weatherCache) {
     await writeFileAtomically(
       loadWeatherFeatureCachePath(),
       `${JSON.stringify(nextWeatherCache)}\n`,
+    );
+  }
+  if (nextCalendarCache !== calendarCache) {
+    await writeFileAtomically(
+      loadCalendarFeatureCachePath(),
+      `${JSON.stringify(nextCalendarCache)}\n`,
     );
   }
 
@@ -292,11 +367,12 @@ async function writeMealAssistantPrecalculation(): Promise<void> {
     mealPlans,
     produceFoods,
     weatherByDate: nextWeatherCache.dates,
+    calendarByDate: nextCalendarCache.dates,
   });
   const path = loadMealAssistantPrecalculationPath();
   await writeFileAtomically(path, `${JSON.stringify(precalculation)}\n`);
   console.info(
-    `Wrote meal assistant precalculation with ${recipes.length} recipes, ${mealPlans.length} meal-plan entries, and ${Object.keys(nextWeatherCache.dates).length} cached weather days to ${path}.`,
+    `Wrote meal assistant precalculation with ${recipes.length} recipes, ${mealPlans.length} meal-plan entries, ${Object.keys(nextWeatherCache.dates).length} cached weather days, and ${Object.keys(nextCalendarCache.dates).length} cached calendar days to ${path}.`,
   );
 }
 
@@ -385,6 +461,7 @@ const MEAL_ASSISTANT_PRECALCULATION_INTERVAL_MS = DAY_MS;
 const MEAL_ASSISTANT_PRECALCULATION_STALE_MS = DAY_MS;
 const DEFAULT_MEAL_ASSISTANT_PRECALCULATION_PATH = '/data/meal-assistant-precalculation.json';
 const DEFAULT_WEATHER_FEATURE_CACHE_PATH = '/data/weather-feature-cache.json';
+const DEFAULT_CALENDAR_FEATURE_CACHE_PATH = '/data/calendar-feature-cache.json';
 export function parseICalFeeds(raw: string): ICalFeed[] {
   try {
     const parsed = JSON.parse(raw) as unknown;
@@ -468,12 +545,14 @@ function loadWeatherConfig(): WeatherConfig | null {
 
 export interface ParsedEvent {
   name: string;
+  description?: string;
   /** ISO 8601 UTC timestamp, or YYYY-MM-DD for all-day events */
   start: string;
   /** ISO 8601 UTC timestamp, or YYYY-MM-DD for all-day events; undefined when same as start */
   end?: string;
   allDay: boolean;
   category?: 'appointment' | 'bank-holiday' | 'context';
+  recurring?: boolean;
 }
 
 class TandoorUpstreamError extends Error {
@@ -730,7 +809,9 @@ export function parseIcal(text: string, rangeStart: Date, rangeEnd: Date): Parse
     if (!event.startDate) continue;
 
     const summary = event.summary || '(No title)';
+    const description = event.description?.trim();
     const allDay = event.startDate.isDate;
+    const recurring = event.isRecurring();
 
     const makeEvent = (
       startTime: { isDate: boolean; toJSDate(): Date },
@@ -738,10 +819,17 @@ export function parseIcal(text: string, rangeStart: Date, rangeEnd: Date): Parse
     ): ParsedEvent => {
       const start = formatIcalTime(startTime);
       const end = formatIcalTime(endTime);
-      return { name: summary, start, end: end !== start ? end : undefined, allDay };
+      return {
+        name: summary,
+        ...(description ? { description } : {}),
+        start,
+        end: end !== start ? end : undefined,
+        allDay,
+        ...(recurring ? { recurring } : {}),
+      };
     };
 
-    if (event.isRecurring()) {
+    if (recurring) {
       const iter = event.iterator();
       let startTime;
       let count = 0;
