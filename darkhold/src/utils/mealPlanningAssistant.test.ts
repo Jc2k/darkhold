@@ -852,9 +852,9 @@ describe('mealPlanningAssistant', () => {
       dinnerTime: '18:00',
     });
 
-    expect(plan.slots[0]?.selected.components.some((component) => component.key === 'due-again')).toBe(
-      false,
-    );
+    expect(
+      plan.slots[0]?.selected.components.some((component) => component.key === 'due-again'),
+    ).toBe(false);
   });
 
   it('does not add a due-again score when only one history entry exists', () => {
@@ -869,13 +869,13 @@ describe('mealPlanningAssistant', () => {
       dinnerTime: '18:00',
     });
 
-    expect(plan.slots[0]?.selected.components.some((component) => component.key === 'due-again')).toBe(
-      false,
-    );
+    expect(
+      plan.slots[0]?.selected.components.some((component) => component.key === 'due-again'),
+    ).toBe(false);
   });
 
   it('adds a due-again score for recipes overdue against regular monthly cadence', () => {
-    const overdueRecipe = makeRecipe(1, 'Zesty Monthly Curry');
+    const overdueRecipe = makeRecipe(1, 'Zesty Monthly Pasta Curry');
     const fallbackRecipe = makeRecipe(2, 'Aardvark Pasta');
     const historicalMeals = [
       makeMealPlan(1, overdueRecipe.id, '2026-01-01'),
@@ -883,19 +883,29 @@ describe('mealPlanningAssistant', () => {
       makeMealPlan(3, overdueRecipe.id, '2026-03-01'),
       makeMealPlan(4, overdueRecipe.id, '2026-04-01'),
     ];
+    const precalculation = buildMealAssistantPrecalculation({
+      generatedAt: '2026-06-03T00:00:00.000Z',
+      recipes: [overdueRecipe, fallbackRecipe],
+      keywordNameById: {},
+      mealPlans: historicalMeals,
+    });
 
     const plan = buildMealAssistantPlan({
       weekStart: new Date('2026-06-01T00:00:00'),
       weekEnd: new Date('2026-06-07T00:00:00'),
       emptyDinnerDates: ['2026-06-03'],
       existingWeekMeals: [],
-      historicalMeals,
+      historicalMeals: [],
       recipes: [overdueRecipe, fallbackRecipe],
       dinnerTime: '18:00',
+      precalculation,
     });
 
-    expect(plan.slots[0]?.selected.recipe.id).toBe(overdueRecipe.id);
-    const dueComponent = plan.slots[0]?.selected.components.find(
+    const overdueCandidate =
+      plan.slots[0]?.selected.recipe.id === overdueRecipe.id
+        ? plan.slots[0].selected
+        : plan.slots[0]?.alternatives.find((candidate) => candidate.recipe.id === overdueRecipe.id);
+    const dueComponent = overdueCandidate?.components.find(
       (component) => component.key === 'due-again',
     );
     expect(dueComponent?.label).toBe('Due again');

@@ -166,6 +166,7 @@ function roundTo(value: number, fractionDigits: number): number {
 }
 
 function median(numbers: number[]): number {
+  if (numbers.length === 0) return 0;
   const sorted = numbers.slice().sort((left, right) => left - right);
   const middle = Math.floor(sorted.length / 2);
   if (sorted.length % 2 === 0) {

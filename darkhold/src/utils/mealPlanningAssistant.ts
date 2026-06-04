@@ -397,11 +397,15 @@ function buildRecipeHistoryById(entries: MealPlan[]): Map<number, MealAssistantR
       const seasonIndex = month === 12 || month <= 2 ? 0 : month <= 5 ? 1 : month <= 8 ? 2 : 3;
       seasonCounts[seasonIndex] += 1;
     }
-    const dayDiffs = sortedDayNumbers.slice(1).map((day, index) => day - sortedDayNumbers[index]);
+    const dayDiffs: number[] = [];
+    for (let index = 1; index < sortedDayNumbers.length; index += 1) {
+      dayDiffs.push(sortedDayNumbers[index] - sortedDayNumbers[index - 1]);
+    }
     const averageDaysBetweenPlans =
       dayDiffs.length > 0
-        ? Math.round((dayDiffs.reduce((total, value) => total + value, 0) / dayDiffs.length) * 100) /
-          100
+        ? Math.round(
+            (dayDiffs.reduce((total, value) => total + value, 0) / dayDiffs.length) * 100,
+          ) / 100
         : undefined;
     const sortedDiffs = dayDiffs.slice().sort((left, right) => left - right);
     const medianDaysBetweenPlans =
@@ -429,7 +433,10 @@ function getRecipeHistoryForScoring(
   recipeId: number,
   context: ScoringContext,
 ): MealAssistantRecipeHistory | undefined {
-  return context.precalculation?.recipeHistory[String(recipeId)] ?? context.recipeHistoryById.get(recipeId);
+  return (
+    context.precalculation?.recipeHistory[String(recipeId)] ??
+    context.recipeHistoryById.get(recipeId)
+  );
 }
 
 function countRecipesWithinWindow(
@@ -879,7 +886,10 @@ function scoreRecipe(
       const overdueRatio = (daysSinceLastPlanned - cadenceDays) / cadenceDays;
       const dueScore = Math.min(
         DUE_AGAIN_MAX_SCORE,
-        Math.max(DUE_AGAIN_MIN_SCORE, Math.round(DUE_AGAIN_MIN_SCORE + overdueRatio * DUE_AGAIN_SCORE_PER_CADENCE)),
+        Math.max(
+          DUE_AGAIN_MIN_SCORE,
+          Math.round(DUE_AGAIN_MIN_SCORE + overdueRatio * DUE_AGAIN_SCORE_PER_CADENCE),
+        ),
       );
       const cadenceLabel = history.medianDaysBetweenPlans != null ? 'median' : 'average';
       components.push({
