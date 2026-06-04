@@ -79,7 +79,7 @@ export const RecipeListItem = memo(function RecipeListItem({ recipe, onAddToMeal
             <UpSoonButton recipeId={recipe.id} />
           </div>
           <div
-            className={`recipe-list-swipe-content d-flex justify-content-between align-items-start gap-3 px-3 py-2${longPressPending ? ' recipe-list-long-press-pending' : ''}${draggingSwipe ? ' recipe-list-swipe-content-dragging' : ''}`}
+            className={`recipe-list-swipe-content d-flex justify-content-between align-items-start gap-3${longPressPending ? ' recipe-list-long-press-pending' : ''}${draggingSwipe ? ' recipe-list-swipe-content-dragging' : ''}`}
             style={{ transform: `translateX(${swipeOffset}px)` }}
             onClickCapture={(event) => {
               if (!suppressClick.current) return;

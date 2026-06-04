@@ -692,10 +692,17 @@ body {
   position: relative;
   z-index: 1;
   min-height: 3.25rem;
+  padding: 0.5rem 1rem;
   background: var(--bs-list-group-bg);
   touch-action: pan-y;
   transition: transform 180ms ease-out;
   -webkit-touch-callout: none;
+}
+
+@media (max-width: 575.98px) {
+  .recipe-list-swipe-content {
+    padding-left: 0;
+  }
 }
 
 .recipe-list-main {
