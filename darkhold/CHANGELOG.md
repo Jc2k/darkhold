@@ -1,3 +1,10 @@
+# [1.105.0](https://github.com/Jc2k/darkhold/compare/v1.104.1...v1.105.0) (2026-06-04)
+
+
+### Features
+
+* **meal-plan:** animate mobile week swipes ([8e1e05e](https://github.com/Jc2k/darkhold/commit/8e1e05eca12cd4877eab21ca7d59f8d0f91b4127))
+
 ## [1.104.1](https://github.com/Jc2k/darkhold/compare/v1.104.0...v1.104.1) (2026-06-03)
 
 
