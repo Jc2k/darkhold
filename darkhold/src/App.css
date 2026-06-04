@@ -658,6 +658,25 @@ body {
   -webkit-touch-callout: none;
 }
 
+.recipe-list-main {
+  flex: 1 1 auto;
+}
+
+.recipe-list-thumbnail {
+  width: 3.75rem;
+  height: 3.75rem;
+  object-fit: cover;
+}
+
+.recipe-list-thumbnail.recipe-image-placeholder svg {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.recipe-list-name {
+  padding-top: 0.125rem;
+}
+
 .recipe-list-swipe-content-dragging {
   transition: none;
 }
