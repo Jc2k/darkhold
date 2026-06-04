@@ -6,6 +6,10 @@ import type {
 } from '../hooks/useCalendarEvents';
 import type { WeatherByDate, WeatherDayForecast } from '../hooks/useWeatherForecast';
 import { formatDate, parseLocalDate } from './dateUtils';
+import {
+  mealAssistantPrecalculationMealPlans,
+  mealAssistantPrecalculationRecipes,
+} from './mealAssistantPrecalculation';
 import type {
   MealAssistantPrecalculation,
   MealAssistantRecipeInsight,
@@ -316,17 +320,14 @@ function getPrecalculatedProduceTags(
   recipe: Recipe,
   precalculation: MealAssistantPrecalculation | undefined,
 ): string[] | undefined {
+  const features = precalculation?.recipeFeatures[String(recipe.id)];
+  if (features) return features.produce;
   const insight = getPrecalculatedRecipeInsight(precalculation, recipe.id);
   return insight?.produce;
 }
 
 function mealHistoryToMealPlans(precalculation: MealAssistantPrecalculation): MealPlan[] {
-  return precalculation.mealHistory.map((entry, index) => ({
-    id: index + 1,
-    recipe: entry.recipeId,
-    meal_type: 0,
-    from_date: entry.date,
-  }));
+  return mealAssistantPrecalculationMealPlans(precalculation);
 }
 
 function countRecipesWithinWindow(
@@ -970,7 +971,8 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
       .map(([recipeId]) => recipeId),
   );
 
-  const recipes = input.recipes.length > 0 ? input.recipes : (precalculation?.recipes ?? []);
+  const recipes =
+    input.recipes.length > 0 ? input.recipes : mealAssistantPrecalculationRecipes(precalculation);
   const baseRecipes = recipes.filter((recipe) =>
     recipePassesBaseFilters(recipe, keywordNameById, recentRecipeIds, planType),
   );
@@ -1000,7 +1002,8 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
   );
 
   let weekTagCounts = buildWeekTagCounts(input.existingWeekMeals, keywordNameById);
-  const produceFoodNames = input.produceFoodNames ?? precalculation?.produceFoodNames ?? [];
+  const produceFoodNames =
+    input.produceFoodNames ?? Object.keys(precalculation?.relationships.produce ?? {});
   let weekProduceCounts = buildWeekProduceCounts(
     input.existingWeekMeals,
     keywordNameById,

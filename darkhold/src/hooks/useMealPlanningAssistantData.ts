@@ -5,6 +5,8 @@ import { fetchUpSoonData } from './useUpSoon';
 import { formatDate } from '../utils/dateUtils';
 import {
   isMealAssistantPrecalculation,
+  mealAssistantPrecalculationMealPlans,
+  mealAssistantPrecalculationRecipes,
   type MealAssistantPrecalculation,
 } from '../utils/mealAssistantPrecalculation';
 
@@ -72,16 +74,11 @@ export async function fetchMealPlanningAssistantData(
 
   if (precalculation) {
     return {
-      recipes: precalculation.recipes,
+      recipes: mealAssistantPrecalculationRecipes(precalculation),
       keywordNameById: precalculation.keywordNameById,
-      historicalMeals: precalculation.mealHistory.map((entry, index) => ({
-        id: index + 1,
-        recipe: entry.recipeId,
-        meal_type: 0,
-        from_date: entry.date,
-      })),
+      historicalMeals: mealAssistantPrecalculationMealPlans(precalculation),
       upSoonRecipeIds: upSoonData?.entries.map((entry) => entry.recipeId) ?? [],
-      produceFoodNames: precalculation.produceFoodNames,
+      produceFoodNames: Object.keys(precalculation.relationships.produce),
       precalculation,
     };
   }

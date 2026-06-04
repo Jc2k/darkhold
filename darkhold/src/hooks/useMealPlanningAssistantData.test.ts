@@ -34,21 +34,34 @@ describe('fetchMealPlanningAssistantData', () => {
 
   it('uses the precalculation payload when available', async () => {
     const precalculation: MealAssistantPrecalculation = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       generatedAt: '2026-06-03T00:00:00.000Z',
-      recipes: [{ id: 1, name: 'Chilli', created_by: 1, image: '/recipe.jpg' }],
       keywordNameById: { 10: 'Dinner' },
-      produceFoodNames: ['courgette'],
-      produceRecipeIds: { courgette: [1] },
-      mealHistory: [
-        {
-          recipeId: 1,
-          date: '2026-01-02',
-          day: 5,
-          weekend: false,
-          season: 'winter',
+      recipes: { '1': { id: 1, name: 'Chilli', image: '/recipe.jpg' } },
+      recipeFeatures: {
+        '1': {
+          keywords: ['dinner'],
+          produce: ['courgette'],
+          stepCount: 0,
+          ingredientLineCount: 0,
+          distinctFoodCount: 0,
+          complexityScore: 0,
         },
-      ],
+      },
+      relationships: {
+        keywords: { dinner: [1] },
+        produce: { courgette: [1] },
+        flags: { 'has-image': [1] },
+      },
+      recipeHistory: {
+        '1': {
+          dates: [20455],
+          dayCounts: [0, 0, 0, 0, 0, 1, 0],
+          seasonCounts: [1, 0, 0, 0],
+          totalPlanCount: 1,
+          lastPlannedDate: 20455,
+        },
+      },
       recipeInsights: {
         '1': {
           totalCookCount: 1,
@@ -74,7 +87,18 @@ describe('fetchMealPlanningAssistantData', () => {
       'Produce',
     );
 
-    expect(result.recipes).toEqual(precalculation.recipes);
+    expect(result.recipes).toEqual([
+      {
+        id: 1,
+        name: 'Chilli',
+        created_by: 0,
+        image: '/recipe.jpg',
+        keywords: [{ id: 1, name: 'dinner' }],
+        rating: undefined,
+        servings: undefined,
+        created_at: undefined,
+      },
+    ]);
     expect(result.keywordNameById).toEqual(precalculation.keywordNameById);
     expect(result.produceFoodNames).toEqual(['courgette']);
     expect(result.precalculation).toBe(precalculation);
