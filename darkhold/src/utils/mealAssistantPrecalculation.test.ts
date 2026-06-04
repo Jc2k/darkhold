@@ -225,7 +225,8 @@ describe('mealAssistantPrecalculation', () => {
       },
     });
 
-    expect(result.recipeInsights['1'].weekend).toMatchObject({ count: 1, total: 2 });
+    expect(result.recipeInsights['1'].weekendCookCount).toBe(1);
+    expect(result.recipeInsights['1'].weekdayCookCount).toBe(1);
     expect(result.recipeInsights['1'].calendar['bob|long']).toMatchObject({ count: 2, total: 2 });
     expect(result.recipeFeatures['1'].calendarFeatures).toEqual(['bob|long', 'school|long']);
     expect(result.relationships.calendar['bob|long']).toEqual([1]);
