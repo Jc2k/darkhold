@@ -263,7 +263,8 @@ export function buildRecipeSimilarityIndex(
       .filter((value): value is RecipeSimilarityInput => value != null);
     const labelTerms = clusterLabelTerms(clusterRecipes);
     const clusterId = `cluster-${component[0]}`;
-    const label = labelTerms.join(' · ') || clusterRecipes[0]?.name || 'recipe cluster';
+    const primaryRecipeName = recipesById.get(component[0])?.name;
+    const label = labelTerms.join(' · ') || primaryRecipeName || 'recipe cluster';
     recipeClusters[clusterId] = {
       id: clusterId,
       label,

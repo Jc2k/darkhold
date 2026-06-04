@@ -594,6 +594,10 @@ function toTitleCase(value: string): string {
     .join(' ');
 }
 
+function formatSharedTerms(values: readonly string[]): string {
+  return values.map((value) => toTitleCase(value)).join(', ');
+}
+
 function createSeed(value: string): number {
   // FNV-1a 32-bit hash keeps role assignment deterministic for a given week,
   // which avoids unstable plans and still lets us "shuffle" without Math.random().
@@ -1110,7 +1114,7 @@ function boostSimilarAlternatives(
             score: bonus,
             detail:
               similarity.sharedTerms.length > 0
-                ? `A close alternative to ${selected.recipe.name} with overlap on ${similarity.sharedTerms.join(', ')}.`
+                ? `A close alternative to ${selected.recipe.name} with overlap on ${formatSharedTerms(similarity.sharedTerms)}.`
                 : `A close alternative to ${selected.recipe.name}.`,
           },
         ],

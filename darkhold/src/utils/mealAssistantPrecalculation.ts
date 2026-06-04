@@ -296,16 +296,12 @@ function recipeKeywordNames(recipe: Recipe, keywordNameById: Record<number, stri
 }
 
 function recipeCategoryNames(recipe: Recipe): string[] {
-  const categories = (recipe as Recipe & { categories?: unknown }).categories;
+  const categories = recipe.categories;
   if (!Array.isArray(categories)) return [];
   return compactSortedValues(
     categories.flatMap((category) => {
       if (typeof category === 'string') return [category];
-      if (typeof category === 'object' && category !== null && 'name' in category) {
-        const name = (category as { name?: unknown }).name;
-        return typeof name === 'string' ? [name] : [];
-      }
-      return [];
+      return typeof category?.name === 'string' ? [category.name] : [];
     }),
   );
 }
