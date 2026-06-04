@@ -81,6 +81,12 @@ export interface MealAssistantCandidateAnalysis {
   warnings: string[];
 }
 
+export interface MealAssistantCandidateExclusion {
+  recipe: Recipe;
+  reason: string;
+  detail: string;
+}
+
 export interface MealAssistantSlotPlan {
   date: string;
   role: MealAssistantRole;
@@ -88,6 +94,7 @@ export interface MealAssistantSlotPlan {
   roleFlavourDetail?: string;
   selected: MealAssistantCandidateAnalysis;
   alternatives: MealAssistantCandidateAnalysis[];
+  hardExclusions?: MealAssistantCandidateExclusion[];
 }
 
 export interface MealAssistantPlan {
@@ -772,19 +779,61 @@ function buildSlotRoles(
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
+function getBaseFilterExclusion(
+  recipe: Recipe,
+  keywordNameById: Record<number, string>,
+  recentRecipeIds: Set<number>,
+  planType: 'dinner' | 'lunch',
+): MealAssistantCandidateExclusion | null {
+  if (recipe.rating != null && recipe.rating <= MIN_ACCEPTABLE_RATING) {
+    return {
+      recipe,
+      reason: 'Low rating',
+      detail: `Filtered out because its rating is ${recipe.rating} star${recipe.rating === 1 ? '' : 's'}.`,
+    };
+  }
+  if (!recipe.image) {
+    return {
+      recipe,
+      reason: 'Missing image',
+      detail: 'Filtered out because it does not have a recipe image yet.',
+    };
+  }
+  if (recentRecipeIds.has(recipe.id)) {
+    return {
+      recipe,
+      reason: 'Recently planned',
+      detail: `Filtered out because it appeared in the last ${RECENT_WINDOW_DAYS} days.`,
+    };
+  }
+  if (planType === 'lunch') {
+    if (!recipeHasKeywordFragment(recipe, ['lunch'], keywordNameById)) {
+      return {
+        recipe,
+        reason: 'Not a lunch recipe',
+        detail: 'Filtered out because lunch planning only considers recipes tagged for lunch.',
+      };
+    }
+    return null;
+  }
+  if (recipeHasFragment(recipe, UNSUITABLE_DINNER_TAG_FRAGMENTS, keywordNameById)) {
+    return {
+      recipe,
+      reason: 'Unsuitable dinner tag',
+      detail:
+        'Filtered out because it looks like breakfast, lunch, a drink, baking, dessert, or a snack.',
+    };
+  }
+  return null;
+}
+
 function recipePassesBaseFilters(
   recipe: Recipe,
   keywordNameById: Record<number, string>,
   recentRecipeIds: Set<number>,
   planType: 'dinner' | 'lunch',
 ): boolean {
-  if (recipe.rating != null && recipe.rating <= MIN_ACCEPTABLE_RATING) return false;
-  if (!recipe.image) return false;
-  if (recentRecipeIds.has(recipe.id)) return false;
-  if (planType === 'lunch') {
-    return recipeHasKeywordFragment(recipe, ['lunch'], keywordNameById);
-  }
-  return !recipeHasFragment(recipe, UNSUITABLE_DINNER_TAG_FRAGMENTS, keywordNameById);
+  return getBaseFilterExclusion(recipe, keywordNameById, recentRecipeIds, planType) == null;
 }
 
 function recipeMatchesRole(
@@ -1108,6 +1157,36 @@ function scoreRecipe(
     }
   }
 
+  const hasWeekPenalty = components.some(
+    (component) =>
+      component.score < 0 &&
+      (component.key.startsWith('imbalance-') ||
+        component.key.startsWith('produce-repeat-') ||
+        component.key === 'same-cluster-repeat'),
+  );
+  const hasWeekBalanceContext =
+    context.weekTagCounts.size > 0 ||
+    context.weekProduceCounts.size > 0 ||
+    context.weekClusterCounts.size > 0;
+  if (hasWeekBalanceContext && !hasWeekPenalty) {
+    components.push({
+      key: 'week-balance-avoidance',
+      label: 'Week balance',
+      score: 0,
+      detail:
+        'Avoids repeating produce, flavour categories, or recipe clusters already planned this week.',
+    });
+  }
+
+  if (components.length === 0) {
+    components.push({
+      key: 'eligible-neutral',
+      label: 'Eligible fallback',
+      score: 0,
+      detail: 'Passed the hard filters and stayed available as a neutral fallback for this slot.',
+    });
+  }
+
   if (isTakeawayRecipe(recipe, keywordNameById)) {
     warnings.push('This is a placeholder recipe entry rather than a cookable recipe.');
   }
@@ -1277,6 +1356,14 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
   const recipeHistoryById = buildRecipeHistoryById(historicalMeals);
 
   const recipes = input.recipes.length > 0 ? input.recipes : precalculationRecipes(precalculation);
+  const hardExclusions = recipes
+    .map((recipe) => getBaseFilterExclusion(recipe, keywordNameById, recentRecipeIds, planType))
+    .filter((exclusion): exclusion is MealAssistantCandidateExclusion => exclusion != null)
+    .sort(
+      (left, right) =>
+        left.reason.localeCompare(right.reason) ||
+        left.recipe.name.localeCompare(right.recipe.name),
+    );
   const baseRecipes = recipes.filter((recipe) =>
     recipePassesBaseFilters(recipe, keywordNameById, recentRecipeIds, planType),
   );
@@ -1414,6 +1501,7 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
             scoredCandidates.filter((c) => c.recipe.id !== selectedWithWarning.recipe.id),
             precalculation,
           ).slice(0, 5),
+          hardExclusions,
         };
 
         nextBeam.push({

@@ -313,6 +313,19 @@ describe('mealPlanningAssistant', () => {
         ...slot.alternatives.map((candidate) => candidate.recipe.id),
       ]),
     ).not.toContain(5);
+    expect(plan.slots[0].hardExclusions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          recipe: excludedRecentRecipe,
+          reason: 'Recently planned',
+          detail: expect.stringContaining('last 14 days'),
+        }),
+        expect.objectContaining({
+          recipe: poorRecipe,
+          reason: 'Low rating',
+        }),
+      ]),
+    );
   });
 
   it('weights recipes toward matching precalculated weather history for the live forecast', () => {
@@ -878,6 +891,7 @@ describe('mealPlanningAssistant', () => {
     expect(slot).toBeDefined();
     // The general recipe (no aubergine) should win because the second aubergine is penalised
     expect(slot?.selected.recipe.name).toBe('Rice Bowl');
+    expect(slot?.selected.components.some((c) => c.key === 'week-balance-avoidance')).toBe(true);
 
     // The aubergine candidate should carry the produce-repeat component
     const aubergineCand = slot?.alternatives.find((a) => a.recipe.name === 'Stuffed Aubergine');
