@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react';
 import { Button, Spinner } from 'react-bootstrap';
 import { MicFill } from 'react-bootstrap-icons';
 
@@ -37,6 +37,7 @@ type SpeechRecognitionWindow = Window &
   };
 
 interface SpeechRecognitionButtonProps {
+  ref?: Ref<SpeechRecognitionButtonHandle>;
   disabled?: boolean;
   onResult: (transcript: string) => void;
   onErrorChange?: (error: string | null) => void;
@@ -65,13 +66,13 @@ function getSpeechRecognitionErrorMessage(error: string): string {
   return 'Speech recognition failed. Please try again or type the item instead.';
 }
 
-export const SpeechRecognitionButton = forwardRef<
-  SpeechRecognitionButtonHandle,
-  SpeechRecognitionButtonProps
->(function SpeechRecognitionButton(
-  { disabled = false, onResult, onErrorChange, onInterimResultChange },
+export function SpeechRecognitionButton({
   ref,
-) {
+  disabled = false,
+  onResult,
+  onErrorChange,
+  onInterimResultChange,
+}: SpeechRecognitionButtonProps) {
   const [SpeechRecognition] = useState(() => getSpeechRecognitionConstructor());
   const [isListening, setIsListening] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -224,4 +225,4 @@ export const SpeechRecognitionButton = forwardRef<
       </span>
     </>
   );
-});
+}

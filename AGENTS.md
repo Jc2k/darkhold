@@ -108,6 +108,27 @@ Useful implementation points:
 - `darkhold/src/hooks/useShoppingListEntries.ts`, `darkhold/src/hooks/useMealPlan.ts`, and `darkhold/src/hooks/useUpSoon.ts` — examples of reusable cached fetch hooks and mutation cache updates.
 - `darkhold/src/utils/mealPlanCache.ts` — example of updating all cached variants of a ranged resource after mutation.
 
+
+## Vercel React best practices and composition patterns
+
+Apply the Vercel React best-practices and composition-patterns skills to both new React code and opportunistic refactors of existing React code. Treat these project-specific expectations as the local incorporation of:
+
+- https://www.skills.sh/vercel-labs/agent-skills/vercel-react-best-practices
+- https://www.skills.sh/vercel-labs/agent-skills/vercel-composition-patterns
+
+When touching React code:
+
+- Prioritize performance work in this order: remove async waterfalls, keep bundles statically analyzable and small, preserve server/API parallelism, deduplicate client data fetching, avoid unnecessary re-renders, and then apply smaller JavaScript/rendering optimizations.
+- Start independent async operations before awaiting and resolve them with `Promise.all` when practical. Defer awaits until the branch that actually needs the result.
+- Prefer direct imports and statically analyzable paths. Load heavy or optional UI only when the user path needs it.
+- Keep derived values in render or `useMemo` with primitive/narrow dependencies; do not mirror derived state in effects. Use functional state updates when the next value depends on the previous value.
+- Hoist static configuration, non-primitive default props, regular expressions, and repeated lookup maps outside components when they do not depend on render state.
+- Avoid defining components inside components. Extract reusable sections into named components with explicit props.
+- Avoid boolean-prop proliferation for reusable component APIs. Prefer explicit variant components, children composition, or compound components with a provider when state must be shared by siblings.
+- For context-backed UI, keep state management details inside the provider and expose a small state/actions/meta interface so consumers do not depend on implementation details.
+- This app uses React 19; do not add new `forwardRef` wrappers. Accept `ref` as a normal prop and use `useImperativeHandle` only when an imperative API is truly needed.
+- Continue to follow the app's TanStack Query cache/invalidation rules for server-backed views and mutations; Vercel client-fetching guidance complements, but does not replace, those rules.
+
 ## UI design system
 
 - Prefer React Bootstrap components and `react-bootstrap-icons` over hand-written SVG paths, Unicode symbols, or emoji for interface controls and navigation. Emoji are acceptable only as decorative content where their platform-dependent appearance is intentional.
