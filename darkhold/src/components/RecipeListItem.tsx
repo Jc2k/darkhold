@@ -1,10 +1,11 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import { ListGroup, Button } from 'react-bootstrap';
-import { Plus } from 'react-bootstrap-icons';
+import { Image, Plus } from 'react-bootstrap-icons';
 import { useNavigate } from 'react-router-dom';
 import type { Recipe } from '../api/tandoor-types';
 import { addToMealPlanButtonStyle } from '../utils/buttonStyles';
 import { hasLongPressMoved, LONG_PRESS_DELAY_MS } from '../utils/longPress';
+import { proxyMediaUrl } from '../utils/mediaUrl';
 import { RecipeCardInfoModal } from './RecipeCardInfoModal';
 import { UpSoonButton } from './UpSoonButton';
 
@@ -55,6 +56,7 @@ export const RecipeListItem = memo(function RecipeListItem({ recipe, onAddToMeal
     closeSwipeAction();
     onAddToMealPlan?.(recipe);
   };
+  const thumbnailSrc = recipe.image ? proxyMediaUrl(recipe.image) : undefined;
 
   return (
     <>
@@ -77,7 +79,7 @@ export const RecipeListItem = memo(function RecipeListItem({ recipe, onAddToMeal
             <UpSoonButton recipeId={recipe.id} />
           </div>
           <div
-            className={`recipe-list-swipe-content d-flex justify-content-between align-items-center px-3 py-2${longPressPending ? ' recipe-list-long-press-pending' : ''}${draggingSwipe ? ' recipe-list-swipe-content-dragging' : ''}`}
+            className={`recipe-list-swipe-content d-flex justify-content-between align-items-start gap-3 px-3 py-2${longPressPending ? ' recipe-list-long-press-pending' : ''}${draggingSwipe ? ' recipe-list-swipe-content-dragging' : ''}`}
             style={{ transform: `translateX(${swipeOffset}px)` }}
             onClickCapture={(event) => {
               if (!suppressClick.current) return;
@@ -155,8 +157,25 @@ export const RecipeListItem = memo(function RecipeListItem({ recipe, onAddToMeal
               closeSwipeAction();
             }}
           >
-            <span>{recipe.name}</span>
-            <div className="d-flex align-items-center gap-2">
+            <div className="recipe-list-main d-flex align-items-start gap-3 min-w-0">
+              {thumbnailSrc ? (
+                <img
+                  src={thumbnailSrc}
+                  alt=""
+                  className="recipe-list-thumbnail flex-shrink-0 rounded"
+                  loading="lazy"
+                />
+              ) : (
+                <span
+                  className="recipe-list-thumbnail recipe-image-placeholder flex-shrink-0 rounded"
+                  aria-hidden="true"
+                >
+                  <Image aria-hidden="true" />
+                </span>
+              )}
+              <span className="recipe-list-name text-truncate">{recipe.name}</span>
+            </div>
+            <div className="d-flex align-items-start gap-2 flex-shrink-0">
               {recipe.cooking_time != null && (
                 <small className="text-muted">{recipe.cooking_time} min</small>
               )}

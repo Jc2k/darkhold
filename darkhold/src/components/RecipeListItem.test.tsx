@@ -23,7 +23,13 @@ import { RecipeListItem } from './RecipeListItem';
 
 type ReactActGlobal = typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
 
-const recipeFixture: Recipe = { id: 1, name: 'Test Recipe', created_by: 1, cooking_time: 20 };
+const recipeFixture: Recipe = {
+  id: 1,
+  name: 'Test Recipe',
+  created_by: 1,
+  cooking_time: 20,
+  image: '/media/test-recipe.jpg',
+};
 
 function dispatchTouchPointer(element: Element, type: string, x = 0, y = 0) {
   const event = new Event(type, { bubbles: true });
@@ -59,6 +65,18 @@ describe('RecipeListItem', () => {
     navigateMock.mockReset();
     vi.useRealTimers();
     delete actGlobal.IS_REACT_ACT_ENVIRONMENT;
+  });
+
+  it('renders a recipe thumbnail next to the top-aligned recipe name', () => {
+    const thumbnail = container.querySelector<HTMLImageElement>('.recipe-list-thumbnail');
+    const mainContent = container.querySelector('.recipe-list-main');
+    const name = container.querySelector('.recipe-list-name');
+
+    expect(thumbnail?.getAttribute('src')).toBe('/media/test-recipe.jpg');
+    expect(thumbnail?.getAttribute('alt')).toBe('');
+    expect(mainContent?.contains(thumbnail)).toBe(true);
+    expect(mainContent?.contains(name)).toBe(true);
+    expect(name?.textContent).toBe('Test Recipe');
   });
 
   it('keeps desktop buttons in the hover action container', () => {
