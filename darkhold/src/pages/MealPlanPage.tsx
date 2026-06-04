@@ -2417,6 +2417,11 @@ export function MealPlanPage() {
       gesture.hasHorizontalIntent = true;
     }
 
+    // Once this touch is clearly the meal-plan carousel gesture, cancel the
+    // browser's horizontal navigation gesture so edge swipes change weeks
+    // instead of moving back/forward in history.
+    if (event.cancelable) event.preventDefault();
+
     const width = weekSwipeAreaRef.current?.clientWidth ?? window.innerWidth;
     const maxPullDistance = Math.max(width, 1);
     setWeekSwipeState({

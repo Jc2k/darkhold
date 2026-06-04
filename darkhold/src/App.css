@@ -218,7 +218,8 @@
 
 @media (max-width: 575.98px) {
   .meal-plan-page .meal-plan-week-swipe-area {
-    touch-action: pan-y;
+    overscroll-behavior-x: contain;
+    touch-action: pan-y pinch-zoom;
   }
 }
 
