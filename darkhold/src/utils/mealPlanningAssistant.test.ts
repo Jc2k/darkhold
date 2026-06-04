@@ -1055,4 +1055,94 @@ describe('mealPlanningAssistant', () => {
     ];
     expect(allCandidateIds).not.toContain(recentlyPlannedRecipe.id);
   });
+
+  it('beam search avoids greedy local optimum by reserving a high-value recipe for a later slot', () => {
+    // Recipe A (busyRecipe): tagged busy + marked up-soon.
+    //   Greedy scores it highest in slot 1 (general-dinner, Wed): up-soon=24.
+    //   But it is the only busy recipe so it would be invaluable in slot 2 (busy-day, Thu): up-soon=24 + role-fit=16 = 40.
+    //   Greedy picks A for slot 1, leaving slot 2 with only generalRecipe (score 0).
+    //   Greedy total = 24. Beam total = 0 + 40 = 40 → beam wins.
+    const busyRecipe = makeRecipe(1, 'Quick Stir Fry', [{ id: 10, name: 'Busy' }]);
+    const generalRecipe = makeRecipe(2, 'Oven Bake', []);
+
+    const plan = buildMealAssistantPlan({
+      weekStart: new Date('2026-06-01T00:00:00'),
+      weekEnd: new Date('2026-06-07T00:00:00'),
+      // Wed = general-dinner, Thu = busy-day (late appointment)
+      emptyDinnerDates: ['2026-06-03', '2026-06-04'],
+      existingWeekMeals: [],
+      historicalMeals: [],
+      recipes: [busyRecipe, generalRecipe],
+      upSoonRecipeIds: [1],
+      calendarEventsByDate: {
+        '2026-06-04': [
+          {
+            name: 'Late client call',
+            start: '2026-06-04T17:00:00',
+            end: '2026-06-04T19:00:00',
+            allDay: false,
+          },
+        ],
+      },
+      dinnerTime: '18:00',
+    });
+
+    expect(plan.slots).toHaveLength(2);
+    // Beam search should save busyRecipe (high cumulative value) for the busy-day slot
+    expect(plan.slots[1]?.selected.recipe.name).toBe('Quick Stir Fry');
+    expect(plan.slots[0]?.selected.recipe.name).toBe('Oven Bake');
+    // The busy-day slot carries both up-soon and role-fit bonus
+    const busySlot = plan.slots[1];
+    expect(busySlot?.selected.components.some((c) => c.key === 'up-soon')).toBe(true);
+    expect(busySlot?.selected.components.some((c) => c.key === 'role-fit')).toBe(true);
+    // The general-dinner slot's score is lower than the busy-day slot's score
+    expect(plan.slots[0]?.selected.score).toBeLessThan(plan.slots[1]?.selected.score);
+  });
+
+  it('beam search preserves no-duplicate behaviour across slots', () => {
+    const recipeA = makeRecipe(1, 'Pasta Arrabbiata', []);
+    const recipeB = makeRecipe(2, 'Rice Pilaf', []);
+    const recipeC = makeRecipe(3, 'Noodle Soup', []);
+
+    const plan = buildMealAssistantPlan({
+      weekStart: new Date('2026-06-01T00:00:00'),
+      weekEnd: new Date('2026-06-07T00:00:00'),
+      emptyDinnerDates: ['2026-06-03', '2026-06-04', '2026-06-05'],
+      existingWeekMeals: [],
+      historicalMeals: [],
+      recipes: [recipeA, recipeB, recipeC],
+      dinnerTime: '18:00',
+    });
+
+    const selectedIds = plan.slots.map((s) => s.selected.recipe.id);
+    // Every selected recipe must be unique across slots
+    expect(new Set(selectedIds).size).toBe(selectedIds.length);
+  });
+
+  it('beam search respects week-level produce penalty across slots', () => {
+    // Slot 1 already-existing meal uses courgette.
+    // Both remaining candidates also use courgette.
+    // Beam search should still apply the cumulative penalty correctly across paths.
+    const existingCourgette = makeRecipe(1, 'Courgette Fritters', []);
+    const courgette2 = makeRecipe(2, 'Stuffed Courgette', []);
+    const neutralRecipe = makeRecipe(3, 'Bean Stew', []);
+
+    const plan = buildMealAssistantPlan({
+      weekStart: new Date('2026-06-01T00:00:00'),
+      weekEnd: new Date('2026-06-07T00:00:00'),
+      emptyDinnerDates: ['2026-06-03'],
+      existingWeekMeals: [makeMealPlan(100, existingCourgette, '2026-06-01')],
+      historicalMeals: [],
+      recipes: [courgette2, neutralRecipe],
+      produceFoodNames: ['courgette'],
+      dinnerTime: '18:00',
+    });
+
+    // neutralRecipe has no courgette penalty and should win
+    expect(plan.slots[0]?.selected.recipe.name).toBe('Bean Stew');
+    const courgetteCand = plan.slots[0]?.alternatives.find(
+      (a) => a.recipe.name === 'Stuffed Courgette',
+    );
+    expect(courgetteCand?.components.some((c) => c.key === 'produce-repeat-courgette')).toBe(true);
+  });
 });

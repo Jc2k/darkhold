@@ -54,6 +54,7 @@ const PRODUCE_FREE_OCCURRENCES_PER_WEEK = 1;
 const PRODUCE_REPEAT_PENALTY_BASE = 10;
 const SAME_CLUSTER_PENALTY_BASE = 12;
 const SIMILAR_ALTERNATIVE_BONUS_SCALE = 20;
+const BEAM_WIDTH = 5;
 
 const GENERAL_DINNER_ROLE_LABEL = 'General dinner';
 
@@ -1164,6 +1165,16 @@ export function swapMealAssistantSelection(
   };
 }
 
+interface BeamState {
+  completedSlots: MealAssistantSlotPlan[];
+  usedRecipeIds: Set<number>;
+  weekTagCounts: Map<string, number>;
+  weekClusterCounts: Map<string, number>;
+  weekProduceCounts: Map<string, number>;
+  cumulativeScore: number;
+  issues: string[];
+}
+
 export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistantPlan {
   const planType = input.planType ?? 'dinner';
   const precalculation = input.precalculation;
@@ -1245,75 +1256,75 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
     specialDateReasonsByDate,
   );
 
-  let weekTagCounts = buildWeekTagCounts(input.existingWeekMeals, keywordNameById);
-  let weekClusterCounts = buildWeekClusterCounts(input.existingWeekMeals, precalculation);
   const produceFoodNames =
     input.produceFoodNames ?? Object.keys(precalculation?.relationships.produce ?? {});
-  let weekProduceCounts = buildWeekProduceCounts(
-    input.existingWeekMeals,
-    keywordNameById,
-    produceFoodNames,
-    precalculation,
-  );
-  const usedRecipeIds = new Set(
-    input.existingWeekMeals
-      .map((entry) => recipeIdOf(entry))
-      .filter((value): value is number => value != null),
-  );
 
-  const slots: MealAssistantSlotPlan[] = [];
-  const issues: string[] = [];
+  let beam: BeamState[] = [
+    {
+      completedSlots: [],
+      usedRecipeIds: new Set(
+        input.existingWeekMeals
+          .map((entry) => recipeIdOf(entry))
+          .filter((value): value is number => value != null),
+      ),
+      weekTagCounts: buildWeekTagCounts(input.existingWeekMeals, keywordNameById),
+      weekClusterCounts: buildWeekClusterCounts(input.existingWeekMeals, precalculation),
+      weekProduceCounts: buildWeekProduceCounts(
+        input.existingWeekMeals,
+        keywordNameById,
+        produceFoodNames,
+        precalculation,
+      ),
+      cumulativeScore: 0,
+      issues: [],
+    },
+  ];
 
   for (const slot of slotRoles) {
-    const exactCandidates = baseRecipes.filter(
-      (recipe) =>
-        !usedRecipeIds.has(recipe.id) && recipeMatchesRole(recipe, slot.role, keywordNameById),
-    );
-    const categoryAlreadyPresent =
-      isCategoryRole(slot.role) && (weekTagCounts.get(slot.role) ?? 0) >= 1;
-    const shouldSilentlyFallbackToGeneralDinner =
-      slot.role in CATEGORY_ROLE_TAGS && (exactCandidates.length === 0 || categoryAlreadyPresent);
-    const effectiveRole = shouldSilentlyFallbackToGeneralDinner ? 'general-dinner' : slot.role;
-    const fallbackCandidates =
-      !shouldSilentlyFallbackToGeneralDinner && exactCandidates.length > 0
-        ? exactCandidates
-        : baseRecipes.filter((recipe) => !usedRecipeIds.has(recipe.id));
+    const nextBeam: BeamState[] = [];
 
-    if (fallbackCandidates.length === 0) {
-      issues.push(`No eligible recipes were available for ${slot.date}.`);
-      continue;
-    }
+    for (const state of beam) {
+      const exactCandidates = baseRecipes.filter(
+        (recipe) =>
+          !state.usedRecipeIds.has(recipe.id) &&
+          recipeMatchesRole(recipe, slot.role, keywordNameById),
+      );
+      const categoryAlreadyPresent =
+        isCategoryRole(slot.role) && (state.weekTagCounts.get(slot.role) ?? 0) >= 1;
+      const shouldSilentlyFallbackToGeneralDinner =
+        slot.role in CATEGORY_ROLE_TAGS && (exactCandidates.length === 0 || categoryAlreadyPresent);
+      const effectiveRole = shouldSilentlyFallbackToGeneralDinner ? 'general-dinner' : slot.role;
+      const fallbackCandidates =
+        !shouldSilentlyFallbackToGeneralDinner && exactCandidates.length > 0
+          ? exactCandidates
+          : baseRecipes.filter((recipe) => !state.usedRecipeIds.has(recipe.id));
 
-    const scoredCandidates = sortCandidates(
-      fallbackCandidates.map((recipe) =>
-        scoreRecipe(recipe, keywordNameById, {
-          date: slot.date,
-          role: effectiveRole,
-          upSoonRecipeIds,
-          regularRecipeIds,
-          recipeHistoryById,
-          weekTagCounts,
-          weekClusterCounts,
-          weekProduceCounts,
-          produceFoodNames,
-          precalculation,
-        }),
-      ),
-    );
+      if (fallbackCandidates.length === 0) {
+        nextBeam.push({
+          ...state,
+          issues: [...state.issues, `No eligible recipes were available for ${slot.date}.`],
+        });
+        continue;
+      }
 
-    const selected = scoredCandidates[0];
-    if (exactCandidates.length === 0 && !shouldSilentlyFallbackToGeneralDinner) {
-      selected.warnings = [
-        ...selected.warnings,
-        `No ${roleLabel(slot.role).toLowerCase()} recipes matched, so this slot fell back to the broader ${planType} pool.`,
-      ];
-    }
+      const scoredCandidates = sortCandidates(
+        fallbackCandidates.map((recipe) =>
+          scoreRecipe(recipe, keywordNameById, {
+            date: slot.date,
+            role: effectiveRole,
+            upSoonRecipeIds,
+            regularRecipeIds,
+            recipeHistoryById,
+            weekTagCounts: state.weekTagCounts,
+            weekClusterCounts: state.weekClusterCounts,
+            weekProduceCounts: state.weekProduceCounts,
+            produceFoodNames,
+            precalculation,
+          }),
+        ),
+      );
 
-    slots.push({
-      date: slot.date,
-      role: effectiveRole,
-      roleLabel: roleLabel(effectiveRole),
-      roleFlavourDetail: buildRoleFlavourDetail(
+      const roleFlavourDetail = buildRoleFlavourDetail(
         slot.date,
         effectiveRole,
         calendarEventsByDate[slot.date] ?? [],
@@ -1321,26 +1332,71 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
         publicHolidayDates,
         input.dinnerTime,
         getSpecialDateReasonForDate(slot.date, specialDateReasonsByDate),
-      ),
-      selected,
-      alternatives: boostSimilarAlternatives(
-        selected,
-        scoredCandidates.slice(1),
-        precalculation,
-      ).slice(0, 5),
-    });
+      );
 
-    usedRecipeIds.add(selected.recipe.id);
-    weekTagCounts = updateWeekTagCounts(weekTagCounts, selected.recipe, keywordNameById);
-    weekClusterCounts = updateWeekClusterCounts(weekClusterCounts, selected.recipe, precalculation);
-    weekProduceCounts = updateWeekProduceCounts(
-      weekProduceCounts,
-      selected.recipe,
-      keywordNameById,
-      produceFoodNames,
-      precalculation,
-    );
+      for (const selected of scoredCandidates.slice(0, BEAM_WIDTH)) {
+        const isNoMatch = exactCandidates.length === 0 && !shouldSilentlyFallbackToGeneralDinner;
+        const selectedWithWarning = isNoMatch
+          ? {
+              ...selected,
+              warnings: [
+                ...selected.warnings,
+                `No ${roleLabel(slot.role).toLowerCase()} recipes matched, so this slot fell back to the broader ${planType} pool.`,
+              ],
+            }
+          : selected;
+
+        const slotPlan: MealAssistantSlotPlan = {
+          date: slot.date,
+          role: effectiveRole,
+          roleLabel: roleLabel(effectiveRole),
+          roleFlavourDetail,
+          selected: selectedWithWarning,
+          alternatives: boostSimilarAlternatives(
+            selectedWithWarning,
+            scoredCandidates.filter((c) => c.recipe.id !== selectedWithWarning.recipe.id),
+            precalculation,
+          ).slice(0, 5),
+        };
+
+        nextBeam.push({
+          completedSlots: [...state.completedSlots, slotPlan],
+          usedRecipeIds: new Set([...state.usedRecipeIds, selected.recipe.id]),
+          weekTagCounts: updateWeekTagCounts(state.weekTagCounts, selected.recipe, keywordNameById),
+          weekClusterCounts: updateWeekClusterCounts(
+            state.weekClusterCounts,
+            selected.recipe,
+            precalculation,
+          ),
+          weekProduceCounts: updateWeekProduceCounts(
+            state.weekProduceCounts,
+            selected.recipe,
+            keywordNameById,
+            produceFoodNames,
+            precalculation,
+          ),
+          cumulativeScore: state.cumulativeScore + selected.score,
+          issues: state.issues,
+        });
+      }
+    }
+
+    // Prune beam to BEAM_WIDTH, sorted by cumulative score (deterministic tiebreaker: recipe ID sequence)
+    nextBeam.sort((a, b) => {
+      const scoreDiff = b.cumulativeScore - a.cumulativeScore;
+      if (scoreDiff !== 0) return scoreDiff;
+      for (let i = 0; i < Math.max(a.completedSlots.length, b.completedSlots.length); i++) {
+        const aId = a.completedSlots[i]?.selected.recipe.id ?? 0;
+        const bId = b.completedSlots[i]?.selected.recipe.id ?? 0;
+        if (aId !== bId) return aId - bId;
+      }
+      return 0;
+    });
+    beam = nextBeam.slice(0, BEAM_WIDTH);
   }
 
-  return { slots, issues };
+  const bestState = beam[0];
+  if (!bestState) return { slots: [], issues: [] };
+
+  return { slots: bestState.completedSlots, issues: bestState.issues };
 }
