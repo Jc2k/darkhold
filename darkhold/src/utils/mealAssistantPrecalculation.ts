@@ -1,4 +1,10 @@
-import type { FoodProperty, MealPlan, Recipe, RecipeIngredient } from '../api/tandoor-types.d.ts';
+import type {
+  Food,
+  FoodProperty,
+  MealPlan,
+  Recipe,
+  RecipeIngredient,
+} from '../api/tandoor-types.d.ts';
 
 export const MEAL_ASSISTANT_PRECALCULATION_SCHEMA_VERSION = 3;
 
@@ -261,18 +267,6 @@ function recipeKeywordNames(recipe: Recipe, keywordNameById: Record<number, stri
   });
 }
 
-function recipeHasProduce(
-  recipe: Recipe,
-  produceName: string,
-  keywordNameById: Record<number, string>,
-): boolean {
-  const needle = normalizedText(produceName);
-  if (!needle) return false;
-  if (normalizedText(recipe.name).includes(needle)) return true;
-  const keywordNames = recipeKeywordNames(recipe, keywordNameById);
-  return keywordNames.some((keyword) => normalizedText(keyword).includes(needle));
-}
-
 function ingredientFoodId(ingredient: RecipeIngredient): number | null {
   if (typeof ingredient.food === 'number') return ingredient.food;
   return ingredient.food?.id ?? null;
@@ -353,6 +347,51 @@ function recipeIngredientStats(recipe: Recipe): {
   };
 }
 
+interface MealAssistantProduceFood {
+  id?: number;
+  name: string;
+}
+
+function normalizedProduceFoods(input: {
+  produceFoods?: readonly Pick<Food, 'id' | 'name'>[];
+  produceFoodNames?: readonly string[];
+}): MealAssistantProduceFood[] {
+  const byKey = new Map<string, MealAssistantProduceFood>();
+  for (const produceFood of input.produceFoods ?? []) {
+    const name = normalizedText(produceFood.name);
+    if (!name) continue;
+    const id = Number.isFinite(produceFood.id) ? produceFood.id : undefined;
+    const key = id == null ? `name:${name}` : `id:${id}`;
+    byKey.set(key, { ...(id == null ? {} : { id }), name });
+  }
+  for (const name of input.produceFoodNames ?? []) {
+    const normalized = normalizedText(name);
+    if (!normalized) continue;
+    const key = `name:${normalized}`;
+    byKey.set(key, { name: normalized });
+  }
+  return [...byKey.values()].sort(
+    (left, right) => left.name.localeCompare(right.name) || (left.id ?? 0) - (right.id ?? 0),
+  );
+}
+
+function recipeProduceMatches(
+  stats: ReturnType<typeof recipeIngredientStats>,
+  produceFoods: readonly MealAssistantProduceFood[],
+): string[] {
+  const ingredientIds = new Set(stats.ingredientFoodIds);
+  const ingredientNames = new Set(stats.ingredientFoodNames);
+  return compactSortedValues(
+    produceFoods
+      .filter((produceFood) =>
+        produceFood.id == null
+          ? ingredientNames.has(produceFood.name)
+          : ingredientIds.has(produceFood.id) || ingredientNames.has(produceFood.name),
+      )
+      .map((produceFood) => produceFood.name),
+  );
+}
+
 function complexityScore(stats: {
   stepCount: number;
   ingredientLineCount: number;
@@ -409,10 +448,12 @@ export function buildMealAssistantPrecalculation(input: {
   recipes: Recipe[];
   keywordNameById: Record<number, string>;
   mealPlans: MealPlan[];
+  produceFoods?: readonly Pick<Food, 'id' | 'name'>[];
   produceFoodNames?: readonly string[];
   generatedAt?: string;
 }): MealAssistantPrecalculation {
-  const produceFoodNames = compactSortedValues(input.produceFoodNames ?? []);
+  const produceFoods = normalizedProduceFoods(input);
+  const produceFoodNames = compactSortedValues(produceFoods.map((food) => food.name));
   const mealHistory = buildMealHistory(input.mealPlans).sort((a, b) =>
     a.date.localeCompare(b.date),
   );
@@ -507,10 +548,8 @@ export function buildMealAssistantPrecalculation(input: {
 
   for (const recipe of input.recipes) {
     const keywordNames = compactSortedValues(recipeKeywordNames(recipe, input.keywordNameById));
-    const produce = produceFoodNames.filter((name) =>
-      recipeHasProduce(recipe, name, input.keywordNameById),
-    );
     const stats = recipeIngredientStats(recipe);
+    const produce = recipeProduceMatches(stats, produceFoods);
     const nutrition = getNutritionSignal(recipe);
     const complexity = complexityScore(stats);
     const nutritionStatus = nutritionCompleteness(recipe);
