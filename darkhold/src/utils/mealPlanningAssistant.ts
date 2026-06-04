@@ -1038,7 +1038,10 @@ function scoreRecipe(
     });
   }
 
-  const clusterMembership = getPrecalculatedRecipeClusterMembership(context.precalculation, recipe.id);
+  const clusterMembership = getPrecalculatedRecipeClusterMembership(
+    context.precalculation,
+    recipe.id,
+  );
   if (clusterMembership && clusterMembership.size > 1) {
     const existingCount = context.weekClusterCounts.get(clusterMembership.clusterId) ?? 0;
     if (existingCount > 0) {
@@ -1316,10 +1319,11 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
         getSpecialDateReasonForDate(slot.date, specialDateReasonsByDate),
       ),
       selected,
-      alternatives: boostSimilarAlternatives(selected, scoredCandidates.slice(1), precalculation).slice(
-        0,
-        5,
-      ),
+      alternatives: boostSimilarAlternatives(
+        selected,
+        scoredCandidates.slice(1),
+        precalculation,
+      ).slice(0, 5),
     });
 
     usedRecipeIds.add(selected.recipe.id);

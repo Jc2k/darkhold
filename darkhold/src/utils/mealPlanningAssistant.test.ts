@@ -358,16 +358,6 @@ describe('mealPlanningAssistant', () => {
       historicalMeals: [],
       recipes: [selectedRecipe, similarAlternative, genericAlternative],
       upSoonRecipeIds: [1],
-      calendarEventsByDate: {
-        '2026-05-30': [
-          {
-            name: 'Late appointment',
-            start: '2026-05-30T17:00:00',
-            end: '2026-05-30T19:00:00',
-            allDay: false,
-          },
-        ],
-      },
       dinnerTime: '18:00',
       precalculation,
     });
@@ -852,11 +842,14 @@ describe('mealPlanningAssistant', () => {
       (candidate) => candidate.recipe.id === 2,
     );
     expect(
-      repeatedClusterCandidate?.components.some((component) => component.key === 'same-cluster-repeat'),
+      repeatedClusterCandidate?.components.some(
+        (component) => component.key === 'same-cluster-repeat',
+      ),
     ).toBe(true);
     expect(
-      repeatedClusterCandidate?.components.find((component) => component.key === 'same-cluster-repeat')
-        ?.score,
+      repeatedClusterCandidate?.components.find(
+        (component) => component.key === 'same-cluster-repeat',
+      )?.score,
     ).toBeLessThan(0);
   });
 

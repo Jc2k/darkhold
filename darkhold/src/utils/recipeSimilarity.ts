@@ -46,16 +46,7 @@ interface ClusterLabelTerm {
   priority: number;
 }
 
-const NAME_STOP_WORDS = new Set([
-  'and',
-  'for',
-  'the',
-  'with',
-  'from',
-  'into',
-  'over',
-  'under',
-]);
+const NAME_STOP_WORDS = new Set(['and', 'for', 'the', 'with', 'from', 'into', 'over', 'under']);
 const MIN_SIMILARITY_SCORE = 0.15;
 const CLUSTER_SIMILARITY_THRESHOLD = 0.18;
 const MAX_SIMILAR_RECIPES = 5;
@@ -80,7 +71,11 @@ function nameTerms(name: string): string[] {
 function buildRecipeTokens(recipe: RecipeSimilarityInput): Map<string, RecipeToken> {
   const tokens = new Map<string, RecipeToken>();
   for (const keyword of uniqueSortedStrings(recipe.keywords)) {
-    tokens.set(`keyword:${keyword}`, { key: `keyword:${keyword}`, label: keyword, source: 'keyword' });
+    tokens.set(`keyword:${keyword}`, {
+      key: `keyword:${keyword}`,
+      label: keyword,
+      source: 'keyword',
+    });
   }
   for (const ingredientName of uniqueSortedStrings(recipe.ingredientFoodNames)) {
     tokens.set(`ingredient:${ingredientName}`, {

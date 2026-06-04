@@ -291,23 +291,23 @@ function recipeKeywordNames(recipe: Recipe, keywordNameById: Record<number, stri
         ? [keywordNameById[keyword.id]]
         : [];
     }
-
-    function recipeCategoryNames(recipe: Recipe): string[] {
-      const categories = (recipe as Recipe & { categories?: unknown }).categories;
-      if (!Array.isArray(categories)) return [];
-      return compactSortedValues(
-        categories.flatMap((category) => {
-          if (typeof category === 'string') return [category];
-          if (typeof category === 'object' && category !== null && 'name' in category) {
-            const name = (category as { name?: unknown }).name;
-            return typeof name === 'string' ? [name] : [];
-          }
-          return [];
-        }),
-      );
-    }
     return keywordNameById[keyword as number] ? [keywordNameById[keyword as number]] : [];
   });
+}
+
+function recipeCategoryNames(recipe: Recipe): string[] {
+  const categories = (recipe as Recipe & { categories?: unknown }).categories;
+  if (!Array.isArray(categories)) return [];
+  return compactSortedValues(
+    categories.flatMap((category) => {
+      if (typeof category === 'string') return [category];
+      if (typeof category === 'object' && category !== null && 'name' in category) {
+        const name = (category as { name?: unknown }).name;
+        return typeof name === 'string' ? [name] : [];
+      }
+      return [];
+    }),
+  );
 }
 
 function ingredientFoodId(ingredient: RecipeIngredient): number | null {
@@ -498,12 +498,12 @@ function isMealAssistantSimilarRecipesRecord(
     (similarities) =>
       Array.isArray(similarities) &&
       similarities.every(
-      (similarity) =>
-        isRecord(similarity) &&
-        typeof similarity.recipeId === 'number' &&
-        typeof similarity.score === 'number' &&
-        Array.isArray(similarity.sharedTerms) &&
-        similarity.sharedTerms.every((term) => typeof term === 'string'),
+        (similarity) =>
+          isRecord(similarity) &&
+          typeof similarity.recipeId === 'number' &&
+          typeof similarity.score === 'number' &&
+          Array.isArray(similarity.sharedTerms) &&
+          similarity.sharedTerms.every((term) => typeof term === 'string'),
       ),
   );
 }
@@ -685,19 +685,20 @@ export function buildMealAssistantPrecalculation(input: {
     }
   }
 
-  const { recipeSimilarities, recipeClusters, recipeClusterMemberships } = buildRecipeSimilarityIndex(
-    input.recipes.map((recipe) => {
-      const features = recipeFeatures[String(recipe.id)];
-      return {
-        id: recipe.id,
-        name: recipe.name,
-        keywords: features?.keywords ?? [],
-        ingredientFoodIds: features?.ingredientFoodIds ?? [],
-        ingredientFoodNames: features?.ingredientFoodNames ?? [],
-        categories: features?.categories,
-      };
-    }),
-  );
+  const { recipeSimilarities, recipeClusters, recipeClusterMemberships } =
+    buildRecipeSimilarityIndex(
+      input.recipes.map((recipe) => {
+        const features = recipeFeatures[String(recipe.id)];
+        return {
+          id: recipe.id,
+          name: recipe.name,
+          keywords: features?.keywords ?? [],
+          ingredientFoodIds: features?.ingredientFoodIds ?? [],
+          ingredientFoodNames: features?.ingredientFoodNames ?? [],
+          categories: features?.categories,
+        };
+      }),
+    );
 
   sortRelationshipIds(relationships.keywords);
   sortRelationshipIds(relationships.produce);
