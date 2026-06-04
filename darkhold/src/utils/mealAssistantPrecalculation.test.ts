@@ -85,7 +85,7 @@ describe('mealAssistantPrecalculation', () => {
     });
 
     expect(result.generatedAt).toBe('2026-06-03T00:00:00.000Z');
-    expect(result.schemaVersion).toBe(2);
+    expect(result.schemaVersion).toBe(3);
     expect(result.recipes['1']).toMatchObject({ id: 1, name: 'Chilli con carne' });
     expect(result.recipes['1']).not.toHaveProperty('food_properties');
     expect(result.recipeHistory['1']).toMatchObject({ totalPlanCount: 4 });
@@ -109,6 +109,16 @@ describe('mealAssistantPrecalculation', () => {
       ingredientLineCount: 4,
       distinctFoodCount: 3,
       complexityScore: 17,
+      complexityBucket: 'moderate',
+      ingredientFoodIds: [100, 101, 102],
+      ingredientFoodNames: [],
+      servings: 2,
+      nutritionCompleteness: {
+        source: 'food_properties',
+        complete: true,
+        propertyCount: 2,
+        missingPropertyCount: 0,
+      },
     });
     expect(result.recipeInsights['2'].nutrition).toMatchObject({
       proteinG: 6,
@@ -116,6 +126,231 @@ describe('mealAssistantPrecalculation', () => {
       score: -18,
     });
     expect(isMealAssistantPrecalculation(result)).toBe(true);
+  });
+
+  it('stores Tandoor timing and serving features without changing scoring inputs', () => {
+    const result = buildMealAssistantPrecalculation({
+      generatedAt: '2026-06-03T00:00:00.000Z',
+      keywordNameById: {},
+      produceFoodNames: [],
+      recipes: [
+        recipe(1, 'Slow curry', {
+          cooking_time: 45,
+          waiting_time: 15,
+          servings: 4,
+          steps: [
+            {
+              id: 1,
+              instruction: 'Cook',
+              order: 1,
+              ingredients: [
+                { id: 1, food: { id: 4, name: 'Chicken' } },
+                { id: 2, food: { id: 2, name: 'Yoghurt' } },
+              ],
+            },
+          ],
+        }),
+      ],
+      mealPlans: [],
+    });
+
+    expect(result.recipeFeatures['1']).toMatchObject({
+      cookingTimeMinutes: 45,
+      waitingTimeMinutes: 15,
+      totalTimeMinutes: 60,
+      servings: 4,
+      ingredientFoodIds: [2, 4],
+      ingredientFoodNames: ['chicken', 'yoghurt'],
+      stepCount: 1,
+      ingredientLineCount: 2,
+      distinctFoodCount: 2,
+      complexityScore: 9,
+      complexityBucket: 'simple',
+    });
+  });
+
+  it('omits unavailable optional v3 fields while preserving empty safe defaults', () => {
+    const result = buildMealAssistantPrecalculation({
+      generatedAt: '2026-06-03T00:00:00.000Z',
+      keywordNameById: {},
+      recipes: [recipe(1, 'Bare recipe', { image: undefined })],
+      mealPlans: [],
+    });
+
+    expect(result.recipeFeatures['1']).toMatchObject({
+      ingredientFoodIds: [],
+      ingredientFoodNames: [],
+      stepCount: 0,
+      ingredientLineCount: 0,
+      distinctFoodCount: 0,
+      complexityScore: 0,
+      complexityBucket: 'simple',
+    });
+    expect(result.recipeFeatures['1']).not.toHaveProperty('cookingTimeMinutes');
+    expect(result.recipeFeatures['1']).not.toHaveProperty('waitingTimeMinutes');
+    expect(result.recipeFeatures['1']).not.toHaveProperty('totalTimeMinutes');
+    expect(result.recipeFeatures['1']).not.toHaveProperty('servings');
+    expect(result.recipeFeatures['1']).not.toHaveProperty('nutritionScore');
+    expect(result.recipeFeatures['1']).not.toHaveProperty('nutritionCompleteness');
+  });
+
+  it('excludes ingredient headers from ingredient counts and food identity features', () => {
+    const result = buildMealAssistantPrecalculation({
+      generatedAt: '2026-06-03T00:00:00.000Z',
+      keywordNameById: {},
+      recipes: [
+        recipe(1, 'Header recipe', {
+          steps: [
+            {
+              id: 1,
+              instruction: 'Prep',
+              order: 1,
+              ingredients: [
+                { id: 1, food: null, note: 'For the sauce', is_header: true },
+                { id: 2, food: { id: 7, name: 'Tomato' } },
+              ],
+            },
+          ],
+        }),
+      ],
+      mealPlans: [],
+    });
+
+    expect(result.recipeFeatures['1']).toMatchObject({
+      ingredientLineCount: 1,
+      distinctFoodCount: 1,
+      ingredientFoodIds: [7],
+      ingredientFoodNames: ['tomato'],
+      complexityScore: 6,
+      complexityBucket: 'simple',
+    });
+  });
+
+  it('captures numeric food ids and object food ids with names', () => {
+    const result = buildMealAssistantPrecalculation({
+      generatedAt: '2026-06-03T00:00:00.000Z',
+      keywordNameById: {},
+      recipes: [
+        recipe(1, 'Mixed food ids', {
+          steps: [
+            {
+              id: 1,
+              instruction: 'Prep',
+              order: 1,
+              ingredients: [
+                { id: 1, food: 10 },
+                { id: 2, food: { id: 5, name: 'Paneer' } },
+                { id: 3, food: { id: 10, name: 'Duplicate numeric id with name' } },
+                { id: 4, food: { id: 8, name: 'Bell Pepper' } },
+              ],
+            },
+          ],
+        }),
+      ],
+      mealPlans: [],
+    });
+
+    expect(result.recipeFeatures['1']).toMatchObject({
+      ingredientLineCount: 4,
+      distinctFoodCount: 3,
+      ingredientFoodIds: [5, 8, 10],
+      ingredientFoodNames: ['bell pepper', 'duplicate numeric id with name', 'paneer'],
+      complexityBucket: 'moderate',
+    });
+  });
+
+  it('marks food property nutrition completeness when values are present or missing', () => {
+    const result = buildMealAssistantPrecalculation({
+      generatedAt: '2026-06-03T00:00:00.000Z',
+      keywordNameById: {},
+      recipes: [
+        recipe(1, 'Complete nutrition', {
+          food_properties: {
+            calories: {
+              id: 1,
+              name: 'Calories',
+              total_value: 400,
+              unit: 'kcal',
+              missing_value: false,
+              food_values: {},
+            },
+            protein: {
+              id: 2,
+              name: 'Protein',
+              total_value: 20,
+              unit: 'g',
+              missing_value: false,
+              food_values: {},
+            },
+          },
+        }),
+        recipe(2, 'Incomplete nutrition', {
+          food_properties: {
+            calories: {
+              id: 1,
+              name: 'Calories',
+              total_value: 400,
+              unit: 'kcal',
+              missing_value: true,
+              food_values: {},
+            },
+            protein: {
+              id: 2,
+              name: 'Protein',
+              total_value: 20,
+              unit: 'g',
+              missing_value: false,
+              food_values: {},
+            },
+          },
+        }),
+      ],
+      mealPlans: [],
+    });
+
+    expect(result.recipeFeatures['1'].nutritionCompleteness).toEqual({
+      source: 'food_properties',
+      complete: true,
+      propertyCount: 2,
+      missingPropertyCount: 0,
+    });
+    expect(result.recipeFeatures['2'].nutritionCompleteness).toEqual({
+      source: 'food_properties',
+      complete: false,
+      propertyCount: 2,
+      missingPropertyCount: 1,
+    });
+  });
+
+  it('marks legacy nutrition completeness and omits it when a recipe has no nutrition', () => {
+    const result = buildMealAssistantPrecalculation({
+      generatedAt: '2026-06-03T00:00:00.000Z',
+      keywordNameById: {},
+      recipes: [
+        recipe(1, 'Legacy complete', {
+          nutrition: { calories: 400, proteins: 20, carbohydrates: 30, fats: 10, fibres: 5 },
+        }),
+        recipe(2, 'Legacy partial', {
+          nutrition: { calories: 400, proteins: 20 },
+        }),
+        recipe(3, 'No nutrition'),
+      ],
+      mealPlans: [],
+    });
+
+    expect(result.recipeFeatures['1'].nutritionCompleteness).toEqual({
+      source: 'legacy',
+      complete: true,
+      propertyCount: 5,
+      missingPropertyCount: 0,
+    });
+    expect(result.recipeFeatures['2'].nutritionCompleteness).toEqual({
+      source: 'legacy',
+      complete: false,
+      propertyCount: 2,
+      missingPropertyCount: 3,
+    });
+    expect(result.recipeFeatures['3']).not.toHaveProperty('nutritionCompleteness');
   });
 
   it('maps calendar months to meal assistant seasons', () => {
@@ -126,6 +361,27 @@ describe('mealAssistantPrecalculation', () => {
   });
 
   it('rejects unknown payload shapes', () => {
+    expect(
+      isMealAssistantPrecalculation({
+        ...buildMealAssistantPrecalculation({ recipes: [], keywordNameById: {}, mealPlans: [] }),
+        schemaVersion: 2,
+      }),
+    ).toBe(false);
+    expect(
+      isMealAssistantPrecalculation({
+        ...buildMealAssistantPrecalculation({ recipes: [], keywordNameById: {}, mealPlans: [] }),
+        recipeFeatures: {
+          '1': {
+            keywords: [],
+            produce: [],
+            stepCount: 0,
+            ingredientLineCount: 0,
+            distinctFoodCount: 0,
+            complexityScore: 0,
+          },
+        },
+      }),
+    ).toBe(false);
     expect(isMealAssistantPrecalculation({ schemaVersion: 999 })).toBe(false);
     expect(isMealAssistantPrecalculation(null)).toBe(false);
   });
