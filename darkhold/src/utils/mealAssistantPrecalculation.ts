@@ -10,7 +10,7 @@ import {
   type MealAssistantRecipeCluster,
   type MealAssistantRecipeClusterMembership,
   type MealAssistantSimilarRecipe,
-} from './recipeSimilarity';
+} from './recipeSimilarity.ts';
 
 export const MEAL_ASSISTANT_PRECALCULATION_SCHEMA_VERSION = 4;
 
