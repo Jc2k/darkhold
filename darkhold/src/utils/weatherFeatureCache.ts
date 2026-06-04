@@ -1,5 +1,5 @@
-import type { WeatherFeatureDay, WeatherFeatures } from './weatherFeatures';
-import { deriveWeatherFeatures } from './weatherFeatures';
+import type { WeatherFeatureDay, WeatherFeatures } from './weatherFeatures.ts';
+import { deriveWeatherFeatures } from './weatherFeatures.ts';
 
 export const WEATHER_FEATURE_CACHE_SCHEMA_VERSION = 1;
 
