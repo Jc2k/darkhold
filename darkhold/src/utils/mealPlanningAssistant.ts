@@ -311,12 +311,7 @@ export function isGoodWeatherDay(
   const isPublicHoliday = publicHolidayDates.has(date);
   if (!isWeekend && !isPublicHoliday) return false;
   const features = deriveWeatherFeatures(weather);
-  return (
-    features.outdoorSuitability === 'good' &&
-    weather.tempMaxC >= GOOD_WEATHER_MIN_TEMP_C &&
-    weather.precipitationProbabilityMax <= GOOD_WEATHER_MAX_PRECIP_PROBABILITY &&
-    weather.precipitationSumMm <= GOOD_WEATHER_MAX_PRECIP_MM
-  );
+  return features.outdoorSuitability === 'good';
 }
 
 function getSeasonKey(date: Date): string {

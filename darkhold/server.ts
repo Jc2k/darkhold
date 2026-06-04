@@ -294,8 +294,7 @@ async function writeMealAssistantPrecalculation(): Promise<void> {
     weatherByDate: nextWeatherCache.dates,
   });
   const path = loadMealAssistantPrecalculationPath();
-  await Deno.mkdir(path.slice(0, path.lastIndexOf('/')) || '.', { recursive: true });
-  await Deno.writeTextFile(path, `${JSON.stringify(precalculation)}\n`);
+  await writeFileAtomically(path, `${JSON.stringify(precalculation)}\n`);
   console.info(
     `Wrote meal assistant precalculation with ${recipes.length} recipes, ${mealPlans.length} meal-plan entries, and ${Object.keys(nextWeatherCache.dates).length} cached weather days to ${path}.`,
   );

@@ -52,7 +52,7 @@ function timeOfDayMinutes(value: string): number | null {
 export function calculateDaylightHours(sunrise: string, sunset: string): number {
   const sunriseMinutes = timeOfDayMinutes(sunrise);
   const sunsetMinutes = timeOfDayMinutes(sunset);
-  if (sunriseMinutes == null || sunsetMinutes == null) return 0;
+  if (sunriseMinutes === null || sunsetMinutes === null) return 0;
   const rawMinutes = sunsetMinutes - sunriseMinutes;
   const durationMinutes = rawMinutes >= 0 ? rawMinutes : rawMinutes + 24 * 60;
   return roundTo(durationMinutes / 60, 2);
