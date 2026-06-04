@@ -5,8 +5,14 @@ import type {
   Recipe,
   RecipeIngredient,
 } from '../api/tandoor-types.d.ts';
+import {
+  buildRecipeSimilarityIndex,
+  type MealAssistantRecipeCluster,
+  type MealAssistantRecipeClusterMembership,
+  type MealAssistantSimilarRecipe,
+} from './recipeSimilarity';
 
-export const MEAL_ASSISTANT_PRECALCULATION_SCHEMA_VERSION = 3;
+export const MEAL_ASSISTANT_PRECALCULATION_SCHEMA_VERSION = 4;
 
 export type MealAssistantSeason = 'winter' | 'spring' | 'summer' | 'autumn';
 
@@ -64,6 +70,7 @@ export interface MealAssistantNutritionCompleteness {
 export interface MealAssistantRecipeFeatures {
   keywords: string[];
   produce: string[];
+  categories?: string[];
   stepCount: number;
   ingredientLineCount: number;
   distinctFoodCount: number;
@@ -102,6 +109,9 @@ export interface MealAssistantPrecalculation {
   keywordNameById: Record<number, string>;
   recipes: Record<string, MealAssistantRecipeSummary>;
   recipeFeatures: Record<string, MealAssistantRecipeFeatures>;
+  recipeSimilarities: Record<string, MealAssistantSimilarRecipe[]>;
+  recipeClusters: Record<string, MealAssistantRecipeCluster>;
+  recipeClusterMemberships: Record<string, MealAssistantRecipeClusterMembership>;
   relationships: MealAssistantRelationships;
   recipeHistory: Record<string, MealAssistantRecipeHistory>;
   recipeInsights: Record<string, MealAssistantRecipeInsight>;
@@ -281,6 +291,21 @@ function recipeKeywordNames(recipe: Recipe, keywordNameById: Record<number, stri
         ? [keywordNameById[keyword.id]]
         : [];
     }
+
+    function recipeCategoryNames(recipe: Recipe): string[] {
+      const categories = (recipe as Recipe & { categories?: unknown }).categories;
+      if (!Array.isArray(categories)) return [];
+      return compactSortedValues(
+        categories.flatMap((category) => {
+          if (typeof category === 'string') return [category];
+          if (typeof category === 'object' && category !== null && 'name' in category) {
+            const name = (category as { name?: unknown }).name;
+            return typeof name === 'string' ? [name] : [];
+          }
+          return [];
+        }),
+      );
+    }
     return keywordNameById[keyword as number] ? [keywordNameById[keyword as number]] : [];
   });
 }
@@ -457,8 +482,61 @@ function isMealAssistantRecipeFeaturesRecord(
     (features) =>
       isRecord(features) &&
       isMealAssistantComplexityBucket(features.complexityBucket) &&
+      (features.categories == null ||
+        (Array.isArray(features.categories) &&
+          features.categories.every((category) => typeof category === 'string'))) &&
       Array.isArray(features.ingredientFoodIds) &&
       Array.isArray(features.ingredientFoodNames),
+  );
+}
+
+function isMealAssistantSimilarRecipesRecord(
+  value: unknown,
+): value is Record<string, MealAssistantSimilarRecipe[]> {
+  if (!isRecord(value)) return false;
+  return Object.values(value).every(
+    (similarities) =>
+      Array.isArray(similarities) &&
+      similarities.every(
+      (similarity) =>
+        isRecord(similarity) &&
+        typeof similarity.recipeId === 'number' &&
+        typeof similarity.score === 'number' &&
+        Array.isArray(similarity.sharedTerms) &&
+        similarity.sharedTerms.every((term) => typeof term === 'string'),
+      ),
+  );
+}
+
+function isMealAssistantRecipeClustersRecord(
+  value: unknown,
+): value is Record<string, MealAssistantRecipeCluster> {
+  if (!isRecord(value)) return false;
+  return Object.values(value).every(
+    (cluster) =>
+      isRecord(cluster) &&
+      typeof cluster.id === 'string' &&
+      typeof cluster.label === 'string' &&
+      typeof cluster.size === 'number' &&
+      Array.isArray(cluster.labelTerms) &&
+      cluster.labelTerms.every((term) => typeof term === 'string') &&
+      Array.isArray(cluster.recipeIds) &&
+      cluster.recipeIds.every((recipeId) => typeof recipeId === 'number'),
+  );
+}
+
+function isMealAssistantRecipeClusterMembershipsRecord(
+  value: unknown,
+): value is Record<string, MealAssistantRecipeClusterMembership> {
+  if (!isRecord(value)) return false;
+  return Object.values(value).every(
+    (membership) =>
+      isRecord(membership) &&
+      typeof membership.clusterId === 'string' &&
+      typeof membership.label === 'string' &&
+      typeof membership.size === 'number' &&
+      Array.isArray(membership.labelTerms) &&
+      membership.labelTerms.every((term) => typeof term === 'string'),
   );
 }
 
@@ -565,6 +643,7 @@ export function buildMealAssistantPrecalculation(input: {
 
   for (const recipe of input.recipes) {
     const keywordNames = compactSortedValues(recipeKeywordNames(recipe, input.keywordNameById));
+    const categoryNames = recipeCategoryNames(recipe);
     const stats = recipeIngredientStats(recipe);
     const produce = recipeProduceMatches(stats, produceFoods);
     const nutrition = getNutritionSignal(recipe);
@@ -578,6 +657,7 @@ export function buildMealAssistantPrecalculation(input: {
     recipeFeatures[String(recipe.id)] = {
       keywords: keywordNames,
       produce,
+      ...(categoryNames.length > 0 ? { categories: categoryNames } : {}),
       stepCount: stats.stepCount,
       ingredientLineCount: stats.ingredientLineCount,
       distinctFoodCount: stats.distinctFoodCount,
@@ -605,6 +685,20 @@ export function buildMealAssistantPrecalculation(input: {
     }
   }
 
+  const { recipeSimilarities, recipeClusters, recipeClusterMemberships } = buildRecipeSimilarityIndex(
+    input.recipes.map((recipe) => {
+      const features = recipeFeatures[String(recipe.id)];
+      return {
+        id: recipe.id,
+        name: recipe.name,
+        keywords: features?.keywords ?? [],
+        ingredientFoodIds: features?.ingredientFoodIds ?? [],
+        ingredientFoodNames: features?.ingredientFoodNames ?? [],
+        categories: features?.categories,
+      };
+    }),
+  );
+
   sortRelationshipIds(relationships.keywords);
   sortRelationshipIds(relationships.produce);
   sortRelationshipIds(relationships.flags);
@@ -629,6 +723,9 @@ export function buildMealAssistantPrecalculation(input: {
     keywordNameById: input.keywordNameById,
     recipes,
     recipeFeatures,
+    recipeSimilarities,
+    recipeClusters,
+    recipeClusterMemberships,
     relationships,
     recipeHistory,
     recipeInsights,
@@ -647,6 +744,9 @@ export function isMealAssistantPrecalculation(
     typeof record.recipes === 'object' &&
     record.recipes !== null &&
     isMealAssistantRecipeFeaturesRecord(record.recipeFeatures) &&
+    isMealAssistantSimilarRecipesRecord(record.recipeSimilarities) &&
+    isMealAssistantRecipeClustersRecord(record.recipeClusters) &&
+    isMealAssistantRecipeClusterMembershipsRecord(record.recipeClusterMemberships) &&
     typeof record.relationships === 'object' &&
     record.relationships !== null &&
     typeof record.recipeHistory === 'object' &&
