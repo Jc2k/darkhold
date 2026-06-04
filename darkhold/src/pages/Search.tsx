@@ -1,5 +1,5 @@
-import { Sliders } from 'react-bootstrap-icons';
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { Basket, Sliders, Tags } from 'react-bootstrap-icons';
+import { useState, useEffect, useRef, useCallback, useMemo, type ComponentType } from 'react';
 import { Form, Row, Col, Spinner, Alert, Button, Collapse } from 'react-bootstrap';
 import { useSearchParams } from 'react-router-dom';
 import { useRecipeSearch } from '../hooks/useRecipeSearch';
@@ -16,21 +16,23 @@ type ActiveFilter = 'tags' | 'ingredients';
 interface FilterConfig {
   key: ActiveFilter;
   label: string;
-  emoji: string;
+  Icon: ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
   urlParam: string;
   searcher: (query: string) => Promise<FilterOption[]>;
 }
 
 const FILTER_CONFIGS: FilterConfig[] = [
-  { key: 'tags', label: 'Tags', emoji: '🏷️', urlParam: 'keywords', searcher: searchKeywords },
+  { key: 'tags', label: 'Tags', Icon: Tags, urlParam: 'keywords', searcher: searchKeywords },
   {
     key: 'ingredients',
     label: 'Ingredients',
-    emoji: '🥕',
+    Icon: Basket,
     urlParam: 'foods',
     searcher: searchFoods,
   },
 ];
+
+const FILTER_CONFIG_BY_KEY = new Map(FILTER_CONFIGS.map((config) => [config.key, config] as const));
 
 async function loadSelectedOptions(
   path: '/keyword/' | '/food/',
@@ -85,8 +87,11 @@ export function Search() {
 
   const keywordParam = searchParams.get('keywords') || '';
   const foodParam = searchParams.get('foods') || '';
-  const keywordIds = keywordParam.split(',').map(Number).filter(Boolean);
-  const foodIds = foodParam.split(',').map(Number).filter(Boolean);
+  const keywordIds = useMemo(
+    () => keywordParam.split(',').map(Number).filter(Boolean),
+    [keywordParam],
+  );
+  const foodIds = useMemo(() => foodParam.split(',').map(Number).filter(Boolean), [foodParam]);
   const ratingParam = searchParams.get('rating');
   const rating = ratingParam !== null ? Number(ratingParam) : undefined;
   const cookingTimeLteParam = searchParams.get('cooking_time__lte');
@@ -133,7 +138,7 @@ export function Search() {
   };
 
   const handleFilterChange = (key: ActiveFilter, selected: FilterOption[]) => {
-    const cfg = FILTER_CONFIGS.find((c) => c.key === key)!;
+    const cfg = FILTER_CONFIG_BY_KEY.get(key)!;
     setSelectedOptions((prev) => ({ ...prev, [key]: selected }));
     const next = new URLSearchParams(searchParams);
     if (selected.length > 0) {
@@ -168,7 +173,15 @@ export function Search() {
       sort_order: sortOrder,
     });
 
-  const recipes = data?.pages.flatMap((p) => p.results) ?? [];
+  const recipes = useMemo(() => data?.pages.flatMap((p) => p.results) ?? [], [data]);
+  const availableFilters = useMemo(
+    () => FILTER_CONFIGS.filter(({ key }) => !activeFilters.has(key)),
+    [activeFilters],
+  );
+  const visibleFilters = useMemo(
+    () => FILTER_CONFIGS.filter(({ key }) => activeFilters.has(key)),
+    [activeFilters],
+  );
 
   const loaderRef = useRef<HTMLDivElement | null>(null);
 
@@ -233,36 +246,28 @@ export function Search() {
       <Collapse in={filtersOpen}>
         <div id="advanced-filters" className="border rounded p-3 mb-3 bg-light">
           <div className="d-flex flex-wrap gap-2 mb-3">
-            {FILTER_CONFIGS.filter(({ key }) => !activeFilters.has(key)).map(
-              ({ key, label, emoji }) => (
-                <Button
-                  key={key}
-                  variant="outline-primary"
-                  size="sm"
-                  onClick={() => addFilter(key)}
-                >
-                  {emoji} {label}
-                </Button>
-              ),
-            )}
+            {availableFilters.map(({ key, label, Icon }) => (
+              <Button key={key} variant="outline-primary" size="sm" onClick={() => addFilter(key)}>
+                <Icon className="me-1" aria-hidden={true} />
+                {label}
+              </Button>
+            ))}
             {FILTER_CONFIGS.every(({ key }) => activeFilters.has(key)) && (
               <span className="text-muted small align-self-center">All filters added.</span>
             )}
           </div>
 
-          {FILTER_CONFIGS.filter(({ key }) => activeFilters.has(key)).map(
-            ({ key, label, searcher }) => (
-              <AsyncTypeaheadFilter
-                key={key}
-                id={`${key}-filter`}
-                label={label}
-                selected={selectedOptions[key]}
-                onSearch={searcher}
-                onChange={(selected) => handleFilterChange(key, selected)}
-                onRemove={() => removeFilter(key)}
-              />
-            ),
-          )}
+          {visibleFilters.map(({ key, label, searcher }) => (
+            <AsyncTypeaheadFilter
+              key={key}
+              id={`${key}-filter`}
+              label={label}
+              selected={selectedOptions[key]}
+              onSearch={searcher}
+              onChange={(selected) => handleFilterChange(key, selected)}
+              onRemove={() => removeFilter(key)}
+            />
+          ))}
         </div>
       </Collapse>
 
