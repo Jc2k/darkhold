@@ -5,7 +5,9 @@ import { fetchUpSoonData } from './useUpSoon';
 import { formatDate } from '../utils/dateUtils';
 import {
   isMealAssistantPrecalculation,
+  mealAssistantDayNumberToDate,
   type MealAssistantPrecalculation,
+  type MealAssistantRecipeSummary,
 } from '../utils/mealAssistantPrecalculation';
 
 const MEAL_PLANNING_ASSISTANT_STALE_TIME_MS = 1000 * 60 * 30;
@@ -18,6 +20,35 @@ export interface MealPlanningAssistantData {
   upSoonRecipeIds: number[];
   produceFoodNames: string[];
   precalculation?: MealAssistantPrecalculation;
+}
+
+function compactSummaryToRecipe(
+  summary: MealAssistantRecipeSummary,
+  precalculation: MealAssistantPrecalculation,
+): Recipe {
+  const features = precalculation.recipeFeatures[String(summary.id)];
+  return {
+    id: summary.id,
+    name: summary.name,
+    created_by: 0,
+    image: summary.image,
+    servings: summary.servings,
+    rating: summary.rating,
+    created_at: summary.createdAt,
+    keywords: (features?.keywords ?? []).map((name, index) => ({ id: index + 1, name })),
+  };
+}
+
+function compactHistoryToMealPlans(precalculation: MealAssistantPrecalculation): MealPlan[] {
+  let id = 1;
+  return Object.entries(precalculation.recipeHistory).flatMap(([recipeId, history]) =>
+    history.dates.map((dayNumber) => ({
+      id: id++,
+      recipe: Number.parseInt(recipeId, 10),
+      meal_type: 0,
+      from_date: mealAssistantDayNumberToDate(dayNumber),
+    })),
+  );
 }
 
 async function fetchAllPages<T>(
@@ -72,16 +103,13 @@ export async function fetchMealPlanningAssistantData(
 
   if (precalculation) {
     return {
-      recipes: precalculation.recipes,
+      recipes: Object.values(precalculation.recipes).map((summary) =>
+        compactSummaryToRecipe(summary, precalculation),
+      ),
       keywordNameById: precalculation.keywordNameById,
-      historicalMeals: precalculation.mealHistory.map((entry, index) => ({
-        id: index + 1,
-        recipe: entry.recipeId,
-        meal_type: 0,
-        from_date: entry.date,
-      })),
+      historicalMeals: compactHistoryToMealPlans(precalculation),
       upSoonRecipeIds: upSoonData?.entries.map((entry) => entry.recipeId) ?? [],
-      produceFoodNames: precalculation.produceFoodNames,
+      produceFoodNames: Object.keys(precalculation.relationships.produce),
       precalculation,
     };
   }

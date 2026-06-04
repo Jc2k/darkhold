@@ -1,6 +1,6 @@
-import type { FoodProperty, MealPlan, Recipe } from '../api/tandoor-types.d.ts';
+import type { FoodProperty, MealPlan, Recipe, RecipeIngredient } from '../api/tandoor-types.d.ts';
 
-export const MEAL_ASSISTANT_PRECALCULATION_SCHEMA_VERSION = 1;
+export const MEAL_ASSISTANT_PRECALCULATION_SCHEMA_VERSION = 2;
 
 export type MealAssistantSeason = 'winter' | 'spring' | 'summer' | 'autumn';
 
@@ -37,14 +37,47 @@ export interface MealAssistantRecipeInsight {
   nutrition?: MealAssistantNutritionSignal;
 }
 
+export interface MealAssistantRecipeSummary {
+  id: number;
+  name: string;
+  image?: string | null;
+  servings?: number;
+  rating?: number | null;
+  createdAt?: string;
+}
+
+export interface MealAssistantRecipeFeatures {
+  keywords: string[];
+  produce: string[];
+  stepCount: number;
+  ingredientLineCount: number;
+  distinctFoodCount: number;
+  complexityScore: number;
+  nutritionScore?: number;
+}
+
+export interface MealAssistantRecipeHistory {
+  dates: number[];
+  dayCounts: [number, number, number, number, number, number, number];
+  seasonCounts: [number, number, number, number];
+  totalPlanCount: number;
+  lastPlannedDate?: number;
+}
+
+export interface MealAssistantRelationships {
+  keywords: Record<string, number[]>;
+  produce: Record<string, number[]>;
+  flags: Record<string, number[]>;
+}
+
 export interface MealAssistantPrecalculation {
   schemaVersion: typeof MEAL_ASSISTANT_PRECALCULATION_SCHEMA_VERSION;
   generatedAt: string;
-  recipes: Recipe[];
   keywordNameById: Record<number, string>;
-  produceFoodNames: string[];
-  produceRecipeIds: Record<string, number[]>;
-  mealHistory: MealAssistantMealHistoryEntry[];
+  recipes: Record<string, MealAssistantRecipeSummary>;
+  recipeFeatures: Record<string, MealAssistantRecipeFeatures>;
+  relationships: MealAssistantRelationships;
+  recipeHistory: Record<string, MealAssistantRecipeHistory>;
   recipeInsights: Record<string, MealAssistantRecipeInsight>;
 }
 
@@ -59,6 +92,13 @@ const MIN_SEASON_SHARE = 0.45;
 const LOW_PROTEIN_THRESHOLD_G = 8;
 const HIGH_PROTEIN_THRESHOLD_G = 12;
 const HIGH_CALORIE_THRESHOLD_KCAL = 600;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const SEASON_INDEX: Record<MealAssistantSeason, number> = {
+  winter: 0,
+  spring: 1,
+  summer: 2,
+  autumn: 3,
+};
 
 export function getMealAssistantSeason(date: Date): MealAssistantSeason {
   const month = date.getMonth() + 1;
@@ -77,6 +117,17 @@ function parseMealDate(value: string): Date | null {
   const datePart = value.includes('T') ? value.split('T')[0] : value;
   const parsed = new Date(`${datePart}T00:00:00`);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function dateStringToDayNumber(value: string): number | null {
+  const datePart = value.includes('T') ? value.split('T')[0] : value;
+  const parts = datePart.split('-').map((part) => Number.parseInt(part, 10));
+  if (parts.length !== 3 || parts.some((part) => Number.isNaN(part))) return null;
+  return Math.floor(Date.UTC(parts[0], parts[1] - 1, parts[2]) / MS_PER_DAY);
+}
+
+export function mealAssistantDayNumberToDate(dayNumber: number): string {
+  return new Date(dayNumber * MS_PER_DAY).toISOString().slice(0, 10);
 }
 
 function roundShare(value: number): number {
@@ -119,6 +170,15 @@ function createEmptyInsight(): MealAssistantRecipeInsight {
     days: {},
     seasons: {},
     produce: [],
+  };
+}
+
+function createEmptyHistory(): MealAssistantRecipeHistory {
+  return {
+    dates: [],
+    dayCounts: [0, 0, 0, 0, 0, 0, 0],
+    seasonCounts: [0, 0, 0, 0],
+    totalPlanCount: 0,
   };
 }
 
@@ -167,6 +227,23 @@ function normalizedText(value: string): string {
   return value.trim().toLowerCase();
 }
 
+function compactSortedValues(values: Iterable<string>): string[] {
+  return [...new Set([...values].map(normalizedText).filter(Boolean))].sort();
+}
+
+function recipeKeywordNames(recipe: Recipe, keywordNameById: Record<number, string>): string[] {
+  if (!Array.isArray(recipe.keywords)) return [];
+  return recipe.keywords.flatMap((keyword) => {
+    if (typeof keyword === 'object' && keyword !== null && !Array.isArray(keyword)) {
+      if (typeof keyword.name === 'string') return [keyword.name];
+      return typeof keyword.id === 'number' && keywordNameById[keyword.id]
+        ? [keywordNameById[keyword.id]]
+        : [];
+    }
+    return keywordNameById[keyword as number] ? [keywordNameById[keyword as number]] : [];
+  });
+}
+
 function recipeHasProduce(
   recipe: Recipe,
   produceName: string,
@@ -175,18 +252,59 @@ function recipeHasProduce(
   const needle = normalizedText(produceName);
   if (!needle) return false;
   if (normalizedText(recipe.name).includes(needle)) return true;
-  const keywordNames = Array.isArray(recipe.keywords)
-    ? recipe.keywords.flatMap((keyword) => {
-        if (typeof keyword === 'object' && keyword !== null && !Array.isArray(keyword)) {
-          if (typeof keyword.name === 'string') return [keyword.name];
-          return typeof keyword.id === 'number' && keywordNameById[keyword.id]
-            ? [keywordNameById[keyword.id]]
-            : [];
-        }
-        return keywordNameById[keyword as number] ? [keywordNameById[keyword as number]] : [];
-      })
-    : [];
+  const keywordNames = recipeKeywordNames(recipe, keywordNameById);
   return keywordNames.some((keyword) => normalizedText(keyword).includes(needle));
+}
+
+function ingredientFoodId(ingredient: RecipeIngredient): number | null {
+  if (typeof ingredient.food === 'number') return ingredient.food;
+  return ingredient.food?.id ?? null;
+}
+
+function recipeIngredientStats(recipe: Recipe): {
+  stepCount: number;
+  ingredientLineCount: number;
+  distinctFoodCount: number;
+} {
+  const steps = recipe.steps ?? [];
+  const ingredients = steps.flatMap((step) => step.ingredients ?? []);
+  const ingredientLineCount = ingredients.filter((ingredient) => !ingredient.is_header).length;
+  const distinctFoodIds = new Set(
+    ingredients
+      .filter((ingredient) => !ingredient.is_header)
+      .map(ingredientFoodId)
+      .filter((id): id is number => id != null),
+  );
+  return {
+    stepCount: steps.length,
+    ingredientLineCount,
+    distinctFoodCount: distinctFoodIds.size,
+  };
+}
+
+function complexityScore(stats: {
+  stepCount: number;
+  ingredientLineCount: number;
+  distinctFoodCount: number;
+}): number {
+  return stats.stepCount * 3 + stats.ingredientLineCount * 2 + stats.distinctFoodCount;
+}
+
+function addRelationship(
+  relationships: Record<string, number[]>,
+  key: string,
+  recipeId: number,
+): void {
+  const normalized = normalizedText(key);
+  if (!normalized) return;
+  relationships[normalized] = relationships[normalized] ?? [];
+  relationships[normalized].push(recipeId);
+}
+
+function sortRelationshipIds(relationships: Record<string, number[]>): void {
+  for (const recipeIds of Object.values(relationships)) {
+    recipeIds.sort((a, b) => a - b);
+  }
 }
 
 export function buildMealAssistantPrecalculation(input: {
@@ -196,16 +314,36 @@ export function buildMealAssistantPrecalculation(input: {
   produceFoodNames?: readonly string[];
   generatedAt?: string;
 }): MealAssistantPrecalculation {
-  const produceFoodNames = [
-    ...new Set((input.produceFoodNames ?? []).map(normalizedText).filter(Boolean)),
-  ].sort();
+  const produceFoodNames = compactSortedValues(input.produceFoodNames ?? []);
   const mealHistory = buildMealHistory(input.mealPlans).sort((a, b) =>
     a.date.localeCompare(b.date),
   );
+  const recipes: Record<string, MealAssistantRecipeSummary> = {};
+  const recipeFeatures: Record<string, MealAssistantRecipeFeatures> = {};
+  const recipeHistory: Record<string, MealAssistantRecipeHistory> = {};
   const recipeInsights: Record<string, MealAssistantRecipeInsight> = {};
+  const relationships: MealAssistantRelationships = {
+    keywords: {},
+    produce: Object.fromEntries(produceFoodNames.map((name) => [name, [] as number[]])),
+    flags: {},
+  };
 
   for (const recipe of input.recipes) {
+    const summary: MealAssistantRecipeSummary = {
+      id: recipe.id,
+      name: recipe.name,
+      ...(recipe.image === undefined ? {} : { image: recipe.image }),
+      ...(recipe.servings === undefined ? {} : { servings: recipe.servings }),
+      ...(recipe.rating === undefined ? {} : { rating: recipe.rating }),
+      ...(recipe.created_at === undefined ? {} : { createdAt: recipe.created_at }),
+    };
+    recipes[String(recipe.id)] = summary;
     recipeInsights[String(recipe.id)] = createEmptyInsight();
+    recipeHistory[String(recipe.id)] = createEmptyHistory();
+
+    for (const keyword of compactSortedValues(recipeKeywordNames(recipe, input.keywordNameById))) {
+      addRelationship(relationships.keywords, keyword, recipe.id);
+    }
   }
 
   for (const entry of mealHistory) {
@@ -214,6 +352,17 @@ export function buildMealAssistantPrecalculation(input: {
     if (entry.weekend) insight.weekendCookCount += 1;
     else insight.weekdayCookCount += 1;
     recipeInsights[String(entry.recipeId)] = insight;
+
+    const history = recipeHistory[String(entry.recipeId)] ?? createEmptyHistory();
+    const dayNumber = dateStringToDayNumber(entry.date);
+    if (dayNumber != null) {
+      history.dates.push(dayNumber);
+      history.lastPlannedDate = Math.max(history.lastPlannedDate ?? dayNumber, dayNumber);
+    }
+    history.dayCounts[entry.day] += 1;
+    history.seasonCounts[SEASON_INDEX[entry.season]] += 1;
+    history.totalPlanCount += 1;
+    recipeHistory[String(entry.recipeId)] = history;
   }
 
   for (const [recipeId, insight] of Object.entries(recipeInsights)) {
@@ -258,32 +407,49 @@ export function buildMealAssistantPrecalculation(input: {
     }
   }
 
-  const produceRecipeIds = Object.fromEntries(
-    produceFoodNames.map((name) => [name, [] as number[]]),
-  );
   for (const recipe of input.recipes) {
+    const keywordNames = compactSortedValues(recipeKeywordNames(recipe, input.keywordNameById));
     const produce = produceFoodNames.filter((name) =>
       recipeHasProduce(recipe, name, input.keywordNameById),
     );
-    recipeInsights[String(recipe.id)].produce = produce;
-    for (const name of produce) produceRecipeIds[name].push(recipe.id);
-
+    const stats = recipeIngredientStats(recipe);
     const nutrition = getNutritionSignal(recipe);
+
+    recipeInsights[String(recipe.id)].produce = produce;
     if (nutrition) recipeInsights[String(recipe.id)].nutrition = nutrition;
+    for (const name of produce) addRelationship(relationships.produce, name, recipe.id);
+
+    recipeFeatures[String(recipe.id)] = {
+      keywords: keywordNames,
+      produce,
+      stepCount: stats.stepCount,
+      ingredientLineCount: stats.ingredientLineCount,
+      distinctFoodCount: stats.distinctFoodCount,
+      complexityScore: complexityScore(stats),
+      ...(nutrition ? { nutritionScore: nutrition.score } : {}),
+    };
+
+    if (recipe.image) addRelationship(relationships.flags, 'has-image', recipe.id);
+    if (recipe.rating != null && recipe.rating <= 1) {
+      addRelationship(relationships.flags, 'low-rated', recipe.id);
+    }
   }
 
-  for (const recipeIds of Object.values(produceRecipeIds)) {
-    recipeIds.sort((a, b) => a - b);
+  sortRelationshipIds(relationships.keywords);
+  sortRelationshipIds(relationships.produce);
+  sortRelationshipIds(relationships.flags);
+  for (const history of Object.values(recipeHistory)) {
+    history.dates.sort((a, b) => a - b);
   }
 
   return {
     schemaVersion: MEAL_ASSISTANT_PRECALCULATION_SCHEMA_VERSION,
     generatedAt: input.generatedAt ?? new Date().toISOString(),
-    recipes: input.recipes,
     keywordNameById: input.keywordNameById,
-    produceFoodNames,
-    produceRecipeIds,
-    mealHistory,
+    recipes,
+    recipeFeatures,
+    relationships,
+    recipeHistory,
     recipeInsights,
   };
 }
@@ -295,13 +461,16 @@ export function isMealAssistantPrecalculation(
   const record = value as Partial<MealAssistantPrecalculation>;
   return (
     record.schemaVersion === MEAL_ASSISTANT_PRECALCULATION_SCHEMA_VERSION &&
-    Array.isArray(record.recipes) &&
     typeof record.keywordNameById === 'object' &&
     record.keywordNameById !== null &&
-    Array.isArray(record.produceFoodNames) &&
-    typeof record.produceRecipeIds === 'object' &&
-    record.produceRecipeIds !== null &&
-    Array.isArray(record.mealHistory) &&
+    typeof record.recipes === 'object' &&
+    record.recipes !== null &&
+    typeof record.recipeFeatures === 'object' &&
+    record.recipeFeatures !== null &&
+    typeof record.relationships === 'object' &&
+    record.relationships !== null &&
+    typeof record.recipeHistory === 'object' &&
+    record.recipeHistory !== null &&
     typeof record.recipeInsights === 'object' &&
     record.recipeInsights !== null
   );

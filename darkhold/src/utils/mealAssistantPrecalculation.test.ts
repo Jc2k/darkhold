@@ -40,6 +40,20 @@ describe('mealAssistantPrecalculation', () => {
         recipe(2, 'Courgette pasta', {
           keywords: [10],
           servings: 2,
+          steps: [
+            {
+              id: 1,
+              instruction: 'Prep',
+              order: 1,
+              ingredients: [
+                { id: 1, food: 100 },
+                { id: 2, food: 101 },
+                { id: 3, food: 100 },
+                { id: 4, food: null, is_header: true },
+              ],
+            },
+            { id: 2, instruction: 'Cook', order: 2, ingredients: [{ id: 5, food: 102 }] },
+          ],
           food_properties: {
             calories: {
               id: 1,
@@ -71,7 +85,11 @@ describe('mealAssistantPrecalculation', () => {
     });
 
     expect(result.generatedAt).toBe('2026-06-03T00:00:00.000Z');
-    expect(result.mealHistory[0]).toMatchObject({ recipeId: 1, day: 5, season: 'winter' });
+    expect(result.schemaVersion).toBe(2);
+    expect(result.recipes['1']).toMatchObject({ id: 1, name: 'Chilli con carne' });
+    expect(result.recipes['1']).not.toHaveProperty('food_properties');
+    expect(result.recipeHistory['1']).toMatchObject({ totalPlanCount: 4 });
+    expect(result.recipeHistory['1'].dayCounts[5]).toBe(4);
     expect(result.recipeInsights['1'].days['5']).toMatchObject({ count: 4, total: 4 });
     expect(result.recipeInsights['1'].weekday).toMatchObject({ count: 4, total: 4 });
     expect(result.recipeInsights['1'].seasons.winter).toMatchObject({ count: 4, total: 4 });
@@ -81,7 +99,17 @@ describe('mealAssistantPrecalculation', () => {
       score: 8,
     });
     expect(result.recipeInsights['2'].produce).toEqual(['courgette']);
-    expect(result.produceRecipeIds.courgette).toEqual([2]);
+    expect(result.relationships.produce.courgette).toEqual([2]);
+    expect(result.relationships.keywords.courgette).toEqual([2]);
+    expect(result.recipeFeatures['2']).toMatchObject({
+      keywords: ['courgette'],
+      produce: ['courgette'],
+      nutritionScore: -18,
+      stepCount: 2,
+      ingredientLineCount: 4,
+      distinctFoodCount: 3,
+      complexityScore: 17,
+    });
     expect(result.recipeInsights['2'].nutrition).toMatchObject({
       proteinG: 6,
       caloriesKcal: 650,
