@@ -29,6 +29,74 @@ function formatMealPlannerDate(value: string): string {
 
 const SCORE_BADGE_CLASS = 'd-inline-flex align-items-center justify-content-center text-center';
 
+function sortScoreComponents(
+  components: MealAssistantSlotPlan['selected']['components'],
+  direction: 'positive' | 'negative' | 'neutral',
+) {
+  if (direction === 'positive') {
+    return components
+      .filter((component) => component.score > 0)
+      .slice()
+      .sort((left, right) => right.score - left.score || left.label.localeCompare(right.label));
+  }
+  if (direction === 'negative') {
+    return components
+      .filter((component) => component.score < 0)
+      .slice()
+      .sort((left, right) => left.score - right.score || left.label.localeCompare(right.label));
+  }
+  return components
+    .filter((component) => component.score === 0)
+    .slice()
+    .sort((left, right) => left.label.localeCompare(right.label));
+}
+
+function ScoreComponentList({
+  components,
+  badgeVariant,
+}: {
+  components: MealAssistantSlotPlan['selected']['components'];
+  badgeVariant: 'success' | 'danger' | 'secondary';
+}) {
+  return (
+    <ListGroup>
+      {components.map((component) => (
+        <ListGroup.Item key={component.key} className="d-flex justify-content-between gap-3">
+          <div>
+            <div className="fw-semibold">{component.label}</div>
+            <div className="text-muted small">{component.detail}</div>
+          </div>
+          <Badge bg={badgeVariant} pill className={SCORE_BADGE_CLASS}>
+            {formatScore(component.score)}
+          </Badge>
+        </ListGroup.Item>
+      ))}
+    </ListGroup>
+  );
+}
+
+function buildAlternativeReason(
+  alternative: MealAssistantSlotPlan['alternatives'][number],
+  selectedScore: number,
+): string {
+  const scoreGap = selectedScore - alternative.score;
+  const penalties = sortScoreComponents(alternative.components, 'negative').slice(0, 2);
+  if (penalties.length > 0) {
+    return `Why not: ${penalties.map((penalty) => penalty.detail).join(' · ')}`;
+  }
+  const positives = sortScoreComponents(alternative.components, 'positive').slice(0, 2);
+  if (scoreGap > 0 && positives.length > 0) {
+    return `Why not: ${scoreGap} points behind despite ${positives
+      .map((positive) => positive.detail)
+      .join(' · ')}`;
+  }
+  const neutrals = sortScoreComponents(alternative.components, 'neutral').slice(0, 1);
+  if (neutrals.length > 0) return `Why not: ${neutrals[0].detail}`;
+  return scoreGap > 0
+    ? `Why not: ${scoreGap} points behind the selected meal.`
+    : 'Close fallback with a similar score profile.';
+}
+
 function RecipePreview({ recipe, title }: { recipe: Recipe; title?: string }) {
   return (
     <div className="d-flex align-items-center gap-3">
@@ -111,7 +179,19 @@ export function MealPlanAssistantModal({
 }: Props) {
   if (!analysis) return null;
 
-  const selectedReasons = analysis.selected.components.filter((component) => component.score > 0);
+  const selectedPositiveFactors = sortScoreComponents(
+    analysis.selected.components,
+    'positive',
+  ).slice(0, 5);
+  const selectedPenalties = sortScoreComponents(analysis.selected.components, 'negative').slice(
+    0,
+    5,
+  );
+  const selectedNeutralFactors = sortScoreComponents(analysis.selected.components, 'neutral').slice(
+    0,
+    4,
+  );
+  const hardExclusions = (analysis.hardExclusions ?? []).slice(0, 5);
   const currentDate = currentEntry?.from_date.split('T')[0] ?? analysis.date;
   const modalDate = formatMealPlannerDate(currentDate);
 
@@ -144,28 +224,33 @@ export function MealPlanAssistantModal({
           {analysis.roleFlavourDetail && (
             <p className="text-muted small mb-2">{analysis.roleFlavourDetail}</p>
           )}
-          {selectedReasons.length === 0 ? (
-            <p className="text-muted small mb-0">
-              This meal won mainly because other candidates scored lower.
-            </p>
-          ) : (
-            <ListGroup>
-              {selectedReasons.map((component) => (
-                <ListGroup.Item
-                  key={component.key}
-                  className="d-flex justify-content-between gap-3"
-                >
-                  <div>
-                    <div className="fw-semibold">{component.label}</div>
-                    <div className="text-muted small">{component.detail}</div>
-                  </div>
-                  <Badge bg="success" pill className={SCORE_BADGE_CLASS}>
-                    {formatScore(component.score)}
-                  </Badge>
-                </ListGroup.Item>
-              ))}
-            </ListGroup>
-          )}
+          <div className="d-grid gap-3">
+            <div>
+              <div className="fw-semibold small mb-2">Top positive factors</div>
+              {selectedPositiveFactors.length > 0 ? (
+                <ScoreComponentList components={selectedPositiveFactors} badgeVariant="success" />
+              ) : (
+                <p className="text-muted small mb-0">
+                  No positive scoring signals stood out; neutral eligibility and penalties explain
+                  the choice instead.
+                </p>
+              )}
+            </div>
+
+            {selectedPenalties.length > 0 && (
+              <div>
+                <div className="fw-semibold small mb-2">Top penalties</div>
+                <ScoreComponentList components={selectedPenalties} badgeVariant="danger" />
+              </div>
+            )}
+
+            {selectedNeutralFactors.length > 0 && (
+              <div>
+                <div className="fw-semibold small mb-2">Neutral and balance factors</div>
+                <ScoreComponentList components={selectedNeutralFactors} badgeVariant="secondary" />
+              </div>
+            )}
+          </div>
         </section>
 
         {analysis.selected.warnings.length > 0 && (
@@ -187,30 +272,37 @@ export function MealPlanAssistantModal({
             <p className="text-muted small mb-0">No other suitable alternatives were retained.</p>
           ) : (
             <ListGroup>
-              {analysis.alternatives.map((alternative) => {
-                const topReasons = alternative.components
-                  .filter((component) => component.score > 0)
-                  .slice(0, 3);
-                return (
-                  <ListGroup.Item key={alternative.recipe.id}>
-                    <AlternativeRecipePreview
-                      recipe={alternative.recipe}
-                      score={alternative.score}
-                      reasons={
-                        topReasons.length > 0
-                          ? topReasons.map((reason) => reason.detail).join(' · ')
-                          : 'Viable fallback with fewer positive signals.'
-                      }
-                      warnings={alternative.warnings}
-                      isSwitching={isSwitching}
-                      onSelect={onSelectAlternative}
-                    />
-                  </ListGroup.Item>
-                );
-              })}
+              {analysis.alternatives.map((alternative) => (
+                <ListGroup.Item key={alternative.recipe.id}>
+                  <AlternativeRecipePreview
+                    recipe={alternative.recipe}
+                    score={alternative.score}
+                    reasons={buildAlternativeReason(alternative, analysis.selected.score)}
+                    warnings={alternative.warnings}
+                    isSwitching={isSwitching}
+                    onSelect={onSelectAlternative}
+                  />
+                </ListGroup.Item>
+              ))}
             </ListGroup>
           )}
         </section>
+
+        {hardExclusions.length > 0 && (
+          <section className="mt-4">
+            <h6 className="mb-2">Hard filters</h6>
+            <ListGroup>
+              {hardExclusions.map((exclusion) => (
+                <ListGroup.Item key={exclusion.recipe.id}>
+                  <div className="fw-semibold">
+                    {exclusion.recipe.name} · {exclusion.reason}
+                  </div>
+                  <div className="text-muted small">{exclusion.detail}</div>
+                </ListGroup.Item>
+              ))}
+            </ListGroup>
+          </section>
+        )}
       </Modal.Body>
     </Modal>
   );
