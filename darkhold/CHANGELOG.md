@@ -1,3 +1,10 @@
+# [1.111.0](https://github.com/Jc2k/darkhold/compare/v1.110.0...v1.111.0) (2026-06-04)
+
+
+### Features
+
+* **meal-plan:** improve assistant explanations ([649f09c](https://github.com/Jc2k/darkhold/commit/649f09ceffcd247ab8ea9843d5a23dd05fe215eb))
+
 # [1.110.0](https://github.com/Jc2k/darkhold/compare/v1.109.0...v1.110.0) (2026-06-04)
 
 
