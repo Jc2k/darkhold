@@ -183,6 +183,45 @@
   margin: 0 auto;
 }
 
+.meal-plan-page .meal-plan-week-carousel {
+  position: relative;
+  overflow: hidden;
+}
+
+.meal-plan-page .meal-plan-week-carousel-track {
+  position: relative;
+  will-change: transform;
+}
+
+.meal-plan-page .meal-plan-week-carousel-track.is-animating {
+  transition: transform 180ms ease-out;
+}
+
+.meal-plan-page .meal-plan-week-carousel-slide {
+  width: 100%;
+}
+
+.meal-plan-page .meal-plan-week-carousel-slide--previous,
+.meal-plan-page .meal-plan-week-carousel-slide--next {
+  position: absolute;
+  top: 0;
+  pointer-events: none;
+}
+
+.meal-plan-page .meal-plan-week-carousel-slide--previous {
+  left: -100%;
+}
+
+.meal-plan-page .meal-plan-week-carousel-slide--next {
+  left: 100%;
+}
+
+@media (max-width: 575.98px) {
+  .meal-plan-page .meal-plan-week-swipe-area {
+    touch-action: pan-y;
+  }
+}
+
 .meal-plan-week-picker {
   --rdp-accent-color: var(--bs-primary);
   --rdp-range_middle-background-color: rgba(var(--bs-primary-rgb), 0.15);

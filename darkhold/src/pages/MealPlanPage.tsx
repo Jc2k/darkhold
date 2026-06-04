@@ -144,6 +144,67 @@ const compactTitleButtonStyle: React.CSSProperties = {
   fontSize: compactTitleButtonFontSize,
 };
 
+type WeekSwipeDirection = -1 | 1;
+
+const MEAL_PLAN_WEEK_SWIPE_MAX_WIDTH_PX = 575.98;
+const MEAL_PLAN_WEEK_SWIPE_MIN_DISTANCE_PX = 64;
+const MEAL_PLAN_WEEK_SWIPE_HORIZONTAL_RATIO = 1.35;
+const MEAL_PLAN_WEEK_SWIPE_INTENT_DISTANCE_PX = 8;
+const MEAL_PLAN_WEEK_SWIPE_INTENT_RATIO = 1.1;
+const MEAL_PLAN_WEEK_SWIPE_ANIMATION_MS = 180;
+
+interface WeekSwipeCoordinates {
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+}
+
+interface WeekSwipeGesture extends WeekSwipeCoordinates {
+  hasHorizontalIntent: boolean;
+}
+
+interface WeekSwipeViewState {
+  translateX: number;
+  isDragging: boolean;
+  isAnimating: boolean;
+}
+
+export function getWeekSwipeDirection({
+  startX,
+  startY,
+  endX,
+  endY,
+}: WeekSwipeCoordinates): WeekSwipeDirection | null {
+  const deltaX = endX - startX;
+  const deltaY = endY - startY;
+  const absX = Math.abs(deltaX);
+  const absY = Math.abs(deltaY);
+
+  if (
+    absX < MEAL_PLAN_WEEK_SWIPE_MIN_DISTANCE_PX ||
+    absX < absY * MEAL_PLAN_WEEK_SWIPE_HORIZONTAL_RATIO
+  ) {
+    return null;
+  }
+
+  return deltaX < 0 ? 1 : -1;
+}
+
+function supportsMobileWeekSwipe(): boolean {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
+  return window.matchMedia(`(max-width: ${MEAL_PLAN_WEEK_SWIPE_MAX_WIDTH_PX}px)`).matches;
+}
+
+function shouldIgnoreWeekSwipeTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false;
+  return Boolean(
+    target.closest(
+      'button, a, input, textarea, select, [role="button"], .meal-plan-entry-thumb-slot, [data-no-week-swipe]',
+    ),
+  );
+}
+
 /**
  * Use dedicated mouse + touch sensors to avoid iPad Safari touch drags being
  * treated as PointerSensor interactions, which were unreliable across days/types.
@@ -410,6 +471,40 @@ export function getEmptyWeekendLunchDates(
     })
     .map((day) => formatDate(day))
     .filter((date) => (byDayAndMealType[date]?.[lunchMealTypeId] ?? []).length === 0);
+}
+
+export function buildMealPlanByDayAndMealType(
+  days: Date[],
+  mealTypes: MealType[],
+  entries: MealPlan[],
+  pendingMoves: Map<number, string> = new Map(),
+): Record<string, Record<number, MealPlan[]>> {
+  const byDayAndMealType = days.reduce<Record<string, Record<number, MealPlan[]>>>((acc, day) => {
+    const dateKey = formatDate(day);
+    acc[dateKey] = {};
+    for (const mealType of mealTypes) acc[dateKey][mealType.id] = [];
+    return acc;
+  }, {});
+
+  for (const entry of entries) {
+    const pendingTarget = pendingMoves.get(entry.id);
+    let effectiveDate: string;
+    let effectiveMealTypeId: number;
+    if (pendingTarget) {
+      const { date, mealTypeId: pendingMealTypeId } = parseContainerId(pendingTarget);
+      effectiveDate = date;
+      effectiveMealTypeId =
+        pendingMealTypeId ??
+        (typeof entry.meal_type === 'object' ? entry.meal_type.id : entry.meal_type);
+    } else {
+      effectiveDate = entry.from_date.split('T')[0];
+      effectiveMealTypeId =
+        typeof entry.meal_type === 'object' ? entry.meal_type.id : entry.meal_type;
+    }
+    byDayAndMealType[effectiveDate]?.[effectiveMealTypeId]?.push(entry);
+  }
+
+  return byDayAndMealType;
 }
 
 interface PersistedMealAssistantSession {
@@ -1548,6 +1643,117 @@ function MealPlanTableView({
   );
 }
 
+interface MealPlanWeekViewData {
+  days: Date[];
+  byDayAndMealType: Record<string, Record<number, MealPlan[]>>;
+  pendingMoves?: Map<number, string>;
+  cookLogData?: CookedByDate;
+  calendarEventsByDate?: CalendarEventsByDate;
+  weatherByDate?: WeatherByDate;
+  assistantMode?: boolean;
+  assistedEntryIds?: Set<number>;
+  assistantEntryPlans?: Record<number, MealAssistantSlotPlan>;
+}
+
+interface MealPlanWeekCarouselProps {
+  previousWeek: MealPlanWeekViewData;
+  currentWeek: MealPlanWeekViewData;
+  nextWeek: MealPlanWeekViewData;
+  mealTypes: MealType[];
+  todayStr: string;
+  hasPersonalToken: boolean;
+  swipeState: WeekSwipeViewState;
+  onDelete: (id: number) => void;
+  onEntryClick: (entry: MealPlan) => void;
+  onAddMeal: (date: string, mealTypeId?: number) => void;
+  onLogCook: (entry: MealPlan) => void;
+  onEdit: (entry: MealPlan) => void;
+  onShowAssistant: (entry: MealPlan) => void;
+}
+
+function MealPlanWeekCarousel({
+  previousWeek,
+  currentWeek,
+  nextWeek,
+  mealTypes,
+  todayStr,
+  hasPersonalToken,
+  swipeState,
+  onDelete,
+  onEntryClick,
+  onAddMeal,
+  onLogCook,
+  onEdit,
+  onShowAssistant,
+}: MealPlanWeekCarouselProps) {
+  const commonProps = {
+    mealTypes,
+    todayStr,
+    hasPersonalToken,
+    onDelete,
+    onEntryClick,
+    onAddMeal,
+    onLogCook,
+    onEdit,
+    onShowAssistant,
+  };
+
+  const sidePendingMoves = new Map<number, string>();
+  const sideAssistedEntryIds = new Set<number>();
+
+  return (
+    <div className="meal-plan-week-carousel">
+      <div
+        className={`meal-plan-week-carousel-track ${swipeState.isDragging ? 'is-dragging' : ''} ${swipeState.isAnimating ? 'is-animating' : ''}`}
+        style={{ transform: `translate3d(${swipeState.translateX}px, 0, 0)` }}
+      >
+        <div className="meal-plan-week-carousel-slide meal-plan-week-carousel-slide--previous">
+          <MealPlanTableView
+            {...commonProps}
+            days={previousWeek.days}
+            byDayAndMealType={previousWeek.byDayAndMealType}
+            pendingMoves={sidePendingMoves}
+            cookLogData={previousWeek.cookLogData}
+            calendarEventsByDate={previousWeek.calendarEventsByDate}
+            weatherByDate={previousWeek.weatherByDate}
+            assistantMode={previousWeek.assistantMode ?? false}
+            assistedEntryIds={previousWeek.assistedEntryIds ?? sideAssistedEntryIds}
+            assistantEntryPlans={previousWeek.assistantEntryPlans ?? {}}
+          />
+        </div>
+        <div className="meal-plan-week-carousel-slide meal-plan-week-carousel-slide--current">
+          <MealPlanTableView
+            {...commonProps}
+            days={currentWeek.days}
+            byDayAndMealType={currentWeek.byDayAndMealType}
+            pendingMoves={currentWeek.pendingMoves ?? sidePendingMoves}
+            cookLogData={currentWeek.cookLogData}
+            calendarEventsByDate={currentWeek.calendarEventsByDate}
+            weatherByDate={currentWeek.weatherByDate}
+            assistantMode={currentWeek.assistantMode ?? false}
+            assistedEntryIds={currentWeek.assistedEntryIds ?? sideAssistedEntryIds}
+            assistantEntryPlans={currentWeek.assistantEntryPlans ?? {}}
+          />
+        </div>
+        <div className="meal-plan-week-carousel-slide meal-plan-week-carousel-slide--next">
+          <MealPlanTableView
+            {...commonProps}
+            days={nextWeek.days}
+            byDayAndMealType={nextWeek.byDayAndMealType}
+            pendingMoves={sidePendingMoves}
+            cookLogData={nextWeek.cookLogData}
+            calendarEventsByDate={nextWeek.calendarEventsByDate}
+            weatherByDate={nextWeek.weatherByDate}
+            assistantMode={nextWeek.assistantMode ?? false}
+            assistedEntryIds={nextWeek.assistedEntryIds ?? sideAssistedEntryIds}
+            assistantEntryPlans={nextWeek.assistantEntryPlans ?? {}}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function MealPlanPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -1578,6 +1784,14 @@ export function MealPlanPage() {
   const skipAssistantSessionPersist = useRef(false);
   const lastOverSnapshotRef = useRef<LastOverSnapshot | null>(null);
   const lastActiveContainerIdRef = useRef<string | null>(null);
+  const weekSwipeStartRef = useRef<WeekSwipeGesture | null>(null);
+  const weekSwipeResetTimeoutRef = useRef<number | null>(null);
+  const weekSwipeAreaRef = useRef<HTMLDivElement | null>(null);
+  const [weekSwipeState, setWeekSwipeState] = useState<WeekSwipeViewState>({
+    translateX: 0,
+    isDragging: false,
+    isAnimating: false,
+  });
   // Maps entry id -> optimistic target date for in-flight cross-day moves
   const [pendingMoves, setPendingMoves] = useState<Map<number, string>>(new Map());
   const hasPersonalToken = Boolean(localStorage.getItem('tandoor_token'));
@@ -1605,6 +1819,22 @@ export function MealPlanPage() {
     setAssistantEntryPlans(savedSession?.assistantEntryPlans ?? {});
     setAssistantModalEntry(null);
     setAssistantModalPlan(null);
+  }, [canonicalWeekStart]);
+
+  useEffect(() => {
+    weekSwipeStartRef.current = null;
+    if (weekSwipeResetTimeoutRef.current !== null) {
+      window.clearTimeout(weekSwipeResetTimeoutRef.current);
+      weekSwipeResetTimeoutRef.current = null;
+    }
+    setWeekSwipeState({ translateX: 0, isDragging: false, isAnimating: false });
+
+    return () => {
+      if (weekSwipeResetTimeoutRef.current !== null) {
+        window.clearTimeout(weekSwipeResetTimeoutRef.current);
+        weekSwipeResetTimeoutRef.current = null;
+      }
+    };
   }, [canonicalWeekStart]);
   const todayStr = formatDate(today);
   const endDate = addDays(weekStartDate, 6);
@@ -1781,29 +2011,39 @@ export function MealPlanPage() {
   const sensors = useMealPlanSensors();
 
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStartDate, i));
+  const previousWeekStartDate = addDays(weekStartDate, -7);
+  const previousWeekEndDate = addDays(previousWeekStartDate, 6);
+  const previousWeekDays = Array.from({ length: 7 }, (_, i) => addDays(previousWeekStartDate, i));
+  const nextWeekStartDate = addDays(weekStartDate, 7);
+  const nextWeekEndDate = addDays(nextWeekStartDate, 6);
+  const nextWeekDays = Array.from({ length: 7 }, (_, i) => addDays(nextWeekStartDate, i));
+
+  const getCachedMealPlanEntries = (fromDate: Date, toDate: Date): MealPlan[] =>
+    queryClient.getQueryData<PaginatedResponse<MealPlan>>([
+      'meal-plan',
+      formatDate(fromDate),
+      formatDate(toDate),
+    ])?.results ?? [];
 
   const allEntries = data?.results ?? [];
-  const byDayAndMealType = days.reduce<Record<string, Record<number, MealPlan[]>>>((acc, day) => {
-    const dateKey = formatDate(day);
-    acc[dateKey] = {};
-    for (const mt of sortedMealTypes) acc[dateKey][mt.id] = [];
-    return acc;
-  }, {});
-  for (const e of allEntries) {
-    const pendingTarget = pendingMoves.get(e.id);
-    let effectiveDate: string;
-    let effectiveMtId: number;
-    if (pendingTarget) {
-      const { date, mealTypeId: pendingMtId } = parseContainerId(pendingTarget);
-      effectiveDate = date;
-      effectiveMtId =
-        pendingMtId ?? (typeof e.meal_type === 'object' ? e.meal_type.id : e.meal_type);
-    } else {
-      effectiveDate = e.from_date.split('T')[0];
-      effectiveMtId = typeof e.meal_type === 'object' ? e.meal_type.id : e.meal_type;
-    }
-    byDayAndMealType[effectiveDate]?.[effectiveMtId]?.push(e);
-  }
+  const byDayAndMealType = buildMealPlanByDayAndMealType(
+    days,
+    sortedMealTypes,
+    allEntries,
+    pendingMoves,
+  );
+  const previousWeekEntries = getCachedMealPlanEntries(previousWeekStartDate, previousWeekEndDate);
+  const previousWeekByDayAndMealType = buildMealPlanByDayAndMealType(
+    previousWeekDays,
+    sortedMealTypes,
+    previousWeekEntries,
+  );
+  const nextWeekEntries = getCachedMealPlanEntries(nextWeekStartDate, nextWeekEndDate);
+  const nextWeekByDayAndMealType = buildMealPlanByDayAndMealType(
+    nextWeekDays,
+    sortedMealTypes,
+    nextWeekEntries,
+  );
   const assistedEntryIds = new Set(Object.keys(assistantEntryPlans).map((value) => Number(value)));
 
   const activeEntry = activeId != null ? (allEntries.find((e) => e.id === activeId) ?? null) : null;
@@ -2124,6 +2364,105 @@ export function MealPlanPage() {
     : 0;
   const cookLogDate = cookLogEntry?.from_date.split('T')[0] ?? '';
 
+  const clearWeekSwipeResetTimeout = () => {
+    if (weekSwipeResetTimeoutRef.current === null) return;
+    window.clearTimeout(weekSwipeResetTimeoutRef.current);
+    weekSwipeResetTimeoutRef.current = null;
+  };
+
+  const navigateToWeek = (direction: WeekSwipeDirection) => {
+    navigate(`/meal-plan/${formatDate(addDays(weekStartDate, direction * 7))}`);
+  };
+
+  const handleWeekSwipeStart = (event: React.TouchEvent<HTMLDivElement>) => {
+    clearWeekSwipeResetTimeout();
+    if (!supportsMobileWeekSwipe() || event.touches.length !== 1) {
+      weekSwipeStartRef.current = null;
+      return;
+    }
+    if (shouldIgnoreWeekSwipeTarget(event.target)) {
+      weekSwipeStartRef.current = null;
+      return;
+    }
+
+    const touch = event.touches[0];
+    weekSwipeStartRef.current = {
+      startX: touch.clientX,
+      startY: touch.clientY,
+      endX: touch.clientX,
+      endY: touch.clientY,
+      hasHorizontalIntent: false,
+    };
+  };
+
+  const handleWeekSwipeMove = (event: React.TouchEvent<HTMLDivElement>) => {
+    const gesture = weekSwipeStartRef.current;
+    if (!gesture || event.touches.length !== 1) return;
+
+    const touch = event.touches[0];
+    gesture.endX = touch.clientX;
+    gesture.endY = touch.clientY;
+    const deltaX = gesture.endX - gesture.startX;
+    const deltaY = gesture.endY - gesture.startY;
+    const absX = Math.abs(deltaX);
+    const absY = Math.abs(deltaY);
+
+    if (!gesture.hasHorizontalIntent) {
+      if (
+        absX < MEAL_PLAN_WEEK_SWIPE_INTENT_DISTANCE_PX ||
+        absX < absY * MEAL_PLAN_WEEK_SWIPE_INTENT_RATIO
+      ) {
+        return;
+      }
+      gesture.hasHorizontalIntent = true;
+    }
+
+    const width = weekSwipeAreaRef.current?.clientWidth ?? window.innerWidth;
+    const maxPullDistance = Math.max(width, 1);
+    setWeekSwipeState({
+      translateX: Math.max(-maxPullDistance, Math.min(maxPullDistance, deltaX)),
+      isDragging: true,
+      isAnimating: false,
+    });
+  };
+
+  const animateWeekSwipeTo = (translateX: number, onComplete?: () => void) => {
+    clearWeekSwipeResetTimeout();
+    setWeekSwipeState({ translateX, isDragging: false, isAnimating: true });
+    weekSwipeResetTimeoutRef.current = window.setTimeout(() => {
+      weekSwipeResetTimeoutRef.current = null;
+      onComplete?.();
+      setWeekSwipeState({ translateX: 0, isDragging: false, isAnimating: false });
+    }, MEAL_PLAN_WEEK_SWIPE_ANIMATION_MS);
+  };
+
+  const handleWeekSwipeEnd = (event: React.TouchEvent<HTMLDivElement>) => {
+    const gesture = weekSwipeStartRef.current;
+    weekSwipeStartRef.current = null;
+    if (!gesture || event.changedTouches.length !== 1) return;
+
+    const touch = event.changedTouches[0];
+    const direction = getWeekSwipeDirection({
+      ...gesture,
+      endX: touch.clientX,
+      endY: touch.clientY,
+    });
+
+    if (direction === null) {
+      if (gesture.hasHorizontalIntent) animateWeekSwipeTo(0);
+      return;
+    }
+
+    const width = weekSwipeAreaRef.current?.clientWidth ?? window.innerWidth;
+    animateWeekSwipeTo(direction === 1 ? -width : width, () => navigateToWeek(direction));
+  };
+
+  const handleWeekSwipeCancel = () => {
+    const gesture = weekSwipeStartRef.current;
+    weekSwipeStartRef.current = null;
+    if (gesture?.hasHorizontalIntent) animateWeekSwipeTo(0);
+  };
+
   return (
     <div className="pt-2 meal-plan-page">
       {!hasPersonalToken && <NoTokenAlert />}
@@ -2239,30 +2578,48 @@ export function MealPlanPage() {
         onDragCancel={handleDragCancel}
       >
         <div
+          ref={weekSwipeAreaRef}
+          className="meal-plan-week-swipe-area"
+          onTouchStart={handleWeekSwipeStart}
+          onTouchMove={handleWeekSwipeMove}
+          onTouchEnd={handleWeekSwipeEnd}
+          onTouchCancel={handleWeekSwipeCancel}
+          aria-label="Meal plan week carousel"
           style={{
             paddingLeft: '0.5rem',
             paddingRight: '0.5rem',
             marginTop: '1rem',
           }}
         >
-          <MealPlanTableView
-            days={days}
+          <MealPlanWeekCarousel
+            previousWeek={{
+              days: previousWeekDays,
+              byDayAndMealType: previousWeekByDayAndMealType,
+            }}
+            currentWeek={{
+              days,
+              byDayAndMealType,
+              pendingMoves,
+              cookLogData,
+              calendarEventsByDate,
+              weatherByDate,
+              assistantMode,
+              assistedEntryIds,
+              assistantEntryPlans,
+            }}
+            nextWeek={{
+              days: nextWeekDays,
+              byDayAndMealType: nextWeekByDayAndMealType,
+            }}
             mealTypes={sortedMealTypes}
-            byDayAndMealType={byDayAndMealType}
             todayStr={todayStr}
-            pendingMoves={pendingMoves}
             hasPersonalToken={hasPersonalToken}
+            swipeState={weekSwipeState}
             onDelete={handleDelete}
-            onEntryClick={(e) => navigate(`/meal-plan-entry/${e.id}`)}
+            onEntryClick={(entry) => navigate(`/meal-plan-entry/${entry.id}`)}
             onAddMeal={(date, mealTypeId) => setAddModal({ date, mealTypeId })}
             onLogCook={setCookLogEntry}
             onEdit={setEditEntry}
-            cookLogData={cookLogData}
-            calendarEventsByDate={calendarEventsByDate}
-            weatherByDate={weatherByDate}
-            assistantMode={assistantMode}
-            assistedEntryIds={assistedEntryIds}
-            assistantEntryPlans={assistantEntryPlans}
             onShowAssistant={handleShowAssistant}
           />
         </div>
