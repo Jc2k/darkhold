@@ -11,6 +11,11 @@ import type {
   SupermarketCategory,
 } from './src/api/tandoor-types.d.ts';
 import { buildMealAssistantPrecalculation } from './src/utils/mealAssistantPrecalculation.ts';
+import {
+  createEmptyWeatherFeatureCache,
+  extendWeatherFeatureCache,
+  isWeatherFeatureCache,
+} from './src/utils/weatherFeatureCache.ts';
 
 const VERSION = pkg.version;
 
@@ -31,6 +36,10 @@ function loadMealAssistantPrecalculationPath(): string {
   return (
     safeGetEnv('MEAL_ASSISTANT_PRECALCULATION_PATH') ?? DEFAULT_MEAL_ASSISTANT_PRECALCULATION_PATH
   );
+}
+
+function loadWeatherFeatureCachePath(): string {
+  return safeGetEnv('WEATHER_FEATURE_CACHE_PATH') ?? DEFAULT_WEATHER_FEATURE_CACHE_PATH;
 }
 
 function getTandoorHeaders(): HeadersInit {
@@ -145,6 +154,104 @@ async function fetchMealAssistantKeywordNameById(): Promise<Record<number, strin
   }, {});
 }
 
+function historicalMealPlanDates(mealPlans: MealPlan[], today = new Date()): string[] {
+  const todayStr = formatUtcDate(
+    new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate())),
+  );
+  return [...new Set(mealPlans.map((mealPlan) => mealPlan.from_date.split('T')[0]).filter(Boolean))]
+    .filter((date) => date <= todayStr)
+    .sort((left, right) => left.localeCompare(right));
+}
+
+async function readWeatherFeatureCache(): Promise<ReturnType<typeof createEmptyWeatherFeatureCache>> {
+  try {
+    const body = await Deno.readTextFile(loadWeatherFeatureCachePath());
+    const payload: unknown = JSON.parse(body);
+    return isWeatherFeatureCache(payload) ? payload : createEmptyWeatherFeatureCache();
+  } catch (err) {
+    if (err instanceof Deno.errors.NotFound) return createEmptyWeatherFeatureCache();
+    throw err;
+  }
+}
+
+async function writeFileAtomically(path: string, body: string): Promise<void> {
+  const lastSlash = path.lastIndexOf('/');
+  const directory = lastSlash >= 0 ? path.slice(0, lastSlash) : '.';
+  await Deno.mkdir(directory || '.', { recursive: true });
+  const tempPath = `${path}.${crypto.randomUUID()}.tmp`;
+  await Deno.writeTextFile(tempPath, body);
+  await Deno.rename(tempPath, path);
+}
+
+async function fetchArchivedWeatherRange(
+  config: WeatherConfig,
+  fromDate: string,
+  toDate: string,
+): Promise<WeatherDayForecast[]> {
+  const url = new URL('https://archive-api.open-meteo.com/v1/archive');
+  url.searchParams.set('latitude', String(config.latitude));
+  url.searchParams.set('longitude', String(config.longitude));
+  url.searchParams.set('timezone', config.timezone);
+  url.searchParams.set('start_date', fromDate);
+  url.searchParams.set('end_date', toDate);
+  url.searchParams.set(
+    'daily',
+    [
+      'weather_code',
+      'temperature_2m_min',
+      'temperature_2m_max',
+      'sunrise',
+      'sunset',
+      'precipitation_sum',
+    ].join(','),
+  );
+
+  const res = await fetch(url);
+  if (!res.ok) {
+    let body = '';
+    try {
+      body = (await res.text()).trim();
+    } catch {
+      body = '';
+    }
+    const suffix = body ? `; ${body.slice(0, MAX_ERROR_RESPONSE_LENGTH)}` : '';
+    throw new Error(`Weather archive fetch failed: HTTP ${res.status}${suffix}`);
+  }
+
+  const payload = (await res.json()) as OpenMeteoForecastResponse;
+  return parseOpenMeteoDaily(payload.daily ?? {});
+}
+
+async function fetchWeatherFeatureRange(
+  config: WeatherConfig,
+  fromDate: string,
+  toDate: string,
+  today = new Date(),
+): Promise<WeatherDayForecast[]> {
+  const todayStr = formatUtcDate(
+    new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate())),
+  );
+  const ranges: Promise<WeatherDayForecast[]>[] = [];
+
+  if (fromDate < todayStr) {
+    const yesterday = new Date(`${todayStr}T00:00:00Z`);
+    yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+    const archiveEndDate = toDate < todayStr ? toDate : formatUtcDate(yesterday);
+    if (fromDate <= archiveEndDate) {
+      ranges.push(fetchArchivedWeatherRange(config, fromDate, archiveEndDate));
+    }
+  }
+
+  if (toDate >= todayStr) {
+    const forecastFromDate = fromDate > todayStr ? fromDate : todayStr;
+    ranges.push(fetchWeatherForecast(config, forecastFromDate, toDate));
+  }
+
+  return (await Promise.all(ranges))
+    .flat()
+    .sort((left, right) => left.date.localeCompare(right.date));
+}
+
 async function writeMealAssistantPrecalculation(): Promise<void> {
   if (!safeGetEnv('TANDOOR_DEFAULT_TOKEN')) {
     console.warn(
@@ -160,17 +267,37 @@ async function writeMealAssistantPrecalculation(): Promise<void> {
     fetchMealAssistantProduceFoods(safeGetEnv('MEAL_ASSISTANT_PRODUCE_CATEGORY') ?? ''),
   ]);
 
+  const weatherConfig = loadWeatherConfig();
+  const weatherCache = await readWeatherFeatureCache();
+  const requiredWeatherDates = historicalMealPlanDates(mealPlans);
+  const nextWeatherCache =
+    weatherConfig && requiredWeatherDates.length > 0
+      ? await extendWeatherFeatureCache(
+          weatherCache,
+          requiredWeatherDates,
+          (fromDate, toDate) => fetchWeatherFeatureRange(weatherConfig, fromDate, toDate),
+        )
+      : weatherCache;
+
+  if (nextWeatherCache !== weatherCache) {
+    await writeFileAtomically(
+      loadWeatherFeatureCachePath(),
+      `${JSON.stringify(nextWeatherCache)}\n`,
+    );
+  }
+
   const precalculation = buildMealAssistantPrecalculation({
     recipes,
     keywordNameById,
     mealPlans,
     produceFoods,
+    weatherByDate: nextWeatherCache.dates,
   });
   const path = loadMealAssistantPrecalculationPath();
   await Deno.mkdir(path.slice(0, path.lastIndexOf('/')) || '.', { recursive: true });
   await Deno.writeTextFile(path, `${JSON.stringify(precalculation)}\n`);
   console.info(
-    `Wrote meal assistant precalculation with ${recipes.length} recipes and ${mealPlans.length} meal-plan entries to ${path}.`,
+    `Wrote meal assistant precalculation with ${recipes.length} recipes, ${mealPlans.length} meal-plan entries, and ${Object.keys(nextWeatherCache.dates).length} cached weather days to ${path}.`,
   );
 }
 
@@ -258,6 +385,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const MEAL_ASSISTANT_PRECALCULATION_INTERVAL_MS = DAY_MS;
 const MEAL_ASSISTANT_PRECALCULATION_STALE_MS = DAY_MS;
 const DEFAULT_MEAL_ASSISTANT_PRECALCULATION_PATH = '/data/meal-assistant-precalculation.json';
+const DEFAULT_WEATHER_FEATURE_CACHE_PATH = '/data/weather-feature-cache.json';
 export function parseICalFeeds(raw: string): ICalFeed[] {
   try {
     const parsed = JSON.parse(raw) as unknown;
@@ -686,7 +814,7 @@ export function parseOpenMeteoDaily(daily: OpenMeteoDaily): WeatherDayForecast[]
     const sunrise = sunrises[idx];
     const sunset = sunsets[idx];
     const precipitationSumMm = precipitationSums[idx];
-    const precipitationProbabilityMax = precipitationProbabilities[idx];
+    const precipitationProbabilityMax = precipitationProbabilities[idx] ?? 0;
 
     if (
       typeof weatherCode !== 'number' ||
@@ -694,8 +822,7 @@ export function parseOpenMeteoDaily(daily: OpenMeteoDaily): WeatherDayForecast[]
       typeof tempMaxC !== 'number' ||
       typeof sunrise !== 'string' ||
       typeof sunset !== 'string' ||
-      typeof precipitationSumMm !== 'number' ||
-      typeof precipitationProbabilityMax !== 'number'
+      typeof precipitationSumMm !== 'number'
     )
       return [];
 

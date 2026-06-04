@@ -315,6 +315,78 @@ describe('mealPlanningAssistant', () => {
     ).not.toContain(5);
   });
 
+  it('weights recipes toward matching precalculated weather history for the live forecast', () => {
+    const weatherMatchedRecipe = makeRecipe(1, 'Zesty Grill Plate');
+    const fallbackRecipe = makeRecipe(2, 'Aardvark Stew');
+    const historicalMeals = [
+      makeMealPlan(1, weatherMatchedRecipe, '2026-07-04'),
+      makeMealPlan(2, weatherMatchedRecipe, '2026-07-11'),
+      makeMealPlan(3, weatherMatchedRecipe, '2026-07-18'),
+    ];
+    const precalculation = buildMealAssistantPrecalculation({
+      generatedAt: '2026-06-03T00:00:00.000Z',
+      recipes: [weatherMatchedRecipe, fallbackRecipe],
+      keywordNameById: {},
+      mealPlans: historicalMeals,
+      weatherByDate: {
+        '2026-07-04': {
+          temperatureBand: 'hot',
+          precipitationBand: 'dry',
+          daylightHours: 16,
+          daylightBand: 'long',
+          outdoorSuitability: 'good',
+          tags: ['hot-day', 'dry-day', 'long-daylight', 'outdoor-good'],
+        },
+        '2026-07-11': {
+          temperatureBand: 'hot',
+          precipitationBand: 'dry',
+          daylightHours: 16,
+          daylightBand: 'long',
+          outdoorSuitability: 'good',
+          tags: ['hot-day', 'dry-day', 'long-daylight', 'outdoor-good'],
+        },
+        '2026-07-18': {
+          temperatureBand: 'hot',
+          precipitationBand: 'dry',
+          daylightHours: 16,
+          daylightBand: 'long',
+          outdoorSuitability: 'good',
+          tags: ['hot-day', 'dry-day', 'long-daylight', 'outdoor-good'],
+        },
+      },
+    });
+
+    const plan = buildMealAssistantPlan({
+      weekStart: new Date('2026-07-20T00:00:00'),
+      weekEnd: new Date('2026-07-26T00:00:00'),
+      emptyDinnerDates: ['2026-07-25'],
+      existingWeekMeals: [],
+      historicalMeals: [],
+      recipes: [weatherMatchedRecipe, fallbackRecipe],
+      weatherByDate: {
+        '2026-07-25': {
+          date: '2026-07-25',
+          weatherCode: 1,
+          tempMinC: 17,
+          tempMaxC: 28,
+          sunrise: '2026-07-25T05:10:00Z',
+          sunset: '2026-07-25T21:05:00Z',
+          precipitationSumMm: 0,
+          precipitationProbabilityMax: 5,
+        },
+      },
+      dinnerTime: '18:00',
+      precalculation,
+    });
+
+    expect(plan.slots[0]?.selected.recipe.name).toBe('Zesty Grill Plate');
+    expect(
+      plan.slots[0]?.selected.components.find((component) => component.key === 'weather-history'),
+    ).toMatchObject({
+      label: 'Weather fit',
+    });
+  });
+
   it('prefers close alternatives from precalculated similarities', () => {
     const selectedRecipe = makeRecipe(1, 'Quick Pasta', [{ id: 10, name: 'Busy' }], {
       steps: [

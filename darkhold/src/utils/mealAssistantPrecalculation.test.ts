@@ -31,6 +31,56 @@ describe('mealAssistantPrecalculation', () => {
     const result = buildMealAssistantPrecalculation({
       generatedAt: '2026-06-03T00:00:00.000Z',
       keywordNameById: { 10: 'Courgette' },
+      weatherByDate: {
+        '2026-01-02': {
+          temperatureBand: 'cold',
+          precipitationBand: 'showery',
+          daylightHours: 8,
+          daylightBand: 'short',
+          outdoorSuitability: 'poor',
+          tags: ['cold-day', 'showery-day', 'short-daylight', 'outdoor-poor'],
+        },
+        '2026-01-09': {
+          temperatureBand: 'cold',
+          precipitationBand: 'showery',
+          daylightHours: 8,
+          daylightBand: 'short',
+          outdoorSuitability: 'poor',
+          tags: ['cold-day', 'showery-day', 'short-daylight', 'outdoor-poor'],
+        },
+        '2026-01-16': {
+          temperatureBand: 'cold',
+          precipitationBand: 'showery',
+          daylightHours: 8.1,
+          daylightBand: 'short',
+          outdoorSuitability: 'poor',
+          tags: ['cold-day', 'showery-day', 'short-daylight', 'outdoor-poor'],
+        },
+        '2026-01-23': {
+          temperatureBand: 'cold',
+          precipitationBand: 'showery',
+          daylightHours: 8.2,
+          daylightBand: 'short',
+          outdoorSuitability: 'poor',
+          tags: ['cold-day', 'showery-day', 'short-daylight', 'outdoor-poor'],
+        },
+        '2026-07-04': {
+          temperatureBand: 'hot',
+          precipitationBand: 'dry',
+          daylightHours: 16,
+          daylightBand: 'long',
+          outdoorSuitability: 'good',
+          tags: ['hot-day', 'dry-day', 'long-daylight', 'outdoor-good'],
+        },
+        '2026-07-11': {
+          temperatureBand: 'hot',
+          precipitationBand: 'dry',
+          daylightHours: 16,
+          daylightBand: 'long',
+          outdoorSuitability: 'good',
+          tags: ['hot-day', 'dry-day', 'long-daylight', 'outdoor-good'],
+        },
+      },
       produceFoods: [
         { id: 100, name: 'Courgette' },
         { id: 999, name: '' },
@@ -88,7 +138,7 @@ describe('mealAssistantPrecalculation', () => {
     });
 
     expect(result.generatedAt).toBe('2026-06-03T00:00:00.000Z');
-    expect(result.schemaVersion).toBe(4);
+    expect(result.schemaVersion).toBe(5);
     expect(result.recipes['1']).toMatchObject({ id: 1, name: 'Chilli con carne' });
     expect(result.recipes['1']).not.toHaveProperty('food_properties');
     expect(result.recipeHistory['1']).toMatchObject({
@@ -109,6 +159,7 @@ describe('mealAssistantPrecalculation', () => {
     expect(result.recipeInsights['1'].days['5']).toMatchObject({ count: 4, total: 4 });
     expect(result.recipeInsights['1'].weekday).toMatchObject({ count: 4, total: 4 });
     expect(result.recipeInsights['1'].seasons.winter).toMatchObject({ count: 4, total: 4 });
+    expect(result.recipeInsights['1'].weather['cold-day']).toMatchObject({ count: 4, total: 4 });
     expect(result.recipeInsights['1'].nutrition).toMatchObject({
       proteinG: 13,
       caloriesKcal: 550,
@@ -117,6 +168,7 @@ describe('mealAssistantPrecalculation', () => {
     expect(result.recipeInsights['2'].produce).toEqual(['courgette']);
     expect(result.relationships.produce.courgette).toEqual([2]);
     expect(result.relationships.keywords.courgette).toEqual([2]);
+    expect(result.relationships.weather['cold-day']).toEqual([1]);
     expect(result.recipeFeatures['2']).toMatchObject({
       keywords: ['courgette'],
       produce: ['courgette'],
@@ -136,6 +188,12 @@ describe('mealAssistantPrecalculation', () => {
         missingPropertyCount: 0,
       },
     });
+    expect(result.recipeFeatures['1'].weatherTags).toEqual([
+      'cold-day',
+      'outdoor-poor',
+      'short-daylight',
+      'showery-day',
+    ]);
     expect(result.recipeInsights['2'].nutrition).toMatchObject({
       proteinG: 6,
       caloriesKcal: 650,

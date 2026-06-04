@@ -754,11 +754,27 @@ Deno.test('parseOpenMeteoDaily skips entries with incomplete data', () => {
     temperature_2m_max: [14],
     sunrise: ['2026-05-01T05:20'],
     sunset: ['2026-05-01T20:35'],
-    precipitation_sum: [0.1],
-    precipitation_probability_max: [],
+    precipitation_sum: [],
   });
 
   if (days.length !== 0) throw new Error(`expected 0 days, got ${days.length}`);
+});
+
+Deno.test('parseOpenMeteoDaily defaults missing precipitation probability to zero', () => {
+  const days = parseOpenMeteoDaily({
+    time: ['2026-05-01'],
+    weather_code: [1],
+    temperature_2m_min: [7],
+    temperature_2m_max: [14],
+    sunrise: ['2026-05-01T05:20'],
+    sunset: ['2026-05-01T20:35'],
+    precipitation_sum: [0.1],
+  });
+
+  if (days.length !== 1) throw new Error(`expected 1 day, got ${days.length}`);
+  if (days[0].precipitationProbabilityMax !== 0) {
+    throw new Error(`expected zero precipitation probability, got ${days[0].precipitationProbabilityMax}`);
+  }
 });
 
 Deno.test('clampWeatherForecastRange leaves in-range weather requests unchanged', () => {
