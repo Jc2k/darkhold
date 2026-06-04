@@ -1,7 +1,7 @@
 import { act, type ComponentProps, type RefCallback } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { MealType, Recipe } from '../api/tandoor-types';
+import type { MealPlan, MealType, Recipe } from '../api/tandoor-types';
 
 const {
   useDroppableMock,
@@ -87,7 +87,9 @@ import { MouseSensor, TouchSensor, type Collision } from '@dnd-kit/core';
 import { DroppableTableRow } from './DroppableTableRow';
 import {
   AddMealModal,
+  buildMealPlanByDayAndMealType,
   getMealPlanRouteFromDate,
+  getWeekSwipeDirection,
   getEmptyWeekendLunchDates,
   getDateMealTypeCollisionId,
   resolveDropTargetContainerId,
@@ -425,6 +427,61 @@ describe('getEmptyWeekendLunchDates', () => {
         ['2026-06-02'],
       ),
     ).toEqual(['2026-06-02']);
+  });
+});
+
+describe('buildMealPlanByDayAndMealType', () => {
+  const mealTypes = [
+    { id: 1, name: 'Lunch' },
+    { id: 2, name: 'Dinner' },
+  ] as MealType[];
+
+  it('creates empty meal slots for every visible date when entries are not cached', () => {
+    expect(
+      buildMealPlanByDayAndMealType(
+        [new Date('2026-06-06T00:00:00Z'), new Date('2026-06-07T00:00:00Z')],
+        mealTypes,
+        [],
+      ),
+    ).toEqual({
+      '2026-06-06': { 1: [], 2: [] },
+      '2026-06-07': { 1: [], 2: [] },
+    });
+  });
+
+  it('uses cached entries and pending moves when building a week view', () => {
+    const entries = [
+      {
+        id: 10,
+        from_date: '2026-06-06T00:00:00Z',
+        meal_type: 2,
+      },
+    ] as MealPlan[];
+
+    const byDayAndMealType = buildMealPlanByDayAndMealType(
+      [new Date('2026-06-06T00:00:00Z'), new Date('2026-06-07T00:00:00Z')],
+      mealTypes,
+      entries,
+      new Map([[10, '2026-06-07__1']]),
+    );
+
+    expect(byDayAndMealType['2026-06-06'][2]).toEqual([]);
+    expect(byDayAndMealType['2026-06-07'][1]).toEqual([entries[0]]);
+  });
+});
+
+describe('getWeekSwipeDirection', () => {
+  it('returns the next week direction for a strong left swipe', () => {
+    expect(getWeekSwipeDirection({ startX: 320, startY: 120, endX: 180, endY: 132 })).toBe(1);
+  });
+
+  it('returns the previous week direction for a strong right swipe', () => {
+    expect(getWeekSwipeDirection({ startX: 80, startY: 120, endX: 210, endY: 112 })).toBe(-1);
+  });
+
+  it('ignores short or mostly vertical gestures', () => {
+    expect(getWeekSwipeDirection({ startX: 220, startY: 100, endX: 180, endY: 102 })).toBeNull();
+    expect(getWeekSwipeDirection({ startX: 220, startY: 100, endX: 120, endY: 190 })).toBeNull();
   });
 });
 
