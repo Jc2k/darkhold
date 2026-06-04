@@ -1,3 +1,18 @@
+# [1.110.0](https://github.com/Jc2k/darkhold/compare/v1.109.0...v1.110.0) (2026-06-04)
+
+
+### Bug Fixes
+
+* **server:** resolve deno weather feature imports ([16f5ecf](https://github.com/Jc2k/darkhold/commit/16f5ecf2baa840e4c5f0d9bcf31a77fd533def97))
+* **weather-cache:** stop fetching after http failures ([df17f5f](https://github.com/Jc2k/darkhold/commit/df17f5fcff69205d36b25af7d4a6af6f8731ca8b))
+* **weather:** address weather cache validation issues ([0049eea](https://github.com/Jc2k/darkhold/commit/0049eeaf3900900bdca577efe1643826359cba09))
+
+
+### Features
+
+* **meal-assistant:** cache calendar planning features ([771705e](https://github.com/Jc2k/darkhold/commit/771705e4981d88f9955ed9c318aa8bd3213d6f14))
+* **weather:** add meal assistant weather feature cache ([9971aaa](https://github.com/Jc2k/darkhold/commit/9971aaac29dbd4e8ce44adaf569a79d5c208a6d8))
+
 # [1.109.0](https://github.com/Jc2k/darkhold/compare/v1.108.0...v1.109.0) (2026-06-04)
 
 
