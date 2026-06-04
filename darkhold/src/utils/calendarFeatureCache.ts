@@ -61,7 +61,9 @@ export function isCalendarFeatureCache(value: unknown): value is CalendarFeature
         day !== null &&
         typeof (day as CalendarFeatureDay).bankHoliday === 'boolean' &&
         Array.isArray((day as CalendarFeatureDay).appointmentFeatures) &&
-        (day as CalendarFeatureDay).appointmentFeatures.every((feature) => typeof feature === 'string'),
+        (day as CalendarFeatureDay).appointmentFeatures.every(
+          (feature) => typeof feature === 'string',
+        ),
     )
   );
 }

@@ -13,10 +13,7 @@ import type {
   MealAssistantRecipeInsight,
   MealAssistantRecipeSummary,
 } from './mealAssistantPrecalculation';
-import {
-  buildCalendarFeatureDay,
-  describeCalendarAppointmentFeature,
-} from './calendarFeatures';
+import { buildCalendarFeatureDay, describeCalendarAppointmentFeature } from './calendarFeatures';
 import { deriveWeatherFeatures, weatherTagLabel } from './weatherFeatures';
 import { RECENTLY_ADDED_DAYS } from './recentRecipes';
 
@@ -1359,8 +1356,9 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
         continue;
       }
 
-      const slotCalendarFeatures = buildCalendarFeatureDay(calendarEventsByDate[slot.date] ?? [])
-        .appointmentFeatures;
+      const slotCalendarFeatures = buildCalendarFeatureDay(
+        calendarEventsByDate[slot.date] ?? [],
+      ).appointmentFeatures;
 
       const scoredCandidates = sortCandidates(
         fallbackCandidates.map((recipe) =>

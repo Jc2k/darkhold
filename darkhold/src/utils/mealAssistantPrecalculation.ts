@@ -503,7 +503,9 @@ function isMealAssistantRecipeFeaturesRecord(
           features.weatherTags.every((weatherTag) => typeof weatherTag === 'string'))) &&
       (features.calendarFeatures == null ||
         (Array.isArray(features.calendarFeatures) &&
-          features.calendarFeatures.every((calendarFeature) => typeof calendarFeature === 'string'))) &&
+          features.calendarFeatures.every(
+            (calendarFeature) => typeof calendarFeature === 'string',
+          ))) &&
       Array.isArray(features.ingredientFoodIds) &&
       Array.isArray(features.ingredientFoodNames),
   );

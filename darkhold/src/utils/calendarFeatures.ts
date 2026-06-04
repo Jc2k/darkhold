@@ -58,7 +58,9 @@ function uniqueSorted(values: Iterable<string>): string[] {
   return [...new Set([...values].map(normalizedText).filter(Boolean))].sort();
 }
 
-function appointmentDurationMinutes(event: Pick<CalendarFeatureEventLike, 'allDay' | 'start' | 'end'>): number {
+function appointmentDurationMinutes(
+  event: Pick<CalendarFeatureEventLike, 'allDay' | 'start' | 'end'>,
+): number {
   if (event.allDay) return 24 * 60;
   const start = new Date(event.start);
   if (Number.isNaN(start.getTime())) return 60;

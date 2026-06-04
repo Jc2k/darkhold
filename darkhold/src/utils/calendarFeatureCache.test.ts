@@ -23,7 +23,10 @@ describe('calendarFeatureCache', () => {
 
   it('normalizes cache dates and coalesces ranges', () => {
     expect(
-      normalizeCacheDates(['2026-01-03', '2026-01-01T12:00:00Z', 'bad', '2026-01-03'], new Date('2026-01-02T00:00:00Z')),
+      normalizeCacheDates(
+        ['2026-01-03', '2026-01-01T12:00:00Z', 'bad', '2026-01-03'],
+        new Date('2026-01-02T00:00:00Z'),
+      ),
     ).toEqual(['2026-01-01']);
     expect(coalesceDateRanges(['2026-01-01', '2026-01-02', '2026-01-04'])).toEqual([
       { fromDate: '2026-01-01', toDate: '2026-01-02' },
