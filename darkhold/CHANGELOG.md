@@ -1,3 +1,10 @@
+## [1.106.1](https://github.com/Jc2k/darkhold/compare/v1.106.0...v1.106.1) (2026-06-04)
+
+
+### Bug Fixes
+
+* **meal-plan:** inhibit browser navigation swipes ([70effd5](https://github.com/Jc2k/darkhold/commit/70effd5117b90d138b975e6af35ddb0f8de5d277))
+
 # [1.106.0](https://github.com/Jc2k/darkhold/compare/v1.105.0...v1.106.0) (2026-06-04)
 
 
