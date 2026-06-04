@@ -113,4 +113,46 @@ describe('weatherFeatureCache', () => {
       outdoorSuitability: 'fair',
     });
   });
+
+  it('stops fetching further ranges on HTTP errors and keeps fetched dates', async () => {
+    const fetchRange = vi.fn(async (fromDate: string, toDate: string) => {
+      if (fromDate === '2026-01-02' && toDate === '2026-01-03') {
+        return [
+          {
+            date: '2026-01-02',
+            tempMinC: 2,
+            tempMaxC: 8,
+            sunrise: '2026-01-02T08:00:00Z',
+            sunset: '2026-01-02T16:00:00Z',
+            precipitationSumMm: 0.1,
+            precipitationProbabilityMax: 10,
+          },
+          {
+            date: '2026-01-03',
+            tempMinC: 3,
+            tempMaxC: 9,
+            sunrise: '2026-01-03T08:00:00Z',
+            sunset: '2026-01-03T16:01:00Z',
+            precipitationSumMm: 0.2,
+            precipitationProbabilityMax: 15,
+          },
+        ];
+      }
+      throw new Error('Weather API fetch failed: HTTP 429; too many requests');
+    });
+
+    const cache: WeatherFeatureCache = createEmptyWeatherFeatureCache('2026-01-01T00:00:00.000Z');
+    const next = await extendWeatherFeatureCache(
+      cache,
+      ['2026-01-02', '2026-01-03', '2026-01-05'],
+      fetchRange,
+      '2026-01-06T00:00:00.000Z',
+      new Date('2026-01-06T12:00:00Z'),
+    );
+
+    expect(fetchRange).toHaveBeenCalledTimes(2);
+    expect(fetchRange).toHaveBeenNthCalledWith(1, '2026-01-02', '2026-01-03');
+    expect(fetchRange).toHaveBeenNthCalledWith(2, '2026-01-05', '2026-01-05');
+    expect(Object.keys(next.dates)).toEqual(['2026-01-02', '2026-01-03']);
+  });
 });

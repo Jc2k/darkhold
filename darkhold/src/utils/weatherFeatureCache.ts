@@ -32,6 +32,21 @@ function sortedEntries(dates: Record<string, WeatherFeatures>): Array<[string, W
   return Object.entries(dates).sort(([left], [right]) => left.localeCompare(right));
 }
 
+function getHttpStatusFromError(error: unknown): number | null {
+  if (typeof error === 'object' && error !== null) {
+    const status = (error as { status?: unknown }).status;
+    if (typeof status === 'number' && Number.isInteger(status) && status >= 400 && status <= 599)
+      return status;
+  }
+  if (error instanceof Error) {
+    const match = error.message.match(/\bHTTP\s+(\d{3})\b/);
+    if (!match) return null;
+    const status = Number(match[1]);
+    if (Number.isInteger(status) && status >= 400 && status <= 599) return status;
+  }
+  return null;
+}
+
 export function createEmptyWeatherFeatureCache(
   generatedAt = new Date().toISOString(),
 ): WeatherFeatureCache {
@@ -104,13 +119,24 @@ export async function extendWeatherFeatureCache(
   const nextDates = { ...cache.dates };
   const missingDateSet = new Set(missingDates);
   const ranges = coalesceDateRanges(missingDates);
+  let addedDateCount = 0;
   for (const range of ranges) {
-    const days = await fetchRange(range.fromDate, range.toDate);
+    let days: WeatherFeatureDay[];
+    try {
+      days = await fetchRange(range.fromDate, range.toDate);
+    } catch (error) {
+      if (getHttpStatusFromError(error) !== null) break;
+      throw error;
+    }
     for (const day of days) {
       if (!missingDateSet.has(day.date)) continue;
+      if (day.date in nextDates) continue;
       nextDates[day.date] = deriveWeatherFeatures(day);
+      addedDateCount += 1;
     }
   }
+
+  if (addedDateCount === 0) return cache;
 
   return {
     schemaVersion: WEATHER_FEATURE_CACHE_SCHEMA_VERSION,
