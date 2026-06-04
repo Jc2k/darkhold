@@ -92,12 +92,19 @@ export interface Keyword {
   description?: string;
 }
 
+/** Recipe category */
+export interface RecipeCategory {
+  id?: number;
+  name: string;
+}
+
 /** Recipe object */
 export interface Recipe {
   id: number;
   name: string;
   description?: string;
   keywords?: Keyword[] | number[];
+  categories?: RecipeCategory[] | string[];
   image?: string | null;
   nutrition?: NutritionInformation;
   /** Calculated food properties (nutrition) per full recipe, keyed by PropertyType id */

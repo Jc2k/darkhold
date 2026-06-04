@@ -34,7 +34,7 @@ describe('fetchMealPlanningAssistantData', () => {
 
   it('uses the precalculation payload when available', async () => {
     const precalculation: MealAssistantPrecalculation = {
-      schemaVersion: 3,
+      schemaVersion: 4,
       generatedAt: '2026-06-03T00:00:00.000Z',
       keywordNameById: { 10: 'Dinner' },
       recipes: { '1': { id: 1, name: 'Chilli', image: '/recipe.jpg' } },
@@ -49,6 +49,24 @@ describe('fetchMealPlanningAssistantData', () => {
           complexityBucket: 'simple',
           ingredientFoodIds: [],
           ingredientFoodNames: [],
+        },
+      },
+      recipeSimilarities: { '1': [] },
+      recipeClusters: {
+        'cluster-1': {
+          id: 'cluster-1',
+          label: 'dinner',
+          labelTerms: ['dinner'],
+          recipeIds: [1],
+          size: 1,
+        },
+      },
+      recipeClusterMemberships: {
+        '1': {
+          clusterId: 'cluster-1',
+          label: 'dinner',
+          labelTerms: ['dinner'],
+          size: 1,
         },
       },
       relationships: {

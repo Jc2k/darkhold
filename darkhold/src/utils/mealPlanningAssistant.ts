@@ -52,6 +52,8 @@ const CATEGORY_ROLE_TAGS = {
 
 const PRODUCE_FREE_OCCURRENCES_PER_WEEK = 1;
 const PRODUCE_REPEAT_PENALTY_BASE = 10;
+const SAME_CLUSTER_PENALTY_BASE = 12;
+const SIMILAR_ALTERNATIVE_BONUS_SCALE = 20;
 
 const GENERAL_DINNER_ROLE_LABEL = 'General dinner';
 
@@ -122,6 +124,7 @@ interface ScoringContext {
   regularRecipeIds: Set<number>;
   recipeHistoryById: Map<number, MealAssistantRecipeHistory>;
   weekTagCounts: Map<string, number>;
+  weekClusterCounts: Map<string, number>;
   weekProduceCounts: Map<string, number>;
   produceFoodNames: readonly string[];
   precalculation?: MealAssistantPrecalculation;
@@ -326,6 +329,20 @@ function getPrecalculatedRecipeInsight(
   return precalculation?.recipeInsights[String(recipeId)];
 }
 
+function getPrecalculatedRecipeClusterMembership(
+  precalculation: MealAssistantPrecalculation | undefined,
+  recipeId: number,
+) {
+  return precalculation?.recipeClusterMemberships[String(recipeId)];
+}
+
+function getPrecalculatedSimilarRecipes(
+  precalculation: MealAssistantPrecalculation | undefined,
+  recipeId: number,
+) {
+  return precalculation?.recipeSimilarities[String(recipeId)] ?? [];
+}
+
 function getPrecalculatedProduceTags(
   recipe: Recipe,
   precalculation: MealAssistantPrecalculation | undefined,
@@ -523,6 +540,22 @@ function buildWeekProduceCounts(
   return counts;
 }
 
+function buildWeekClusterCounts(
+  entries: MealPlan[],
+  precalculation: MealAssistantPrecalculation | undefined,
+): Map<string, number> {
+  const counts = new Map<string, number>();
+  if (!precalculation) return counts;
+  for (const entry of entries) {
+    const recipeId = recipeIdOf(entry);
+    if (!recipeId) continue;
+    const membership = getPrecalculatedRecipeClusterMembership(precalculation, recipeId);
+    if (!membership) continue;
+    counts.set(membership.clusterId, (counts.get(membership.clusterId) ?? 0) + 1);
+  }
+  return counts;
+}
+
 function updateWeekProduceCounts(
   counts: Map<string, number>,
   recipe: Recipe,
@@ -542,11 +575,27 @@ function updateWeekProduceCounts(
   return next;
 }
 
+function updateWeekClusterCounts(
+  counts: Map<string, number>,
+  recipe: Recipe,
+  precalculation: MealAssistantPrecalculation | undefined,
+): Map<string, number> {
+  const membership = getPrecalculatedRecipeClusterMembership(precalculation, recipe.id);
+  if (!membership) return counts;
+  const next = new Map(counts);
+  next.set(membership.clusterId, (next.get(membership.clusterId) ?? 0) + 1);
+  return next;
+}
+
 function toTitleCase(value: string): string {
   return value
     .split('-')
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
+}
+
+function formatSharedTerms(values: readonly string[]): string {
+  return values.map((value) => toTitleCase(value)).join(', ');
 }
 
 function createSeed(value: string): number {
@@ -993,6 +1042,22 @@ function scoreRecipe(
     });
   }
 
+  const clusterMembership = getPrecalculatedRecipeClusterMembership(
+    context.precalculation,
+    recipe.id,
+  );
+  if (clusterMembership && clusterMembership.size > 1) {
+    const existingCount = context.weekClusterCounts.get(clusterMembership.clusterId) ?? 0;
+    if (existingCount > 0) {
+      components.push({
+        key: 'same-cluster-repeat',
+        label: 'Cluster repetition',
+        score: -existingCount * SAME_CLUSTER_PENALTY_BASE,
+        detail: `Would be the ${existingCount + 1}${ordinalSuffix(existingCount + 1)} recipe this week from the ${clusterMembership.label} cluster.`,
+      });
+    }
+  }
+
   if (isTakeawayRecipe(recipe, keywordNameById)) {
     warnings.push('This is a placeholder recipe entry rather than a cookable recipe.');
   }
@@ -1020,6 +1085,42 @@ function sortCandidates(
       (left, right) =>
         right.score - left.score || left.recipe.name.localeCompare(right.recipe.name),
     );
+}
+
+function boostSimilarAlternatives(
+  selected: MealAssistantCandidateAnalysis,
+  candidates: MealAssistantCandidateAnalysis[],
+  precalculation: MealAssistantPrecalculation | undefined,
+): MealAssistantCandidateAnalysis[] {
+  const similarityByRecipeId = new Map(
+    getPrecalculatedSimilarRecipes(precalculation, selected.recipe.id).map((similarity) => [
+      similarity.recipeId,
+      similarity,
+    ]),
+  );
+  return sortCandidates(
+    candidates.map((candidate) => {
+      const similarity = similarityByRecipeId.get(candidate.recipe.id);
+      if (!similarity) return candidate;
+      const bonus = Math.max(1, Math.round(similarity.score * SIMILAR_ALTERNATIVE_BONUS_SCALE));
+      return {
+        ...candidate,
+        score: candidate.score + bonus,
+        components: [
+          ...candidate.components,
+          {
+            key: `similar-to-${selected.recipe.id}`,
+            label: 'Close alternative',
+            score: bonus,
+            detail:
+              similarity.sharedTerms.length > 0
+                ? `A close alternative to ${selected.recipe.name} with overlap on ${formatSharedTerms(similarity.sharedTerms)}.`
+                : `A close alternative to ${selected.recipe.name}.`,
+          },
+        ],
+      };
+    }),
+  );
 }
 
 function updateWeekTagCounts(
@@ -1145,6 +1246,7 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
   );
 
   let weekTagCounts = buildWeekTagCounts(input.existingWeekMeals, keywordNameById);
+  let weekClusterCounts = buildWeekClusterCounts(input.existingWeekMeals, precalculation);
   const produceFoodNames =
     input.produceFoodNames ?? Object.keys(precalculation?.relationships.produce ?? {});
   let weekProduceCounts = buildWeekProduceCounts(
@@ -1191,6 +1293,7 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
           regularRecipeIds,
           recipeHistoryById,
           weekTagCounts,
+          weekClusterCounts,
           weekProduceCounts,
           produceFoodNames,
           precalculation,
@@ -1220,11 +1323,16 @@ export function buildMealAssistantPlan(input: MealAssistantInput): MealAssistant
         getSpecialDateReasonForDate(slot.date, specialDateReasonsByDate),
       ),
       selected,
-      alternatives: scoredCandidates.slice(1, 6),
+      alternatives: boostSimilarAlternatives(
+        selected,
+        scoredCandidates.slice(1),
+        precalculation,
+      ).slice(0, 5),
     });
 
     usedRecipeIds.add(selected.recipe.id);
     weekTagCounts = updateWeekTagCounts(weekTagCounts, selected.recipe, keywordNameById);
+    weekClusterCounts = updateWeekClusterCounts(weekClusterCounts, selected.recipe, precalculation);
     weekProduceCounts = updateWeekProduceCounts(
       weekProduceCounts,
       selected.recipe,

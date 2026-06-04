@@ -88,7 +88,7 @@ describe('mealAssistantPrecalculation', () => {
     });
 
     expect(result.generatedAt).toBe('2026-06-03T00:00:00.000Z');
-    expect(result.schemaVersion).toBe(3);
+    expect(result.schemaVersion).toBe(4);
     expect(result.recipes['1']).toMatchObject({ id: 1, name: 'Chilli con carne' });
     expect(result.recipes['1']).not.toHaveProperty('food_properties');
     expect(result.recipeHistory['1']).toMatchObject({
@@ -141,7 +141,100 @@ describe('mealAssistantPrecalculation', () => {
       caloriesKcal: 650,
       score: -18,
     });
+    expect(result.recipeSimilarities['1']).toEqual([]);
+    expect(result.recipeClusterMemberships['1']).toMatchObject({
+      clusterId: 'cluster-1',
+      size: 1,
+    });
     expect(isMealAssistantPrecalculation(result)).toBe(true);
+  });
+
+  it('stores deterministic recipe similarities and cluster metadata', () => {
+    const result = buildMealAssistantPrecalculation({
+      generatedAt: '2026-06-03T00:00:00.000Z',
+      keywordNameById: {},
+      recipes: [
+        recipe(1, 'Tomato Pasta', {
+          keywords: [{ id: 1, name: 'Pasta' }],
+          steps: [
+            {
+              id: 1,
+              instruction: 'Cook',
+              order: 1,
+              ingredients: [
+                { id: 1, food: { id: 10, name: 'Tomato' } },
+                { id: 2, food: { id: 11, name: 'Basil' } },
+              ],
+            },
+          ],
+        }),
+        recipe(2, 'Creamy Tomato Pasta', {
+          keywords: [{ id: 1, name: 'Pasta' }],
+          steps: [
+            {
+              id: 1,
+              instruction: 'Cook',
+              order: 1,
+              ingredients: [
+                { id: 1, food: { id: 10, name: 'Tomato' } },
+                { id: 2, food: { id: 12, name: 'Cream' } },
+              ],
+            },
+          ],
+        }),
+        recipe(3, 'Creamy Basil Pasta', {
+          keywords: [{ id: 1, name: 'Pasta' }],
+          steps: [
+            {
+              id: 1,
+              instruction: 'Cook',
+              order: 1,
+              ingredients: [
+                { id: 1, food: { id: 11, name: 'Basil' } },
+                { id: 2, food: { id: 12, name: 'Cream' } },
+              ],
+            },
+          ],
+        }),
+        recipe(4, 'Chicken Rice Bowl', {
+          keywords: [{ id: 2, name: 'Rice' }],
+          steps: [
+            {
+              id: 1,
+              instruction: 'Cook',
+              order: 1,
+              ingredients: [
+                { id: 1, food: { id: 20, name: 'Chicken' } },
+                { id: 2, food: { id: 21, name: 'Rice' } },
+              ],
+            },
+          ],
+        }),
+      ],
+      mealPlans: [],
+    });
+
+    expect(result.recipeSimilarities['1'][0]).toMatchObject({
+      recipeId: 2,
+      sharedTerms: expect.arrayContaining(['pasta', 'tomato']),
+    });
+    expect(result.recipeClusters['cluster-1']).toEqual({
+      id: 'cluster-1',
+      label: 'pasta · basil · cream',
+      labelTerms: ['pasta', 'basil', 'cream'],
+      recipeIds: [1, 2, 3],
+      size: 3,
+    });
+    expect(result.recipeClusterMemberships['3']).toMatchObject({
+      clusterId: 'cluster-1',
+      label: 'pasta · basil · cream',
+      size: 3,
+    });
+    expect(result.recipeClusterMemberships['4']).toMatchObject({
+      clusterId: 'cluster-4',
+      label: 'rice · chicken',
+      size: 1,
+    });
   });
 
   it('stores Tandoor timing and serving features without changing scoring inputs', () => {

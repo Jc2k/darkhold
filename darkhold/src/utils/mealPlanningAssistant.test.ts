@@ -315,6 +315,60 @@ describe('mealPlanningAssistant', () => {
     ).not.toContain(5);
   });
 
+  it('prefers close alternatives from precalculated similarities', () => {
+    const selectedRecipe = makeRecipe(1, 'Quick Pasta', [{ id: 10, name: 'Busy' }], {
+      steps: [
+        {
+          id: 1,
+          instruction: 'Cook',
+          order: 1,
+          ingredients: [
+            { id: 1, food: { id: 10, name: 'Tomato' } },
+            { id: 2, food: { id: 11, name: 'Basil' } },
+          ],
+        },
+      ],
+    });
+    const similarAlternative = makeRecipe(2, 'Zesty Pasta', [], {
+      steps: [
+        {
+          id: 1,
+          instruction: 'Cook',
+          order: 1,
+          ingredients: [
+            { id: 1, food: { id: 10, name: 'Tomato' } },
+            { id: 2, food: { id: 12, name: 'Cream' } },
+          ],
+        },
+      ],
+    });
+    const genericAlternative = makeRecipe(3, 'Apple Curry', []);
+    const precalculation = buildMealAssistantPrecalculation({
+      generatedAt: '2026-06-03T00:00:00.000Z',
+      keywordNameById: {},
+      recipes: [selectedRecipe, similarAlternative, genericAlternative],
+      mealPlans: [],
+    });
+
+    const plan = buildMealAssistantPlan({
+      weekStart: new Date('2026-05-30T00:00:00'),
+      weekEnd: new Date('2026-06-05T00:00:00'),
+      emptyDinnerDates: ['2026-05-30'],
+      existingWeekMeals: [],
+      historicalMeals: [],
+      recipes: [selectedRecipe, similarAlternative, genericAlternative],
+      upSoonRecipeIds: [1],
+      dinnerTime: '18:00',
+      precalculation,
+    });
+
+    expect(plan.slots[0]?.selected.recipe.name).toBe('Quick Pasta');
+    expect(plan.slots[0]?.alternatives[0].recipe.name).toBe('Zesty Pasta');
+    expect(plan.slots[0]?.alternatives[0].components.some((c) => c.key === 'similar-to-1')).toBe(
+      true,
+    );
+  });
+
   it('filters unsuitable dinner tags such as breakfast, lunch, drink, and baking', () => {
     expect(UNSUITABLE_DINNER_TAG_FRAGMENTS).toEqual(
       expect.arrayContaining(['breakfast', 'lunch', 'drink', 'baking']),
@@ -735,6 +789,68 @@ describe('mealPlanningAssistant', () => {
     );
     // Third occurrence should carry a heavier penalty than the second (existingCount=2 vs 1)
     expect(penaltyComponent?.score).toBeLessThanOrEqual(-20);
+  });
+
+  it('penalises recipes that repeat the same similarity cluster within the week', () => {
+    const earlierPasta = makeRecipe(1, 'Creamy Tomato Pasta', [], {
+      steps: [
+        {
+          id: 1,
+          instruction: 'Cook',
+          order: 1,
+          ingredients: [
+            { id: 1, food: { id: 10, name: 'Tomato' } },
+            { id: 2, food: { id: 12, name: 'Cream' } },
+          ],
+        },
+      ],
+    });
+    const repeatedClusterRecipe = makeRecipe(2, 'A Tomato Pasta', [], {
+      steps: [
+        {
+          id: 1,
+          instruction: 'Cook',
+          order: 1,
+          ingredients: [
+            { id: 1, food: { id: 10, name: 'Tomato' } },
+            { id: 2, food: { id: 11, name: 'Basil' } },
+          ],
+        },
+      ],
+    });
+    const generalRecipe = makeRecipe(3, 'Z Rice Bowl', []);
+    const precalculation = buildMealAssistantPrecalculation({
+      generatedAt: '2026-06-03T00:00:00.000Z',
+      keywordNameById: {},
+      recipes: [earlierPasta, repeatedClusterRecipe, generalRecipe],
+      mealPlans: [],
+    });
+
+    const plan = buildMealAssistantPlan({
+      weekStart: new Date('2026-05-25T00:00:00'),
+      weekEnd: new Date('2026-05-31T00:00:00'),
+      emptyDinnerDates: ['2026-05-27'],
+      existingWeekMeals: [makeMealPlan(100, earlierPasta, '2026-05-25')],
+      historicalMeals: [],
+      recipes: [repeatedClusterRecipe, generalRecipe],
+      dinnerTime: '18:00',
+      precalculation,
+    });
+
+    expect(plan.slots[0]?.selected.recipe.name).toBe('Z Rice Bowl');
+    const repeatedClusterCandidate = plan.slots[0]?.alternatives.find(
+      (candidate) => candidate.recipe.id === 2,
+    );
+    expect(
+      repeatedClusterCandidate?.components.some(
+        (component) => component.key === 'same-cluster-repeat',
+      ),
+    ).toBe(true);
+    expect(
+      repeatedClusterCandidate?.components.find(
+        (component) => component.key === 'same-cluster-repeat',
+      )?.score,
+    ).toBeLessThan(0);
   });
 
   it('tracks aubergine and eggplant as independent produce names (no synonym grouping)', () => {
