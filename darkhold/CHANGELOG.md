@@ -1,3 +1,15 @@
+# [1.107.0](https://github.com/Jc2k/darkhold/compare/v1.106.1...v1.107.0) (2026-06-04)
+
+
+### Bug Fixes
+
+* **ui:** reduce mobile recipe thumbnail inset ([51c7483](https://github.com/Jc2k/darkhold/commit/51c748365002c95c835551d2d2a028fd7658f899))
+
+
+### Features
+
+* **meal-assistant:** enrich precalculation recipe features ([c409ba8](https://github.com/Jc2k/darkhold/commit/c409ba86b27daa61b9370eb242f2cde6faea062f))
+
 ## [1.106.1](https://github.com/Jc2k/darkhold/compare/v1.106.0...v1.106.1) (2026-06-04)
 
 
