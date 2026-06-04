@@ -119,7 +119,9 @@ async function fetchMealAssistantRecipes(): Promise<Recipe[]> {
   });
 }
 
-async function fetchMealAssistantProduceFoodNames(categoryName: string): Promise<string[]> {
+async function fetchMealAssistantProduceFoods(
+  categoryName: string,
+): Promise<Array<Pick<Food, 'id' | 'name'>>> {
   const normalizedCategoryName = categoryName.trim().toLowerCase();
   if (!normalizedCategoryName) return [];
 
@@ -130,7 +132,9 @@ async function fetchMealAssistantProduceFoodNames(categoryName: string): Promise
   if (!category) return [];
 
   const foods = await fetchAllTandoorPages<Food>('/food/', { supermarket_category: category.id });
-  return foods.map((food) => food.name.trim().toLowerCase()).filter(Boolean);
+  return foods
+    .map((food) => ({ id: food.id, name: food.name.trim().toLowerCase() }))
+    .filter((food) => food.name);
 }
 
 async function fetchMealAssistantKeywordNameById(): Promise<Record<number, string>> {
@@ -149,18 +153,18 @@ async function writeMealAssistantPrecalculation(): Promise<void> {
     return;
   }
 
-  const [recipes, keywordNameById, mealPlans, produceFoodNames] = await Promise.all([
+  const [recipes, keywordNameById, mealPlans, produceFoods] = await Promise.all([
     fetchMealAssistantRecipes(),
     fetchMealAssistantKeywordNameById(),
     fetchAllTandoorPages<MealPlan>('/meal-plan/'),
-    fetchMealAssistantProduceFoodNames(safeGetEnv('MEAL_ASSISTANT_PRODUCE_CATEGORY') ?? ''),
+    fetchMealAssistantProduceFoods(safeGetEnv('MEAL_ASSISTANT_PRODUCE_CATEGORY') ?? ''),
   ]);
 
   const precalculation = buildMealAssistantPrecalculation({
     recipes,
     keywordNameById,
     mealPlans,
-    produceFoodNames,
+    produceFoods,
   });
   const path = loadMealAssistantPrecalculationPath();
   await Deno.mkdir(path.slice(0, path.lastIndexOf('/')) || '.', { recursive: true });

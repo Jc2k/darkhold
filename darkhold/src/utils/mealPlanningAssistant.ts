@@ -868,10 +868,14 @@ function scoreRecipe(
     }
   }
 
-  for (const foodName of context.produceFoodNames) {
+  for (const foodName of getRecipeProduceTagsForScoring(
+    recipe,
+    keywordNameById,
+    context.produceFoodNames,
+    context.precalculation,
+  )) {
     const existingCount = context.weekProduceCounts.get(foodName) ?? 0;
     if (existingCount < PRODUCE_FREE_OCCURRENCES_PER_WEEK) continue;
-    if (!recipeHasFragment(recipe, [foodName], keywordNameById)) continue;
     components.push({
       key: `produce-repeat-${foodName}`,
       label: 'Produce repetition',

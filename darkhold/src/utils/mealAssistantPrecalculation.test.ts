@@ -31,7 +31,10 @@ describe('mealAssistantPrecalculation', () => {
     const result = buildMealAssistantPrecalculation({
       generatedAt: '2026-06-03T00:00:00.000Z',
       keywordNameById: { 10: 'Courgette' },
-      produceFoodNames: ['Courgette', ''],
+      produceFoods: [
+        { id: 100, name: 'Courgette' },
+        { id: 999, name: '' },
+      ],
       recipes: [
         recipe(1, 'Chilli con carne', {
           servings: 2,
@@ -257,6 +260,44 @@ describe('mealAssistantPrecalculation', () => {
       ingredientFoodNames: ['bell pepper', 'duplicate numeric id with name', 'paneer'],
       complexityBucket: 'moderate',
     });
+  });
+
+  it('detects produce via ingredient food ids and falls back to ingredient names when ids are unavailable', () => {
+    const result = buildMealAssistantPrecalculation({
+      generatedAt: '2026-06-03T00:00:00.000Z',
+      keywordNameById: {},
+      produceFoods: [
+        { id: 10, name: 'aubergine' },
+        { id: 20, name: 'pepper' },
+        { id: 30, name: 'carrot' },
+      ],
+      produceFoodNames: ['carrot'],
+      recipes: [
+        recipe(1, 'Id and name produce matching', {
+          keywords: [{ id: 999, name: 'Aubergine' }],
+          steps: [
+            {
+              id: 1,
+              instruction: 'Prep',
+              order: 1,
+              ingredients: [
+                { id: 1, food: { id: 10, name: 'Eggplant' } },
+                { id: 2, food: 20 },
+                { id: 3, food: null, note: 'For garnish', is_header: true },
+                { id: 4, food: { id: 40, name: 'Carrot' } },
+              ],
+            },
+          ],
+        }),
+      ],
+      mealPlans: [],
+    });
+
+    expect(result.recipeInsights['1'].produce).toEqual(['aubergine', 'carrot', 'pepper']);
+    expect(result.recipeFeatures['1'].produce).toEqual(['aubergine', 'carrot', 'pepper']);
+    expect(result.relationships.produce.aubergine).toEqual([1]);
+    expect(result.relationships.produce.pepper).toEqual([1]);
+    expect(result.relationships.produce.carrot).toEqual([1]);
   });
 
   it('marks food property nutrition completeness when values are present or missing', () => {

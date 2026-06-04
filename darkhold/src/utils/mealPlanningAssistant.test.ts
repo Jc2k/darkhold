@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { MealPlan, Recipe } from '../api/tandoor-types';
+import { buildMealAssistantPrecalculation } from './mealAssistantPrecalculation';
 import {
   buildMealAssistantPlan,
   getCalendarEventDatesByCategory,
@@ -802,5 +803,40 @@ describe('mealPlanningAssistant', () => {
 
     const slot = plan.slots[0];
     expect(slot?.selected.components.some((c) => c.key.startsWith('produce-repeat-'))).toBe(false);
+  });
+
+  it('uses precalculated produce tags for repetition penalties', () => {
+    const usedProduceRecipe = makeRecipe(1, 'Roasted traybake', [], {
+      steps: [{ id: 1, instruction: 'prep', order: 1, ingredients: [{ id: 1, food: 10 }] }],
+    });
+    const candidateProduceRecipe = makeRecipe(2, 'Weeknight bake', [], {
+      steps: [{ id: 1, instruction: 'prep', order: 1, ingredients: [{ id: 2, food: 10 }] }],
+    });
+    const generalRecipe = makeRecipe(3, 'Rice Bowl', [{ id: 13, name: 'Rice' }]);
+    const precalculation = buildMealAssistantPrecalculation({
+      generatedAt: '2026-06-03T00:00:00.000Z',
+      recipes: [usedProduceRecipe, candidateProduceRecipe, generalRecipe],
+      keywordNameById: {},
+      mealPlans: [],
+      produceFoods: [{ id: 10, name: 'aubergine' }],
+    });
+
+    const plan = buildMealAssistantPlan({
+      weekStart: new Date('2026-05-25T00:00:00'),
+      weekEnd: new Date('2026-05-31T00:00:00'),
+      emptyDinnerDates: ['2026-05-27'],
+      existingWeekMeals: [makeMealPlan(100, usedProduceRecipe, '2026-05-25')],
+      historicalMeals: [],
+      recipes: [candidateProduceRecipe, generalRecipe],
+      dinnerTime: '18:00',
+      precalculation,
+    });
+
+    const slot = plan.slots[0];
+    expect(slot?.selected.recipe.name).toBe('Rice Bowl');
+    const produceCandidate = slot?.alternatives.find((a) => a.recipe.name === 'Weeknight bake');
+    expect(produceCandidate?.components.some((c) => c.key === 'produce-repeat-aubergine')).toBe(
+      true,
+    );
   });
 });
