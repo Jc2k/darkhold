@@ -1,5 +1,16 @@
-import { useCallback, useState } from 'react';
-import { Alert, Badge, Button, Card, Col, ListGroup, Row, Spinner, Table } from 'react-bootstrap';
+import { useCallback, useMemo, useState } from 'react';
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  Col,
+  Form,
+  ListGroup,
+  Row,
+  Spinner,
+  Table,
+} from 'react-bootstrap';
 import {
   Activity,
   Bug,
@@ -18,9 +29,10 @@ import {
   useMealAssistantNightlyStatus,
   useMealAssistantPrecalculationMutation,
 } from '../hooks/useMealAssistantDebug';
-import type {
-  MealAssistantDebugGroup,
-  MealAssistantDebugTopRecipe,
+import {
+  buildMealAssistantDebugStats,
+  type MealAssistantDebugGroup,
+  type MealAssistantDebugTopRecipe,
 } from '../utils/mealAssistantDebugStats';
 import {
   useMealAssistantPrecalculationSocket,
@@ -255,6 +267,7 @@ export function MealAssistantDebug() {
   const [precalculationEvents, setPrecalculationEvents] = useState<
     MealAssistantPrecalculationEvent[]
   >([]);
+  const [selectedMealTypeId, setSelectedMealTypeId] = useState<number | undefined>();
   const handlePrecalculationEvent = useCallback((event: MealAssistantPrecalculationEvent) => {
     setPrecalculationEvents((current) => [event, ...current].slice(0, 20));
   }, []);
@@ -267,12 +280,26 @@ export function MealAssistantDebug() {
     precalculationMutation.mutate();
   }, [precalculationMutation]);
 
-  if (isLoading && !data) return <LoadingMascot />;
-  if (isError) return <Alert variant="danger">Failed to load meal assistant debug data.</Alert>;
-
-  const stats = data?.stats;
+  const defaultMealTypeId = useMemo(() => {
+    const mealTypes = data?.precalculation?.mealTypes ?? [];
+    return (
+      mealTypes.find((mealType) => mealType.name?.toLowerCase().includes('dinner'))?.id ??
+      mealTypes[0]?.id
+    );
+  }, [data?.precalculation?.mealTypes]);
+  const effectiveMealTypeId = selectedMealTypeId ?? defaultMealTypeId;
+  const stats = useMemo(
+    () =>
+      data?.precalculation
+        ? buildMealAssistantDebugStats(data.precalculation, effectiveMealTypeId)
+        : data?.stats,
+    [data?.precalculation, data?.stats, effectiveMealTypeId],
+  );
   const schemaStatus = data?.schemaStatus;
   const generatedAt = stats?.generatedAt ?? data?.generatedAt;
+
+  if (isLoading && !data) return <LoadingMascot />;
+  if (isError) return <Alert variant="danger">Failed to load meal assistant debug data.</Alert>;
 
   return (
     <div className="recipe-stats-page">
@@ -332,6 +359,32 @@ export function MealAssistantDebug() {
 
       {stats && (
         <>
+          {stats.mealTypes.length > 0 && (
+            <Card className="mb-4">
+              <Card.Body>
+                <Form.Group controlId="meal-assistant-debug-meal-type">
+                  <Form.Label className="fw-semibold">Meal type</Form.Label>
+                  <Form.Select
+                    value={effectiveMealTypeId ?? ''}
+                    onChange={(event) => {
+                      const value = Number.parseInt(event.currentTarget.value, 10);
+                      setSelectedMealTypeId(Number.isFinite(value) ? value : undefined);
+                    }}
+                  >
+                    {stats.mealTypes.map((mealType) => (
+                      <option key={mealType.id} value={mealType.id}>
+                        {mealType.label} ({pluralize(mealType.planCount, 'plan')})
+                      </option>
+                    ))}
+                  </Form.Select>
+                  <Form.Text>
+                    Debug comparisons use only historical plans from the selected meal type.
+                  </Form.Text>
+                </Form.Group>
+              </Card.Body>
+            </Card>
+          )}
+
           <Row className="g-3 mb-4">
             <Col md={4}>
               <StatCard label="Recipes indexed" value={stats.recipeCount.toLocaleString()} />

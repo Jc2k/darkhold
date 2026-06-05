@@ -14,12 +14,14 @@ import {
 import type { CalendarFeatureDay } from './calendarFeatures.ts';
 import type { WeatherFeatures } from './weatherFeatures.ts';
 
-export const MEAL_ASSISTANT_PRECALCULATION_SCHEMA_VERSION = 6;
+export const MEAL_ASSISTANT_PRECALCULATION_SCHEMA_VERSION = 7;
 
 export type MealAssistantSeason = 'winter' | 'spring' | 'summer' | 'autumn';
 
 export interface MealAssistantMealHistoryEntry {
   recipeId: number;
+  mealTypeId: number;
+  mealTypeName?: string;
   date: string;
   day: number;
   weekend: boolean;
@@ -111,6 +113,12 @@ export interface MealAssistantRelationships {
   flags: Record<string, number[]>;
 }
 
+export interface MealAssistantMealTypeOption {
+  id: number;
+  name?: string;
+  planCount: number;
+}
+
 export interface MealAssistantPrecalculation {
   schemaVersion: typeof MEAL_ASSISTANT_PRECALCULATION_SCHEMA_VERSION;
   generatedAt: string;
@@ -123,6 +131,8 @@ export interface MealAssistantPrecalculation {
   relationships: MealAssistantRelationships;
   recipeHistory: Record<string, MealAssistantRecipeHistory>;
   recipeInsights: Record<string, MealAssistantRecipeInsight>;
+  mealTypes: MealAssistantMealTypeOption[];
+  recipeHistoryByMealType: Record<string, Record<string, MealAssistantRecipeHistory>>;
 }
 
 const MIN_DOMINANT_DAY_TOTAL = 3;
@@ -158,6 +168,16 @@ export function getMealAssistantSeason(date: Date): MealAssistantSeason {
 function recipeIdOf(entry: MealPlan): number | null {
   if (typeof entry.recipe === 'number') return entry.recipe;
   return entry.recipe?.id ?? null;
+}
+
+function mealTypeIdOf(entry: MealPlan): number | null {
+  if (typeof entry.meal_type === 'number') return entry.meal_type;
+  return entry.meal_type?.id ?? null;
+}
+
+function mealTypeNameOf(entry: MealPlan): string | undefined {
+  if (typeof entry.meal_type === 'object' && entry.meal_type !== null) return entry.meal_type.name;
+  return undefined;
 }
 
 function parseMealDate(value: string): Date | null {
@@ -212,13 +232,16 @@ function buildMealHistory(
 ): MealAssistantMealHistoryEntry[] {
   return entries.flatMap((entry): MealAssistantMealHistoryEntry[] => {
     const recipeId = recipeIdOf(entry);
+    const mealTypeId = mealTypeIdOf(entry);
     const mealDate = parseMealDate(entry.from_date);
-    if (!recipeId || !mealDate) return [];
+    if (!recipeId || mealTypeId == null || !mealDate) return [];
     const date = entry.from_date.includes('T') ? entry.from_date.split('T')[0] : entry.from_date;
     const day = mealDate.getDay();
     return [
       {
         recipeId,
+        mealTypeId,
+        ...(mealTypeNameOf(entry) ? { mealTypeName: mealTypeNameOf(entry) } : {}),
         date,
         day,
         weekend: day === 0 || day === 6 || publicHolidayDates.has(date),
@@ -587,6 +610,8 @@ export function buildMealAssistantPrecalculation(input: {
   const recipeFeatures: Record<string, MealAssistantRecipeFeatures> = {};
   const recipeHistory: Record<string, MealAssistantRecipeHistory> = {};
   const recipeInsights: Record<string, MealAssistantRecipeInsight> = {};
+  const recipeHistoryByMealType: Record<string, Record<string, MealAssistantRecipeHistory>> = {};
+  const mealTypeNames = new Map<number, string>();
   const relationships: MealAssistantRelationships = {
     keywords: {},
     produce: Object.fromEntries(produceFoodNames.map((name) => [name, [] as number[]])),
@@ -631,6 +656,20 @@ export function buildMealAssistantPrecalculation(input: {
     history.seasonCounts[SEASON_INDEX[entry.season]] += 1;
     history.totalPlanCount += 1;
     recipeHistory[String(entry.recipeId)] = history;
+
+    if (entry.mealTypeName) mealTypeNames.set(entry.mealTypeId, entry.mealTypeName);
+    const mealTypeKey = String(entry.mealTypeId);
+    const mealTypeHistory = recipeHistoryByMealType[mealTypeKey] ?? {};
+    const typedHistory = mealTypeHistory[String(entry.recipeId)] ?? createEmptyHistory();
+    const typedDayNumber = dateStringToDayNumber(entry.date);
+    if (typedDayNumber != null) {
+      typedHistory.dates.push(typedDayNumber);
+    }
+    typedHistory.dayCounts[entry.day] += 1;
+    typedHistory.seasonCounts[SEASON_INDEX[entry.season]] += 1;
+    typedHistory.totalPlanCount += 1;
+    mealTypeHistory[String(entry.recipeId)] = typedHistory;
+    recipeHistoryByMealType[mealTypeKey] = mealTypeHistory;
 
     const weather = weatherByDate[entry.date];
     if (weather) {
@@ -791,12 +830,12 @@ export function buildMealAssistantPrecalculation(input: {
   sortRelationshipIds(relationships.weather);
   sortRelationshipIds(relationships.calendar);
   sortRelationshipIds(relationships.flags);
-  for (const history of Object.values(recipeHistory)) {
+  const finalizeHistory = (history: MealAssistantRecipeHistory) => {
     history.dates.sort((a, b) => a - b);
-    if (history.dates.length === 0) continue;
+    if (history.dates.length === 0) return;
     history.firstPlannedDate = history.dates[0];
     history.lastPlannedDate = history.dates[history.dates.length - 1];
-    if (history.dates.length < 2) continue;
+    if (history.dates.length < 2) return;
     const dayDiffs: number[] = [];
     for (let index = 1; index < history.dates.length; index += 1) {
       dayDiffs.push(history.dates[index] - history.dates[index - 1]);
@@ -804,7 +843,24 @@ export function buildMealAssistantPrecalculation(input: {
     const average = dayDiffs.reduce((total, value) => total + value, 0) / dayDiffs.length;
     history.averageDaysBetweenPlans = roundTo(average, 2);
     history.medianDaysBetweenPlans = roundTo(median(dayDiffs), 2);
+  };
+  for (const history of Object.values(recipeHistory)) finalizeHistory(history);
+  for (const histories of Object.values(recipeHistoryByMealType)) {
+    for (const history of Object.values(histories)) finalizeHistory(history);
   }
+  const mealTypes = Object.entries(recipeHistoryByMealType)
+    .map(([mealTypeId, histories]) => {
+      const id = Number.parseInt(mealTypeId, 10);
+      return {
+        id,
+        ...(mealTypeNames.get(id) ? { name: mealTypeNames.get(id) } : {}),
+        planCount: Object.values(histories).reduce(
+          (total, history) => total + history.totalPlanCount,
+          0,
+        ),
+      };
+    })
+    .sort((left, right) => left.id - right.id);
 
   return {
     schemaVersion: MEAL_ASSISTANT_PRECALCULATION_SCHEMA_VERSION,
@@ -818,6 +874,8 @@ export function buildMealAssistantPrecalculation(input: {
     relationships,
     recipeHistory,
     recipeInsights,
+    mealTypes,
+    recipeHistoryByMealType,
   };
 }
 
@@ -841,6 +899,9 @@ export function isMealAssistantPrecalculation(
     typeof record.recipeHistory === 'object' &&
     record.recipeHistory !== null &&
     typeof record.recipeInsights === 'object' &&
-    record.recipeInsights !== null
+    record.recipeInsights !== null &&
+    Array.isArray(record.mealTypes) &&
+    typeof record.recipeHistoryByMealType === 'object' &&
+    record.recipeHistoryByMealType !== null
   );
 }
