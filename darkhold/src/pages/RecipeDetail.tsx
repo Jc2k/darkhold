@@ -16,6 +16,7 @@ import {
   BoxArrowUpRight,
   Share,
   Check2Circle,
+  BarChartLine,
 } from 'react-bootstrap-icons';
 import { OverlayTrigger, Popover } from 'react-bootstrap';
 import { apiGet, apiPost } from '../api/client';
@@ -470,6 +471,14 @@ export function RecipeDetailContent({
             </Button>
           )}
           <UpSoonButton recipeId={recipe.id} style={circleButtonStyle} />
+          <Link
+            to={`/recipe/${recipe.id}/stats`}
+            className="btn btn-light btn-sm"
+            style={circleButtonStyle}
+            aria-label="Show recipe statistics"
+          >
+            <BarChartLine />
+          </Link>
           {steps.length > 0 && (
             <Button
               variant="primary"

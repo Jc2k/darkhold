@@ -32,6 +32,7 @@ const PERSISTED_QUERY_ROOTS = new Set([
   'books',
   'book-entries',
   'app-config',
+  'meal-assistant-precalculation',
 ]);
 
 export function shouldPersistQueryKey(queryKey: readonly unknown[]): boolean {
