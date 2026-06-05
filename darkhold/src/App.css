@@ -262,6 +262,25 @@
   outline-offset: 1px;
 }
 
+.meal-plan-week-picker__highlighted-week {
+  background-color: rgba(var(--bs-primary-rgb), 0.12);
+}
+
+.meal-plan-week-picker__highlighted-week-start {
+  border-start-start-radius: var(--bs-border-radius);
+  border-end-start-radius: var(--bs-border-radius);
+}
+
+.meal-plan-week-picker__highlighted-week-end {
+  border-start-end-radius: var(--bs-border-radius);
+  border-end-end-radius: var(--bs-border-radius);
+}
+
+.meal-plan-week-picker .rdp-selected .rdp-day_button {
+  background-color: var(--bs-primary);
+  color: var(--bs-white);
+}
+
 @media (max-width: 1023.98px) {
   .meal-plan-page .meal-plan-table {
     display: block;
