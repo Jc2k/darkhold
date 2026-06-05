@@ -1,3 +1,10 @@
+## [1.111.1](https://github.com/Jc2k/darkhold/compare/v1.111.0...v1.111.1) (2026-06-05)
+
+
+### Bug Fixes
+
+* **meal-plan:** highlight selected week in picker ([5b5ff20](https://github.com/Jc2k/darkhold/commit/5b5ff20938e8b7c00330f6b3399da56434266816))
+
 # [1.111.0](https://github.com/Jc2k/darkhold/compare/v1.110.0...v1.111.0) (2026-06-04)
 
 
