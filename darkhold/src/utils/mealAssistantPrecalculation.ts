@@ -14,7 +14,7 @@ import {
 import type { CalendarFeatureDay } from './calendarFeatures.ts';
 import type { WeatherFeatures } from './weatherFeatures.ts';
 
-export const MEAL_ASSISTANT_PRECALCULATION_SCHEMA_VERSION = 7;
+export const MEAL_ASSISTANT_PRECALCULATION_SCHEMA_VERSION = 8;
 
 export type MealAssistantSeason = 'winter' | 'spring' | 'summer' | 'autumn';
 
@@ -25,6 +25,7 @@ export interface MealAssistantMealHistoryEntry {
   date: string;
   day: number;
   weekend: boolean;
+  month: number;
   season: MealAssistantSeason;
 }
 
@@ -48,6 +49,7 @@ export interface MealAssistantRecipeInsight {
   weekend?: MealAssistantTrend;
   weekday?: MealAssistantTrend;
   days: Partial<Record<string, MealAssistantTrend>>;
+  months: Partial<Record<string, MealAssistantTrend>>;
   seasons: Partial<Record<MealAssistantSeason, MealAssistantTrend>>;
   weather: Record<string, MealAssistantTrend>;
   calendar: Record<string, MealAssistantTrend>;
@@ -97,6 +99,20 @@ export interface MealAssistantRecipeFeatures {
 export interface MealAssistantRecipeHistory {
   dates: number[];
   dayCounts: [number, number, number, number, number, number, number];
+  monthCounts: [
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+  ];
   seasonCounts: [number, number, number, number];
   totalPlanCount: number;
   firstPlannedDate?: number;
@@ -137,15 +153,12 @@ export interface MealAssistantPrecalculation {
 
 const MIN_DOMINANT_DAY_TOTAL = 3;
 const MIN_DOMINANT_DAY_COUNT = 2;
-const MIN_DOMINANT_DAY_SHARE = 0.4;
 const MIN_WEEKEND_TOTAL = 4;
-const MIN_WEEKEND_SHARE = 0.65;
+const MIN_MONTH_TOTAL = 3;
 const MIN_SEASON_TOTAL = 3;
-const MIN_SEASON_COUNT = 2;
-const MIN_SEASON_SHARE = 0.45;
+const MIN_WEATHER_TOTAL = 3;
 const MIN_CALENDAR_TOTAL = 2;
-const MIN_CALENDAR_COUNT = 2;
-const MIN_CALENDAR_SHARE = 0.4;
+const RECIPE_SIGNAL_ALPHA = 0.05;
 const LOW_PROTEIN_THRESHOLD_G = 8;
 const HIGH_PROTEIN_THRESHOLD_G = 12;
 const HIGH_CALORIE_THRESHOLD_KCAL = 600;
@@ -156,6 +169,11 @@ const SEASON_INDEX: Record<MealAssistantSeason, number> = {
   summer: 2,
   autumn: 3,
 };
+const WEATHER_SIGNAL_TAGS_BY_GROUP = {
+  temperature: ['cold-day', 'cool-day', 'mild-day', 'warm-day', 'hot-day'],
+  precipitation: ['dry-day', 'showery-day', 'wet-day'],
+  daylight: ['short-daylight', 'medium-daylight', 'long-daylight'],
+} as const;
 
 export function getMealAssistantSeason(date: Date): MealAssistantSeason {
   const month = date.getMonth() + 1;
@@ -195,6 +213,109 @@ function dateStringToDayNumber(value: string): number | null {
 
 export function mealAssistantDayNumberToDate(dayNumber: number): string {
   return new Date(dayNumber * MS_PER_DAY).toISOString().slice(0, 10);
+}
+
+function logCombination(n: number, k: number): number {
+  if (k < 0 || k > n) return Number.NEGATIVE_INFINITY;
+  const effectiveK = Math.min(k, n - k);
+  let result = 0;
+  for (let index = 1; index <= effectiveK; index += 1) {
+    result += Math.log(n - effectiveK + index) - Math.log(index);
+  }
+  return result;
+}
+
+function logSumExp(values: number[]): number {
+  const max = Math.max(...values);
+  if (!Number.isFinite(max)) return max;
+  const sum = values.reduce((total, value) => total + Math.exp(value - max), 0);
+  return max + Math.log(sum);
+}
+
+function binomialUpperTail(trials: number, successes: number, probability: number): number {
+  if (successes <= 0) return 1;
+  if (successes > trials) return 0;
+  if (probability <= 0) return successes <= 0 ? 1 : 0;
+  if (probability >= 1) return successes <= trials ? 1 : 0;
+
+  const logProbability = Math.log(probability);
+  const logInverseProbability = Math.log1p(-probability);
+  const terms: number[] = [];
+  for (let count = successes; count <= trials; count += 1) {
+    terms.push(
+      logCombination(trials, count) +
+        count * logProbability +
+        (trials - count) * logInverseProbability,
+    );
+  }
+  return Math.min(1, Math.exp(logSumExp(terms)));
+}
+
+function combinationCount(n: number, k: number): number {
+  if (k < 0 || k > n) return 0;
+  if (k === 0 || k === n) return 1;
+  let result = 1;
+  for (let index = 1; index <= k; index += 1) {
+    result = (result * (n - k + index)) / index;
+  }
+  return result;
+}
+
+function significantCategoryIndexes(
+  counts: readonly number[],
+  options: { minTotal: number; maxCategories?: number; alpha?: number },
+): number[] {
+  const total = counts.reduce((sum, count) => sum + count, 0);
+  if (total < options.minTotal || counts.length < 2) return [];
+
+  const ranked = counts
+    .map((count, index) => ({ count, index }))
+    .sort((left, right) => right.count - left.count || left.index - right.index);
+  const maxCategories = Math.min(options.maxCategories ?? 2, counts.length);
+  let best: { indexes: number[]; pValue: number } | undefined;
+
+  for (let selectedCount = 1; selectedCount <= maxCategories; selectedCount += 1) {
+    const observedCount = ranked
+      .slice(0, selectedCount)
+      .reduce((sum, category) => sum + category.count, 0);
+    if (observedCount === 0) continue;
+    const pValue = Math.min(
+      1,
+      binomialUpperTail(total, observedCount, selectedCount / counts.length) *
+        combinationCount(counts.length, selectedCount),
+    );
+    if (!best || pValue < best.pValue) {
+      best = {
+        indexes: ranked.slice(0, selectedCount).map((category) => category.index),
+        pValue,
+      };
+    }
+  }
+
+  return best && best.pValue <= (options.alpha ?? RECIPE_SIGNAL_ALPHA) ? best.indexes : [];
+}
+
+function significantEntries<T extends string>(
+  entries: readonly (readonly [T, number])[],
+  options: { minTotal: number; maxCategories?: number; alpha?: number },
+): T[] {
+  const indexes = significantCategoryIndexes(
+    entries.map(([, count]) => count),
+    options,
+  );
+  return indexes.map((index) => entries[index][0]);
+}
+
+function monthKey(monthIndex: number): string {
+  return String(monthIndex + 1);
+}
+
+function weatherGroupEntries(weather: WeatherFeatures): [string, string][] {
+  return [
+    ['temperature', `${weather.temperatureBand}-day`],
+    ['precipitation', `${weather.precipitationBand}-day`],
+    ['daylight', `${weather.daylightBand}-daylight`],
+  ];
 }
 
 function roundShare(value: number): number {
@@ -245,6 +366,7 @@ function buildMealHistory(
         date,
         day,
         weekend: day === 0 || day === 6 || publicHolidayDates.has(date),
+        month: mealDate.getMonth(),
         season: getMealAssistantSeason(mealDate),
       },
     ];
@@ -257,6 +379,7 @@ function createEmptyInsight(): MealAssistantRecipeInsight {
     weekdayCookCount: 0,
     weekendCookCount: 0,
     days: {},
+    months: {},
     seasons: {},
     weather: {},
     calendar: {},
@@ -268,6 +391,7 @@ function createEmptyHistory(): MealAssistantRecipeHistory {
   return {
     dates: [],
     dayCounts: [0, 0, 0, 0, 0, 0, 0],
+    monthCounts: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     seasonCounts: [0, 0, 0, 0],
     totalPlanCount: 0,
   };
@@ -653,6 +777,7 @@ export function buildMealAssistantPrecalculation(input: {
       history.dates.push(dayNumber);
     }
     history.dayCounts[entry.day] += 1;
+    history.monthCounts[entry.month] += 1;
     history.seasonCounts[SEASON_INDEX[entry.season]] += 1;
     history.totalPlanCount += 1;
     recipeHistory[String(entry.recipeId)] = history;
@@ -666,6 +791,7 @@ export function buildMealAssistantPrecalculation(input: {
       typedHistory.dates.push(typedDayNumber);
     }
     typedHistory.dayCounts[entry.day] += 1;
+    typedHistory.monthCounts[entry.month] += 1;
     typedHistory.seasonCounts[SEASON_INDEX[entry.season]] += 1;
     typedHistory.totalPlanCount += 1;
     mealTypeHistory[String(entry.recipeId)] = typedHistory;
@@ -674,8 +800,9 @@ export function buildMealAssistantPrecalculation(input: {
     const weather = weatherByDate[entry.date];
     if (weather) {
       const counts = recipeWeatherCounts.get(String(entry.recipeId)) ?? new Map<string, number>();
-      for (const tag of weather.tags) {
-        counts.set(tag, (counts.get(tag) ?? 0) + 1);
+      for (const [group, tag] of weatherGroupEntries(weather)) {
+        const key = `${group}:${tag}`;
+        counts.set(key, (counts.get(key) ?? 0) + 1);
       }
       recipeWeatherCounts.set(String(entry.recipeId), counts);
     }
@@ -691,66 +818,86 @@ export function buildMealAssistantPrecalculation(input: {
   }
 
   for (const [recipeId, insight] of Object.entries(recipeInsights)) {
-    const history = mealHistory.filter((entry) => String(entry.recipeId) === recipeId);
-    const dayCounts = new Map<number, number>();
-    const seasonCounts = new Map<MealAssistantSeason, number>();
-    for (const entry of history) {
-      dayCounts.set(entry.day, (dayCounts.get(entry.day) ?? 0) + 1);
-      seasonCounts.set(entry.season, (seasonCounts.get(entry.season) ?? 0) + 1);
-    }
+    const historyRecord = recipeHistory[recipeId];
+    if (!historyRecord) continue;
 
-    for (const [day, count] of dayCounts) {
-      const share = insight.totalCookCount > 0 ? count / insight.totalCookCount : 0;
-      if (
-        insight.totalCookCount >= MIN_DOMINANT_DAY_TOTAL &&
-        count >= MIN_DOMINANT_DAY_COUNT &&
-        share >= MIN_DOMINANT_DAY_SHARE
-      ) {
-        insight.days[String(day)] = trend(count, insight.totalCookCount, 12);
+    for (const day of significantCategoryIndexes(historyRecord.dayCounts, {
+      minTotal: MIN_DOMINANT_DAY_TOTAL,
+    })) {
+      const count = historyRecord.dayCounts[day];
+      if (count >= MIN_DOMINANT_DAY_COUNT) {
+        insight.days[String(day)] = trend(count, historyRecord.totalPlanCount, 12);
       }
     }
 
-    if (insight.totalCookCount >= MIN_WEEKEND_TOTAL) {
-      const weekendShare = insight.weekendCookCount / insight.totalCookCount;
-      const weekdayShare = insight.weekdayCookCount / insight.totalCookCount;
-      if (weekendShare >= MIN_WEEKEND_SHARE) {
-        insight.weekend = trend(insight.weekendCookCount, insight.totalCookCount, 8);
-      } else if (weekdayShare >= MIN_WEEKEND_SHARE) {
-        insight.weekday = trend(insight.weekdayCookCount, insight.totalCookCount, 8);
+    const [weekdayKey] = significantEntries(
+      [
+        ['weekday', insight.weekdayCookCount],
+        ['weekend', insight.weekendCookCount],
+      ] as const,
+      { minTotal: MIN_WEEKEND_TOTAL, maxCategories: 1 },
+    );
+    if (weekdayKey === 'weekend') {
+      insight.weekend = trend(insight.weekendCookCount, insight.totalCookCount, 8);
+    } else if (weekdayKey === 'weekday') {
+      insight.weekday = trend(insight.weekdayCookCount, insight.totalCookCount, 8);
+    }
+
+    for (const month of significantCategoryIndexes(historyRecord.monthCounts, {
+      minTotal: MIN_MONTH_TOTAL,
+    })) {
+      insight.months[monthKey(month)] = trend(
+        historyRecord.monthCounts[month],
+        historyRecord.totalPlanCount,
+        8,
+      );
+    }
+
+    const seasonEntries = (['winter', 'spring', 'summer', 'autumn'] as const).map(
+      (season) => [season, historyRecord.seasonCounts[SEASON_INDEX[season]]] as const,
+    );
+    for (const season of significantEntries(seasonEntries, { minTotal: MIN_SEASON_TOTAL })) {
+      insight.seasons[season] = trend(
+        historyRecord.seasonCounts[SEASON_INDEX[season]],
+        historyRecord.totalPlanCount,
+        8,
+      );
+    }
+
+    const weatherCountsByGroup = new Map<string, Map<string, number>>();
+    for (const [groupedTag, count] of recipeWeatherCounts.get(recipeId) ?? new Map()) {
+      const separatorIndex = groupedTag.indexOf(':');
+      if (separatorIndex < 0) continue;
+      const group = groupedTag.slice(0, separatorIndex);
+      const tag = groupedTag.slice(separatorIndex + 1);
+      const counts = weatherCountsByGroup.get(group) ?? new Map<string, number>();
+      counts.set(tag, count);
+      weatherCountsByGroup.set(group, counts);
+    }
+    for (const [group, counts] of weatherCountsByGroup) {
+      const knownTags =
+        WEATHER_SIGNAL_TAGS_BY_GROUP[group as keyof typeof WEATHER_SIGNAL_TAGS_BY_GROUP];
+      const entries = (knownTags ?? [...counts.keys()].sort()).map(
+        (tag) => [tag, counts.get(tag) ?? 0] as const,
+      );
+      for (const weatherTag of significantEntries(entries, { minTotal: MIN_WEATHER_TOTAL })) {
+        insight.weather[weatherTag] = trend(counts.get(weatherTag) ?? 0, insight.totalCookCount, 8);
       }
     }
 
-    for (const [season, count] of seasonCounts) {
-      const share = insight.totalCookCount > 0 ? count / insight.totalCookCount : 0;
-      if (
-        insight.totalCookCount >= MIN_SEASON_TOTAL &&
-        count >= MIN_SEASON_COUNT &&
-        share >= MIN_SEASON_SHARE
-      ) {
-        insight.seasons[season] = trend(count, insight.totalCookCount, 8);
-      }
-    }
-
-    for (const [weatherTag, count] of recipeWeatherCounts.get(recipeId) ?? new Map()) {
-      const share = insight.totalCookCount > 0 ? count / insight.totalCookCount : 0;
-      if (
-        insight.totalCookCount >= MIN_SEASON_TOTAL &&
-        count >= MIN_SEASON_COUNT &&
-        share >= MIN_SEASON_SHARE
-      ) {
-        insight.weather[weatherTag] = trend(count, insight.totalCookCount, 8);
-      }
-    }
-
-    for (const [calendarFeature, count] of recipeCalendarCounts.get(recipeId) ?? new Map()) {
-      const share = insight.totalCookCount > 0 ? count / insight.totalCookCount : 0;
-      if (
-        insight.totalCookCount >= MIN_CALENDAR_TOTAL &&
-        count >= MIN_CALENDAR_COUNT &&
-        share >= MIN_CALENDAR_SHARE
-      ) {
-        insight.calendar[calendarFeature] = trend(count, insight.totalCookCount, 10);
-      }
+    const rawCalendarEntries = [
+      ...(recipeCalendarCounts.get(recipeId) ?? new Map()).entries(),
+    ].sort(([left], [right]) => left.localeCompare(right));
+    const calendarEntries =
+      rawCalendarEntries.length === 1
+        ? ([...rawCalendarEntries, ['__other-calendar-signal', 0]] as const)
+        : rawCalendarEntries;
+    for (const calendarFeature of significantEntries(calendarEntries, {
+      minTotal: MIN_CALENDAR_TOTAL,
+    })) {
+      if (calendarFeature === '__other-calendar-signal') continue;
+      const count = recipeCalendarCounts.get(recipeId)?.get(calendarFeature) ?? 0;
+      insight.calendar[calendarFeature] = trend(count, insight.totalCookCount, 10);
     }
   }
 

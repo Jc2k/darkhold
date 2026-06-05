@@ -410,6 +410,10 @@ describe('mealPlanningAssistant', () => {
       mealPlans: [
         makeMealPlan(1, calendarMatchedRecipe, '2026-05-05'),
         makeMealPlan(2, calendarMatchedRecipe, '2026-05-12'),
+        makeMealPlan(3, calendarMatchedRecipe, '2026-05-19'),
+        makeMealPlan(4, calendarMatchedRecipe, '2026-05-26'),
+        makeMealPlan(5, calendarMatchedRecipe, '2026-06-02'),
+        makeMealPlan(6, calendarMatchedRecipe, '2026-06-09'),
       ],
       calendarByDate: {
         '2026-05-05': {
@@ -417,6 +421,22 @@ describe('mealPlanningAssistant', () => {
           appointmentFeatures: ['bob|long'],
         },
         '2026-05-12': {
+          bankHoliday: false,
+          appointmentFeatures: ['bob|long'],
+        },
+        '2026-05-19': {
+          bankHoliday: false,
+          appointmentFeatures: ['bob|long'],
+        },
+        '2026-05-26': {
+          bankHoliday: false,
+          appointmentFeatures: ['bob|long'],
+        },
+        '2026-06-02': {
+          bankHoliday: false,
+          appointmentFeatures: ['bob|long'],
+        },
+        '2026-06-09': {
           bankHoliday: false,
           appointmentFeatures: ['bob|long'],
         },

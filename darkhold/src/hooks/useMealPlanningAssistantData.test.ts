@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchMealPlanningAssistantData } from './useMealPlanningAssistantData';
-import type { MealAssistantPrecalculation } from '../utils/mealAssistantPrecalculation';
+import {
+  MEAL_ASSISTANT_PRECALCULATION_SCHEMA_VERSION,
+  type MealAssistantPrecalculation,
+} from '../utils/mealAssistantPrecalculation';
 
 function page<T>(results: T[]) {
   return {
@@ -34,7 +37,7 @@ describe('fetchMealPlanningAssistantData', () => {
 
   it('uses the precalculation payload when available', async () => {
     const precalculation: MealAssistantPrecalculation = {
-      schemaVersion: 7,
+      schemaVersion: MEAL_ASSISTANT_PRECALCULATION_SCHEMA_VERSION,
       generatedAt: '2026-06-03T00:00:00.000Z',
       keywordNameById: { 10: 'Dinner' },
       recipes: { '1': { id: 1, name: 'Chilli', image: '/recipe.jpg' } },
@@ -82,6 +85,7 @@ describe('fetchMealPlanningAssistantData', () => {
         '1': {
           dates: [20455],
           dayCounts: [0, 0, 0, 0, 0, 1, 0],
+          monthCounts: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
           seasonCounts: [1, 0, 0, 0],
           totalPlanCount: 1,
           lastPlannedDate: 20455,
@@ -93,6 +97,7 @@ describe('fetchMealPlanningAssistantData', () => {
           weekdayCookCount: 1,
           weekendCookCount: 0,
           days: {},
+          months: {},
           seasons: {},
           weather: {},
           calendar: {},
@@ -105,6 +110,7 @@ describe('fetchMealPlanningAssistantData', () => {
           '1': {
             dates: [20455],
             dayCounts: [0, 0, 0, 0, 0, 1, 0],
+            monthCounts: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             seasonCounts: [1, 0, 0, 0],
             totalPlanCount: 1,
             lastPlannedDate: 20455,

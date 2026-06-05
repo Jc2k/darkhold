@@ -158,7 +158,8 @@ describe('mealAssistantPrecalculation', () => {
     });
     expect(result.recipeHistory['1'].dayCounts[5]).toBe(4);
     expect(result.recipeInsights['1'].days['5']).toMatchObject({ count: 4, total: 4 });
-    expect(result.recipeInsights['1'].weekday).toMatchObject({ count: 4, total: 4 });
+    expect(result.recipeInsights['1'].weekday).toBeUndefined();
+    expect(result.recipeInsights['1'].months['1']).toMatchObject({ count: 4, total: 4 });
     expect(result.recipeInsights['1'].seasons.winter).toMatchObject({ count: 4, total: 4 });
     expect(result.recipeInsights['1'].weather['cold-day']).toMatchObject({ count: 4, total: 4 });
     expect(result.recipeInsights['1'].nutrition).toMatchObject({
@@ -191,7 +192,6 @@ describe('mealAssistantPrecalculation', () => {
     });
     expect(result.recipeFeatures['1'].weatherTags).toEqual([
       'cold-day',
-      'outdoor-poor',
       'short-daylight',
       'showery-day',
     ]);
@@ -213,13 +213,36 @@ describe('mealAssistantPrecalculation', () => {
       generatedAt: '2026-06-03T00:00:00.000Z',
       keywordNameById: {},
       recipes: [recipe(1, 'Family Traybake'), recipe(2, 'Plain Pasta')],
-      mealPlans: [mealPlan(1, 1, '2026-05-25'), mealPlan(2, 1, '2026-06-01')],
+      mealPlans: [
+        mealPlan(1, 1, '2026-05-25'),
+        mealPlan(2, 1, '2026-06-01'),
+        mealPlan(3, 1, '2026-06-08'),
+        mealPlan(4, 1, '2026-06-15'),
+        mealPlan(5, 1, '2026-06-22'),
+        mealPlan(6, 1, '2026-06-29'),
+      ],
       calendarByDate: {
         '2026-05-25': {
           bankHoliday: true,
-          appointmentFeatures: ['bob|long', 'school|long'],
+          appointmentFeatures: ['bob|long'],
         },
         '2026-06-01': {
+          bankHoliday: false,
+          appointmentFeatures: ['bob|long'],
+        },
+        '2026-06-08': {
+          bankHoliday: false,
+          appointmentFeatures: ['bob|long'],
+        },
+        '2026-06-15': {
+          bankHoliday: false,
+          appointmentFeatures: ['bob|long'],
+        },
+        '2026-06-22': {
+          bankHoliday: false,
+          appointmentFeatures: ['bob|long'],
+        },
+        '2026-06-29': {
           bankHoliday: false,
           appointmentFeatures: ['bob|long'],
         },
@@ -227,9 +250,9 @@ describe('mealAssistantPrecalculation', () => {
     });
 
     expect(result.recipeInsights['1'].weekendCookCount).toBe(1);
-    expect(result.recipeInsights['1'].weekdayCookCount).toBe(1);
-    expect(result.recipeInsights['1'].calendar['bob|long']).toMatchObject({ count: 2, total: 2 });
-    expect(result.recipeFeatures['1'].calendarFeatures).toEqual(['bob|long', 'school|long']);
+    expect(result.recipeInsights['1'].weekdayCookCount).toBe(5);
+    expect(result.recipeInsights['1'].calendar['bob|long']).toMatchObject({ count: 6, total: 6 });
+    expect(result.recipeFeatures['1'].calendarFeatures).toEqual(['bob|long']);
     expect(result.relationships.calendar['bob|long']).toEqual([1]);
   });
 
