@@ -81,7 +81,7 @@ const precalculation: MealAssistantPrecalculation = {
   relationships: {
     keywords: {},
     produce: {},
-    weather: { hot: [1], cold: [2] },
+    weather: { 'hot-day': [4], 'dry-day': [4], 'long-daylight': [4] },
     calendar: { 'appointment:doctor': [1] },
     flags: {},
   },
@@ -110,7 +110,7 @@ const precalculation: MealAssistantPrecalculation = {
     '4': {
       dates: [19358, 19365, 19372, 19379, 19386, 19393, 19400],
       dayCounts: [0, 7, 0, 0, 0, 0, 0],
-      monthCounts: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      monthCounts: [7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
       seasonCounts: [7, 0, 0, 0],
       totalPlanCount: 7,
     },
@@ -154,7 +154,7 @@ const precalculation: MealAssistantPrecalculation = {
       days: { '5': { count: 2, total: 3, share: 2 / 3, score: 8 } },
       months: { '2': { count: 2, total: 3, share: 2 / 3, score: 5 } },
       seasons: { winter: { count: 2, total: 3, share: 2 / 3, score: 5 } },
-      weather: { hot: { count: 2, total: 3, share: 2 / 3, score: 5 } },
+      weather: {},
       calendar: { 'appointment:doctor': { count: 1, total: 3, share: 1 / 3, score: 4 } },
       produce: [],
     },
@@ -165,7 +165,7 @@ const precalculation: MealAssistantPrecalculation = {
       days: { '6': { count: 2, total: 2, share: 1, score: 12 } },
       months: {},
       seasons: { winter: { count: 2, total: 2, share: 1, score: 8 } },
-      weather: { cold: { count: 2, total: 2, share: 1, score: 6 } },
+      weather: {},
       calendar: {},
       produce: [],
     },
@@ -187,7 +187,11 @@ const precalculation: MealAssistantPrecalculation = {
       days: {},
       months: {},
       seasons: {},
-      weather: {},
+      weather: {
+        'hot-day': { count: 7, total: 7, share: 1, score: 8 },
+        'dry-day': { count: 7, total: 7, share: 1, score: 8 },
+        'long-daylight': { count: 7, total: 7, share: 1, score: 8 },
+      },
       calendar: {},
       produce: [],
     },
@@ -217,19 +221,53 @@ describe('meal assistant debug stats', () => {
     });
     expect(stats.weekendMeals.recipes[0]).toMatchObject({ recipeId: 2, name: 'Roast', count: 2 });
     expect(stats.weather.map((group) => [group.label, group.total])).toEqual([
-      ['cold', 2],
-      ['hot', 2],
+      ['dry day', 7],
+      ['hot day', 7],
+      ['long daylight', 7],
     ]);
     expect(stats.calendar[0]).toMatchObject({ label: 'appointment:doctor', total: 1 });
     expect(stats.clusters[0]).toMatchObject({ label: 'comfort food', total: 5 });
-    expect(stats.recipeWeekdaySignals[0]).toMatchObject({
+    expect(
+      stats.recipeSignalCategories.find((category) => category.key === 'weekday')?.signals[0],
+    ).toMatchObject({
       recipeId: 4,
       name: 'Tacos',
       total: 7,
-      days: [{ label: 'Monday', count: 7, share: 1 }],
+      buckets: [{ label: 'Monday', count: 7, share: 1 }],
       expectedShare: 1 / 7,
     });
-    expect(stats.recipeWeekdaySignals[0]?.pValue).toBeLessThan(0.05);
+    expect(
+      stats.recipeSignalCategories.find((category) => category.key === 'weekday')?.signals[0]
+        ?.pValue,
+    ).toBeLessThan(0.05);
+    expect(
+      stats.recipeSignalCategories.find((category) => category.key === 'month')?.signals[0],
+    ).toMatchObject({
+      recipeId: 4,
+      buckets: [{ label: 'January', count: 7, share: 1 }],
+      expectedShare: 1 / 12,
+    });
+    expect(
+      stats.recipeSignalCategories.find((category) => category.key === 'rainfall')?.signals[0],
+    ).toMatchObject({
+      recipeId: 4,
+      buckets: [{ label: 'dry day', count: 7, share: 1 }],
+      expectedShare: 1 / 3,
+    });
+    expect(
+      stats.recipeSignalCategories.find((category) => category.key === 'temperature')?.signals[0],
+    ).toMatchObject({
+      recipeId: 4,
+      buckets: [{ label: 'hot day', count: 7, share: 1 }],
+      expectedShare: 1 / 5,
+    });
+    expect(
+      stats.recipeSignalCategories.find((category) => category.key === 'daylight')?.signals[0],
+    ).toMatchObject({
+      recipeId: 4,
+      buckets: [{ label: 'long daylight', count: 7, share: 1 }],
+      expectedShare: 1 / 3,
+    });
     expect(
       stats.significantSignalCategories.find((category) => category.label === 'Weekday'),
     ).toMatchObject({
@@ -259,7 +297,9 @@ describe('meal assistant debug stats', () => {
     expect(stats.mealTypes.map((mealType) => mealType.label)).toEqual(['Breakfast', 'Dinner']);
     expect(stats.weekendMeals.recipes[0]).toMatchObject({ recipeId: 2, name: 'Roast', count: 2 });
     expect(stats.weekdays.find((group) => group.label === 'Sunday')?.total).toBe(0);
-    expect(stats.recipeWeekdaySignals).toEqual([]);
+    expect(
+      stats.recipeSignalCategories.find((category) => category.key === 'weekday')?.signals,
+    ).toEqual([]);
     expect(
       stats.significantSignalCategories.find((category) => category.label === 'Weekday')?.signals,
     ).toEqual([

@@ -12,7 +12,6 @@ import {
   Table,
 } from 'react-bootstrap';
 import {
-  Activity,
   Bug,
   Calendar3,
   CheckCircle,
@@ -32,9 +31,9 @@ import {
 import {
   buildMealAssistantDebugStats,
   type MealAssistantDebugGroup,
-  type MealAssistantDebugSignificantSignalCategory,
+  type MealAssistantDebugRecipeSignal,
+  type MealAssistantDebugRecipeSignalCategory,
   type MealAssistantDebugTopRecipe,
-  type MealAssistantDebugWeekdayRecipeSignal,
 } from '../utils/mealAssistantDebugStats';
 import {
   useMealAssistantPrecalculationSocket,
@@ -127,12 +126,11 @@ function TopRecipeTable({ group }: { group: MealAssistantDebugGroup }) {
   );
 }
 
-function WeekdaySignalTable({ signals }: { signals: MealAssistantDebugWeekdayRecipeSignal[] }) {
-  if (signals.length === 0) {
+function RecipeSignalTable({ category }: { category: MealAssistantDebugRecipeSignalCategory }) {
+  if (category.signals.length === 0) {
     return (
       <Alert variant="secondary" className="mb-0">
-        No recipe has enough weekday concentration to clear the current p &lt; 0.05 significance
-        threshold.
+        {category.emptyMessage}
       </Alert>
     );
   }
@@ -142,15 +140,15 @@ function WeekdaySignalTable({ signals }: { signals: MealAssistantDebugWeekdayRec
       <thead>
         <tr>
           <th>Recipe</th>
-          <th>Most likely day(s)</th>
+          <th>{category.bucketHeading}</th>
           <th className="text-end">Observed</th>
-          <th className="text-end">Expected if random</th>
+          <th className="text-end">{category.expectedDescription}</th>
           <th className="text-end">Adjusted p-value</th>
         </tr>
       </thead>
       <tbody>
-        {signals.map((signal) => {
-          const signalCount = signal.days.reduce((total, day) => total + day.count, 0);
+        {category.signals.map((signal: MealAssistantDebugRecipeSignal) => {
+          const signalCount = signal.buckets.reduce((total, bucket) => total + bucket.count, 0);
           return (
             <tr key={signal.recipeId}>
               <td>
@@ -159,9 +157,9 @@ function WeekdaySignalTable({ signals }: { signals: MealAssistantDebugWeekdayRec
               </td>
               <td>
                 <div className="d-flex flex-wrap gap-1">
-                  {signal.days.map((day) => (
-                    <Badge bg="primary" key={day.label}>
-                      {day.label} · {day.count.toLocaleString()}
+                  {signal.buckets.map((bucket) => (
+                    <Badge bg="primary" key={bucket.label}>
+                      {bucket.label} · {bucket.count.toLocaleString()}
                     </Badge>
                   ))}
                 </div>
@@ -176,6 +174,27 @@ function WeekdaySignalTable({ signals }: { signals: MealAssistantDebugWeekdayRec
         })}
       </tbody>
     </Table>
+  );
+}
+
+function RecipeSignalGrid({
+  categories,
+}: {
+  categories: MealAssistantDebugRecipeSignalCategory[];
+}) {
+  return (
+    <Row className="g-3">
+      {categories.map((category) => (
+        <Col xl={6} key={category.key}>
+          <Card className="h-100">
+            <Card.Body>
+              <h4 className="h5">{category.label}</h4>
+              <RecipeSignalTable category={category} />
+            </Card.Body>
+          </Card>
+        </Col>
+      ))}
+    </Row>
   );
 }
 
@@ -208,81 +227,6 @@ function GroupGrid({
       {visibleGroups.map((group) => (
         <Col lg={4} md={6} key={group.label}>
           <GroupCard group={group} />
-        </Col>
-      ))}
-    </Row>
-  );
-}
-
-function SignificantSignalCategoryCard({
-  category,
-}: {
-  category: MealAssistantDebugSignificantSignalCategory;
-}) {
-  if (category.signals.length === 0) {
-    return (
-      <Card className="h-100">
-        <Card.Body>
-          <h4 className="h6 text-uppercase text-muted">{category.label}</h4>
-          <p className="text-muted mb-0">No statistically significant signals were stored.</p>
-        </Card.Body>
-      </Card>
-    );
-  }
-
-  return (
-    <Card className="h-100">
-      <Card.Body>
-        <h4 className="h6 text-uppercase text-muted">{category.label}</h4>
-        <Table responsive size="sm" className="mb-0 align-middle">
-          <thead>
-            <tr>
-              <th>Signal</th>
-              <th className="text-end">Recipes</th>
-              <th className="text-end">Plans</th>
-              <th>Strongest recipe</th>
-            </tr>
-          </thead>
-          <tbody>
-            {category.signals.map((signal) => (
-              <tr key={signal.label}>
-                <td>{signal.label}</td>
-                <td className="text-end text-nowrap">{signal.recipeCount.toLocaleString()}</td>
-                <td className="text-end text-nowrap">{signal.total.toLocaleString()}</td>
-                <td>
-                  {signal.topRecipe ? (
-                    <>
-                      <Link to={`/recipe/${signal.topRecipe.recipeId}`}>
-                        {signal.topRecipe.name}
-                      </Link>
-                      <div className="text-muted small">
-                        {formatPercent(signal.topRecipe.share)} of{' '}
-                        {pluralize(signal.topRecipe.total, 'plan')} · score {signal.topRecipe.score}
-                      </div>
-                    </>
-                  ) : (
-                    <span className="text-muted">n/a</span>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
-      </Card.Body>
-    </Card>
-  );
-}
-
-function SignificantSignalGrid({
-  categories,
-}: {
-  categories: MealAssistantDebugSignificantSignalCategory[];
-}) {
-  return (
-    <Row className="g-3">
-      {categories.map((category) => (
-        <Col lg={6} key={category.label}>
-          <SignificantSignalCategoryCard category={category} />
         </Col>
       ))}
     </Row>
@@ -539,76 +483,18 @@ export function MealAssistantDebug() {
           <section className="recipe-stats-section">
             <h3 className="h4 d-flex align-items-center gap-2 mb-3">
               <span className="recipe-stats-section-icon">
-                <Diagram3 />
+                <Calendar3 />
               </span>
-              Significant precalculated signals
+              Recipe signals
             </h3>
             <p className="text-muted">
-              These are the statistically filtered recipe trends now saved in the nightly assistant
-              precalculation. Counts show how many recipes kept each signal after significance
-              checks, the supporting meal-plan rows behind those signals, and the strongest recipe
-              by assistant score.
+              This looks at each recipe first, then asks whether its history is concentrated in a
+              specific bucket more than a random distribution would suggest. Weekday, month, season,
+              rainfall, temperature, and daylight-hours signals are shown separately so weather does
+              not collapse three different effects into one bucket. P-values are adjusted for
+              checking the available one-bucket and two-bucket combinations inside each signal.
             </p>
-            <SignificantSignalGrid categories={stats.significantSignalCategories} />
-          </section>
-
-          <section className="recipe-stats-section">
-            <h3 className="h4 d-flex align-items-center gap-2 mb-3">
-              <span className="recipe-stats-section-icon">
-                <Activity />
-              </span>
-              Weekday vs weekend
-            </h3>
-            <Row className="g-3">
-              <Col lg={6}>
-                <GroupCard group={stats.weekdayMeals} />
-              </Col>
-              <Col lg={6}>
-                <GroupCard group={stats.weekendMeals} />
-              </Col>
-            </Row>
-          </section>
-
-          <section className="recipe-stats-section">
-            <h3 className="h4 d-flex align-items-center gap-2 mb-3">
-              <span className="recipe-stats-section-icon">
-                <Calendar3 />
-              </span>
-              Recipe weekday signals
-            </h3>
-            <p className="text-muted">
-              This looks at each recipe first, then asks whether its history is concentrated on one
-              or two weekdays more than a random weekday distribution would suggest. P-values are
-              Bonferroni-adjusted for checking all one-day and two-day combinations.
-            </p>
-            <Card>
-              <Card.Body>
-                <WeekdaySignalTable signals={stats.recipeWeekdaySignals} />
-              </Card.Body>
-            </Card>
-          </section>
-
-          <section className="recipe-stats-section">
-            <h3 className="h4 d-flex align-items-center gap-2 mb-3">
-              <span className="recipe-stats-section-icon">
-                <Calendar3 />
-              </span>
-              Most common recipes within each weekday
-            </h3>
-            <GroupGrid groups={stats.weekdays} emptyMessage="No weekday history was available." />
-          </section>
-
-          <section className="recipe-stats-section">
-            <h3 className="h4 d-flex align-items-center gap-2 mb-3">
-              <span className="recipe-stats-section-icon">
-                <Calendar3 />
-              </span>
-              Most common recipes by month and season
-            </h3>
-            <GroupGrid
-              groups={[...stats.months, ...stats.seasons]}
-              emptyMessage="No monthly or seasonal history was available."
-            />
+            <RecipeSignalGrid categories={stats.recipeSignalCategories} />
           </section>
 
           <section className="recipe-stats-section">
@@ -626,24 +512,12 @@ export function MealAssistantDebug() {
               <span className="recipe-stats-section-icon">
                 <CloudSun />
               </span>
-              Weather and calendar signals
+              Calendar signals
             </h3>
-            <Row className="g-3">
-              <Col lg={6}>
-                <h4 className="h5">Weather</h4>
-                <GroupGrid
-                  groups={stats.weather}
-                  emptyMessage="No weather-backed recipe signals have enough support yet."
-                />
-              </Col>
-              <Col lg={6}>
-                <h4 className="h5">Calendar</h4>
-                <GroupGrid
-                  groups={stats.calendar}
-                  emptyMessage="No calendar-backed recipe signals have enough support yet."
-                />
-              </Col>
-            </Row>
+            <GroupGrid
+              groups={stats.calendar}
+              emptyMessage="No calendar-backed recipe signals have enough support yet."
+            />
           </section>
         </>
       )}
