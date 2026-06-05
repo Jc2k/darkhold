@@ -1,0 +1,208 @@
+import { describeCalendarAppointmentFeature } from './calendarFeatures';
+import {
+  MEAL_ASSISTANT_PRECALCULATION_SCHEMA_VERSION,
+  mealAssistantDayNumberToDate,
+  type MealAssistantPrecalculation,
+} from './mealAssistantPrecalculation';
+import { weatherTagLabel } from './weatherFeatures';
+
+export interface MealAssistantDebugTopRecipe {
+  recipeId: number;
+  name: string;
+  count: number;
+  share: number;
+}
+
+export interface MealAssistantDebugGroup {
+  label: string;
+  total: number;
+  recipes: MealAssistantDebugTopRecipe[];
+}
+
+export interface MealAssistantDebugStats {
+  expectedSchemaVersion: number;
+  actualSchemaVersion?: number;
+  isCurrentSchema: boolean;
+  generatedAt?: string;
+  recipeCount: number;
+  plannedMealCount: number;
+  activeRecipeCount: number;
+  weekdayMeals: MealAssistantDebugGroup;
+  weekendMeals: MealAssistantDebugGroup;
+  weekdays: MealAssistantDebugGroup[];
+  months: MealAssistantDebugGroup[];
+  seasons: MealAssistantDebugGroup[];
+  weather: MealAssistantDebugGroup[];
+  calendar: MealAssistantDebugGroup[];
+  clusters: MealAssistantDebugGroup[];
+}
+
+const DAY_LABELS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const MONTH_LABELS = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+const SEASON_LABELS = ['Winter', 'Spring', 'Summer', 'Autumn'];
+const TOP_RECIPE_LIMIT = 5;
+const TOP_GROUP_LIMIT = 8;
+
+type MutableGroup = Omit<MealAssistantDebugGroup, 'recipes'> & {
+  recipeCounts: Map<number, number>;
+};
+
+function createGroup(label: string): MutableGroup {
+  return { label, total: 0, recipeCounts: new Map() };
+}
+
+function addToGroup(group: MutableGroup, recipeId: number, count = 1): void {
+  group.total += count;
+  group.recipeCounts.set(recipeId, (group.recipeCounts.get(recipeId) ?? 0) + count);
+}
+
+function finalizeGroup(
+  group: MutableGroup,
+  precalculation: MealAssistantPrecalculation,
+  limit = TOP_RECIPE_LIMIT,
+): MealAssistantDebugGroup {
+  const recipes = [...group.recipeCounts.entries()]
+    .map(([recipeId, count]) => ({
+      recipeId,
+      name: precalculation.recipes[String(recipeId)]?.name ?? `Recipe ${recipeId}`,
+      count,
+      share: group.total > 0 ? count / group.total : 0,
+    }))
+    .sort((left, right) => right.count - left.count || left.name.localeCompare(right.name))
+    .slice(0, limit);
+
+  return { label: group.label, total: group.total, recipes };
+}
+
+function topGroups(
+  groups: MealAssistantDebugGroup[],
+  limit = TOP_GROUP_LIMIT,
+): MealAssistantDebugGroup[] {
+  return groups
+    .filter((group) => group.total > 0)
+    .sort((left, right) => right.total - left.total || left.label.localeCompare(right.label))
+    .slice(0, limit);
+}
+
+function schemaVersionOf(payload: unknown): number | undefined {
+  if (typeof payload !== 'object' || payload === null) return undefined;
+  const version = (payload as { schemaVersion?: unknown }).schemaVersion;
+  return typeof version === 'number' ? version : undefined;
+}
+
+export function getMealAssistantDebugSchemaStatus(
+  payload: unknown,
+): Pick<
+  MealAssistantDebugStats,
+  'expectedSchemaVersion' | 'actualSchemaVersion' | 'isCurrentSchema'
+> {
+  const actualSchemaVersion = schemaVersionOf(payload);
+  return {
+    expectedSchemaVersion: MEAL_ASSISTANT_PRECALCULATION_SCHEMA_VERSION,
+    ...(actualSchemaVersion === undefined ? {} : { actualSchemaVersion }),
+    isCurrentSchema: actualSchemaVersion === MEAL_ASSISTANT_PRECALCULATION_SCHEMA_VERSION,
+  };
+}
+
+export function buildMealAssistantDebugStats(
+  precalculation: MealAssistantPrecalculation,
+): MealAssistantDebugStats {
+  const weekdays = DAY_LABELS.map(createGroup);
+  const months = MONTH_LABELS.map(createGroup);
+  const seasons = SEASON_LABELS.map(createGroup);
+  const weekdayMeals = createGroup('Weekday meals');
+  const weekendMeals = createGroup('Weekend meals');
+  const weatherGroups = new Map<string, MutableGroup>();
+  const calendarGroups = new Map<string, MutableGroup>();
+  const clusterGroups = new Map<string, MutableGroup>();
+
+  for (const [recipeIdKey, history] of Object.entries(precalculation.recipeHistory)) {
+    const recipeId = Number.parseInt(recipeIdKey, 10);
+    if (!Number.isFinite(recipeId)) continue;
+
+    history.dayCounts.forEach((count, dayIndex) => {
+      if (count <= 0) return;
+      addToGroup(weekdays[dayIndex], recipeId, count);
+      addToGroup(dayIndex === 0 || dayIndex === 6 ? weekendMeals : weekdayMeals, recipeId, count);
+    });
+    history.seasonCounts.forEach((count, seasonIndex) => {
+      if (count > 0) addToGroup(seasons[seasonIndex], recipeId, count);
+    });
+    for (const dayNumber of history.dates) {
+      const month = new Date(`${mealAssistantDayNumberToDate(dayNumber)}T00:00:00Z`).getUTCMonth();
+      addToGroup(months[month], recipeId);
+    }
+  }
+
+  for (const [weatherKey, recipeIds] of Object.entries(precalculation.relationships.weather)) {
+    const group = createGroup(weatherTagLabel(weatherKey));
+    for (const recipeId of recipeIds) {
+      const count =
+        precalculation.recipeInsights[String(recipeId)]?.weather[weatherKey]?.count ?? 1;
+      addToGroup(group, recipeId, count);
+    }
+    weatherGroups.set(weatherKey, group);
+  }
+
+  for (const [calendarKey, recipeIds] of Object.entries(precalculation.relationships.calendar)) {
+    const group = createGroup(describeCalendarAppointmentFeature(calendarKey));
+    for (const recipeId of recipeIds) {
+      const count =
+        precalculation.recipeInsights[String(recipeId)]?.calendar[calendarKey]?.count ?? 1;
+      addToGroup(group, recipeId, count);
+    }
+    calendarGroups.set(calendarKey, group);
+  }
+
+  for (const cluster of Object.values(precalculation.recipeClusters)) {
+    const group = createGroup(cluster.label);
+    for (const recipeId of cluster.recipeIds) {
+      const count = precalculation.recipeHistory[String(recipeId)]?.totalPlanCount ?? 0;
+      addToGroup(group, recipeId, count > 0 ? count : 1);
+    }
+    clusterGroups.set(cluster.id, group);
+  }
+
+  const plannedMealCount = Object.values(precalculation.recipeHistory).reduce(
+    (total, history) => total + history.totalPlanCount,
+    0,
+  );
+  const activeRecipeCount = Object.values(precalculation.recipeHistory).filter(
+    (history) => history.totalPlanCount > 0,
+  ).length;
+
+  return {
+    ...getMealAssistantDebugSchemaStatus(precalculation),
+    generatedAt: precalculation.generatedAt,
+    recipeCount: Object.keys(precalculation.recipes).length,
+    plannedMealCount,
+    activeRecipeCount,
+    weekdayMeals: finalizeGroup(weekdayMeals, precalculation),
+    weekendMeals: finalizeGroup(weekendMeals, precalculation),
+    weekdays: weekdays.map((group) => finalizeGroup(group, precalculation)),
+    months: months.map((group) => finalizeGroup(group, precalculation)),
+    seasons: seasons.map((group) => finalizeGroup(group, precalculation)),
+    weather: topGroups(
+      [...weatherGroups.values()].map((group) => finalizeGroup(group, precalculation)),
+    ),
+    calendar: topGroups(
+      [...calendarGroups.values()].map((group) => finalizeGroup(group, precalculation)),
+    ),
+    clusters: topGroups(
+      [...clusterGroups.values()].map((group) => finalizeGroup(group, precalculation)),
+    ),
+  };
+}
