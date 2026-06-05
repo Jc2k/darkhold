@@ -1,3 +1,10 @@
+## [1.113.2](https://github.com/Jc2k/darkhold/compare/v1.113.1...v1.113.2) (2026-06-05)
+
+
+### Bug Fixes
+
+* **meal-assistant:** fetch full meal-plan history ([32dbfae](https://github.com/Jc2k/darkhold/commit/32dbfaef359f0554dc63f2ed72a4b071c8e59927))
+
 ## [1.113.1](https://github.com/Jc2k/darkhold/compare/v1.113.0...v1.113.1) (2026-06-05)
 
 
