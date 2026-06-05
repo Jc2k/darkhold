@@ -14,7 +14,7 @@ import {
 import type { CalendarFeatureDay } from './calendarFeatures.ts';
 import type { WeatherFeatures } from './weatherFeatures.ts';
 
-export const MEAL_ASSISTANT_PRECALCULATION_SCHEMA_VERSION = 8;
+export const MEAL_ASSISTANT_PRECALCULATION_SCHEMA_VERSION = 9;
 
 export type MealAssistantSeason = 'winter' | 'spring' | 'summer' | 'autumn';
 
@@ -115,6 +115,7 @@ export interface MealAssistantRecipeHistory {
   ];
   seasonCounts: [number, number, number, number];
   totalPlanCount: number;
+  calendarFeatureCounts?: Record<string, number>;
   firstPlannedDate?: number;
   lastPlannedDate?: number;
   averageDaysBetweenPlans?: number;
@@ -394,7 +395,12 @@ function createEmptyHistory(): MealAssistantRecipeHistory {
     monthCounts: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     seasonCounts: [0, 0, 0, 0],
     totalPlanCount: 0,
+    calendarFeatureCounts: {},
   };
+}
+
+function incrementRecordCount(record: Record<string, number>, key: string): void {
+  record[key] = (record[key] ?? 0) + 1;
 }
 
 function perServingPropertyValue(property: FoodProperty, servings?: number | null): number {
@@ -810,9 +816,15 @@ export function buildMealAssistantPrecalculation(input: {
     const calendarDay = calendarByDate[entry.date];
     if (calendarDay) {
       const counts = recipeCalendarCounts.get(String(entry.recipeId)) ?? new Map<string, number>();
+      const historyCalendarCounts = history.calendarFeatureCounts ?? {};
+      const typedHistoryCalendarCounts = typedHistory.calendarFeatureCounts ?? {};
       for (const featureKey of calendarDay.appointmentFeatures) {
         counts.set(featureKey, (counts.get(featureKey) ?? 0) + 1);
+        incrementRecordCount(historyCalendarCounts, featureKey);
+        incrementRecordCount(typedHistoryCalendarCounts, featureKey);
       }
+      history.calendarFeatureCounts = historyCalendarCounts;
+      typedHistory.calendarFeatureCounts = typedHistoryCalendarCounts;
       recipeCalendarCounts.set(String(entry.recipeId), counts);
     }
   }

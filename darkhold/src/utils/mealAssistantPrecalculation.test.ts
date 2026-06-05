@@ -252,6 +252,7 @@ describe('mealAssistantPrecalculation', () => {
     expect(result.recipeInsights['1'].weekendCookCount).toBe(1);
     expect(result.recipeInsights['1'].weekdayCookCount).toBe(5);
     expect(result.recipeInsights['1'].calendar['bob|long']).toMatchObject({ count: 6, total: 6 });
+    expect(result.recipeHistory['1'].calendarFeatureCounts).toEqual({ 'bob|long': 6 });
     expect(result.recipeFeatures['1'].calendarFeatures).toEqual(['bob|long']);
     expect(result.relationships.calendar['bob|long']).toEqual([1]);
   });
@@ -632,15 +633,22 @@ describe('mealAssistantPrecalculation', () => {
           meal_type: { id: 3, name: 'Dinner' },
         },
       ],
+      calendarByDate: {
+        '2026-01-05': { bankHoliday: false, appointmentFeatures: ['stanley'] },
+      },
     });
 
     expect(result.mealTypes).toEqual([
       { id: 1, name: 'Breakfast', planCount: 1 },
       { id: 3, name: 'Dinner', planCount: 2 },
     ]);
-    expect(result.recipeHistoryByMealType['1']['1']).toMatchObject({ totalPlanCount: 1 });
+    expect(result.recipeHistoryByMealType['1']['1']).toMatchObject({
+      totalPlanCount: 1,
+      calendarFeatureCounts: { stanley: 1 },
+    });
     expect(result.recipeHistoryByMealType['3']['2']).toMatchObject({
       totalPlanCount: 2,
+      calendarFeatureCounts: { stanley: 1 },
       averageDaysBetweenPlans: 7,
     });
     expect(result.recipeHistoryByMealType['3']['1']).toBeUndefined();

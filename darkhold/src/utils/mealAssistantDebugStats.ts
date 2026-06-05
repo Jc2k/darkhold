@@ -507,6 +507,24 @@ function mealTypeLabel(id: number, name: string | undefined): string {
   return name?.trim() || `Meal type ${id}`;
 }
 
+function relationshipHistoryCount(
+  history: MealAssistantPrecalculation['recipeHistory'][string] | undefined,
+  fallbackCount: number | undefined,
+): number {
+  if (!history) return 0;
+  return Math.max(0, Math.min(history.totalPlanCount, fallbackCount ?? 1));
+}
+
+function calendarHistoryCount(
+  history: MealAssistantPrecalculation['recipeHistory'][string] | undefined,
+  calendarKey: string,
+  fallbackCount: number | undefined,
+): number {
+  const count = history?.calendarFeatureCounts?.[calendarKey];
+  if (count != null) return count;
+  return relationshipHistoryCount(history, fallbackCount);
+}
+
 export function buildMealAssistantDebugStats(
   precalculation: MealAssistantPrecalculation,
   selectedMealTypeId?: number,
@@ -547,11 +565,11 @@ export function buildMealAssistantDebugStats(
     for (const recipeId of recipeIds) {
       const selectedHistory = selectedRecipeHistory[String(recipeId)];
       if (selectedMealTypeId != null && !selectedHistory) continue;
-      const count =
-        selectedMealTypeId == null
-          ? (precalculation.recipeInsights[String(recipeId)]?.weather[weatherKey]?.count ?? 1)
-          : (selectedHistory?.totalPlanCount ?? 1);
-      addToGroup(group, recipeId, count);
+      const count = relationshipHistoryCount(
+        selectedHistory,
+        precalculation.recipeInsights[String(recipeId)]?.weather[weatherKey]?.count,
+      );
+      if (count > 0) addToGroup(group, recipeId, count);
     }
     weatherGroups.set(weatherKey, group);
   }
@@ -561,11 +579,12 @@ export function buildMealAssistantDebugStats(
     for (const recipeId of recipeIds) {
       const selectedHistory = selectedRecipeHistory[String(recipeId)];
       if (selectedMealTypeId != null && !selectedHistory) continue;
-      const count =
-        selectedMealTypeId == null
-          ? (precalculation.recipeInsights[String(recipeId)]?.calendar[calendarKey]?.count ?? 1)
-          : (selectedHistory?.totalPlanCount ?? 1);
-      addToGroup(group, recipeId, count);
+      const count = calendarHistoryCount(
+        selectedHistory,
+        calendarKey,
+        precalculation.recipeInsights[String(recipeId)]?.calendar[calendarKey]?.count,
+      );
+      if (count > 0) addToGroup(group, recipeId, count);
     }
     calendarGroups.set(calendarKey, group);
   }
