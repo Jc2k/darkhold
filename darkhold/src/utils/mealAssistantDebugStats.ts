@@ -5,6 +5,7 @@ import {
   type MealAssistantPrecalculation,
 } from './mealAssistantPrecalculation';
 import { weatherTagLabel } from './weatherFeatures';
+import { getWeekdayRecipeSignal } from './weekdayRecipeSignals';
 
 export interface MealAssistantDebugTopRecipe {
   recipeId: number;
@@ -25,6 +26,21 @@ export interface MealAssistantDebugMealTypeOption {
   planCount: number;
 }
 
+export interface MealAssistantDebugWeekdaySignalDay {
+  label: string;
+  count: number;
+  share: number;
+}
+
+export interface MealAssistantDebugWeekdayRecipeSignal {
+  recipeId: number;
+  name: string;
+  total: number;
+  days: MealAssistantDebugWeekdaySignalDay[];
+  expectedShare: number;
+  pValue: number;
+}
+
 export interface MealAssistantDebugStats {
   expectedSchemaVersion: number;
   actualSchemaVersion?: number;
@@ -38,6 +54,7 @@ export interface MealAssistantDebugStats {
   weekdayMeals: MealAssistantDebugGroup;
   weekendMeals: MealAssistantDebugGroup;
   weekdays: MealAssistantDebugGroup[];
+  recipeWeekdaySignals: MealAssistantDebugWeekdayRecipeSignal[];
   months: MealAssistantDebugGroup[];
   seasons: MealAssistantDebugGroup[];
   weather: MealAssistantDebugGroup[];
@@ -63,6 +80,7 @@ const MONTH_LABELS = [
 const SEASON_LABELS = ['Winter', 'Spring', 'Summer', 'Autumn'];
 const TOP_RECIPE_LIMIT = 5;
 const TOP_GROUP_LIMIT = 8;
+const WEEKDAY_SIGNAL_LIMIT = 10;
 
 type MutableGroup = Omit<MealAssistantDebugGroup, 'recipes'> & {
   recipeCounts: Map<number, number>;
@@ -103,6 +121,39 @@ function topGroups(
     .filter((group) => group.total > 0)
     .sort((left, right) => right.total - left.total || left.label.localeCompare(right.label))
     .slice(0, limit);
+}
+
+function buildWeekdayRecipeSignals(
+  precalculation: MealAssistantPrecalculation,
+  selectedRecipeHistory: MealAssistantPrecalculation['recipeHistory'],
+): MealAssistantDebugWeekdayRecipeSignal[] {
+  return Object.entries(selectedRecipeHistory)
+    .flatMap(([recipeIdKey, history]): MealAssistantDebugWeekdayRecipeSignal[] => {
+      const recipeId = Number.parseInt(recipeIdKey, 10);
+      if (!Number.isFinite(recipeId)) return [];
+
+      const signal = getWeekdayRecipeSignal(history, { dayLabels: DAY_LABELS });
+      if (!signal) return [];
+
+      return [
+        {
+          recipeId,
+          name: precalculation.recipes[String(recipeId)]?.name ?? `Recipe ${recipeId}`,
+          total: signal.total,
+          days: signal.days.map(({ label, count, share }) => ({ label, count, share })),
+          expectedShare: signal.expectedShare,
+          pValue: signal.pValue,
+        },
+      ];
+    })
+    .sort(
+      (left, right) =>
+        left.pValue - right.pValue ||
+        right.days.reduce((total, day) => total + day.count, 0) / right.total -
+          left.days.reduce((total, day) => total + day.count, 0) / left.total ||
+        left.name.localeCompare(right.name),
+    )
+    .slice(0, WEEKDAY_SIGNAL_LIMIT);
 }
 
 function schemaVersionOf(payload: unknown): number | undefined {
@@ -226,6 +277,7 @@ export function buildMealAssistantDebugStats(
     weekdayMeals: finalizeGroup(weekdayMeals, precalculation),
     weekendMeals: finalizeGroup(weekendMeals, precalculation),
     weekdays: weekdays.map((group) => finalizeGroup(group, precalculation)),
+    recipeWeekdaySignals: buildWeekdayRecipeSignals(precalculation, selectedRecipeHistory),
     months: months.map((group) => finalizeGroup(group, precalculation)),
     seasons: seasons.map((group) => finalizeGroup(group, precalculation)),
     weather: topGroups(

@@ -33,6 +33,7 @@ import {
   buildMealAssistantDebugStats,
   type MealAssistantDebugGroup,
   type MealAssistantDebugTopRecipe,
+  type MealAssistantDebugWeekdayRecipeSignal,
 } from '../utils/mealAssistantDebugStats';
 import {
   useMealAssistantPrecalculationSocket,
@@ -48,6 +49,12 @@ function formatDateTime(value: string | undefined): string {
 
 function formatPercent(value: number): string {
   return `${Math.round(value * 100)}%`;
+}
+
+function formatPValue(value: number): string {
+  if (value < 0.001) return '< 0.001';
+  if (value < 0.01) return value.toFixed(3);
+  return value.toFixed(2);
 }
 
 function pluralize(count: number, singular: string, plural = `${singular}s`): string {
@@ -114,6 +121,58 @@ function TopRecipeTable({ group }: { group: MealAssistantDebugGroup }) {
         {group.recipes.map((recipe) => (
           <RecipeRow key={recipe.recipeId} recipe={recipe} total={group.total} />
         ))}
+      </tbody>
+    </Table>
+  );
+}
+
+function WeekdaySignalTable({ signals }: { signals: MealAssistantDebugWeekdayRecipeSignal[] }) {
+  if (signals.length === 0) {
+    return (
+      <Alert variant="secondary" className="mb-0">
+        No recipe has enough weekday concentration to clear the current p &lt; 0.05 significance
+        threshold.
+      </Alert>
+    );
+  }
+
+  return (
+    <Table responsive size="sm" className="mb-0 align-middle">
+      <thead>
+        <tr>
+          <th>Recipe</th>
+          <th>Most likely day(s)</th>
+          <th className="text-end">Observed</th>
+          <th className="text-end">Expected if random</th>
+          <th className="text-end">Adjusted p-value</th>
+        </tr>
+      </thead>
+      <tbody>
+        {signals.map((signal) => {
+          const signalCount = signal.days.reduce((total, day) => total + day.count, 0);
+          return (
+            <tr key={signal.recipeId}>
+              <td>
+                <Link to={`/recipe/${signal.recipeId}`}>{signal.name}</Link>
+                <div className="text-muted small">{pluralize(signal.total, 'historical plan')}</div>
+              </td>
+              <td>
+                <div className="d-flex flex-wrap gap-1">
+                  {signal.days.map((day) => (
+                    <Badge bg="primary" key={day.label}>
+                      {day.label} · {day.count.toLocaleString()}
+                    </Badge>
+                  ))}
+                </div>
+              </td>
+              <td className="text-end text-nowrap">{formatPercent(signalCount / signal.total)}</td>
+              <td className="text-end text-nowrap text-muted">
+                {formatPercent(signal.expectedShare)}
+              </td>
+              <td className="text-end text-nowrap">{formatPValue(signal.pValue)}</td>
+            </tr>
+          );
+        })}
       </tbody>
     </Table>
   );
@@ -423,7 +482,26 @@ export function MealAssistantDebug() {
               <span className="recipe-stats-section-icon">
                 <Calendar3 />
               </span>
-              Most common recipes by weekday
+              Recipe weekday signals
+            </h3>
+            <p className="text-muted">
+              This looks at each recipe first, then asks whether its history is concentrated on one
+              or two weekdays more than a random weekday distribution would suggest. P-values are
+              Bonferroni-adjusted for checking all one-day and two-day combinations.
+            </p>
+            <Card>
+              <Card.Body>
+                <WeekdaySignalTable signals={stats.recipeWeekdaySignals} />
+              </Card.Body>
+            </Card>
+          </section>
+
+          <section className="recipe-stats-section">
+            <h3 className="h4 d-flex align-items-center gap-2 mb-3">
+              <span className="recipe-stats-section-icon">
+                <Calendar3 />
+              </span>
+              Most common recipes within each weekday
             </h3>
             <GroupGrid groups={stats.weekdays} emptyMessage="No weekday history was available." />
           </section>

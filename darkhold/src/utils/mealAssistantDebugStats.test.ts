@@ -16,6 +16,7 @@ const precalculation: MealAssistantPrecalculation = {
     '1': { id: 1, name: 'Pasta' },
     '2': { id: 2, name: 'Roast' },
     '3': { id: 3, name: 'Soup' },
+    '4': { id: 4, name: 'Tacos' },
   },
   recipeFeatures: {
     '1': {
@@ -50,6 +51,17 @@ const precalculation: MealAssistantPrecalculation = {
       complexityBucket: 'simple',
       ingredientFoodIds: [30],
       ingredientFoodNames: ['carrot'],
+    },
+    '4': {
+      keywords: [],
+      produce: [],
+      stepCount: 1,
+      ingredientLineCount: 1,
+      distinctFoodCount: 1,
+      complexityScore: 5,
+      complexityBucket: 'simple',
+      ingredientFoodIds: [40],
+      ingredientFoodNames: ['corn'],
     },
   },
   recipeSimilarities: {},
@@ -91,6 +103,12 @@ const precalculation: MealAssistantPrecalculation = {
       dayCounts: [0, 0, 0, 0, 0, 0, 0],
       seasonCounts: [0, 0, 0, 0],
       totalPlanCount: 0,
+    },
+    '4': {
+      dates: [19358, 19365, 19372, 19379, 19386, 19393, 19400],
+      dayCounts: [0, 7, 0, 0, 0, 0, 0],
+      seasonCounts: [7, 0, 0, 0],
+      totalPlanCount: 7,
     },
   },
   mealTypes: [
@@ -152,6 +170,16 @@ const precalculation: MealAssistantPrecalculation = {
       calendar: {},
       produce: [],
     },
+    '4': {
+      totalCookCount: 7,
+      weekdayCookCount: 7,
+      weekendCookCount: 0,
+      days: {},
+      seasons: {},
+      weather: {},
+      calendar: {},
+      produce: [],
+    },
   },
 };
 
@@ -168,9 +196,9 @@ describe('meal assistant debug stats', () => {
     const stats = buildMealAssistantDebugStats(precalculation);
 
     expect(stats.generatedAt).toBe('2026-01-02T03:04:05.000Z');
-    expect(stats.recipeCount).toBe(3);
-    expect(stats.plannedMealCount).toBe(5);
-    expect(stats.activeRecipeCount).toBe(2);
+    expect(stats.recipeCount).toBe(4);
+    expect(stats.plannedMealCount).toBe(12);
+    expect(stats.activeRecipeCount).toBe(3);
     expect(stats.weekdays.find((group) => group.label === 'Friday')?.recipes[0]).toMatchObject({
       recipeId: 1,
       name: 'Pasta',
@@ -183,6 +211,14 @@ describe('meal assistant debug stats', () => {
     ]);
     expect(stats.calendar[0]).toMatchObject({ label: 'appointment:doctor', total: 1 });
     expect(stats.clusters[0]).toMatchObject({ label: 'comfort food', total: 5 });
+    expect(stats.recipeWeekdaySignals[0]).toMatchObject({
+      recipeId: 4,
+      name: 'Tacos',
+      total: 7,
+      days: [{ label: 'Monday', count: 7, share: 1 }],
+      expectedShare: 1 / 7,
+    });
+    expect(stats.recipeWeekdaySignals[0]?.pValue).toBeLessThan(0.05);
   });
 
   it('segments common recipe history by selected meal type', () => {
@@ -194,5 +230,6 @@ describe('meal assistant debug stats', () => {
     expect(stats.mealTypes.map((mealType) => mealType.label)).toEqual(['Breakfast', 'Dinner']);
     expect(stats.weekendMeals.recipes[0]).toMatchObject({ recipeId: 2, name: 'Roast', count: 2 });
     expect(stats.weekdays.find((group) => group.label === 'Sunday')?.total).toBe(0);
+    expect(stats.recipeWeekdaySignals).toEqual([]);
   });
 });
