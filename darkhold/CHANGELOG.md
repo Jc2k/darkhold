@@ -1,3 +1,10 @@
+# [1.116.0](https://github.com/Jc2k/darkhold/compare/v1.115.0...v1.116.0) (2026-06-05)
+
+
+### Features
+
+* **meal-assistant:** apply weekday trends to scoring ([d539db1](https://github.com/Jc2k/darkhold/commit/d539db1dd3ef5fb2229043e3d7313b68be711107))
+
 # [1.115.0](https://github.com/Jc2k/darkhold/compare/v1.114.1...v1.115.0) (2026-06-05)
 
 
