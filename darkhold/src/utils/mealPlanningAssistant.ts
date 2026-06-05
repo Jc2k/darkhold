@@ -16,6 +16,7 @@ import type {
 import { buildCalendarFeatureDay, describeCalendarAppointmentFeature } from './calendarFeatures';
 import { deriveWeatherFeatures, weatherTagLabel } from './weatherFeatures';
 import { RECENTLY_ADDED_DAYS } from './recentRecipes';
+import { getWeekdayRecipeSignal, type WeekdayRecipeSignal } from './weekdayRecipeSignals';
 
 export const UNSUITABLE_DINNER_TAG_FRAGMENTS = [
   'drink',
@@ -41,6 +42,9 @@ const FNV_PRIME = 16777619;
 const DUE_AGAIN_MAX_SCORE = 12;
 const DUE_AGAIN_MIN_SCORE = 2;
 const DUE_AGAIN_SCORE_PER_CADENCE = 8;
+const WEEKDAY_PREFERENCE_MAX_SCORE = 14;
+const WEEKDAY_PREFERENCE_MIN_SCORE = 4;
+const WEEKDAY_PREFERENCE_PENALTY_FACTOR = 0.75;
 
 const CATEGORY_ROLE_TAGS = {
   pasta: ['pasta'],
@@ -864,6 +868,25 @@ function isTakeawayRecipe(recipe: Recipe, keywordNameById: Record<number, string
   return recipeHasFragment(recipe, ['takeaway', 'placeholder'], keywordNameById);
 }
 
+function weekdayPreferenceScore(signal: WeekdayRecipeSignal): number {
+  const denominator = 1 - signal.expectedShare;
+  const lift = denominator > 0 ? (signal.observedShare - signal.expectedShare) / denominator : 0;
+  return Math.max(
+    WEEKDAY_PREFERENCE_MIN_SCORE,
+    Math.round(WEEKDAY_PREFERENCE_MAX_SCORE * Math.max(0, lift)),
+  );
+}
+
+function weekdayPreferenceDetail(signal: WeekdayRecipeSignal, matchesSlot: boolean): string {
+  const dayLabels = signal.days.map((day) => day.label).join(' or ');
+  const observed = Math.round(signal.observedShare * 100);
+  const expected = Math.round(signal.expectedShare * 100);
+  const pValue = signal.pValue < 0.001 ? '< 0.001' : signal.pValue.toFixed(3);
+  return matchesSlot
+    ? `Historically ${observed}% of plans were on ${dayLabels}, versus ${expected}% expected at random (adjusted p ${pValue}).`
+    : `Historically prefers ${dayLabels}: ${observed}% of plans versus ${expected}% expected at random (adjusted p ${pValue}).`;
+}
+
 function scoreRecipe(
   recipe: Recipe,
   keywordNameById: Record<number, string>,
@@ -998,13 +1021,20 @@ function scoreRecipe(
     }
   }
 
-  const dayTrend = insight?.days[String(dateDay)];
-  if (dayTrend) {
+  const weekdaySignal = getWeekdayRecipeSignal(history);
+  if (weekdaySignal) {
+    const matchesSlot = weekdaySignal.days.some((day) => day.dayIndex === dateDay);
+    const preferenceScore = weekdayPreferenceScore(weekdaySignal);
     components.push({
-      key: 'day-fit',
-      label: 'Best weekday',
-      score: dayTrend.score,
-      detail: `Historically ${Math.round(dayTrend.share * 100)}% of cooks were on this weekday (${dayTrend.count}/${dayTrend.total}).`,
+      key: 'weekday-preference',
+      label: matchesSlot ? 'Weekday preference' : 'Weekday mismatch',
+      score: matchesSlot
+        ? preferenceScore
+        : -Math.max(
+            WEEKDAY_PREFERENCE_MIN_SCORE,
+            Math.round(preferenceScore * WEEKDAY_PREFERENCE_PENALTY_FACTOR),
+          ),
+      detail: weekdayPreferenceDetail(weekdaySignal, matchesSlot),
     });
   }
 

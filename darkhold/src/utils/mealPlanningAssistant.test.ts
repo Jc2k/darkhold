@@ -1096,6 +1096,53 @@ describe('mealPlanningAssistant', () => {
     );
   });
 
+  it('promotes recipes on their significant weekday trend and penalizes off-day slots', () => {
+    const mondayRecipe = makeRecipe(1, 'Monday Curry');
+    const fallbackRecipe = makeRecipe(2, 'Any Day Stew');
+    const historicalMeals = [
+      makeMealPlan(1, mondayRecipe.id, '2026-01-05'),
+      makeMealPlan(2, mondayRecipe.id, '2026-02-02'),
+      makeMealPlan(3, mondayRecipe.id, '2026-03-02'),
+      makeMealPlan(4, mondayRecipe.id, '2026-03-30'),
+      makeMealPlan(5, mondayRecipe.id, '2026-04-27'),
+    ];
+
+    const mondayPlan = buildMealAssistantPlan({
+      weekStart: new Date('2026-06-01T00:00:00'),
+      weekEnd: new Date('2026-06-07T00:00:00'),
+      emptyDinnerDates: ['2026-06-01'],
+      existingWeekMeals: [],
+      historicalMeals,
+      recipes: [mondayRecipe, fallbackRecipe],
+      dinnerTime: '18:00',
+    });
+
+    expect(mondayPlan.slots[0]?.selected.recipe.id).toBe(mondayRecipe.id);
+    expect(
+      mondayPlan.slots[0]?.selected.components.find(
+        (component) => component.key === 'weekday-preference',
+      ),
+    ).toMatchObject({ label: 'Weekday preference', score: 14 });
+
+    const tuesdayPlan = buildMealAssistantPlan({
+      weekStart: new Date('2026-06-01T00:00:00'),
+      weekEnd: new Date('2026-06-07T00:00:00'),
+      emptyDinnerDates: ['2026-06-02'],
+      existingWeekMeals: [],
+      historicalMeals,
+      recipes: [mondayRecipe, fallbackRecipe],
+      dinnerTime: '18:00',
+    });
+
+    expect(tuesdayPlan.slots[0]?.selected.recipe.id).toBe(fallbackRecipe.id);
+    const mondayAlternative = tuesdayPlan.slots[0]?.alternatives.find(
+      (candidate) => candidate.recipe.id === mondayRecipe.id,
+    );
+    expect(
+      mondayAlternative?.components.find((component) => component.key === 'weekday-preference'),
+    ).toMatchObject({ label: 'Weekday mismatch', score: -11 });
+  });
+
   it('does not add a due-again score when a recipe has no history', () => {
     const recipe = makeRecipe(1, 'Fresh Find');
     const plan = buildMealAssistantPlan({
