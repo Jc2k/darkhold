@@ -122,8 +122,12 @@ export function buildCalendarFeatureDay(
       const category = event.category ?? DEFAULT_EVENT_CATEGORY;
       if (category !== DEFAULT_EVENT_CATEGORY || event.recurring) return [];
       const length = calendarAppointmentLength(event);
-      return uniqueSorted([event.name, event.description ?? ''].flatMap(extractCalendarTokens)).map(
-        (token) => calendarAppointmentFeatureKey(token, length),
+      // Descriptions often contain invitee lists, conferencing metadata, copied emails, or other
+      // incidental text that is not the appointment's actual subject.  Using that text for
+      // historical meal correlations can create very strong but spurious recipe associations, so
+      // feature extraction intentionally learns from the visible event title only.
+      return extractCalendarTokens(event.name).map((token) =>
+        calendarAppointmentFeatureKey(token, length),
       );
     }),
   );
