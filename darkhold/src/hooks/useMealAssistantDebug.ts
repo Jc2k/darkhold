@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   isMealAssistantPrecalculation,
   type MealAssistantPrecalculation,
@@ -9,6 +9,7 @@ import {
   type MealAssistantDebugStats,
 } from '../utils/mealAssistantDebugStats';
 import { ONE_DAY, ONE_WEEK } from '../utils/cacheConfig';
+import { invalidateCacheQueries } from './useCacheInvalidation';
 
 export const MEAL_ASSISTANT_DEBUG_QUERY_KEY = ['meal-assistant-debug'] as const;
 export const MEAL_ASSISTANT_STATUS_QUERY_KEY = ['meal-assistant-status'] as const;
@@ -21,6 +22,11 @@ export interface MealAssistantNightlyStatus {
   detail?: string;
   error?: string;
   stack?: string;
+}
+
+export interface MealAssistantPrecalculationRunResponse {
+  status: 'started' | 'already-running';
+  message: string;
 }
 
 export interface MealAssistantDebugData {
@@ -99,6 +105,25 @@ export async function fetchMealAssistantNightlyStatus(): Promise<MealAssistantNi
   if (!res.ok) throw new Error(`Meal assistant status fetch failed ${res.status}`);
   const payload: unknown = await res.json();
   return isMealAssistantNightlyStatus(payload) ? payload : null;
+}
+
+export async function triggerMealAssistantPrecalculation(): Promise<MealAssistantPrecalculationRunResponse> {
+  const res = await fetch('/meal-assistant-precalculation/run', {
+    method: 'POST',
+    headers: { Accept: 'application/json' },
+  });
+  if (!res.ok) throw new Error(`Meal assistant precalculation trigger failed ${res.status}`);
+  return (await res.json()) as MealAssistantPrecalculationRunResponse;
+}
+
+export function useMealAssistantPrecalculationMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: triggerMealAssistantPrecalculation,
+    onSuccess: () => {
+      invalidateCacheQueries(queryClient, 'meal-assistant-status');
+    },
+  });
 }
 
 export function useMealAssistantDebug() {

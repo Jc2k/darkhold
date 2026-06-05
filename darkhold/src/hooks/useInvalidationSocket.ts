@@ -8,7 +8,15 @@ import {
 
 type InvalidationMessage = { type: 'invalidate'; queryKey: string };
 type VersionMessage = { type: 'version'; version: string };
-type SocketMessage = InvalidationMessage | VersionMessage;
+export type MealAssistantPrecalculationEvent = {
+  type: 'meal-assistant-precalculation';
+  status: 'started' | 'progress' | 'success' | 'error' | 'skipped' | 'already-running';
+  runId: string;
+  message: string;
+  updatedAt: string;
+  detail?: string;
+};
+type SocketMessage = InvalidationMessage | VersionMessage | MealAssistantPrecalculationEvent;
 
 const RELOAD_VERSION_KEY = 'darkhold_last_reload_version';
 const RELOAD_VERSION_PARAM = 'darkhold_reload_version';
@@ -16,6 +24,9 @@ const RELOAD_VERSION_PARAM = 'darkhold_reload_version';
 let socket: WebSocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 const handlers = new Set<(msg: InvalidationMessage) => void>();
+const mealAssistantPrecalculationHandlers = new Set<
+  (msg: MealAssistantPrecalculationEvent) => void
+>();
 const connectHandlers = new Set<() => void>();
 
 function getWsUrl(): string {
@@ -65,8 +76,10 @@ function connect(): void {
       const msg: SocketMessage = JSON.parse(e.data);
       if (msg.type === 'version') {
         handleVersionMessage(msg.version);
-      } else {
+      } else if (msg.type === 'invalidate') {
         handlers.forEach((h) => h(msg));
+      } else if (msg.type === 'meal-assistant-precalculation') {
+        mealAssistantPrecalculationHandlers.forEach((h) => h(msg));
       }
     } catch {
       // ignore malformed messages
@@ -75,7 +88,7 @@ function connect(): void {
 
   socket.onclose = () => {
     socket = null;
-    if (handlers.size > 0) {
+    if (handlers.size > 0 || mealAssistantPrecalculationHandlers.size > 0) {
       reconnectTimer = setTimeout(connect, 5000);
     }
   };
@@ -88,6 +101,27 @@ export function broadcastInvalidation(queryKey: string): void {
   } catch {
     // ignore send errors — the onclose handler will trigger reconnection
   }
+}
+
+export function useMealAssistantPrecalculationSocket(
+  onEvent: (event: MealAssistantPrecalculationEvent) => void,
+): void {
+  useEffect(() => {
+    mealAssistantPrecalculationHandlers.add(onEvent);
+    connect();
+
+    return () => {
+      mealAssistantPrecalculationHandlers.delete(onEvent);
+      if (handlers.size === 0 && mealAssistantPrecalculationHandlers.size === 0) {
+        if (reconnectTimer !== null) {
+          clearTimeout(reconnectTimer);
+          reconnectTimer = null;
+        }
+        socket?.close();
+        socket = null;
+      }
+    };
+  }, [onEvent]);
 }
 
 export function useInvalidationSocket(): void {
@@ -125,7 +159,7 @@ export function useInvalidationSocket(): void {
     return () => {
       handlers.delete(handler);
       connectHandlers.delete(connectHandler);
-      if (handlers.size === 0) {
+      if (handlers.size === 0 && mealAssistantPrecalculationHandlers.size === 0) {
         if (reconnectTimer !== null) {
           clearTimeout(reconnectTimer);
           reconnectTimer = null;

@@ -11,6 +11,7 @@ import {
   fetchFeedEvents,
   getMealAssistantMealPlanQueryParams,
   handleAddToShoppingList,
+  handleForceMealAssistantPrecalculation,
   parseOpenMeteoDaily,
   parseIcal,
   parseICalFeeds,
@@ -159,6 +160,28 @@ Deno.test('meal assistant meal-plan query extends beyond Tandoor default history
   }
   if (params.to_date !== '2027-05-31') {
     throw new Error(`expected future horizon through 2027-05-31, got ${params.to_date}`);
+  }
+});
+
+Deno.test('force meal assistant precalculation endpoint starts background work', async () => {
+  const response = await handleForceMealAssistantPrecalculation(async () => true);
+  const body = (await response.json()) as { status: string; message: string };
+
+  if (response.status !== 202) throw new Error(`expected 202, got ${response.status}`);
+  if (body.status !== 'started') throw new Error(`expected started, got ${body.status}`);
+  if (!body.message.includes('started')) throw new Error(`unexpected message: ${body.message}`);
+});
+
+Deno.test('force meal assistant precalculation endpoint reports existing run', async () => {
+  const response = await handleForceMealAssistantPrecalculation(async () => false);
+  const body = (await response.json()) as { status: string; message: string };
+
+  if (response.status !== 202) throw new Error(`expected 202, got ${response.status}`);
+  if (body.status !== 'already-running') {
+    throw new Error(`expected already-running, got ${body.status}`);
+  }
+  if (!body.message.includes('already running')) {
+    throw new Error(`unexpected message: ${body.message}`);
   }
 });
 

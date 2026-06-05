@@ -1,4 +1,5 @@
-import { Alert, Badge, Card, Col, Row, Table } from 'react-bootstrap';
+import { useCallback, useState } from 'react';
+import { Alert, Badge, Button, Card, Col, ListGroup, Row, Spinner, Table } from 'react-bootstrap';
 import {
   Activity,
   Bug,
@@ -7,17 +8,24 @@ import {
   CloudSun,
   Diagram3,
   ExclamationTriangle,
+  PlayCircle,
+  Terminal,
 } from 'react-bootstrap-icons';
 import { Link } from 'react-router-dom';
 import { LoadingMascot } from '../components/LoadingMascot';
 import {
   useMealAssistantDebug,
   useMealAssistantNightlyStatus,
+  useMealAssistantPrecalculationMutation,
 } from '../hooks/useMealAssistantDebug';
 import type {
   MealAssistantDebugGroup,
   MealAssistantDebugTopRecipe,
 } from '../utils/mealAssistantDebugStats';
+import {
+  useMealAssistantPrecalculationSocket,
+  type MealAssistantPrecalculationEvent,
+} from '../hooks/useInvalidationSocket';
 
 function formatDateTime(value: string | undefined): string {
   if (!value) return 'unknown';
@@ -134,6 +142,81 @@ function GroupGrid({
   );
 }
 
+function isRunningPrecalculation(events: MealAssistantPrecalculationEvent[]): boolean {
+  const latest = events[0];
+  return latest?.status === 'started' || latest?.status === 'progress';
+}
+
+function PrecalculationControls({
+  events,
+  onRun,
+  isPending,
+  triggerError,
+}: {
+  events: MealAssistantPrecalculationEvent[];
+  onRun: () => void;
+  isPending: boolean;
+  triggerError: boolean;
+}) {
+  const isRunning = isRunningPrecalculation(events);
+  const latest = events[0];
+  const buttonDisabled = isPending || isRunning;
+
+  return (
+    <Card className="mb-4">
+      <Card.Body>
+        <div className="d-flex flex-wrap align-items-start justify-content-between gap-3">
+          <div>
+            <h3 className="h5 d-flex align-items-center gap-2 mb-1">
+              <PlayCircle aria-hidden="true" />
+              Manual precalculation
+            </h3>
+            <p className="text-muted mb-0">
+              Force the background precalculation step to start now. If another run is already in
+              progress, the server will keep the existing run and stream its websocket events here.
+            </p>
+          </div>
+          <Button variant="primary" onClick={onRun} disabled={buttonDisabled}>
+            {isPending || isRunning ? (
+              <>
+                <Spinner animation="border" size="sm" className="me-2" aria-hidden="true" />
+                Precalculating
+              </>
+            ) : (
+              'Run precalculation'
+            )}
+          </Button>
+        </div>
+        {triggerError && (
+          <Alert variant="danger" className="mt-3 mb-0">
+            Failed to request a meal assistant precalculation run.
+          </Alert>
+        )}
+        {latest && (
+          <div className="mt-3">
+            <div className="d-flex align-items-center gap-2 text-muted small mb-2">
+              <Terminal aria-hidden="true" />
+              Latest websocket progress
+            </div>
+            <ListGroup variant="flush" className="border rounded">
+              {events.slice(0, 8).map((event) => (
+                <ListGroup.Item key={`${event.runId}-${event.updatedAt}-${event.message}`}>
+                  <div className="d-flex flex-wrap justify-content-between gap-2">
+                    <span className="fw-semibold text-capitalize">{event.status}</span>
+                    <span className="text-muted small">{formatDateTime(event.updatedAt)}</span>
+                  </div>
+                  <div>{event.message}</div>
+                  {event.detail && <div className="text-muted small">{event.detail}</div>}
+                </ListGroup.Item>
+              ))}
+            </ListGroup>
+          </div>
+        )}
+      </Card.Body>
+    </Card>
+  );
+}
+
 function StatusAlert({
   status,
 }: {
@@ -169,8 +252,20 @@ function StatusAlert({
 }
 
 export function MealAssistantDebug() {
+  const [precalculationEvents, setPrecalculationEvents] = useState<
+    MealAssistantPrecalculationEvent[]
+  >([]);
+  const handlePrecalculationEvent = useCallback((event: MealAssistantPrecalculationEvent) => {
+    setPrecalculationEvents((current) => [event, ...current].slice(0, 20));
+  }, []);
+  useMealAssistantPrecalculationSocket(handlePrecalculationEvent);
+
   const { data, isLoading, isError } = useMealAssistantDebug();
   const { data: status, isError: isStatusError } = useMealAssistantNightlyStatus();
+  const precalculationMutation = useMealAssistantPrecalculationMutation();
+  const runPrecalculation = useCallback(() => {
+    precalculationMutation.mutate();
+  }, [precalculationMutation]);
 
   if (isLoading && !data) return <LoadingMascot />;
   if (isError) return <Alert variant="danger">Failed to load meal assistant debug data.</Alert>;
@@ -208,6 +303,13 @@ export function MealAssistantDebug() {
           </div>
         )}
       </div>
+
+      <PrecalculationControls
+        events={precalculationEvents}
+        onRun={runPrecalculation}
+        isPending={precalculationMutation.isPending}
+        triggerError={precalculationMutation.isError}
+      />
 
       {isStatusError ? (
         <Alert variant="danger">Failed to load the meal assistant nightly status file.</Alert>
