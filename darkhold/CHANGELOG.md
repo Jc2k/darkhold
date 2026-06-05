@@ -1,3 +1,10 @@
+# [1.117.0](https://github.com/Jc2k/darkhold/compare/v1.116.0...v1.117.0) (2026-06-05)
+
+
+### Features
+
+* **meal-assistant:** require significant precalculated signals ([6da2947](https://github.com/Jc2k/darkhold/commit/6da29470e7a1719b6e20af78609dd252f20dc700))
+
 # [1.116.0](https://github.com/Jc2k/darkhold/compare/v1.115.0...v1.116.0) (2026-06-05)
 
 
