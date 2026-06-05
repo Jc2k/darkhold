@@ -3,6 +3,7 @@ import {
   MEAL_ASSISTANT_PRECALCULATION_SCHEMA_VERSION,
   mealAssistantDayNumberToDate,
   type MealAssistantPrecalculation,
+  type MealAssistantTrend,
 } from './mealAssistantPrecalculation';
 import { weatherTagLabel } from './weatherFeatures';
 import { getWeekdayRecipeSignal } from './weekdayRecipeSignals';
@@ -41,6 +42,27 @@ export interface MealAssistantDebugWeekdayRecipeSignal {
   pValue: number;
 }
 
+export interface MealAssistantDebugSignificantSignalRecipe {
+  recipeId: number;
+  name: string;
+  count: number;
+  total: number;
+  share: number;
+  score: number;
+}
+
+export interface MealAssistantDebugSignificantSignal {
+  label: string;
+  total: number;
+  recipeCount: number;
+  topRecipe?: MealAssistantDebugSignificantSignalRecipe;
+}
+
+export interface MealAssistantDebugSignificantSignalCategory {
+  label: string;
+  signals: MealAssistantDebugSignificantSignal[];
+}
+
 export interface MealAssistantDebugStats {
   expectedSchemaVersion: number;
   actualSchemaVersion?: number;
@@ -60,6 +82,7 @@ export interface MealAssistantDebugStats {
   weather: MealAssistantDebugGroup[];
   calendar: MealAssistantDebugGroup[];
   clusters: MealAssistantDebugGroup[];
+  significantSignalCategories: MealAssistantDebugSignificantSignalCategory[];
 }
 
 const DAY_LABELS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -154,6 +177,82 @@ function buildWeekdayRecipeSignals(
         left.name.localeCompare(right.name),
     )
     .slice(0, WEEKDAY_SIGNAL_LIMIT);
+}
+
+type InsightRecordName = 'days' | 'months' | 'seasons' | 'weather' | 'calendar';
+
+type MutableSignificantSignal = Omit<
+  MealAssistantDebugSignificantSignal,
+  'recipeCount' | 'topRecipe'
+> & {
+  recipes: MealAssistantDebugSignificantSignalRecipe[];
+};
+
+function isTrend(value: unknown): value is MealAssistantTrend {
+  if (typeof value !== 'object' || value === null) return false;
+  const record = value as Partial<MealAssistantTrend>;
+  return (
+    typeof record.count === 'number' &&
+    typeof record.total === 'number' &&
+    typeof record.share === 'number' &&
+    typeof record.score === 'number'
+  );
+}
+
+function buildSignificantSignalCategory(
+  label: string,
+  precalculation: MealAssistantPrecalculation,
+  selectedRecipeHistory: MealAssistantPrecalculation['recipeHistory'],
+  recordName: InsightRecordName,
+  labelForKey: (key: string) => string,
+): MealAssistantDebugSignificantSignalCategory {
+  const signals = new Map<string, MutableSignificantSignal>();
+
+  for (const [recipeIdKey, insight] of Object.entries(precalculation.recipeInsights)) {
+    if (!selectedRecipeHistory[recipeIdKey]) continue;
+    const recipeId = Number.parseInt(recipeIdKey, 10);
+    if (!Number.isFinite(recipeId)) continue;
+
+    for (const [key, trend] of Object.entries(insight[recordName])) {
+      if (!isTrend(trend)) continue;
+      const signal = signals.get(key) ?? { label: labelForKey(key), total: 0, recipes: [] };
+      const recipeSignal = {
+        recipeId,
+        name: precalculation.recipes[recipeIdKey]?.name ?? `Recipe ${recipeId}`,
+        count: trend.count,
+        total: trend.total,
+        share: trend.share,
+        score: trend.score,
+      };
+      signal.total += trend.count;
+      signal.recipes.push(recipeSignal);
+      signals.set(key, signal);
+    }
+  }
+
+  return {
+    label,
+    signals: [...signals.values()]
+      .map((signal) => ({
+        label: signal.label,
+        total: signal.total,
+        recipeCount: signal.recipes.length,
+        topRecipe: signal.recipes.sort(
+          (left, right) =>
+            right.score - left.score ||
+            right.count - left.count ||
+            right.share - left.share ||
+            left.name.localeCompare(right.name),
+        )[0],
+      }))
+      .sort(
+        (left, right) =>
+          right.recipeCount - left.recipeCount ||
+          right.total - left.total ||
+          left.label.localeCompare(right.label),
+      )
+      .slice(0, TOP_GROUP_LIMIT),
+  };
 }
 
 function schemaVersionOf(payload: unknown): number | undefined {
@@ -289,5 +388,42 @@ export function buildMealAssistantDebugStats(
     clusters: topGroups(
       [...clusterGroups.values()].map((group) => finalizeGroup(group, precalculation)),
     ),
+    significantSignalCategories: [
+      buildSignificantSignalCategory(
+        'Weekday',
+        precalculation,
+        selectedRecipeHistory,
+        'days',
+        (key) => DAY_LABELS[Number.parseInt(key, 10)] ?? key,
+      ),
+      buildSignificantSignalCategory(
+        'Month',
+        precalculation,
+        selectedRecipeHistory,
+        'months',
+        (key) => MONTH_LABELS[Number.parseInt(key, 10) - 1] ?? key,
+      ),
+      buildSignificantSignalCategory(
+        'Season',
+        precalculation,
+        selectedRecipeHistory,
+        'seasons',
+        (key) => key.charAt(0).toUpperCase() + key.slice(1),
+      ),
+      buildSignificantSignalCategory(
+        'Weather',
+        precalculation,
+        selectedRecipeHistory,
+        'weather',
+        weatherTagLabel,
+      ),
+      buildSignificantSignalCategory(
+        'Calendar',
+        precalculation,
+        selectedRecipeHistory,
+        'calendar',
+        describeCalendarAppointmentFeature,
+      ),
+    ],
   };
 }

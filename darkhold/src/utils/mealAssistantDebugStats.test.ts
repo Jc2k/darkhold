@@ -151,9 +151,9 @@ const precalculation: MealAssistantPrecalculation = {
       totalCookCount: 3,
       weekdayCookCount: 2,
       weekendCookCount: 1,
-      days: {},
-      months: {},
-      seasons: {},
+      days: { '5': { count: 2, total: 3, share: 2 / 3, score: 8 } },
+      months: { '2': { count: 2, total: 3, share: 2 / 3, score: 5 } },
+      seasons: { winter: { count: 2, total: 3, share: 2 / 3, score: 5 } },
       weather: { hot: { count: 2, total: 3, share: 2 / 3, score: 5 } },
       calendar: { 'appointment:doctor': { count: 1, total: 3, share: 1 / 3, score: 4 } },
       produce: [],
@@ -162,9 +162,9 @@ const precalculation: MealAssistantPrecalculation = {
       totalCookCount: 2,
       weekdayCookCount: 0,
       weekendCookCount: 2,
-      days: {},
+      days: { '6': { count: 2, total: 2, share: 1, score: 12 } },
       months: {},
-      seasons: {},
+      seasons: { winter: { count: 2, total: 2, share: 1, score: 8 } },
       weather: { cold: { count: 2, total: 2, share: 1, score: 6 } },
       calendar: {},
       produce: [],
@@ -230,6 +230,24 @@ describe('meal assistant debug stats', () => {
       expectedShare: 1 / 7,
     });
     expect(stats.recipeWeekdaySignals[0]?.pValue).toBeLessThan(0.05);
+    expect(
+      stats.significantSignalCategories.find((category) => category.label === 'Weekday'),
+    ).toMatchObject({
+      signals: [
+        { label: 'Friday', recipeCount: 1, total: 2, topRecipe: { recipeId: 1, score: 8 } },
+        { label: 'Saturday', recipeCount: 1, total: 2, topRecipe: { recipeId: 2, score: 12 } },
+      ],
+    });
+    expect(
+      stats.significantSignalCategories.find((category) => category.label === 'Month'),
+    ).toMatchObject({
+      signals: [{ label: 'February', recipeCount: 1, total: 2 }],
+    });
+    expect(
+      stats.significantSignalCategories.find((category) => category.label === 'Season'),
+    ).toMatchObject({
+      signals: [{ label: 'Winter', recipeCount: 2, total: 4, topRecipe: { recipeId: 2 } }],
+    });
   });
 
   it('segments common recipe history by selected meal type', () => {
@@ -242,5 +260,11 @@ describe('meal assistant debug stats', () => {
     expect(stats.weekendMeals.recipes[0]).toMatchObject({ recipeId: 2, name: 'Roast', count: 2 });
     expect(stats.weekdays.find((group) => group.label === 'Sunday')?.total).toBe(0);
     expect(stats.recipeWeekdaySignals).toEqual([]);
+    expect(
+      stats.significantSignalCategories.find((category) => category.label === 'Weekday')?.signals,
+    ).toEqual([
+      expect.objectContaining({ label: 'Friday', recipeCount: 1, total: 2 }),
+      expect.objectContaining({ label: 'Saturday', recipeCount: 1, total: 2 }),
+    ]);
   });
 });
