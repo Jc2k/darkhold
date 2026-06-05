@@ -6,7 +6,7 @@ import {
   type MealAssistantTrend,
 } from './mealAssistantPrecalculation';
 import { weatherTagLabel } from './weatherFeatures';
-import { getWeekdayRecipeSignal } from './weekdayRecipeSignals';
+import { binomialUpperTail, getWeekdayRecipeSignal } from './weekdayRecipeSignals';
 
 export interface MealAssistantDebugTopRecipe {
   recipeId: number;
@@ -27,19 +27,28 @@ export interface MealAssistantDebugMealTypeOption {
   planCount: number;
 }
 
-export interface MealAssistantDebugWeekdaySignalDay {
+export interface MealAssistantDebugRecipeSignalBucket {
   label: string;
   count: number;
   share: number;
 }
 
-export interface MealAssistantDebugWeekdayRecipeSignal {
+export interface MealAssistantDebugRecipeSignal {
   recipeId: number;
   name: string;
   total: number;
-  days: MealAssistantDebugWeekdaySignalDay[];
+  buckets: MealAssistantDebugRecipeSignalBucket[];
   expectedShare: number;
   pValue: number;
+}
+
+export interface MealAssistantDebugRecipeSignalCategory {
+  key: string;
+  label: string;
+  bucketHeading: string;
+  expectedDescription: string;
+  emptyMessage: string;
+  signals: MealAssistantDebugRecipeSignal[];
 }
 
 export interface MealAssistantDebugSignificantSignalRecipe {
@@ -76,7 +85,7 @@ export interface MealAssistantDebugStats {
   weekdayMeals: MealAssistantDebugGroup;
   weekendMeals: MealAssistantDebugGroup;
   weekdays: MealAssistantDebugGroup[];
-  recipeWeekdaySignals: MealAssistantDebugWeekdayRecipeSignal[];
+  recipeSignalCategories: MealAssistantDebugRecipeSignalCategory[];
   months: MealAssistantDebugGroup[];
   seasons: MealAssistantDebugGroup[];
   weather: MealAssistantDebugGroup[];
@@ -103,7 +112,9 @@ const MONTH_LABELS = [
 const SEASON_LABELS = ['Winter', 'Spring', 'Summer', 'Autumn'];
 const TOP_RECIPE_LIMIT = 5;
 const TOP_GROUP_LIMIT = 8;
-const WEEKDAY_SIGNAL_LIMIT = 10;
+const RECIPE_SIGNAL_LIMIT = 10;
+const RECIPE_SIGNAL_ALPHA = 0.05;
+const MIN_RECIPE_SIGNAL_TOTAL = 5;
 
 type MutableGroup = Omit<MealAssistantDebugGroup, 'recipes'> & {
   recipeCounts: Map<number, number>;
@@ -146,37 +157,254 @@ function topGroups(
     .slice(0, limit);
 }
 
-function buildWeekdayRecipeSignals(
-  precalculation: MealAssistantPrecalculation,
-  selectedRecipeHistory: MealAssistantPrecalculation['recipeHistory'],
-): MealAssistantDebugWeekdayRecipeSignal[] {
-  return Object.entries(selectedRecipeHistory)
-    .flatMap(([recipeIdKey, history]): MealAssistantDebugWeekdayRecipeSignal[] => {
-      const recipeId = Number.parseInt(recipeIdKey, 10);
-      if (!Number.isFinite(recipeId)) return [];
+function combinationCount(n: number, k: number): number {
+  if (k < 0 || k > n) return 0;
+  if (k === 0 || k === n) return 1;
+  let result = 1;
+  for (let index = 1; index <= k; index += 1) {
+    result = (result * (n - k + index)) / index;
+  }
+  return result;
+}
 
-      const signal = getWeekdayRecipeSignal(history, { dayLabels: DAY_LABELS });
-      if (!signal) return [];
+function adjustedCategoryPValue(
+  total: number,
+  count: number,
+  selectedCount: number,
+  bucketCount: number,
+): number {
+  return Math.min(
+    1,
+    binomialUpperTail(total, count, selectedCount / bucketCount) *
+      combinationCount(bucketCount, selectedCount),
+  );
+}
 
-      return [
-        {
-          recipeId,
-          name: precalculation.recipes[String(recipeId)]?.name ?? `Recipe ${recipeId}`,
-          total: signal.total,
-          days: signal.days.map(({ label, count, share }) => ({ label, count, share })),
-          expectedShare: signal.expectedShare,
-          pValue: signal.pValue,
-        },
-      ];
-    })
+function observedShare(signal: MealAssistantDebugRecipeSignal): number {
+  return signal.buckets.reduce((total, bucket) => total + bucket.count, 0) / signal.total;
+}
+
+function sortRecipeSignals(
+  signals: MealAssistantDebugRecipeSignal[],
+): MealAssistantDebugRecipeSignal[] {
+  return signals
     .sort(
       (left, right) =>
         left.pValue - right.pValue ||
-        right.days.reduce((total, day) => total + day.count, 0) / right.total -
-          left.days.reduce((total, day) => total + day.count, 0) / left.total ||
+        observedShare(right) - observedShare(left) ||
+        right.total - left.total ||
         left.name.localeCompare(right.name),
     )
-    .slice(0, WEEKDAY_SIGNAL_LIMIT);
+    .slice(0, RECIPE_SIGNAL_LIMIT);
+}
+
+function buildWeekdayRecipeSignals(
+  precalculation: MealAssistantPrecalculation,
+  selectedRecipeHistory: MealAssistantPrecalculation['recipeHistory'],
+): MealAssistantDebugRecipeSignal[] {
+  return sortRecipeSignals(
+    Object.entries(selectedRecipeHistory).flatMap(
+      ([recipeIdKey, history]): MealAssistantDebugRecipeSignal[] => {
+        const recipeId = Number.parseInt(recipeIdKey, 10);
+        if (!Number.isFinite(recipeId)) return [];
+
+        const signal = getWeekdayRecipeSignal(history, { dayLabels: DAY_LABELS });
+        if (!signal) return [];
+
+        return [
+          {
+            recipeId,
+            name: precalculation.recipes[String(recipeId)]?.name ?? `Recipe ${recipeId}`,
+            total: signal.total,
+            buckets: signal.days.map(({ label, count, share }) => ({ label, count, share })),
+            expectedShare: signal.expectedShare,
+            pValue: signal.pValue,
+          },
+        ];
+      },
+    ),
+  );
+}
+
+function buildCountBasedRecipeSignals(
+  precalculation: MealAssistantPrecalculation,
+  selectedRecipeHistory: MealAssistantPrecalculation['recipeHistory'],
+  getCounts: (history: MealAssistantPrecalculation['recipeHistory'][string]) => readonly number[],
+  labels: readonly string[],
+): MealAssistantDebugRecipeSignal[] {
+  return sortRecipeSignals(
+    Object.entries(selectedRecipeHistory).flatMap(
+      ([recipeIdKey, history]): MealAssistantDebugRecipeSignal[] => {
+        const total = history.totalPlanCount;
+        const counts = getCounts(history);
+        if (total < MIN_RECIPE_SIGNAL_TOTAL || counts.length < 2) return [];
+
+        const ranked = counts
+          .map((count, index) => ({ count, index }))
+          .sort((left, right) => right.count - left.count || left.index - right.index);
+        const maxBuckets = Math.min(2, counts.length);
+        let best: { selected: typeof ranked; pValue: number } | undefined;
+
+        for (let selectedCount = 1; selectedCount <= maxBuckets; selectedCount += 1) {
+          const selected = ranked.slice(0, selectedCount);
+          const observedCount = selected.reduce((sum, bucket) => sum + bucket.count, 0);
+          if (observedCount === 0) continue;
+          const pValue = adjustedCategoryPValue(total, observedCount, selectedCount, counts.length);
+          if (!best || pValue < best.pValue) best = { selected, pValue };
+        }
+
+        if (!best || best.pValue > RECIPE_SIGNAL_ALPHA) return [];
+        const recipeId = Number.parseInt(recipeIdKey, 10);
+        if (!Number.isFinite(recipeId)) return [];
+        return [
+          {
+            recipeId,
+            name: precalculation.recipes[String(recipeId)]?.name ?? `Recipe ${recipeId}`,
+            total,
+            buckets: best.selected.map(({ index, count }) => ({
+              label: labels[index] ?? `Bucket ${index + 1}`,
+              count,
+              share: count / total,
+            })),
+            expectedShare: best.selected.length / counts.length,
+            pValue: best.pValue,
+          },
+        ];
+      },
+    ),
+  );
+}
+
+const WEATHER_SIGNAL_GROUPS = {
+  temperature: {
+    labels: ['cold day', 'cool day', 'mild day', 'warm day', 'hot day'],
+    tags: ['cold-day', 'cool-day', 'mild-day', 'warm-day', 'hot-day'],
+  },
+  rainfall: {
+    labels: ['dry day', 'showery day', 'wet day'],
+    tags: ['dry-day', 'showery-day', 'wet-day'],
+  },
+  daylight: {
+    labels: ['short daylight', 'medium daylight', 'long daylight'],
+    tags: ['short-daylight', 'medium-daylight', 'long-daylight'],
+  },
+} as const;
+
+function buildWeatherRecipeSignals(
+  precalculation: MealAssistantPrecalculation,
+  selectedRecipeHistory: MealAssistantPrecalculation['recipeHistory'],
+  group: keyof typeof WEATHER_SIGNAL_GROUPS,
+): MealAssistantDebugRecipeSignal[] {
+  const definition = WEATHER_SIGNAL_GROUPS[group];
+  return sortRecipeSignals(
+    Object.entries(selectedRecipeHistory).flatMap(
+      ([recipeIdKey, history]): MealAssistantDebugRecipeSignal[] => {
+        const insight = precalculation.recipeInsights[recipeIdKey];
+        if (!insight || history.totalPlanCount < MIN_RECIPE_SIGNAL_TOTAL) return [];
+
+        const buckets = definition.tags.flatMap((tag, index) => {
+          const trend = insight.weather[tag];
+          if (!isTrend(trend)) return [];
+          return [{ label: definition.labels[index], count: trend.count, share: trend.share }];
+        });
+        if (buckets.length === 0) return [];
+
+        const observedCount = buckets.reduce((sum, bucket) => sum + bucket.count, 0);
+        const pValue = adjustedCategoryPValue(
+          insight.totalCookCount,
+          observedCount,
+          buckets.length,
+          definition.tags.length,
+        );
+        if (pValue > RECIPE_SIGNAL_ALPHA) return [];
+
+        const recipeId = Number.parseInt(recipeIdKey, 10);
+        if (!Number.isFinite(recipeId)) return [];
+        return [
+          {
+            recipeId,
+            name: precalculation.recipes[recipeIdKey]?.name ?? `Recipe ${recipeId}`,
+            total: insight.totalCookCount,
+            buckets,
+            expectedShare: buckets.length / definition.tags.length,
+            pValue,
+          },
+        ];
+      },
+    ),
+  );
+}
+
+function buildRecipeSignalCategories(
+  precalculation: MealAssistantPrecalculation,
+  selectedRecipeHistory: MealAssistantPrecalculation['recipeHistory'],
+): MealAssistantDebugRecipeSignalCategory[] {
+  return [
+    {
+      key: 'weekday',
+      label: 'Weekday',
+      bucketHeading: 'Most likely day(s)',
+      expectedDescription: 'Expected if random across weekdays',
+      emptyMessage:
+        'No recipe has enough weekday concentration to clear the current p < 0.05 significance threshold.',
+      signals: buildWeekdayRecipeSignals(precalculation, selectedRecipeHistory),
+    },
+    {
+      key: 'month',
+      label: 'Month',
+      bucketHeading: 'Most likely month(s)',
+      expectedDescription: 'Expected if random across months',
+      emptyMessage:
+        'No recipe has enough monthly concentration to clear the current p < 0.05 significance threshold.',
+      signals: buildCountBasedRecipeSignals(
+        precalculation,
+        selectedRecipeHistory,
+        (history) => history.monthCounts,
+        MONTH_LABELS,
+      ),
+    },
+    {
+      key: 'season',
+      label: 'Season',
+      bucketHeading: 'Most likely season(s)',
+      expectedDescription: 'Expected if random across seasons',
+      emptyMessage:
+        'No recipe has enough seasonal concentration to clear the current p < 0.05 significance threshold.',
+      signals: buildCountBasedRecipeSignals(
+        precalculation,
+        selectedRecipeHistory,
+        (history) => history.seasonCounts,
+        SEASON_LABELS,
+      ),
+    },
+    {
+      key: 'rainfall',
+      label: 'Rainfall',
+      bucketHeading: 'Most likely rainfall',
+      expectedDescription: 'Expected if random across rainfall bands',
+      emptyMessage:
+        'No recipe has enough rainfall concentration to clear the current p < 0.05 significance threshold.',
+      signals: buildWeatherRecipeSignals(precalculation, selectedRecipeHistory, 'rainfall'),
+    },
+    {
+      key: 'temperature',
+      label: 'Temperature',
+      bucketHeading: 'Most likely temperature',
+      expectedDescription: 'Expected if random across temperature bands',
+      emptyMessage:
+        'No recipe has enough temperature concentration to clear the current p < 0.05 significance threshold.',
+      signals: buildWeatherRecipeSignals(precalculation, selectedRecipeHistory, 'temperature'),
+    },
+    {
+      key: 'daylight',
+      label: 'Daylight hours',
+      bucketHeading: 'Most likely daylight',
+      expectedDescription: 'Expected if random across daylight bands',
+      emptyMessage:
+        'No recipe has enough daylight-hours concentration to clear the current p < 0.05 significance threshold.',
+      signals: buildWeatherRecipeSignals(precalculation, selectedRecipeHistory, 'daylight'),
+    },
+  ];
 }
 
 type InsightRecordName = 'days' | 'months' | 'seasons' | 'weather' | 'calendar';
@@ -376,7 +604,7 @@ export function buildMealAssistantDebugStats(
     weekdayMeals: finalizeGroup(weekdayMeals, precalculation),
     weekendMeals: finalizeGroup(weekendMeals, precalculation),
     weekdays: weekdays.map((group) => finalizeGroup(group, precalculation)),
-    recipeWeekdaySignals: buildWeekdayRecipeSignals(precalculation, selectedRecipeHistory),
+    recipeSignalCategories: buildRecipeSignalCategories(precalculation, selectedRecipeHistory),
     months: months.map((group) => finalizeGroup(group, precalculation)),
     seasons: seasons.map((group) => finalizeGroup(group, precalculation)),
     weather: topGroups(
