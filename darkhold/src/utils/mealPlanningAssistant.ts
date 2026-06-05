@@ -415,12 +415,16 @@ function buildRecipeHistoryById(entries: MealPlan[]): Map<number, MealAssistantR
   for (const [recipeId, dayNumbers] of dayNumbersByRecipe.entries()) {
     const sortedDayNumbers = dayNumbers.slice().sort((left, right) => left - right);
     const dayCounts: MealAssistantRecipeHistory['dayCounts'] = [0, 0, 0, 0, 0, 0, 0];
+    const monthCounts: MealAssistantRecipeHistory['monthCounts'] = [
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    ];
     const seasonCounts: MealAssistantRecipeHistory['seasonCounts'] = [0, 0, 0, 0];
     for (const dayNumber of sortedDayNumbers) {
       const date = parseLocalDate(mealAssistantDayNumberToDate(dayNumber));
       if (!date) continue;
       dayCounts[date.getDay()] += 1;
       const month = date.getMonth() + 1;
+      monthCounts[month - 1] += 1;
       const seasonIndex = month === 12 || month <= 2 ? 0 : month <= 5 ? 1 : month <= 8 ? 2 : 3;
       seasonCounts[seasonIndex] += 1;
     }
@@ -444,6 +448,7 @@ function buildRecipeHistoryById(entries: MealPlan[]): Map<number, MealAssistantR
     historyByRecipeId.set(recipeId, {
       dates: sortedDayNumbers,
       dayCounts,
+      monthCounts,
       seasonCounts,
       totalPlanCount: sortedDayNumbers.length,
       firstPlannedDate: sortedDayNumbers[0],
@@ -1065,6 +1070,18 @@ function scoreRecipe(
         detail: 'Recipe tags line up with the current season.',
       });
     }
+    const monthKey = parsedDate ? String(parsedDate.getMonth() + 1) : undefined;
+    const monthTrend = monthKey ? insight?.months?.[monthKey] : undefined;
+    if (monthTrend && parsedDate) {
+      const monthLabel = parsedDate.toLocaleDateString('en-GB', { month: 'long' });
+      components.push({
+        key: 'month-history',
+        label: 'Monthly history',
+        score: monthTrend.score,
+        detail: `Historically ${Math.round(monthTrend.share * 100)}% of cooks were in ${monthLabel} (${monthTrend.count}/${monthTrend.total}).`,
+      });
+    }
+
     const seasonTrend = insight?.seasons[season as keyof typeof insight.seasons];
     if (seasonTrend) {
       components.push({
