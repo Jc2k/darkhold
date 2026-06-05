@@ -1,3 +1,10 @@
+## [1.114.1](https://github.com/Jc2k/darkhold/compare/v1.114.0...v1.114.1) (2026-06-05)
+
+
+### Bug Fixes
+
+* **nginx:** proxy meal assistant precalculation trigger ([43cb05e](https://github.com/Jc2k/darkhold/commit/43cb05e887497eb59de195b60fe3734bfb25a6fb))
+
 # [1.114.0](https://github.com/Jc2k/darkhold/compare/v1.113.2...v1.114.0) (2026-06-05)
 
 
