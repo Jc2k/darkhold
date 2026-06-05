@@ -1,3 +1,10 @@
+# [1.115.0](https://github.com/Jc2k/darkhold/compare/v1.114.1...v1.115.0) (2026-06-05)
+
+
+### Features
+
+* **meal-assistant:** segment debug stats by meal type ([9401482](https://github.com/Jc2k/darkhold/commit/94014828d0482e03fc43e3727e4f89ec505ab079))
+
 ## [1.114.1](https://github.com/Jc2k/darkhold/compare/v1.114.0...v1.114.1) (2026-06-05)
 
 
