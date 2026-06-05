@@ -1,3 +1,10 @@
+# [1.112.0](https://github.com/Jc2k/darkhold/compare/v1.111.1...v1.112.0) (2026-06-05)
+
+
+### Features
+
+* **recipe-stats:** add recipe statistics replay ([1bfdbee](https://github.com/Jc2k/darkhold/commit/1bfdbeee0ccf294dd7a8148f9a1f429227d638a9))
+
 ## [1.111.1](https://github.com/Jc2k/darkhold/compare/v1.111.0...v1.111.1) (2026-06-05)
 
 
