@@ -1,3 +1,10 @@
+# [1.118.0](https://github.com/Jc2k/darkhold/compare/v1.117.0...v1.118.0) (2026-06-05)
+
+
+### Features
+
+* **meal-assistant:** show significant debug signals ([fd4329c](https://github.com/Jc2k/darkhold/commit/fd4329ca89d14c673487aac1f00925a42b76ce07))
+
 # [1.117.0](https://github.com/Jc2k/darkhold/compare/v1.116.0...v1.117.0) (2026-06-05)
 
 
