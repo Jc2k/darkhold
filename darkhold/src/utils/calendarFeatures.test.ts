@@ -59,7 +59,7 @@ describe('calendarFeatures', () => {
     ).toBe('full-day');
   });
 
-  it('builds calendar feature days from appointments and bank holidays', () => {
+  it('builds calendar feature days from appointment titles and bank holidays', () => {
     expect(
       buildCalendarFeatureDay([
         {
@@ -87,7 +87,25 @@ describe('calendarFeatures', () => {
       ]),
     ).toEqual({
       bankHoliday: true,
-      appointmentFeatures: ['bob|long', 'leaving|long', 'pickup|long', 'school|long'],
+      appointmentFeatures: ['bob|long'],
+    });
+  });
+
+  it('ignores appointment descriptions when building historical meal signals', () => {
+    expect(
+      buildCalendarFeatureDay([
+        {
+          name: 'Chilli con carne',
+          description: 'Stanley is attending',
+          start: '2026-07-22T16:00:00Z',
+          end: '2026-07-22T19:30:00Z',
+          allDay: false,
+          category: 'appointment',
+        },
+      ]),
+    ).toEqual({
+      bankHoliday: false,
+      appointmentFeatures: ['carne|long', 'chilli|long', 'con|long'],
     });
   });
 });
