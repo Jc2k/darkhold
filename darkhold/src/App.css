@@ -793,3 +793,106 @@ body {
   user-select: none;
   -webkit-user-select: none;
 }
+
+.recipe-stats-page {
+  padding-bottom: 2rem;
+}
+
+.recipe-stats-hero {
+  align-items: flex-end;
+  background:
+    radial-gradient(circle at top left, rgba(var(--bs-info-rgb), 0.7), transparent 34rem),
+    linear-gradient(135deg, var(--bs-primary), var(--bs-dark));
+  color: var(--bs-white);
+  display: flex;
+  gap: 1.5rem;
+  justify-content: space-between;
+  overflow: hidden;
+  padding: clamp(1.25rem, 4vw, 3rem);
+}
+
+.recipe-stats-eyebrow {
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.recipe-stats-kpi,
+.recipe-stats-section .card {
+  border-color: rgba(var(--bs-primary-rgb), 0.14);
+  box-shadow: 0 0.5rem 1.5rem rgba(var(--bs-dark-rgb), 0.06);
+}
+
+.recipe-stats-section {
+  margin-bottom: 2rem;
+}
+
+.recipe-stats-section-icon {
+  align-items: center;
+  background: rgba(var(--bs-primary-rgb), 0.1);
+  border-radius: 999px;
+  color: var(--bs-primary);
+  display: inline-flex;
+  height: 2.25rem;
+  justify-content: center;
+  width: 2.25rem;
+}
+
+.recipe-stats-chart {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.recipe-stats-chart-row {
+  align-items: center;
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: minmax(5.5rem, 0.7fr) minmax(7rem, 2fr) auto;
+}
+
+.recipe-stats-chart-label {
+  font-weight: 600;
+}
+
+.recipe-stats-chart-track {
+  background: var(--bs-secondary-bg);
+  border-radius: 999px;
+  height: 0.9rem;
+  overflow: hidden;
+}
+
+.recipe-stats-chart-bar {
+  background: linear-gradient(90deg, var(--bs-primary), var(--bs-info));
+  border-radius: inherit;
+  height: 100%;
+}
+
+.recipe-stats-chart-value {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.recipe-stats-chart-detail {
+  grid-column: 2 / -1;
+  margin-top: -0.4rem;
+}
+
+.recipe-stats-progress {
+  height: 0.55rem;
+}
+
+@media (max-width: 575.98px) {
+  .recipe-stats-hero {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .recipe-stats-chart-row {
+    grid-template-columns: 1fr auto;
+  }
+
+  .recipe-stats-chart-track,
+  .recipe-stats-chart-detail {
+    grid-column: 1 / -1;
+  }
+}

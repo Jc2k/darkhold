@@ -11,6 +11,7 @@ import { MealPlanPage } from './pages/MealPlanPage';
 import { ShoppingList } from './pages/ShoppingList';
 import { Settings } from './pages/Settings';
 import { RecipeDetail } from './pages/RecipeDetail';
+import { RecipeStats } from './pages/RecipeStats';
 import { MealPlanEntryDetail } from './pages/MealPlanEntryDetail';
 import { IngredientDetail } from './pages/IngredientDetail';
 import { Books } from './pages/Books';
@@ -133,6 +134,14 @@ const router = createBrowserRouter([
         element: (
           <AuthGuard>
             <RecipeDetail />
+          </AuthGuard>
+        ),
+      },
+      {
+        path: 'recipe/:id/stats',
+        element: (
+          <AuthGuard>
+            <RecipeStats />
           </AuthGuard>
         ),
       },
