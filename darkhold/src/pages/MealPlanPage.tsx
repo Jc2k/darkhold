@@ -1841,13 +1841,15 @@ export function MealPlanPage() {
   const canonicalWeekEnd = formatDate(endDate);
 
   // Week picker derived values — computed here to avoid IIFE in JSX.
-  const pendingWeekStart = pendingPickerDate
+  const pickerHighlightedWeekStart = pendingPickerDate
     ? getMealPlanWeekStartSaturday(pendingPickerDate)
-    : null;
-  const pendingWeekEnd = pendingWeekStart ? addDays(pendingWeekStart, 6) : null;
-  const pickerSelected = pendingWeekStart
-    ? { from: pendingWeekStart, to: pendingWeekEnd ?? undefined }
-    : { from: weekStartDate, to: endDate };
+    : weekStartDate;
+  const pickerHighlightedWeekEnd = addDays(pickerHighlightedWeekStart, 6);
+  const pickerSelectedDate = pendingPickerDate ?? weekStartDate;
+  const pickerHighlightedWeek = {
+    from: pickerHighlightedWeekStart,
+    to: pickerHighlightedWeekEnd,
+  };
   const pickerDefaultMonth = pendingPickerDate ?? weekStartDate;
   const pickerStartMonth = new Date(today.getFullYear() - PICKER_YEARS_PAST, 0, 1);
   const pickerEndMonth = new Date(today.getFullYear() + PICKER_YEARS_FUTURE, 11, 31);
@@ -2719,9 +2721,19 @@ export function MealPlanPage() {
           <DayPicker
             key={`${canonicalWeekStart}-${showWeekPickerModal ? 'open' : 'closed'}`}
             className="meal-plan-week-picker"
-            mode="range"
+            mode="single"
             defaultMonth={pickerDefaultMonth}
-            selected={pickerSelected}
+            selected={pickerSelectedDate}
+            modifiers={{
+              highlightedWeek: pickerHighlightedWeek,
+              highlightedWeekStart: pickerHighlightedWeekStart,
+              highlightedWeekEnd: pickerHighlightedWeekEnd,
+            }}
+            modifiersClassNames={{
+              highlightedWeek: 'meal-plan-week-picker__highlighted-week',
+              highlightedWeekStart: 'meal-plan-week-picker__highlighted-week-start',
+              highlightedWeekEnd: 'meal-plan-week-picker__highlighted-week-end',
+            }}
             weekStartsOn={6}
             showOutsideDays
             fixedWeeks
