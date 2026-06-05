@@ -25,6 +25,29 @@ import {
 
 const VERSION = pkg.version;
 
+type MealAssistantPrecalculationEventStatus =
+  | 'started'
+  | 'progress'
+  | 'success'
+  | 'error'
+  | 'skipped'
+  | 'already-running';
+
+interface MealAssistantPrecalculationEvent {
+  type: 'meal-assistant-precalculation';
+  status: MealAssistantPrecalculationEventStatus;
+  runId: string;
+  message: string;
+  updatedAt: string;
+  detail?: string;
+}
+
+type MealAssistantPrecalculationReporter = (
+  status: MealAssistantPrecalculationEventStatus,
+  message: string,
+  detail?: string,
+) => void;
+
 // ---------------------------------------------------------------------------
 // Meal assistant nightly precalculation
 // ---------------------------------------------------------------------------
@@ -76,7 +99,9 @@ async function fetchAllTandoorPages<T>(
   while (hasNext) {
     const url = new URL(`/api${path}`, tandoorUrl);
     for (const [key, value] of Object.entries({ ...params, page_size: 100, page })) {
-      if (value !== undefined && value !== null) url.searchParams.set(key, String(value));
+      if (value !== undefined && value !== null) {
+        url.searchParams.set(key, String(value));
+      }
     }
 
     const res = await fetch(url, { headers: getTandoorHeaders() });
@@ -100,7 +125,9 @@ async function fetchTandoorJson<T>(
   const url = new URL(`/api${path}`, tandoorUrl);
   if (params) {
     for (const [key, value] of Object.entries(params)) {
-      if (value !== undefined && value !== null) url.searchParams.set(key, String(value));
+      if (value !== undefined && value !== null) {
+        url.searchParams.set(key, String(value));
+      }
     }
   }
   const res = await fetch(url, { headers: getTandoorHeaders() });
@@ -154,7 +181,9 @@ async function fetchMealAssistantProduceFoods(
   );
   if (!category) return [];
 
-  const foods = await fetchAllTandoorPages<Food>('/food/', { supermarket_category: category.id });
+  const foods = await fetchAllTandoorPages<Food>('/food/', {
+    supermarket_category: category.id,
+  });
   return foods
     .map((food) => ({ id: food.id, name: food.name.trim().toLowerCase() }))
     .filter((food) => food.name);
@@ -206,7 +235,9 @@ async function readWeatherFeatureCache(): Promise<
     const payload: unknown = JSON.parse(body);
     return isWeatherFeatureCache(payload) ? payload : createEmptyWeatherFeatureCache();
   } catch (err) {
-    if (err instanceof Deno.errors.NotFound) return createEmptyWeatherFeatureCache();
+    if (err instanceof Deno.errors.NotFound) {
+      return createEmptyWeatherFeatureCache();
+    }
     throw err;
   }
 }
@@ -219,7 +250,9 @@ async function readCalendarFeatureCache(): Promise<
     const payload: unknown = JSON.parse(body);
     return isCalendarFeatureCache(payload) ? payload : createEmptyCalendarFeatureCache();
   } catch (err) {
-    if (err instanceof Deno.errors.NotFound) return createEmptyCalendarFeatureCache();
+    if (err instanceof Deno.errors.NotFound) {
+      return createEmptyCalendarFeatureCache();
+    }
     throw err;
   }
 }
@@ -356,7 +389,9 @@ async function readMealAssistantLastSuccessAt(): Promise<string | undefined> {
     const lastSuccessAt = (payload as { lastSuccessAt?: unknown }).lastSuccessAt;
     return typeof lastSuccessAt === 'string' ? lastSuccessAt : undefined;
   } catch (err) {
-    if (err instanceof Deno.errors.NotFound || err instanceof SyntaxError) return undefined;
+    if (err instanceof Deno.errors.NotFound || err instanceof SyntaxError) {
+      return undefined;
+    }
     throw err;
   }
 }
@@ -386,32 +421,59 @@ async function writeMealAssistantStatus(
   await writeFileAtomically(loadMealAssistantStatusPath(), `${JSON.stringify(body)}\n`);
 }
 
-async function writeMealAssistantPrecalculation(): Promise<void> {
+async function writeMealAssistantPrecalculation(
+  report: MealAssistantPrecalculationReporter = () => {},
+): Promise<void> {
   if (!safeGetEnv('TANDOOR_DEFAULT_TOKEN')) {
     const message =
       'Skipping meal assistant precalculation: TANDOOR_DEFAULT_TOKEN is not configured.';
     console.warn(message);
+    report('skipped', message);
     await writeMealAssistantStatus({ status: 'skipped', message });
     return;
   }
 
+  report('progress', 'Fetching recipes, keywords, meal plans, and produce metadata from Tandoor.');
   const [recipes, keywordNameById, mealPlans, produceFoods] = await Promise.all([
-    fetchMealAssistantRecipes(),
-    fetchMealAssistantKeywordNameById(),
-    fetchMealAssistantMealPlans(),
-    fetchMealAssistantProduceFoods(safeGetEnv('MEAL_ASSISTANT_PRODUCE_CATEGORY') ?? ''),
+    fetchMealAssistantRecipes().then((recipes) => {
+      report('progress', `Fetched ${recipes.length} recipes from Tandoor.`);
+      return recipes;
+    }),
+    fetchMealAssistantKeywordNameById().then((keywordNameById) => {
+      report('progress', `Fetched ${Object.keys(keywordNameById).length} keywords from Tandoor.`);
+      return keywordNameById;
+    }),
+    fetchMealAssistantMealPlans().then((mealPlans) => {
+      report('progress', `Fetched ${mealPlans.length} meal-plan entries from Tandoor.`);
+      return mealPlans;
+    }),
+    fetchMealAssistantProduceFoods(safeGetEnv('MEAL_ASSISTANT_PRODUCE_CATEGORY') ?? '').then(
+      (produceFoods) => {
+        report('progress', `Fetched ${produceFoods.length} produce foods from Tandoor.`);
+        return produceFoods;
+      },
+    ),
   ]);
 
+  report('progress', 'Reading weather and calendar feature caches.');
   const weatherConfig = loadWeatherConfig();
   const weatherCache = await readWeatherFeatureCache();
   const calendarCache = await readCalendarFeatureCache();
   const requiredHistoricalDates = historicalMealPlanDates(mealPlans);
+  report(
+    'progress',
+    `Reconciling weather and calendar feature caches for ${requiredHistoricalDates.length} historical dates.`,
+  );
   const nextWeatherCache =
     weatherConfig && requiredHistoricalDates.length > 0
       ? await extendWeatherFeatureCache(weatherCache, requiredHistoricalDates, (fromDate, toDate) =>
           fetchWeatherFeatureRange(weatherConfig, fromDate, toDate),
         )
       : weatherCache;
+  report(
+    'progress',
+    `Weather feature cache contains ${Object.keys(nextWeatherCache.dates).length} days.`,
+  );
   const nextCalendarCache =
     requiredHistoricalDates.length > 0
       ? await extendCalendarFeatureCache(
@@ -420,6 +482,10 @@ async function writeMealAssistantPrecalculation(): Promise<void> {
           fetchCalendarFeatureRange,
         )
       : calendarCache;
+  report(
+    'progress',
+    `Calendar feature cache contains ${Object.keys(nextCalendarCache.dates).length} days.`,
+  );
 
   if (nextWeatherCache !== weatherCache) {
     await writeFileAtomically(
@@ -434,6 +500,7 @@ async function writeMealAssistantPrecalculation(): Promise<void> {
     );
   }
 
+  report('progress', 'Building meal assistant precalculation payload.');
   const precalculation = buildMealAssistantPrecalculation({
     recipes,
     keywordNameById,
@@ -444,8 +511,13 @@ async function writeMealAssistantPrecalculation(): Promise<void> {
   });
   const path = loadMealAssistantPrecalculationPath();
   await writeFileAtomically(path, `${JSON.stringify(precalculation)}\n`);
-  const message = `Wrote meal assistant precalculation with ${recipes.length} recipes, ${mealPlans.length} meal-plan entries, ${Object.keys(nextWeatherCache.dates).length} cached weather days, and ${Object.keys(nextCalendarCache.dates).length} cached calendar days to ${path}.`;
+  const message = `Wrote meal assistant precalculation with ${recipes.length} recipes, ${mealPlans.length} meal-plan entries, ${
+    Object.keys(nextWeatherCache.dates).length
+  } cached weather days, and ${
+    Object.keys(nextCalendarCache.dates).length
+  } cached calendar days to ${path}.`;
   console.info(message);
+  report('success', message);
   await writeMealAssistantStatus({ status: 'success', message });
 }
 
@@ -463,7 +535,70 @@ async function shouldRefreshMealAssistantPrecalculation(): Promise<boolean> {
 
 async function refreshMealAssistantPrecalculationIfNeeded(): Promise<void> {
   if (!(await shouldRefreshMealAssistantPrecalculation())) return;
-  await writeMealAssistantPrecalculation();
+  runMealAssistantPrecalculationTask('stale-startup-check');
+}
+
+let mealAssistantPrecalculationPromise: Promise<void> | null = null;
+let mealAssistantPrecalculationRunId: string | null = null;
+
+function createMealAssistantPrecalculationReporter(
+  runId: string,
+): MealAssistantPrecalculationReporter {
+  return (status, message, detail) => {
+    const event: MealAssistantPrecalculationEvent = {
+      type: 'meal-assistant-precalculation',
+      status,
+      runId,
+      message,
+      updatedAt: new Date().toISOString(),
+      ...(detail ? { detail } : {}),
+    };
+    broadcastToAllClients(JSON.stringify(event));
+  };
+}
+
+function runMealAssistantPrecalculationTask(reason: string): boolean {
+  if (mealAssistantPrecalculationPromise) {
+    const runId = mealAssistantPrecalculationRunId ?? 'unknown';
+    createMealAssistantPrecalculationReporter(runId)(
+      'already-running',
+      'Meal assistant precalculation is already running.',
+      `Requested by ${reason}.`,
+    );
+    return false;
+  }
+
+  const runId = crypto.randomUUID();
+  mealAssistantPrecalculationRunId = runId;
+  const report = createMealAssistantPrecalculationReporter(runId);
+  report('started', 'Meal assistant precalculation started.', `Requested by ${reason}.`);
+
+  mealAssistantPrecalculationPromise = writeMealAssistantPrecalculation(report)
+    .then(() => {
+      broadcastToAllClients(
+        JSON.stringify({
+          type: 'invalidate',
+          queryKey: 'meal-assistant-debug',
+        }),
+      );
+      broadcastToAllClients(
+        JSON.stringify({
+          type: 'invalidate',
+          queryKey: 'meal-assistant-status',
+        }),
+      );
+    })
+    .catch((err) => {
+      const message = 'Meal assistant precalculation failed.';
+      report('error', message, errorMessage(err));
+      void reportMealAssistantPrecalculationError(message, err);
+    })
+    .finally(() => {
+      mealAssistantPrecalculationPromise = null;
+      mealAssistantPrecalculationRunId = null;
+    });
+
+  return true;
 }
 
 async function reportMealAssistantPrecalculationError(
@@ -483,13 +618,29 @@ function startMealAssistantPrecalculationTask(): void {
     void reportMealAssistantPrecalculationError('Meal assistant precalculation failed.', err);
   });
   setInterval(() => {
-    writeMealAssistantPrecalculation().catch((err) => {
-      void reportMealAssistantPrecalculationError(
-        'Meal assistant nightly precalculation failed.',
-        err,
-      );
-    });
+    runMealAssistantPrecalculationTask('nightly-schedule');
   }, MEAL_ASSISTANT_PRECALCULATION_INTERVAL_MS);
+}
+
+export async function handleForceMealAssistantPrecalculation(
+  startTask: (reason: string) => boolean | Promise<boolean> = runMealAssistantPrecalculationTask,
+): Promise<Response> {
+  const started = await startTask('manual-debug-button');
+  return new Response(
+    JSON.stringify({
+      status: started ? 'started' : 'already-running',
+      message: started
+        ? 'Meal assistant precalculation started.'
+        : 'Meal assistant precalculation is already running.',
+    }),
+    {
+      status: 202,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-store',
+      },
+    },
+  );
 }
 
 async function handleMealAssistantPrecalculation(): Promise<Response> {
@@ -505,10 +656,15 @@ async function handleMealAssistantPrecalculation(): Promise<Response> {
   } catch (err) {
     if (err instanceof Deno.errors.NotFound) {
       return new Response(
-        JSON.stringify({ error: 'Meal assistant precalculation is not available yet' }),
+        JSON.stringify({
+          error: 'Meal assistant precalculation is not available yet',
+        }),
         {
           status: 404,
-          headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-store',
+          },
         },
       );
     }
@@ -530,7 +686,10 @@ async function handleMealAssistantStatus(): Promise<Response> {
     if (err instanceof Deno.errors.NotFound) {
       return new Response(JSON.stringify({ error: 'Meal assistant status is not available yet' }), {
         status: 404,
-        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store',
+        },
       });
     }
     throw err;
@@ -581,7 +740,9 @@ export function parseICalFeeds(raw: string): ICalFeed[] {
     return parsed.flatMap((f): ICalFeed[] => {
       if (typeof f !== 'object' || f === null) return [];
       const record = f as Record<string, unknown>;
-      if (typeof record.name !== 'string' || typeof record.url !== 'string') return [];
+      if (typeof record.name !== 'string' || typeof record.url !== 'string') {
+        return [];
+      }
 
       // Treat null as absent for all optional fields (HA passes null for unset optional fields)
       const rawType = record.type == null ? undefined : record.type;
@@ -619,8 +780,9 @@ export function parseICalFeeds(raw: string): ICalFeed[] {
       if (
         (username !== undefined && password === undefined) ||
         (username === undefined && password !== undefined)
-      )
+      ) {
         return [];
+      }
 
       const feed: ICalFeed = {
         name: record.name,
@@ -685,7 +847,9 @@ function formatCalDavTimestamp(date: Date): string {
 }
 
 function getBasicAuthHeader(feed: ICalFeed): string | undefined {
-  if (feed.username === undefined || feed.password === undefined) return undefined;
+  if (feed.username === undefined || feed.password === undefined) {
+    return undefined;
+  }
   return `Basic ${btoa(`${feed.username}:${feed.password}`)}`;
 }
 
@@ -1022,8 +1186,9 @@ export function parseOpenMeteoDaily(daily: OpenMeteoDaily): WeatherDayForecast[]
       typeof sunrise !== 'string' ||
       typeof sunset !== 'string' ||
       typeof precipitationSumMm !== 'number'
-    )
+    ) {
       return [];
+    }
 
     return [
       {
@@ -1282,7 +1447,9 @@ export async function handleAddToShoppingList(
   const item = body.item;
   if (typeof item !== 'string' || item.trim().length === 0) {
     return new Response(
-      JSON.stringify({ error: 'item field is required and must be a non-empty string' }),
+      JSON.stringify({
+        error: 'item field is required and must be a non-empty string',
+      }),
       { status: 400, headers: { 'Content-Type': 'application/json' } },
     );
   }
@@ -1389,6 +1556,9 @@ Deno.serve({ port: 8098, hostname: '127.0.0.1' }, async (req: Request): Promise<
   }
   if (url.pathname === '/meal-assistant-status.json' && req.method === 'GET') {
     return handleMealAssistantStatus();
+  }
+  if (url.pathname === '/meal-assistant-precalculation/run' && req.method === 'POST') {
+    return handleForceMealAssistantPrecalculation();
   }
 
   if (req.headers.get('upgrade')?.toLowerCase() !== 'websocket') {
