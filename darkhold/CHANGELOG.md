@@ -1,3 +1,10 @@
+## [1.118.1](https://github.com/Jc2k/darkhold/compare/v1.118.0...v1.118.1) (2026-06-05)
+
+
+### Bug Fixes
+
+* **meal-assistant:** split recipe signal dashboards ([b846ea0](https://github.com/Jc2k/darkhold/commit/b846ea0ceeceb8ee27e6323fd727531e94c8db23))
+
 # [1.118.0](https://github.com/Jc2k/darkhold/compare/v1.117.0...v1.118.0) (2026-06-05)
 
 
