@@ -92,6 +92,7 @@ const precalculation: MealAssistantPrecalculation = {
       monthCounts: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
       seasonCounts: [2, 1, 0, 0],
       totalPlanCount: 3,
+      calendarFeatureCounts: { 'appointment:doctor': 1 },
     },
     '2': {
       dates: [19360, 19367],
@@ -136,6 +137,7 @@ const precalculation: MealAssistantPrecalculation = {
         monthCounts: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         seasonCounts: [1, 1, 0, 0],
         totalPlanCount: 2,
+        calendarFeatureCounts: { 'appointment:doctor': 1 },
       },
       '2': {
         dates: [19360, 19367],
@@ -296,6 +298,8 @@ describe('meal assistant debug stats', () => {
     expect(stats.activeRecipeCount).toBe(2);
     expect(stats.mealTypes.map((mealType) => mealType.label)).toEqual(['Breakfast', 'Dinner']);
     expect(stats.weekendMeals.recipes[0]).toMatchObject({ recipeId: 2, name: 'Roast', count: 2 });
+    expect(stats.calendar[0]).toMatchObject({ label: 'appointment:doctor', total: 1 });
+    expect(stats.calendar[0]?.recipes[0]).toMatchObject({ recipeId: 1, name: 'Pasta', count: 1 });
     expect(stats.weekdays.find((group) => group.label === 'Sunday')?.total).toBe(0);
     expect(
       stats.recipeSignalCategories.find((category) => category.key === 'weekday')?.signals,
