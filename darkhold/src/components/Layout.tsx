@@ -24,6 +24,7 @@ import {
   CupHot,
   Tools,
   List,
+  Bug,
 } from 'react-bootstrap-icons';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import { useInvalidationSocket } from '../hooks/useInvalidationSocket';
@@ -41,6 +42,7 @@ const navItems = [
 const commonMenuItems = [
   { to: '/shopping?add=request', Icon: PencilSquare, label: 'Add Shopping Request' },
   { to: '/settings', Icon: Gear, label: 'Settings' },
+  { to: '/meal-assistant-debug', Icon: Bug, label: 'Meal Assistant Debug' },
   { to: '/utilities/gas-marks', Icon: Fire, label: 'Gas Marks' },
   { to: '/utilities/unit-converter', Icon: Rulers, label: 'Unit Converter' },
   { to: '/utilities/rice-cooking', Icon: CupHot, label: 'Rice Cooking' },

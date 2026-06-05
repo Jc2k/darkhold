@@ -44,6 +44,10 @@ function loadMealAssistantPrecalculationPath(): string {
   );
 }
 
+function loadMealAssistantStatusPath(): string {
+  return safeGetEnv('MEAL_ASSISTANT_STATUS_PATH') ?? DEFAULT_MEAL_ASSISTANT_STATUS_PATH;
+}
+
 function loadWeatherFeatureCachePath(): string {
   return safeGetEnv('WEATHER_FEATURE_CACHE_PATH') ?? DEFAULT_WEATHER_FEATURE_CACHE_PATH;
 }
@@ -314,11 +318,59 @@ async function fetchCalendarFeatureRange(fromDate: string, toDate: string) {
   }));
 }
 
+function errorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  return String(err);
+}
+
+function errorStack(err: unknown): string | undefined {
+  return err instanceof Error && err.stack ? err.stack : undefined;
+}
+
+async function readMealAssistantLastSuccessAt(): Promise<string | undefined> {
+  try {
+    const raw = await Deno.readTextFile(loadMealAssistantStatusPath());
+    const payload = JSON.parse(raw) as unknown;
+    if (typeof payload !== 'object' || payload === null) return undefined;
+    const lastSuccessAt = (payload as { lastSuccessAt?: unknown }).lastSuccessAt;
+    return typeof lastSuccessAt === 'string' ? lastSuccessAt : undefined;
+  } catch (err) {
+    if (err instanceof Deno.errors.NotFound || err instanceof SyntaxError) return undefined;
+    throw err;
+  }
+}
+
+async function writeMealAssistantStatus(
+  status:
+    | { status: 'success'; message: string; detail?: string }
+    | { status: 'skipped'; message: string; detail?: string }
+    | { status: 'error'; message: string; err: unknown; detail?: string },
+): Promise<void> {
+  const updatedAt = new Date().toISOString();
+  const lastSuccessAt =
+    status.status === 'success' ? updatedAt : await readMealAssistantLastSuccessAt();
+  const body = {
+    status: status.status,
+    updatedAt,
+    ...(lastSuccessAt ? { lastSuccessAt } : {}),
+    message: status.message,
+    ...(status.detail ? { detail: status.detail } : {}),
+    ...(status.status === 'error'
+      ? {
+          error: errorMessage(status.err),
+          ...(errorStack(status.err) ? { stack: errorStack(status.err) } : {}),
+        }
+      : {}),
+  };
+  await writeFileAtomically(loadMealAssistantStatusPath(), `${JSON.stringify(body)}\n`);
+}
+
 async function writeMealAssistantPrecalculation(): Promise<void> {
   if (!safeGetEnv('TANDOOR_DEFAULT_TOKEN')) {
-    console.warn(
-      'Skipping meal assistant precalculation: TANDOOR_DEFAULT_TOKEN is not configured.',
-    );
+    const message =
+      'Skipping meal assistant precalculation: TANDOOR_DEFAULT_TOKEN is not configured.';
+    console.warn(message);
+    await writeMealAssistantStatus({ status: 'skipped', message });
     return;
   }
 
@@ -371,9 +423,9 @@ async function writeMealAssistantPrecalculation(): Promise<void> {
   });
   const path = loadMealAssistantPrecalculationPath();
   await writeFileAtomically(path, `${JSON.stringify(precalculation)}\n`);
-  console.info(
-    `Wrote meal assistant precalculation with ${recipes.length} recipes, ${mealPlans.length} meal-plan entries, ${Object.keys(nextWeatherCache.dates).length} cached weather days, and ${Object.keys(nextCalendarCache.dates).length} cached calendar days to ${path}.`,
-  );
+  const message = `Wrote meal assistant precalculation with ${recipes.length} recipes, ${mealPlans.length} meal-plan entries, ${Object.keys(nextWeatherCache.dates).length} cached weather days, and ${Object.keys(nextCalendarCache.dates).length} cached calendar days to ${path}.`;
+  console.info(message);
+  await writeMealAssistantStatus({ status: 'success', message });
 }
 
 async function shouldRefreshMealAssistantPrecalculation(): Promise<boolean> {
@@ -393,13 +445,28 @@ async function refreshMealAssistantPrecalculationIfNeeded(): Promise<void> {
   await writeMealAssistantPrecalculation();
 }
 
+async function reportMealAssistantPrecalculationError(
+  message: string,
+  err: unknown,
+): Promise<void> {
+  console.error(message, err);
+  try {
+    await writeMealAssistantStatus({ status: 'error', message, err });
+  } catch (statusErr) {
+    console.error('Failed to write meal assistant status file:', statusErr);
+  }
+}
+
 function startMealAssistantPrecalculationTask(): void {
   refreshMealAssistantPrecalculationIfNeeded().catch((err) => {
-    console.error('Meal assistant precalculation failed:', err);
+    void reportMealAssistantPrecalculationError('Meal assistant precalculation failed.', err);
   });
   setInterval(() => {
     writeMealAssistantPrecalculation().catch((err) => {
-      console.error('Meal assistant nightly precalculation failed:', err);
+      void reportMealAssistantPrecalculationError(
+        'Meal assistant nightly precalculation failed.',
+        err,
+      );
     });
   }, MEAL_ASSISTANT_PRECALCULATION_INTERVAL_MS);
 }
@@ -423,6 +490,27 @@ async function handleMealAssistantPrecalculation(): Promise<Response> {
           headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
         },
       );
+    }
+    throw err;
+  }
+}
+
+async function handleMealAssistantStatus(): Promise<Response> {
+  try {
+    const body = await Deno.readTextFile(loadMealAssistantStatusPath());
+    return new Response(body, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-store',
+      },
+    });
+  } catch (err) {
+    if (err instanceof Deno.errors.NotFound) {
+      return new Response(JSON.stringify({ error: 'Meal assistant status is not available yet' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+      });
     }
     throw err;
   }
@@ -460,6 +548,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const MEAL_ASSISTANT_PRECALCULATION_INTERVAL_MS = DAY_MS;
 const MEAL_ASSISTANT_PRECALCULATION_STALE_MS = DAY_MS;
 const DEFAULT_MEAL_ASSISTANT_PRECALCULATION_PATH = '/data/meal-assistant-precalculation.json';
+const DEFAULT_MEAL_ASSISTANT_STATUS_PATH = '/data/meal-assistant-status.json';
 const DEFAULT_WEATHER_FEATURE_CACHE_PATH = '/data/weather-feature-cache.json';
 const DEFAULT_CALENDAR_FEATURE_CACHE_PATH = '/data/calendar-feature-cache.json';
 export function parseICalFeeds(raw: string): ICalFeed[] {
@@ -1274,6 +1363,9 @@ Deno.serve({ port: 8098, hostname: '127.0.0.1' }, async (req: Request): Promise<
   }
   if (url.pathname === '/meal-assistant-precalculation.json' && req.method === 'GET') {
     return handleMealAssistantPrecalculation();
+  }
+  if (url.pathname === '/meal-assistant-status.json' && req.method === 'GET') {
+    return handleMealAssistantStatus();
   }
 
   if (req.headers.get('upgrade')?.toLowerCase() !== 'websocket') {

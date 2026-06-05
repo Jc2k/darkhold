@@ -12,6 +12,7 @@ import { ShoppingList } from './pages/ShoppingList';
 import { Settings } from './pages/Settings';
 import { RecipeDetail } from './pages/RecipeDetail';
 import { RecipeStats } from './pages/RecipeStats';
+import { MealAssistantDebug } from './pages/MealAssistantDebug';
 import { MealPlanEntryDetail } from './pages/MealPlanEntryDetail';
 import { IngredientDetail } from './pages/IngredientDetail';
 import { Books } from './pages/Books';
@@ -142,6 +143,14 @@ const router = createBrowserRouter([
         element: (
           <AuthGuard>
             <RecipeStats />
+          </AuthGuard>
+        ),
+      },
+      {
+        path: 'meal-assistant-debug',
+        element: (
+          <AuthGuard>
+            <MealAssistantDebug />
           </AuthGuard>
         ),
       },

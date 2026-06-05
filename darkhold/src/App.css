@@ -896,3 +896,13 @@ body {
     grid-column: 1 / -1;
   }
 }
+
+.meal-assistant-debug-error {
+  background: var(--bs-dark-bg-subtle);
+  border-radius: var(--bs-border-radius);
+  color: var(--bs-danger-text-emphasis);
+  max-height: 16rem;
+  overflow: auto;
+  padding: 0.75rem;
+  white-space: pre-wrap;
+}
