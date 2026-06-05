@@ -1,3 +1,10 @@
+## [1.113.1](https://github.com/Jc2k/darkhold/compare/v1.113.0...v1.113.1) (2026-06-05)
+
+
+### Bug Fixes
+
+* **server:** expose meal assistant status ([377519a](https://github.com/Jc2k/darkhold/commit/377519a8e06cee768bfcc7a2357518e435571267))
+
 # [1.113.0](https://github.com/Jc2k/darkhold/compare/v1.112.0...v1.113.0) (2026-06-05)
 
 
