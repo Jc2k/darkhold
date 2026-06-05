@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { MealPlan, Recipe } from '../api/tandoor-types';
 import {
+  MEAL_ASSISTANT_PRECALCULATION_SCHEMA_VERSION,
   buildMealAssistantPrecalculation,
   getMealAssistantSeason,
   isMealAssistantPrecalculation,
@@ -138,7 +139,7 @@ describe('mealAssistantPrecalculation', () => {
     });
 
     expect(result.generatedAt).toBe('2026-06-03T00:00:00.000Z');
-    expect(result.schemaVersion).toBe(6);
+    expect(result.schemaVersion).toBe(MEAL_ASSISTANT_PRECALCULATION_SCHEMA_VERSION);
     expect(result.recipes['1']).toMatchObject({ id: 1, name: 'Chilli con carne' });
     expect(result.recipes['1']).not.toHaveProperty('food_properties');
     expect(result.recipeHistory['1']).toMatchObject({
@@ -588,6 +589,38 @@ describe('mealAssistantPrecalculation', () => {
     expect(getMealAssistantSeason(new Date('2026-04-01T00:00:00'))).toBe('spring');
     expect(getMealAssistantSeason(new Date('2026-07-01T00:00:00'))).toBe('summer');
     expect(getMealAssistantSeason(new Date('2026-10-01T00:00:00'))).toBe('autumn');
+  });
+
+  it('segments recipe history by meal type', () => {
+    const result = buildMealAssistantPrecalculation({
+      keywordNameById: {},
+      recipes: [recipe(1, 'Porridge'), recipe(2, 'Curry')],
+      mealPlans: [
+        {
+          ...mealPlan(1, 1, '2026-01-05'),
+          meal_type: { id: 1, name: 'Breakfast' },
+        },
+        {
+          ...mealPlan(2, 2, '2026-01-05'),
+          meal_type: { id: 3, name: 'Dinner' },
+        },
+        {
+          ...mealPlan(3, 2, '2026-01-12'),
+          meal_type: { id: 3, name: 'Dinner' },
+        },
+      ],
+    });
+
+    expect(result.mealTypes).toEqual([
+      { id: 1, name: 'Breakfast', planCount: 1 },
+      { id: 3, name: 'Dinner', planCount: 2 },
+    ]);
+    expect(result.recipeHistoryByMealType['1']['1']).toMatchObject({ totalPlanCount: 1 });
+    expect(result.recipeHistoryByMealType['3']['2']).toMatchObject({
+      totalPlanCount: 2,
+      averageDaysBetweenPlans: 7,
+    });
+    expect(result.recipeHistoryByMealType['3']['1']).toBeUndefined();
   });
 
   it('rejects unknown payload shapes', () => {

@@ -19,6 +19,12 @@ export interface MealAssistantDebugGroup {
   recipes: MealAssistantDebugTopRecipe[];
 }
 
+export interface MealAssistantDebugMealTypeOption {
+  id: number;
+  label: string;
+  planCount: number;
+}
+
 export interface MealAssistantDebugStats {
   expectedSchemaVersion: number;
   actualSchemaVersion?: number;
@@ -27,6 +33,8 @@ export interface MealAssistantDebugStats {
   recipeCount: number;
   plannedMealCount: number;
   activeRecipeCount: number;
+  selectedMealTypeId?: number;
+  mealTypes: MealAssistantDebugMealTypeOption[];
   weekdayMeals: MealAssistantDebugGroup;
   weekendMeals: MealAssistantDebugGroup;
   weekdays: MealAssistantDebugGroup[];
@@ -117,8 +125,13 @@ export function getMealAssistantDebugSchemaStatus(
   };
 }
 
+function mealTypeLabel(id: number, name: string | undefined): string {
+  return name?.trim() || `Meal type ${id}`;
+}
+
 export function buildMealAssistantDebugStats(
   precalculation: MealAssistantPrecalculation,
+  selectedMealTypeId?: number,
 ): MealAssistantDebugStats {
   const weekdays = DAY_LABELS.map(createGroup);
   const months = MONTH_LABELS.map(createGroup);
@@ -128,8 +141,12 @@ export function buildMealAssistantDebugStats(
   const weatherGroups = new Map<string, MutableGroup>();
   const calendarGroups = new Map<string, MutableGroup>();
   const clusterGroups = new Map<string, MutableGroup>();
+  const selectedRecipeHistory =
+    selectedMealTypeId == null
+      ? precalculation.recipeHistory
+      : (precalculation.recipeHistoryByMealType[String(selectedMealTypeId)] ?? {});
 
-  for (const [recipeIdKey, history] of Object.entries(precalculation.recipeHistory)) {
+  for (const [recipeIdKey, history] of Object.entries(selectedRecipeHistory)) {
     const recipeId = Number.parseInt(recipeIdKey, 10);
     if (!Number.isFinite(recipeId)) continue;
 
@@ -150,8 +167,12 @@ export function buildMealAssistantDebugStats(
   for (const [weatherKey, recipeIds] of Object.entries(precalculation.relationships.weather)) {
     const group = createGroup(weatherTagLabel(weatherKey));
     for (const recipeId of recipeIds) {
+      const selectedHistory = selectedRecipeHistory[String(recipeId)];
+      if (selectedMealTypeId != null && !selectedHistory) continue;
       const count =
-        precalculation.recipeInsights[String(recipeId)]?.weather[weatherKey]?.count ?? 1;
+        selectedMealTypeId == null
+          ? (precalculation.recipeInsights[String(recipeId)]?.weather[weatherKey]?.count ?? 1)
+          : (selectedHistory?.totalPlanCount ?? 1);
       addToGroup(group, recipeId, count);
     }
     weatherGroups.set(weatherKey, group);
@@ -160,8 +181,12 @@ export function buildMealAssistantDebugStats(
   for (const [calendarKey, recipeIds] of Object.entries(precalculation.relationships.calendar)) {
     const group = createGroup(describeCalendarAppointmentFeature(calendarKey));
     for (const recipeId of recipeIds) {
+      const selectedHistory = selectedRecipeHistory[String(recipeId)];
+      if (selectedMealTypeId != null && !selectedHistory) continue;
       const count =
-        precalculation.recipeInsights[String(recipeId)]?.calendar[calendarKey]?.count ?? 1;
+        selectedMealTypeId == null
+          ? (precalculation.recipeInsights[String(recipeId)]?.calendar[calendarKey]?.count ?? 1)
+          : (selectedHistory?.totalPlanCount ?? 1);
       addToGroup(group, recipeId, count);
     }
     calendarGroups.set(calendarKey, group);
@@ -170,19 +195,25 @@ export function buildMealAssistantDebugStats(
   for (const cluster of Object.values(precalculation.recipeClusters)) {
     const group = createGroup(cluster.label);
     for (const recipeId of cluster.recipeIds) {
-      const count = precalculation.recipeHistory[String(recipeId)]?.totalPlanCount ?? 0;
+      const count = selectedRecipeHistory[String(recipeId)]?.totalPlanCount ?? 0;
+      if (selectedMealTypeId != null && count === 0) continue;
       addToGroup(group, recipeId, count > 0 ? count : 1);
     }
     clusterGroups.set(cluster.id, group);
   }
 
-  const plannedMealCount = Object.values(precalculation.recipeHistory).reduce(
+  const plannedMealCount = Object.values(selectedRecipeHistory).reduce(
     (total, history) => total + history.totalPlanCount,
     0,
   );
-  const activeRecipeCount = Object.values(precalculation.recipeHistory).filter(
+  const activeRecipeCount = Object.values(selectedRecipeHistory).filter(
     (history) => history.totalPlanCount > 0,
   ).length;
+  const mealTypes = precalculation.mealTypes.map((mealType) => ({
+    id: mealType.id,
+    label: mealTypeLabel(mealType.id, mealType.name),
+    planCount: mealType.planCount,
+  }));
 
   return {
     ...getMealAssistantDebugSchemaStatus(precalculation),
@@ -190,6 +221,8 @@ export function buildMealAssistantDebugStats(
     recipeCount: Object.keys(precalculation.recipes).length,
     plannedMealCount,
     activeRecipeCount,
+    ...(selectedMealTypeId == null ? {} : { selectedMealTypeId }),
+    mealTypes,
     weekdayMeals: finalizeGroup(weekdayMeals, precalculation),
     weekendMeals: finalizeGroup(weekendMeals, precalculation),
     weekdays: weekdays.map((group) => finalizeGroup(group, precalculation)),

@@ -93,6 +93,34 @@ const precalculation: MealAssistantPrecalculation = {
       totalPlanCount: 0,
     },
   },
+  mealTypes: [
+    { id: 1, name: 'Breakfast', planCount: 1 },
+    { id: 3, name: 'Dinner', planCount: 4 },
+  ],
+  recipeHistoryByMealType: {
+    '1': {
+      '3': {
+        dates: [19359],
+        dayCounts: [1, 0, 0, 0, 0, 0, 0],
+        seasonCounts: [1, 0, 0, 0],
+        totalPlanCount: 1,
+      },
+    },
+    '3': {
+      '1': {
+        dates: [19366, 19390],
+        dayCounts: [0, 0, 0, 0, 0, 2, 0],
+        seasonCounts: [1, 1, 0, 0],
+        totalPlanCount: 2,
+      },
+      '2': {
+        dates: [19360, 19367],
+        dayCounts: [0, 0, 0, 0, 0, 0, 2],
+        seasonCounts: [2, 0, 0, 0],
+        totalPlanCount: 2,
+      },
+    },
+  },
   recipeInsights: {
     '1': {
       totalCookCount: 3,
@@ -155,5 +183,16 @@ describe('meal assistant debug stats', () => {
     ]);
     expect(stats.calendar[0]).toMatchObject({ label: 'appointment:doctor', total: 1 });
     expect(stats.clusters[0]).toMatchObject({ label: 'comfort food', total: 5 });
+  });
+
+  it('segments common recipe history by selected meal type', () => {
+    const stats = buildMealAssistantDebugStats(precalculation, 3);
+
+    expect(stats.selectedMealTypeId).toBe(3);
+    expect(stats.plannedMealCount).toBe(4);
+    expect(stats.activeRecipeCount).toBe(2);
+    expect(stats.mealTypes.map((mealType) => mealType.label)).toEqual(['Breakfast', 'Dinner']);
+    expect(stats.weekendMeals.recipes[0]).toMatchObject({ recipeId: 2, name: 'Roast', count: 2 });
+    expect(stats.weekdays.find((group) => group.label === 'Sunday')?.total).toBe(0);
   });
 });
