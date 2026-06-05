@@ -1,3 +1,10 @@
+# [1.114.0](https://github.com/Jc2k/darkhold/compare/v1.113.2...v1.114.0) (2026-06-05)
+
+
+### Features
+
+* **meal-assistant:** add manual precalculation trigger ([b231d82](https://github.com/Jc2k/darkhold/commit/b231d82022411ae21631c100506c06bdc1cd22fc))
+
 ## [1.113.2](https://github.com/Jc2k/darkhold/compare/v1.113.1...v1.113.2) (2026-06-05)
 
 
