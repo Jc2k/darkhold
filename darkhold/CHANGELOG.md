@@ -1,3 +1,10 @@
+# [1.113.0](https://github.com/Jc2k/darkhold/compare/v1.112.0...v1.113.0) (2026-06-05)
+
+
+### Features
+
+* **debug:** add meal assistant internals dashboard ([ea12c1a](https://github.com/Jc2k/darkhold/commit/ea12c1add941bc907b01405697aa9105da5ebc57))
+
 # [1.112.0](https://github.com/Jc2k/darkhold/compare/v1.111.1...v1.112.0) (2026-06-05)
 
 
