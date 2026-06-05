@@ -32,6 +32,7 @@ import {
 import {
   buildMealAssistantDebugStats,
   type MealAssistantDebugGroup,
+  type MealAssistantDebugSignificantSignalCategory,
   type MealAssistantDebugTopRecipe,
   type MealAssistantDebugWeekdayRecipeSignal,
 } from '../utils/mealAssistantDebugStats';
@@ -207,6 +208,81 @@ function GroupGrid({
       {visibleGroups.map((group) => (
         <Col lg={4} md={6} key={group.label}>
           <GroupCard group={group} />
+        </Col>
+      ))}
+    </Row>
+  );
+}
+
+function SignificantSignalCategoryCard({
+  category,
+}: {
+  category: MealAssistantDebugSignificantSignalCategory;
+}) {
+  if (category.signals.length === 0) {
+    return (
+      <Card className="h-100">
+        <Card.Body>
+          <h4 className="h6 text-uppercase text-muted">{category.label}</h4>
+          <p className="text-muted mb-0">No statistically significant signals were stored.</p>
+        </Card.Body>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="h-100">
+      <Card.Body>
+        <h4 className="h6 text-uppercase text-muted">{category.label}</h4>
+        <Table responsive size="sm" className="mb-0 align-middle">
+          <thead>
+            <tr>
+              <th>Signal</th>
+              <th className="text-end">Recipes</th>
+              <th className="text-end">Plans</th>
+              <th>Strongest recipe</th>
+            </tr>
+          </thead>
+          <tbody>
+            {category.signals.map((signal) => (
+              <tr key={signal.label}>
+                <td>{signal.label}</td>
+                <td className="text-end text-nowrap">{signal.recipeCount.toLocaleString()}</td>
+                <td className="text-end text-nowrap">{signal.total.toLocaleString()}</td>
+                <td>
+                  {signal.topRecipe ? (
+                    <>
+                      <Link to={`/recipe/${signal.topRecipe.recipeId}`}>
+                        {signal.topRecipe.name}
+                      </Link>
+                      <div className="text-muted small">
+                        {formatPercent(signal.topRecipe.share)} of{' '}
+                        {pluralize(signal.topRecipe.total, 'plan')} · score {signal.topRecipe.score}
+                      </div>
+                    </>
+                  ) : (
+                    <span className="text-muted">n/a</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      </Card.Body>
+    </Card>
+  );
+}
+
+function SignificantSignalGrid({
+  categories,
+}: {
+  categories: MealAssistantDebugSignificantSignalCategory[];
+}) {
+  return (
+    <Row className="g-3">
+      {categories.map((category) => (
+        <Col lg={6} key={category.label}>
+          <SignificantSignalCategoryCard category={category} />
         </Col>
       ))}
     </Row>
@@ -459,6 +535,22 @@ export function MealAssistantDebug() {
               />
             </Col>
           </Row>
+
+          <section className="recipe-stats-section">
+            <h3 className="h4 d-flex align-items-center gap-2 mb-3">
+              <span className="recipe-stats-section-icon">
+                <Diagram3 />
+              </span>
+              Significant precalculated signals
+            </h3>
+            <p className="text-muted">
+              These are the statistically filtered recipe trends now saved in the nightly assistant
+              precalculation. Counts show how many recipes kept each signal after significance
+              checks, the supporting meal-plan rows behind those signals, and the strongest recipe
+              by assistant score.
+            </p>
+            <SignificantSignalGrid categories={stats.significantSignalCategories} />
+          </section>
 
           <section className="recipe-stats-section">
             <h3 className="h4 d-flex align-items-center gap-2 mb-3">
