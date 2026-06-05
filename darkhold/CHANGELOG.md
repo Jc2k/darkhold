@@ -1,3 +1,10 @@
+## [1.118.3](https://github.com/Jc2k/darkhold/compare/v1.118.2...v1.118.3) (2026-06-05)
+
+
+### Bug Fixes
+
+* **debug:** count calendar signals from matching plans ([677e1ca](https://github.com/Jc2k/darkhold/commit/677e1caeedf1550d06f27719a4dc05512ef2517c))
+
 ## [1.118.2](https://github.com/Jc2k/darkhold/compare/v1.118.1...v1.118.2) (2026-06-05)
 
 
