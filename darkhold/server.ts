@@ -168,6 +168,27 @@ async function fetchMealAssistantKeywordNameById(): Promise<Record<number, strin
   }, {});
 }
 
+export function getMealAssistantMealPlanQueryParams(today = new Date()): {
+  from_date: string;
+  to_date: string;
+} {
+  const maxMealPlanDate = new Date(
+    Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()),
+  );
+  maxMealPlanDate.setUTCDate(
+    maxMealPlanDate.getUTCDate() + MEAL_ASSISTANT_MEAL_PLAN_FUTURE_HORIZON_DAYS,
+  );
+
+  return {
+    from_date: MEAL_ASSISTANT_MEAL_PLAN_HISTORY_FROM_DATE,
+    to_date: formatUtcDate(maxMealPlanDate),
+  };
+}
+
+async function fetchMealAssistantMealPlans(): Promise<MealPlan[]> {
+  return fetchAllTandoorPages<MealPlan>('/meal-plan/', getMealAssistantMealPlanQueryParams());
+}
+
 function historicalMealPlanDates(mealPlans: MealPlan[], today = new Date()): string[] {
   const todayStr = formatUtcDate(
     new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate())),
@@ -377,7 +398,7 @@ async function writeMealAssistantPrecalculation(): Promise<void> {
   const [recipes, keywordNameById, mealPlans, produceFoods] = await Promise.all([
     fetchMealAssistantRecipes(),
     fetchMealAssistantKeywordNameById(),
-    fetchAllTandoorPages<MealPlan>('/meal-plan/'),
+    fetchMealAssistantMealPlans(),
     fetchMealAssistantProduceFoods(safeGetEnv('MEAL_ASSISTANT_PRODUCE_CATEGORY') ?? ''),
   ]);
 
@@ -547,6 +568,8 @@ const CALDAV_NAMESPACE_PREFIX = 'c';
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MEAL_ASSISTANT_PRECALCULATION_INTERVAL_MS = DAY_MS;
 const MEAL_ASSISTANT_PRECALCULATION_STALE_MS = DAY_MS;
+const MEAL_ASSISTANT_MEAL_PLAN_HISTORY_FROM_DATE = '1970-01-01';
+const MEAL_ASSISTANT_MEAL_PLAN_FUTURE_HORIZON_DAYS = 360;
 const DEFAULT_MEAL_ASSISTANT_PRECALCULATION_PATH = '/data/meal-assistant-precalculation.json';
 const DEFAULT_MEAL_ASSISTANT_STATUS_PATH = '/data/meal-assistant-status.json';
 const DEFAULT_WEATHER_FEATURE_CACHE_PATH = '/data/weather-feature-cache.json';

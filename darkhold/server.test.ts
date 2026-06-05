@@ -9,6 +9,7 @@ import {
   broadcastToAllClients,
   clampWeatherForecastRange,
   fetchFeedEvents,
+  getMealAssistantMealPlanQueryParams,
   handleAddToShoppingList,
   parseOpenMeteoDaily,
   parseIcal,
@@ -148,6 +149,17 @@ Deno.test('version message is valid JSON with type and version fields', () => {
 
   if (parsed.type !== 'version') throw new Error('type should be version');
   if (parsed.version !== version) throw new Error('version mismatch');
+});
+
+Deno.test('meal assistant meal-plan query extends beyond Tandoor default history cap', () => {
+  const params = getMealAssistantMealPlanQueryParams(new Date('2026-06-05T12:34:56Z'));
+
+  if (params.from_date !== '1970-01-01') {
+    throw new Error(`expected history from 1970-01-01, got ${params.from_date}`);
+  }
+  if (params.to_date !== '2027-05-31') {
+    throw new Error(`expected future horizon through 2027-05-31, got ${params.to_date}`);
+  }
 });
 
 // ---------------------------------------------------------------------------
