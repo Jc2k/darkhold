@@ -1,3 +1,10 @@
+## [1.118.2](https://github.com/Jc2k/darkhold/compare/v1.118.1...v1.118.2) (2026-06-05)
+
+
+### Bug Fixes
+
+* **calendar:** ignore appointment descriptions in meal signals ([760d4e7](https://github.com/Jc2k/darkhold/commit/760d4e7e7341bba3e4c01545f6ca632cc6bb03fb))
+
 ## [1.118.1](https://github.com/Jc2k/darkhold/compare/v1.118.0...v1.118.1) (2026-06-05)
 
 
