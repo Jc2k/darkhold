@@ -1,3 +1,10 @@
+## [1.119.1](https://github.com/Jc2k/darkhold/compare/v1.119.0...v1.119.1) (2026-06-06)
+
+
+### Bug Fixes
+
+* **meal-assistant:** split weather planning signals ([1aa69a1](https://github.com/Jc2k/darkhold/commit/1aa69a125e9c4ff51a7693539e892c758ceb42ef))
+
 # [1.119.0](https://github.com/Jc2k/darkhold/compare/v1.118.3...v1.119.0) (2026-06-06)
 
 
