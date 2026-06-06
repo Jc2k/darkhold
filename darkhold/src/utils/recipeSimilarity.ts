@@ -1,5 +1,3 @@
-import { describeCalendarAppointmentFeature } from './calendarFeatures.ts';
-
 export interface RecipeSimilarityInput {
   id: number;
   name: string;
@@ -41,7 +39,7 @@ export interface RecipeSimilarityIndex {
 interface RecipeToken {
   key: string;
   label: string;
-  source: 'keyword' | 'ingredient' | 'food-id' | 'category' | 'weather' | 'calendar' | 'name';
+  source: 'keyword' | 'ingredient' | 'food-id' | 'category' | 'name';
 }
 
 interface ClusterLabelTerm {
@@ -72,6 +70,12 @@ function nameTerms(name: string): string[] {
   );
 }
 
+/**
+ * Build recipe-intrinsic tokens for swap/variety affinity. Day-context
+ * signals such as weather and calendar history intentionally stay out of
+ * this index; they are planning boosts, not evidence that two recipes are
+ * compatible substitutions.
+ */
 function buildRecipeTokens(recipe: RecipeSimilarityInput): Map<string, RecipeToken> {
   const tokens = new Map<string, RecipeToken>();
   for (const keyword of uniqueSortedStrings(recipe.keywords)) {
@@ -102,20 +106,6 @@ function buildRecipeTokens(recipe: RecipeSimilarityInput): Map<string, RecipeTok
       source: 'category',
     });
   }
-  for (const weatherTag of uniqueSortedStrings(recipe.weatherTags ?? [])) {
-    tokens.set(`weather:${weatherTag}`, {
-      key: `weather:${weatherTag}`,
-      label: weatherTag,
-      source: 'weather',
-    });
-  }
-  for (const calendarFeature of uniqueSortedStrings(recipe.calendarFeatures ?? [])) {
-    tokens.set(`calendar:${calendarFeature}`, {
-      key: `calendar:${calendarFeature}`,
-      label: describeCalendarAppointmentFeature(calendarFeature),
-      source: 'calendar',
-    });
-  }
   for (const term of nameTerms(recipe.name)) {
     tokens.set(`name:${term}`, { key: `name:${term}`, label: term, source: 'name' });
   }
@@ -140,14 +130,10 @@ function tokenSourcePriority(source: RecipeToken['source']): number {
       return 1;
     case 'category':
       return 2;
-    case 'weather':
-      return 3;
-    case 'calendar':
-      return 4;
     case 'name':
-      return 5;
+      return 3;
     case 'food-id':
-      return 6;
+      return 4;
   }
 }
 
@@ -184,15 +170,6 @@ function clusterLabelTerms(recipes: RecipeSimilarityInput[]): string[] {
     }
     for (const category of uniqueSortedStrings(recipe.categories ?? [])) {
       recipePriorities.set(category, Math.min(recipePriorities.get(category) ?? 2, 2));
-    }
-    for (const weatherTag of uniqueSortedStrings(recipe.weatherTags ?? [])) {
-      recipePriorities.set(weatherTag, Math.min(recipePriorities.get(weatherTag) ?? 3, 3));
-    }
-    for (const calendarFeature of uniqueSortedStrings(recipe.calendarFeatures ?? [])) {
-      recipePriorities.set(
-        describeCalendarAppointmentFeature(calendarFeature),
-        Math.min(recipePriorities.get(describeCalendarAppointmentFeature(calendarFeature)) ?? 4, 4),
-      );
     }
     for (const [label, priority] of recipePriorities.entries()) {
       addLabel(label, priority);
@@ -292,6 +269,7 @@ export function buildRecipeSimilarityIndex(
     const clusterRecipes = component
       .map((recipeId) => recipesById.get(recipeId))
       .filter((value): value is RecipeSimilarityInput => value != null);
+    if (component.length < 2) continue;
     const labelTerms = clusterLabelTerms(clusterRecipes);
     const clusterId = `cluster-${component[0]}`;
     const primaryRecipeName = recipesById.get(component[0])?.name;

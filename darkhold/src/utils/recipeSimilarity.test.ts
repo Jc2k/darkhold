@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { buildRecipeSimilarityIndex } from './recipeSimilarity';
 
 describe('recipeSimilarity', () => {
-  it('builds deterministic similarities and connected-component clusters with labels', () => {
+  it('builds deterministic similarities and multi-recipe affinity clusters', () => {
     const recipes = [
       {
         id: 1,
@@ -57,12 +57,34 @@ describe('recipeSimilarity', () => {
       recipeIds: [1, 2, 3],
       size: 3,
     });
-    expect(first.recipeClusters['cluster-4']).toEqual({
-      id: 'cluster-4',
-      label: 'rice · chicken',
-      labelTerms: ['rice', 'chicken'],
-      recipeIds: [4],
-      size: 1,
-    });
+    expect(first.recipeClusters['cluster-4']).toBeUndefined();
+    expect(first.recipeClusterMemberships['4']).toBeUndefined();
+  });
+
+  it('keeps day-context signals out of affinity clusters', () => {
+    const recipes = [
+      {
+        id: 1,
+        name: 'Garden Salad',
+        keywords: ['Salad'],
+        ingredientFoodIds: [1],
+        ingredientFoodNames: ['Lettuce'],
+        weatherTags: ['hot-day'],
+      },
+      {
+        id: 2,
+        name: 'Ice Cream',
+        keywords: ['Dessert'],
+        ingredientFoodIds: [2],
+        ingredientFoodNames: ['Cream'],
+        weatherTags: ['hot-day'],
+      },
+    ];
+
+    const index = buildRecipeSimilarityIndex(recipes);
+
+    expect(index.recipeSimilarities['1']).toEqual([]);
+    expect(index.recipeClusters).toEqual({});
+    expect(index.recipeClusterMemberships).toEqual({});
   });
 });

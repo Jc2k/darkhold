@@ -951,7 +951,7 @@ describe('mealPlanningAssistant', () => {
     expect(penaltyComponent?.score).toBeLessThanOrEqual(-20);
   });
 
-  it('penalises recipes that repeat the same similarity cluster within the week', () => {
+  it('penalises recipes that repeat the same affinity cluster within the week', () => {
     const earlierPasta = makeRecipe(1, 'Creamy Tomato Pasta', [], {
       steps: [
         {
