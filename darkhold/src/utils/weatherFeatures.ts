@@ -12,6 +12,7 @@ export type WeatherTemperatureBand = 'cold' | 'cool' | 'mild' | 'warm' | 'hot';
 export type WeatherPrecipitationBand = 'dry' | 'showery' | 'wet';
 export type WeatherDaylightBand = 'short' | 'medium' | 'long';
 export type WeatherOutdoorSuitability = 'poor' | 'fair' | 'good';
+export type WeatherPlanningSignalCategory = 'temperature' | 'rainfall' | 'daylight';
 
 export interface WeatherFeatures {
   temperatureBand: WeatherTemperatureBand;
@@ -118,6 +119,15 @@ export function deriveWeatherFeatures(day: WeatherFeatureDay): WeatherFeatures {
       `outdoor-${outdoorSuitability}`,
     ],
   };
+}
+
+export function weatherPlanningSignalCategoryForTag(
+  tag: string,
+): WeatherPlanningSignalCategory | undefined {
+  if (tag.endsWith('-daylight')) return 'daylight';
+  if (tag === 'dry-day' || tag === 'showery-day' || tag === 'wet-day') return 'rainfall';
+  if (tag.endsWith('-day')) return 'temperature';
+  return undefined;
 }
 
 export function weatherTagLabel(tag: string): string {

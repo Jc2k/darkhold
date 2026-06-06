@@ -288,6 +288,33 @@ describe('meal assistant debug stats', () => {
     ).toMatchObject({
       signals: [{ label: 'Winter', recipeCount: 2, total: 4, topRecipe: { recipeId: 2 } }],
     });
+    expect(stats.significantSignalCategories.map((category) => category.label)).toEqual([
+      'Weekday',
+      'Month',
+      'Season',
+      'Rainfall',
+      'Temperature',
+      'Daylight hours',
+      'Calendar',
+    ]);
+    expect(
+      stats.significantSignalCategories.find((category) => category.label === 'Rainfall'),
+    ).toMatchObject({
+      signals: [{ label: 'dry day', recipeCount: 1, total: 7, topRecipe: { recipeId: 4 } }],
+    });
+    expect(
+      stats.significantSignalCategories.find((category) => category.label === 'Temperature'),
+    ).toMatchObject({
+      signals: [{ label: 'hot day', recipeCount: 1, total: 7, topRecipe: { recipeId: 4 } }],
+    });
+    expect(
+      stats.significantSignalCategories.find((category) => category.label === 'Daylight hours'),
+    ).toMatchObject({
+      signals: [{ label: 'long daylight', recipeCount: 1, total: 7, topRecipe: { recipeId: 4 } }],
+    });
+    expect(stats.significantSignalCategories.find((category) => category.label === 'Weather')).toBe(
+      undefined,
+    );
   });
 
   it('segments common recipe history by selected meal type', () => {
