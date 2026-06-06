@@ -18,7 +18,10 @@ import { buildCalendarFeatureDay } from './calendarFeatures';
 import { deriveWeatherFeatures } from './weatherFeatures';
 import { RECENTLY_ADDED_DAYS } from './recentRecipes';
 import { getWeekdayRecipeSignal, type WeekdayRecipeSignal } from './weekdayRecipeSignals';
-import { getMatchingRecipePlanningSignals } from './planningSignals';
+import {
+  getMatchingRecipePlanningSignals,
+  type MealAssistantWeatherPlanningSignalCategory,
+} from './planningSignals';
 
 export const UNSUITABLE_DINNER_TAG_FRAGMENTS = [
   'drink',
@@ -62,6 +65,17 @@ const SIMILAR_ALTERNATIVE_BONUS_SCALE = 20;
 const BEAM_WIDTH = 5;
 
 const GENERAL_DINNER_ROLE_LABEL = 'General dinner';
+
+const WEATHER_PLANNING_SIGNAL_LABELS: Record<MealAssistantWeatherPlanningSignalCategory, string> = {
+  temperature: 'Temperature fit',
+  rainfall: 'Rainfall fit',
+  daylight: 'Day length fit',
+};
+const WEATHER_PLANNING_SIGNAL_CATEGORIES: MealAssistantWeatherPlanningSignalCategory[] = [
+  'temperature',
+  'rainfall',
+  'daylight',
+];
 
 export type MealAssistantRole =
   | 'special-day'
@@ -1113,18 +1127,20 @@ function scoreRecipe(
     });
   }
 
-  const weatherPlanningSignals = planningSignals
-    .filter((signal) => signal.category === 'weather')
-    .slice(0, 2);
-  if (weatherPlanningSignals.length > 0) {
+  for (const category of WEATHER_PLANNING_SIGNAL_CATEGORIES) {
+    const categoryPlanningSignals = planningSignals
+      .filter((signal) => signal.category === category)
+      .slice(0, 2);
+    if (categoryPlanningSignals.length === 0) continue;
+
     components.push({
-      key: 'weather-history',
-      label: 'Weather fit',
+      key: `${category}-history`,
+      label: WEATHER_PLANNING_SIGNAL_LABELS[category],
       score: Math.min(
-        14,
-        weatherPlanningSignals.reduce((total, signal) => total + signal.score, 0),
+        8,
+        categoryPlanningSignals.reduce((total, signal) => total + signal.score, 0),
       ),
-      detail: `Planning signal boost for ${weatherPlanningSignals
+      detail: `Planning signal boost for ${categoryPlanningSignals
         .map((signal) => `${signal.label} (${signal.count}/${signal.total})`)
         .join(' and ')}.`,
     });

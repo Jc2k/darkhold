@@ -6,7 +6,13 @@ import type {
 } from './mealAssistantPrecalculation';
 import { weatherTagLabel } from './weatherFeatures';
 
-export type MealAssistantPlanningSignalCategory = 'month' | 'season' | 'weather' | 'calendar';
+export type MealAssistantWeatherPlanningSignalCategory = 'temperature' | 'rainfall' | 'daylight';
+
+export type MealAssistantPlanningSignalCategory =
+  | 'month'
+  | 'season'
+  | MealAssistantWeatherPlanningSignalCategory
+  | 'calendar';
 
 export interface MealAssistantPlanningSignal {
   key: string;
@@ -36,8 +42,10 @@ const MONTH_LABELS = [
 const CATEGORY_ORDER: Record<MealAssistantPlanningSignalCategory, number> = {
   month: 0,
   season: 1,
-  weather: 2,
-  calendar: 3,
+  temperature: 2,
+  rainfall: 3,
+  daylight: 4,
+  calendar: 5,
 };
 
 function isTrend(value: unknown): value is MealAssistantTrend {
@@ -58,6 +66,15 @@ function seasonLabel(value: string): string {
 function monthLabel(value: string): string {
   const month = Number.parseInt(value, 10);
   return MONTH_LABELS[month - 1] ?? value;
+}
+
+function weatherPlanningSignalCategoryForTag(
+  tag: string,
+): MealAssistantWeatherPlanningSignalCategory | undefined {
+  if (tag.endsWith('-daylight')) return 'daylight';
+  if (tag === 'dry-day' || tag === 'showery-day' || tag === 'wet-day') return 'rainfall';
+  if (tag.endsWith('-day')) return 'temperature';
+  return undefined;
 }
 
 function signalFromTrend(
@@ -102,9 +119,12 @@ export function getRecipePlanningSignals(
     ...Object.entries(insight.seasons).flatMap(([key, trend]) =>
       isTrend(trend) ? [signalFromTrend('season', key, seasonLabel(key), trend)] : [],
     ),
-    ...Object.entries(insight.weather).flatMap(([key, trend]) =>
-      isTrend(trend) ? [signalFromTrend('weather', key, weatherTagLabel(key), trend)] : [],
-    ),
+    ...Object.entries(insight.weather).flatMap(([key, trend]) => {
+      const category = weatherPlanningSignalCategoryForTag(key);
+      return category && isTrend(trend)
+        ? [signalFromTrend(category, key, weatherTagLabel(key), trend)]
+        : [];
+    }),
     ...Object.entries(insight.calendar).flatMap(([key, trend]) =>
       isTrend(trend)
         ? [signalFromTrend('calendar', key, describeCalendarAppointmentFeature(key), trend)]
@@ -140,7 +160,10 @@ export function getMatchingRecipePlanningSignals({
   }
   for (const tag of weatherTags) {
     const trend = insight.weather[tag];
-    if (isTrend(trend)) signals.push(signalFromTrend('weather', tag, weatherTagLabel(tag), trend));
+    const category = weatherPlanningSignalCategoryForTag(tag);
+    if (category && isTrend(trend)) {
+      signals.push(signalFromTrend(category, tag, weatherTagLabel(tag), trend));
+    }
   }
   for (const feature of calendarFeatures) {
     const trend = insight.calendar[feature];
