@@ -180,8 +180,17 @@ export function RecipeStats() {
     );
   }
 
-  const { recipe, features, history, insights, cluster, clusterDetail, similarities, recipesById } =
-    data;
+  const {
+    recipe,
+    features,
+    history,
+    insights,
+    planningSignals,
+    cluster,
+    clusterDetail,
+    similarities,
+    recipesById,
+  } = data;
   const total = history.totalPlanCount;
   const dayData = history.dayCounts.map((value, index) => ({ label: DAY_LABELS[index], value }));
   const seasonData = history.seasonCounts.map((value, index) => ({
@@ -239,14 +248,14 @@ export function RecipeStats() {
         </Col>
         <Col md={3} sm={6}>
           <StatCard
-            label="cluster"
+            label="affinity"
             value={cluster?.label ?? 'solo'}
-            detail={cluster ? `${cluster.size} recipes` : 'no similarity cluster'}
+            detail={cluster ? `${cluster.size} compatible recipes` : 'no affinity cluster'}
           />
         </Col>
       </Row>
 
-      <Section icon={<Diagram3 />} title="Clusters">
+      <Section icon={<Diagram3 />} title="Affinity">
         <Row className="g-3">
           <Col lg={5}>
             <Card className="h-100">
@@ -256,7 +265,7 @@ export function RecipeStats() {
                   <>
                     <div className="h3 mb-2">{cluster.label}</div>
                     <p className="text-muted mb-2">
-                      Cluster {cluster.clusterId} contains{' '}
+                      Affinity cluster {cluster.clusterId} contains{' '}
                       {pluralize(clusterDetail?.size ?? cluster.size, 'recipe')}.
                     </p>
                     <div className="d-flex flex-wrap gap-2">
@@ -269,7 +278,7 @@ export function RecipeStats() {
                   </>
                 ) : (
                   <p className="text-muted mb-0">
-                    This recipe does not currently belong to a similarity cluster.
+                    This recipe does not currently belong to a multi-recipe affinity cluster.
                   </p>
                 )}
               </Card.Body>
@@ -306,7 +315,7 @@ export function RecipeStats() {
                   </div>
                 ) : (
                   <p className="text-muted mb-0">
-                    No similar recipes crossed the assistant threshold.
+                    No compatible recipe swaps crossed the assistant threshold.
                   </p>
                 )}
               </Card.Body>
@@ -380,6 +389,26 @@ export function RecipeStats() {
                   : pluralize(Math.round(history.medianDaysBetweenPlans), 'day')}
               </strong>
             </span>
+          </Card.Body>
+        </Card>
+      </Section>
+
+      <Section icon={<Stars />} title="Planning signals">
+        <Card>
+          <Card.Body>
+            {planningSignals.length > 0 ? (
+              <div className="d-flex flex-wrap gap-2">
+                {planningSignals.map((signal) => (
+                  <Badge bg="primary" key={signal.key} className="text-wrap text-start">
+                    {signal.label} · score {signal.score} · {signal.count}/{signal.total}
+                  </Badge>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted mb-0">
+                No month, season, weather, or calendar planning signal has enough support yet.
+              </p>
+            )}
           </Card.Body>
         </Card>
       </Section>

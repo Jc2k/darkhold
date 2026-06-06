@@ -61,7 +61,7 @@ describe('MealPlanAssistantModal', () => {
                     key: 'week-balance-avoidance',
                     label: 'Week balance',
                     score: 0,
-                    detail: 'Avoids repeating recipe clusters already planned this week.',
+                    detail: 'Avoids repeating affinity clusters already planned this week.',
                   },
                 ],
                 warnings: [
@@ -84,7 +84,8 @@ describe('MealPlanAssistantModal', () => {
                       key: 'same-cluster-repeat',
                       label: 'Cluster repetition',
                       score: -12,
-                      detail: 'Would be the second recipe this week from the noodles cluster.',
+                      detail:
+                        'Would be the second recipe this week from the noodles affinity cluster.',
                     },
                   ],
                   warnings: ['This is a placeholder recipe entry rather than a cookable recipe.'],
@@ -117,7 +118,7 @@ describe('MealPlanAssistantModal', () => {
     expect(document.body.textContent).toContain('Would be the second aubergine dish this week.');
     expect(document.body.textContent).toContain('Neutral and balance factors');
     expect(document.body.textContent).toContain(
-      'Avoids repeating recipe clusters already planned this week.',
+      'Avoids repeating affinity clusters already planned this week.',
     );
     expect(document.body.textContent).toContain(
       'No busy-day recipes matched, so this slot fell back to the broader dinner pool.',
@@ -125,7 +126,7 @@ describe('MealPlanAssistantModal', () => {
     expect(document.body.textContent).toContain('Best alternatives');
     expect(document.body.textContent).toContain('Takeaway');
     expect(document.body.textContent).toContain(
-      'Why not: Would be the second recipe this week from the noodles cluster.',
+      'Why not: Would be the second recipe this week from the noodles affinity cluster.',
     );
     expect(document.body.textContent).toContain('Hard filters');
     expect(document.body.textContent).toContain('One Star Soup · Low rating');

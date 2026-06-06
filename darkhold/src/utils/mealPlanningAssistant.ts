@@ -12,11 +12,13 @@ import type {
   MealAssistantRecipeHistory,
   MealAssistantRecipeInsight,
   MealAssistantRecipeSummary,
+  MealAssistantSeason,
 } from './mealAssistantPrecalculation';
-import { buildCalendarFeatureDay, describeCalendarAppointmentFeature } from './calendarFeatures';
-import { deriveWeatherFeatures, weatherTagLabel } from './weatherFeatures';
+import { buildCalendarFeatureDay } from './calendarFeatures';
+import { deriveWeatherFeatures } from './weatherFeatures';
 import { RECENTLY_ADDED_DAYS } from './recentRecipes';
 import { getWeekdayRecipeSignal, type WeekdayRecipeSignal } from './weekdayRecipeSignals';
+import { getMatchingRecipePlanningSignals } from './planningSignals';
 
 export const UNSUITABLE_DINNER_TAG_FRAGMENTS = [
   'drink',
@@ -324,7 +326,7 @@ export function isGoodWeatherDay(
   return features.outdoorSuitability === 'good';
 }
 
-function getSeasonKey(date: Date): string {
+function getSeasonKey(date: Date): MealAssistantSeason {
   const month = date.getMonth() + 1;
   if (month === 12 || month <= 2) return 'winter';
   if (month <= 5) return 'spring';
@@ -901,7 +903,7 @@ function scoreRecipe(
   const warnings: string[] = [];
   const parsedDate = parseLocalDate(context.date);
   const dateDay = parsedDate?.getDay() ?? 0;
-  const season = parsedDate ? getSeasonKey(parsedDate) : '';
+  const season = parsedDate ? getSeasonKey(parsedDate) : undefined;
   const recipeKeywords = recipeKeywordSet(recipe, keywordNameById);
 
   if (context.role === 'special-day') {
@@ -1070,27 +1072,6 @@ function scoreRecipe(
         detail: 'Recipe tags line up with the current season.',
       });
     }
-    const monthKey = parsedDate ? String(parsedDate.getMonth() + 1) : undefined;
-    const monthTrend = monthKey ? insight?.months?.[monthKey] : undefined;
-    if (monthTrend && parsedDate) {
-      const monthLabel = parsedDate.toLocaleDateString('en-GB', { month: 'long' });
-      components.push({
-        key: 'month-history',
-        label: 'Monthly history',
-        score: monthTrend.score,
-        detail: `Historically ${Math.round(monthTrend.share * 100)}% of cooks were in ${monthLabel} (${monthTrend.count}/${monthTrend.total}).`,
-      });
-    }
-
-    const seasonTrend = insight?.seasons[season as keyof typeof insight.seasons];
-    if (seasonTrend) {
-      components.push({
-        key: 'season-history',
-        label: 'Seasonal history',
-        score: seasonTrend.score,
-        detail: `Historically ${Math.round(seasonTrend.share * 100)}% of cooks were in ${season} (${seasonTrend.count}/${seasonTrend.total}).`,
-      });
-    }
   }
 
   if (insight?.nutrition && insight.nutrition.score !== 0) {
@@ -1108,55 +1089,62 @@ function scoreRecipe(
     });
   }
 
-  if (context.weatherTags && context.weatherTags.length > 0 && insight) {
-    const matchingWeatherTrends = context.weatherTags
-      .flatMap((tag) => {
-        const weatherTrend = insight.weather[tag];
-        return weatherTrend ? [{ tag, trend: weatherTrend }] : [];
-      })
-      .sort(
-        (left, right) => right.trend.score - left.trend.score || left.tag.localeCompare(right.tag),
-      )
-      .slice(0, 2);
-    if (matchingWeatherTrends.length > 0) {
-      components.push({
-        key: 'weather-history',
-        label: 'Weather fit',
-        score: Math.min(
-          14,
-          matchingWeatherTrends.reduce((total, match) => total + match.trend.score, 0),
-        ),
-        detail: `Historically suits ${matchingWeatherTrends
-          .map((match) => weatherTagLabel(match.tag))
-          .join(' and ')}.`,
-      });
-    }
+  const planningSignals = getMatchingRecipePlanningSignals({
+    insight,
+    month: parsedDate ? parsedDate.getMonth() + 1 : undefined,
+    season,
+    weatherTags: context.weatherTags,
+    calendarFeatures: context.calendarFeatures,
+  });
+  const temporalPlanningSignals = planningSignals
+    .filter((signal) => signal.category === 'month' || signal.category === 'season')
+    .slice(0, 2);
+  if (temporalPlanningSignals.length > 0) {
+    components.push({
+      key: 'planning-signal-temporal',
+      label: 'Day-context fit',
+      score: Math.min(
+        14,
+        temporalPlanningSignals.reduce((total, signal) => total + signal.score, 0),
+      ),
+      detail: `Planning signal boost for ${temporalPlanningSignals
+        .map((signal) => `${signal.label} (${signal.count}/${signal.total})`)
+        .join(' and ')}.`,
+    });
   }
 
-  if (context.calendarFeatures && context.calendarFeatures.length > 0 && insight) {
-    const matchingCalendarTrends = context.calendarFeatures
-      .flatMap((featureKey) => {
-        const calendarTrend = insight.calendar[featureKey];
-        return calendarTrend ? [{ featureKey, trend: calendarTrend }] : [];
-      })
-      .sort(
-        (left, right) =>
-          right.trend.score - left.trend.score || left.featureKey.localeCompare(right.featureKey),
-      )
-      .slice(0, 2);
-    if (matchingCalendarTrends.length > 0) {
-      components.push({
-        key: 'calendar-history',
-        label: 'Calendar fit',
-        score: Math.min(
-          14,
-          matchingCalendarTrends.reduce((total, match) => total + match.trend.score, 0),
-        ),
-        detail: `Historically common when ${matchingCalendarTrends
-          .map((match) => describeCalendarAppointmentFeature(match.featureKey))
-          .join(' and ')}.`,
-      });
-    }
+  const weatherPlanningSignals = planningSignals
+    .filter((signal) => signal.category === 'weather')
+    .slice(0, 2);
+  if (weatherPlanningSignals.length > 0) {
+    components.push({
+      key: 'weather-history',
+      label: 'Weather fit',
+      score: Math.min(
+        14,
+        weatherPlanningSignals.reduce((total, signal) => total + signal.score, 0),
+      ),
+      detail: `Planning signal boost for ${weatherPlanningSignals
+        .map((signal) => `${signal.label} (${signal.count}/${signal.total})`)
+        .join(' and ')}.`,
+    });
+  }
+
+  const calendarPlanningSignals = planningSignals
+    .filter((signal) => signal.category === 'calendar')
+    .slice(0, 2);
+  if (calendarPlanningSignals.length > 0) {
+    components.push({
+      key: 'calendar-history',
+      label: 'Calendar fit',
+      score: Math.min(
+        14,
+        calendarPlanningSignals.reduce((total, signal) => total + signal.score, 0),
+      ),
+      detail: `Planning signal boost for ${calendarPlanningSignals
+        .map((signal) => `${signal.label} (${signal.count}/${signal.total})`)
+        .join(' and ')}.`,
+    });
   }
 
   for (const trackedTag of Object.keys(CATEGORY_ROLE_TAGS)) {
@@ -1199,7 +1187,7 @@ function scoreRecipe(
         key: 'same-cluster-repeat',
         label: 'Cluster repetition',
         score: -existingCount * SAME_CLUSTER_PENALTY_BASE,
-        detail: `Would be the ${existingCount + 1}${ordinalSuffix(existingCount + 1)} recipe this week from the ${clusterMembership.label} cluster.`,
+        detail: `Would be the ${existingCount + 1}${ordinalSuffix(existingCount + 1)} recipe this week from the ${clusterMembership.label} affinity cluster.`,
       });
     }
   }
@@ -1221,7 +1209,7 @@ function scoreRecipe(
       label: 'Week balance',
       score: 0,
       detail:
-        'Avoids repeating produce, flavour categories, or recipe clusters already planned this week.',
+        'Avoids repeating produce, flavour categories, or affinity clusters already planned this week.',
     });
   }
 

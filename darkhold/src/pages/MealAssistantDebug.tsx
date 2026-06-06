@@ -33,6 +33,7 @@ import {
   type MealAssistantDebugGroup,
   type MealAssistantDebugRecipeSignal,
   type MealAssistantDebugRecipeSignalCategory,
+  type MealAssistantDebugSignificantSignalCategory,
   type MealAssistantDebugTopRecipe,
 } from '../utils/mealAssistantDebugStats';
 import {
@@ -190,6 +191,72 @@ function RecipeSignalGrid({
             <Card.Body>
               <h4 className="h5">{category.label}</h4>
               <RecipeSignalTable category={category} />
+            </Card.Body>
+          </Card>
+        </Col>
+      ))}
+    </Row>
+  );
+}
+
+function PlanningSignalCohortGrid({
+  categories,
+}: {
+  categories: MealAssistantDebugSignificantSignalCategory[];
+}) {
+  const visibleCategories = categories.filter((category) => category.signals.length > 0);
+  if (visibleCategories.length === 0) {
+    return (
+      <Alert variant="secondary">No day-context planning signals have enough support yet.</Alert>
+    );
+  }
+
+  return (
+    <Row className="g-3">
+      {visibleCategories.map((category) => (
+        <Col xl={6} key={category.label}>
+          <Card className="h-100">
+            <Card.Body>
+              <h4 className="h5">{category.label}</h4>
+              <Table responsive size="sm" className="mb-0 align-middle">
+                <thead>
+                  <tr>
+                    <th>Signal</th>
+                    <th className="text-end">Recipes</th>
+                    <th>Top boosted recipe</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {category.signals.map((signal) => (
+                    <tr key={signal.label}>
+                      <td>
+                        <span className="fw-semibold">{signal.label}</span>
+                        <div className="text-muted small">
+                          {pluralize(signal.total, 'matching plan')}
+                        </div>
+                      </td>
+                      <td className="text-end text-nowrap">
+                        {pluralize(signal.recipeCount, 'recipe')}
+                      </td>
+                      <td>
+                        {signal.topRecipe ? (
+                          <>
+                            <Link to={`/recipe/${signal.topRecipe.recipeId}/stats`}>
+                              {signal.topRecipe.name}
+                            </Link>
+                            <div className="text-muted small">
+                              score {signal.topRecipe.score} ·{' '}
+                              {formatPercent(signal.topRecipe.share)}
+                            </div>
+                          </>
+                        ) : (
+                          <span className="text-muted">No recipe</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
             </Card.Body>
           </Card>
         </Col>
@@ -502,9 +569,16 @@ export function MealAssistantDebug() {
               <span className="recipe-stats-section-icon">
                 <Diagram3 />
               </span>
-              Identified clusters
+              Affinity clusters
             </h3>
-            <GroupGrid groups={stats.clusters} emptyMessage="No recipe clusters were identified." />
+            <p className="text-muted">
+              Compatibility groups are built from recipe-intrinsic tags and ingredients for swaps
+              and weekly variety. Single recipes are not shown as clusters.
+            </p>
+            <GroupGrid
+              groups={stats.clusters}
+              emptyMessage="No multi-recipe affinity clusters were identified."
+            />
           </section>
 
           <section className="recipe-stats-section">
@@ -512,12 +586,14 @@ export function MealAssistantDebug() {
               <span className="recipe-stats-section-icon">
                 <CloudSun />
               </span>
-              Calendar signals
+              Planning signal cohorts
             </h3>
-            <GroupGrid
-              groups={stats.calendar}
-              emptyMessage="No calendar-backed recipe signals have enough support yet."
-            />
+            <p className="text-muted">
+              Day-context cohorts invert the recipe signals: each row starts with the condition
+              (weekday, month, season, weather, or calendar) and shows the recipes that get a boost
+              when that condition is present.
+            </p>
+            <PlanningSignalCohortGrid categories={stats.significantSignalCategories} />
           </section>
         </>
       )}

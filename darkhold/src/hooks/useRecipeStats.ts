@@ -4,6 +4,7 @@ import {
   type MealAssistantPrecalculation,
 } from '../utils/mealAssistantPrecalculation';
 import { ONE_DAY, ONE_WEEK } from '../utils/cacheConfig';
+import { getRecipePlanningSignals } from '../utils/planningSignals';
 
 export const MEAL_ASSISTANT_PRECALCULATION_QUERY_KEY = ['meal-assistant-precalculation'] as const;
 
@@ -40,6 +41,7 @@ export function useRecipeStats(recipeId: string | undefined) {
         features: precalculation.recipeFeatures[recipeId],
         history: precalculation.recipeHistory[recipeId],
         insights: precalculation.recipeInsights[recipeId],
+        planningSignals: getRecipePlanningSignals(precalculation.recipeInsights[recipeId]),
         similarities: precalculation.recipeSimilarities[recipeId] ?? [],
         cluster: precalculation.recipeClusterMemberships[recipeId],
         clusterDetail:

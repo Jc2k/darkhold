@@ -201,10 +201,7 @@ describe('mealAssistantPrecalculation', () => {
       score: -18,
     });
     expect(result.recipeSimilarities['1']).toEqual([]);
-    expect(result.recipeClusterMemberships['1']).toMatchObject({
-      clusterId: 'cluster-1',
-      size: 1,
-    });
+    expect(result.recipeClusterMemberships['1']).toBeUndefined();
     expect(isMealAssistantPrecalculation(result)).toBe(true);
   });
 
@@ -338,11 +335,7 @@ describe('mealAssistantPrecalculation', () => {
       label: 'pasta · basil · cream',
       size: 3,
     });
-    expect(result.recipeClusterMemberships['4']).toMatchObject({
-      clusterId: 'cluster-4',
-      label: 'rice · chicken',
-      size: 1,
-    });
+    expect(result.recipeClusterMemberships['4']).toBeUndefined();
   });
 
   it('stores Tandoor timing and serving features without changing scoring inputs', () => {

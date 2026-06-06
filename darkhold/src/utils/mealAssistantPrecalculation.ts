@@ -14,7 +14,7 @@ import {
 import type { CalendarFeatureDay } from './calendarFeatures.ts';
 import type { WeatherFeatures } from './weatherFeatures.ts';
 
-export const MEAL_ASSISTANT_PRECALCULATION_SCHEMA_VERSION = 9;
+export const MEAL_ASSISTANT_PRECALCULATION_SCHEMA_VERSION = 10;
 
 export type MealAssistantSeason = 'winter' | 'spring' | 'summer' | 'autumn';
 
