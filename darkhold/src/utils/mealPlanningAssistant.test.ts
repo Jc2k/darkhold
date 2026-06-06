@@ -335,6 +335,7 @@ describe('mealPlanningAssistant', () => {
       makeMealPlan(1, weatherMatchedRecipe, '2026-06-06'),
       makeMealPlan(2, weatherMatchedRecipe, '2026-06-13'),
       makeMealPlan(3, weatherMatchedRecipe, '2026-06-20'),
+      makeMealPlan(4, weatherMatchedRecipe, '2026-06-27'),
     ];
     const precalculation = buildMealAssistantPrecalculation({
       generatedAt: '2026-06-03T00:00:00.000Z',
@@ -359,6 +360,14 @@ describe('mealPlanningAssistant', () => {
           tags: ['hot-day', 'dry-day', 'long-daylight', 'outdoor-good'],
         },
         '2026-06-20': {
+          temperatureBand: 'hot',
+          precipitationBand: 'dry',
+          daylightHours: 16,
+          daylightBand: 'long',
+          outdoorSuitability: 'good',
+          tags: ['hot-day', 'dry-day', 'long-daylight', 'outdoor-good'],
+        },
+        '2026-06-27': {
           temperatureBand: 'hot',
           precipitationBand: 'dry',
           daylightHours: 16,
@@ -393,11 +402,16 @@ describe('mealPlanningAssistant', () => {
     });
 
     expect(plan.slots[0]?.selected.recipe.name).toBe('Zesty Grill Plate');
+    expect(plan.slots[0]?.selected.components).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ key: 'temperature-history', label: 'Temperature fit' }),
+        expect.objectContaining({ key: 'rainfall-history', label: 'Rainfall fit' }),
+        expect.objectContaining({ key: 'daylight-history', label: 'Day length fit' }),
+      ]),
+    );
     expect(
-      plan.slots[0]?.selected.components.find((component) => component.key === 'weather-history'),
-    ).toMatchObject({
-      label: 'Weather fit',
-    });
+      plan.slots[0]?.selected.components.some((component) => component.key === 'weather-history'),
+    ).toBe(false);
   });
 
   it('weights recipes toward matching precalculated calendar history for live appointments', () => {
