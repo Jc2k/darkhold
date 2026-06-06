@@ -1,3 +1,10 @@
+## [1.119.2](https://github.com/Jc2k/darkhold/compare/v1.119.1...v1.119.2) (2026-06-06)
+
+
+### Bug Fixes
+
+* **meal-assistant:** split weather signal cohorts ([05d471e](https://github.com/Jc2k/darkhold/commit/05d471e9525693dfc2a8a931d60db20d1f805005))
+
 ## [1.119.1](https://github.com/Jc2k/darkhold/compare/v1.119.0...v1.119.1) (2026-06-06)
 
 
