@@ -590,8 +590,8 @@ export function MealAssistantDebug() {
             </h3>
             <p className="text-muted">
               Day-context cohorts invert the recipe signals: each row starts with the condition
-              (weekday, month, season, weather, or calendar) and shows the recipes that get a boost
-              when that condition is present.
+              (weekday, month, season, rainfall, temperature, daylight hours, or calendar) and shows
+              the recipes that get a boost when that condition is present.
             </p>
             <PlanningSignalCohortGrid categories={stats.significantSignalCategories} />
           </section>

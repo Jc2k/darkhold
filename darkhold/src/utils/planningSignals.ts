@@ -4,14 +4,20 @@ import type {
   MealAssistantSeason,
   MealAssistantTrend,
 } from './mealAssistantPrecalculation';
-import { weatherTagLabel } from './weatherFeatures';
+import {
+  weatherPlanningSignalCategoryForTag,
+  weatherTagLabel,
+  type WeatherPlanningSignalCategory,
+} from './weatherFeatures';
 
-export type MealAssistantWeatherPlanningSignalCategory = 'temperature' | 'rainfall' | 'daylight';
+export type MealAssistantWeatherPlanningSignalCategory = WeatherPlanningSignalCategory;
 
 export type MealAssistantPlanningSignalCategory =
   | 'month'
   | 'season'
-  | MealAssistantWeatherPlanningSignalCategory
+  | 'temperature'
+  | 'rainfall'
+  | 'daylight'
   | 'calendar';
 
 export interface MealAssistantPlanningSignal {
@@ -66,15 +72,6 @@ function seasonLabel(value: string): string {
 function monthLabel(value: string): string {
   const month = Number.parseInt(value, 10);
   return MONTH_LABELS[month - 1] ?? value;
-}
-
-function weatherPlanningSignalCategoryForTag(
-  tag: string,
-): MealAssistantWeatherPlanningSignalCategory | undefined {
-  if (tag.endsWith('-daylight')) return 'daylight';
-  if (tag === 'dry-day' || tag === 'showery-day' || tag === 'wet-day') return 'rainfall';
-  if (tag.endsWith('-day')) return 'temperature';
-  return undefined;
 }
 
 function signalFromTrend(

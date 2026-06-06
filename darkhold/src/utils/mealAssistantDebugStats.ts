@@ -5,7 +5,7 @@ import {
   type MealAssistantPrecalculation,
   type MealAssistantTrend,
 } from './mealAssistantPrecalculation';
-import { weatherTagLabel } from './weatherFeatures';
+import { weatherPlanningSignalCategoryForTag, weatherTagLabel } from './weatherFeatures';
 import { binomialUpperTail, getWeekdayRecipeSignal } from './weekdayRecipeSignals';
 
 export interface MealAssistantDebugTopRecipe {
@@ -433,6 +433,7 @@ function buildSignificantSignalCategory(
   selectedRecipeHistory: MealAssistantPrecalculation['recipeHistory'],
   recordName: InsightRecordName,
   labelForKey: (key: string) => string,
+  includeKey: (key: string) => boolean = () => true,
 ): MealAssistantDebugSignificantSignalCategory {
   const signals = new Map<string, MutableSignificantSignal>();
 
@@ -442,7 +443,7 @@ function buildSignificantSignalCategory(
     if (!Number.isFinite(recipeId)) continue;
 
     for (const [key, trend] of Object.entries(insight[recordName])) {
-      if (!isTrend(trend)) continue;
+      if (!includeKey(key) || !isTrend(trend)) continue;
       const signal = signals.get(key) ?? { label: labelForKey(key), total: 0, recipes: [] };
       const recipeSignal = {
         recipeId,
@@ -658,11 +659,28 @@ export function buildMealAssistantDebugStats(
         (key) => key.charAt(0).toUpperCase() + key.slice(1),
       ),
       buildSignificantSignalCategory(
-        'Weather',
+        'Rainfall',
         precalculation,
         selectedRecipeHistory,
         'weather',
         weatherTagLabel,
+        (key) => weatherPlanningSignalCategoryForTag(key) === 'rainfall',
+      ),
+      buildSignificantSignalCategory(
+        'Temperature',
+        precalculation,
+        selectedRecipeHistory,
+        'weather',
+        weatherTagLabel,
+        (key) => weatherPlanningSignalCategoryForTag(key) === 'temperature',
+      ),
+      buildSignificantSignalCategory(
+        'Daylight hours',
+        precalculation,
+        selectedRecipeHistory,
+        'weather',
+        weatherTagLabel,
+        (key) => weatherPlanningSignalCategoryForTag(key) === 'daylight',
       ),
       buildSignificantSignalCategory(
         'Calendar',
