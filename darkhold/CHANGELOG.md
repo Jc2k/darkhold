@@ -1,3 +1,10 @@
+# [1.119.0](https://github.com/Jc2k/darkhold/compare/v1.118.3...v1.119.0) (2026-06-06)
+
+
+### Features
+
+* **meal-assistant:** split affinity clusters from planning signals ([4623551](https://github.com/Jc2k/darkhold/commit/4623551328d5a56f4fffbd0134a47868ad515032))
+
 ## [1.118.3](https://github.com/Jc2k/darkhold/compare/v1.118.2...v1.118.3) (2026-06-05)
 
 
