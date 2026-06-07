@@ -1,3 +1,10 @@
+# [1.120.0](https://github.com/Jc2k/darkhold/compare/v1.119.3...v1.120.0) (2026-06-07)
+
+
+### Features
+
+* **api:** add siri meal plan endpoint ([14431fe](https://github.com/Jc2k/darkhold/commit/14431fea831d75d460a5cbc667d6bbd1783a05a1))
+
 ## [1.119.3](https://github.com/Jc2k/darkhold/compare/v1.119.2...v1.119.3) (2026-06-07)
 
 
