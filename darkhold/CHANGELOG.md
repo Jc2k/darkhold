@@ -1,3 +1,10 @@
+## [1.119.3](https://github.com/Jc2k/darkhold/compare/v1.119.2...v1.119.3) (2026-06-07)
+
+
+### Bug Fixes
+
+* **shopping-list:** ignore current week meals for ad-hoc requests ([8bfd3cc](https://github.com/Jc2k/darkhold/commit/8bfd3ccbad1d2d0707eeb2bd247c5be535ed0c2a))
+
 ## [1.119.2](https://github.com/Jc2k/darkhold/compare/v1.119.1...v1.119.2) (2026-06-06)
 
 
