@@ -41,7 +41,7 @@ export function getMealPlanWeekStartFromShoppingListEntries(
   const latestMealPlanDate = entries
     .map(getFromDateFromEntry)
     .find((fromDate): fromDate is string => fromDate !== null);
-  if (!latestMealPlanDate) return getMealPlanWeekStartSaturday(now);
+  if (!latestMealPlanDate) return null;
 
   const rawDate = latestMealPlanDate.includes('T')
     ? latestMealPlanDate.split('T')[0]

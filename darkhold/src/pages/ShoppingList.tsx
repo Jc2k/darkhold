@@ -409,11 +409,13 @@ export function ShoppingList() {
   const hasPersonalToken = Boolean(localStorage.getItem('tandoor_token'));
 
   const { data, isLoading, isError } = useShoppingListEntries();
-  const mealPlanWeekStart = useMemo(
-    () =>
-      getMealPlanWeekStartFromShoppingListEntries(data ?? []) ??
-      getMealPlanWeekStartSaturday(new Date()),
+  const shoppingListMealPlanWeekStart = useMemo(
+    () => getMealPlanWeekStartFromShoppingListEntries(data ?? []),
     [data],
+  );
+  const mealPlanWeekStart = useMemo(
+    () => shoppingListMealPlanWeekStart ?? getMealPlanWeekStartSaturday(new Date()),
+    [shoppingListMealPlanWeekStart],
   );
   const mealPlanWeekEnd = useMemo(() => addDays(mealPlanWeekStart, 6), [mealPlanWeekStart]);
   const { data: mealPlanData } = useMealPlan(mealPlanWeekStart, mealPlanWeekEnd);
@@ -591,7 +593,9 @@ export function ShoppingList() {
 
   const entries = data ?? [];
   const mealPlanEntries = mealPlanData?.results ?? [];
-  const blankRecipes = getBlankRecipes(mealPlanEntries, entries);
+  const blankRecipes = shoppingListMealPlanWeekStart
+    ? getBlankRecipes(mealPlanEntries, entries)
+    : [];
   const visibleEntries = entries.filter(
     (entry) =>
       (filter !== 'to-buy' || !entry.checked) &&
