@@ -52,13 +52,10 @@ describe('getMealPlanWeekStartFromShoppingListEntries', () => {
     expect(formatDate(weekStart!)).toBe('2026-05-30');
   });
 
-  it('falls back to the current week for a shopping list without meal-plan metadata', () => {
-    const weekStart = getMealPlanWeekStartFromShoppingListEntries(
-      [{ id: 1, list_recipe_data: null }],
-      now,
-    );
-
-    expect(formatDate(weekStart!)).toBe('2026-05-23');
+  it('returns null for a shopping list without meal-plan metadata', () => {
+    expect(
+      getMealPlanWeekStartFromShoppingListEntries([{ id: 1, list_recipe_data: null }], now),
+    ).toBeNull();
   });
 });
 

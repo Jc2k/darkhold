@@ -364,6 +364,55 @@ describe('ShoppingList', () => {
     expect(container.textContent).toContain('Flour');
   });
 
+  it('shows only ad-hoc requests when the shopping list has no meal-plan entries', () => {
+    useQueryMock.mockImplementation(({ queryKey }: { queryKey: string[] }) => {
+      if (queryKey[0] === 'shopping-list') {
+        return {
+          data: [
+            {
+              id: 1,
+              food: { ...makeFood(), id: 2, name: 'Milk' },
+              checked: false,
+            },
+          ],
+          isLoading: false,
+          isError: false,
+        };
+      }
+      if (queryKey[0] === 'meal-plan') {
+        return {
+          data: {
+            count: 1,
+            next: null,
+            previous: null,
+            results: [
+              {
+                id: 101,
+                recipe: { id: 20, name: 'Current Week Meal', created_by: 1 },
+                from_date: '2026-06-02',
+              },
+            ],
+          },
+          isLoading: false,
+          isError: false,
+        };
+      }
+      return { data: { id: 7, name: 'To Check' }, isLoading: false, isError: false };
+    });
+
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <ShoppingList />
+        </MemoryRouter>,
+      );
+    });
+
+    expect(container.textContent).toContain('Milk');
+    expect(container.textContent).not.toContain('Current Week Meal');
+    expect(container.textContent).not.toContain('This recipe has no ingredients.');
+  });
+
   it('orders recipes with notes by meal-plan date and shows no ingredients notes', () => {
     useQueryMock.mockImplementation(({ queryKey }: { queryKey: string[] }) => {
       if (queryKey[0] === 'shopping-list') {
