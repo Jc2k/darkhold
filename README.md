@@ -16,4 +16,4 @@ The app will be available at [http://localhost:3000](http://localhost:3000). See
 
 ## Configuration
 
-See [CONFIGURATION.md](CONFIGURATION.md) for Home Assistant add-on setup and application configuration.
+See [CONFIGURATION.md](CONFIGURATION.md) for Home Assistant add-on setup and application configuration. Recipe keyword conventions and meal assistant signals are documented in [docs/recipe-keywords.md](docs/recipe-keywords.md).
