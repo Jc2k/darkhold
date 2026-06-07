@@ -1386,7 +1386,8 @@ async function handleWeatherForecast(req: Request): Promise<Response> {
 // Siri meal-plan text endpoint
 // ---------------------------------------------------------------------------
 
-const SIRI_MEAL_PLAN_QUERY_PARAMS = ['meal_type', 'meal', 'type'] as const;
+const SIRI_BREAKFAST_CUTOFF_HOUR = 11;
+const SIRI_DINNER_ONLY_CUTOFF_HOUR = 14;
 
 function formatLocalDate(date: Date): string {
   const year = date.getFullYear();
@@ -1432,28 +1433,52 @@ function joinSpokenList(items: string[]): string {
   return `${items.slice(0, -1).join(', ')}, and ${items[items.length - 1]}`;
 }
 
-export function formatSiriMealPlanText(
-  mealPlans: MealPlan[],
-  requestedMealType: string,
-  today = new Date(),
-): string {
-  const mealTypeLabel = titleCaseMealType(requestedMealType);
-  const requestedMealTypeName = normalizeMealTypeName(requestedMealType);
-  const todayStr = formatLocalDate(today);
-  const matchingItems = mealPlans
-    .filter((mealPlan) => mealPlan.from_date.split('T')[0] === todayStr)
-    .filter(
-      (mealPlan) =>
-        normalizeMealTypeName(getMealPlanMealTypeName(mealPlan) ?? '') === requestedMealTypeName,
-    )
-    .map(getMealPlanSpokenLabel)
-    .filter((label): label is string => !!label);
+function shouldIncludeSiriMealPlan(mealPlan: MealPlan, today: Date): boolean {
+  const mealTypeName = normalizeMealTypeName(getMealPlanMealTypeName(mealPlan) ?? '');
 
-  if (matchingItems.length === 0) {
-    return `There is nothing planned for ${mealTypeLabel} today.`;
+  if (today.getHours() >= SIRI_DINNER_ONLY_CUTOFF_HOUR) {
+    return mealTypeName === 'dinner';
   }
 
-  return `${mealTypeLabel} is ${joinSpokenList(matchingItems)}.`;
+  if (today.getHours() >= SIRI_BREAKFAST_CUTOFF_HOUR) {
+    return mealTypeName !== 'breakfast';
+  }
+
+  return true;
+}
+
+export function formatSiriMealPlanText(mealPlans: MealPlan[], today = new Date()): string {
+  const todayStr = formatLocalDate(today);
+  const mealsByType = new Map<string, string[]>();
+
+  for (const mealPlan of mealPlans) {
+    if (
+      mealPlan.from_date.split('T')[0] !== todayStr ||
+      !shouldIncludeSiriMealPlan(mealPlan, today)
+    ) {
+      continue;
+    }
+
+    const mealTypeName = getMealPlanMealTypeName(mealPlan)?.trim();
+    const spokenLabel = getMealPlanSpokenLabel(mealPlan);
+    if (!mealTypeName || !spokenLabel) continue;
+
+    const mealTypeLabel = titleCaseMealType(mealTypeName);
+    const existing = mealsByType.get(mealTypeLabel) ?? [];
+    existing.push(spokenLabel);
+    mealsByType.set(mealTypeLabel, existing);
+  }
+
+  const mealSummaries = Array.from(
+    mealsByType,
+    ([mealTypeLabel, items]) => `${mealTypeLabel} is ${joinSpokenList(items)}`,
+  );
+
+  if (mealSummaries.length === 0) {
+    return 'There is nothing planned for today.';
+  }
+
+  return `${joinSpokenList(mealSummaries)}.`;
 }
 
 export async function handleSiriMealPlan(
@@ -1461,18 +1486,6 @@ export async function handleSiriMealPlan(
   tandoorUrl = safeGetEnv('TANDOOR_URL') ?? 'http://tandoor:8080',
   today = new Date(),
 ): Promise<Response> {
-  const url = new URL(req.url);
-  const requestedMealType = SIRI_MEAL_PLAN_QUERY_PARAMS.map((param) => url.searchParams.get(param))
-    .find((value): value is string => typeof value === 'string' && value.trim().length > 0)
-    ?.trim();
-
-  if (!requestedMealType) {
-    return new Response('Missing meal_type query parameter.', {
-      status: 400,
-      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
-    });
-  }
-
   const todayStr = formatLocalDate(today);
 
   try {
@@ -1481,7 +1494,7 @@ export async function handleSiriMealPlan(
       { from_date: todayStr, to_date: todayStr },
       tandoorUrl,
     );
-    return new Response(formatSiriMealPlanText(mealPlans, requestedMealType, today), {
+    return new Response(formatSiriMealPlanText(mealPlans, today), {
       status: 200,
       headers: {
         'Content-Type': 'text/plain; charset=utf-8',
@@ -1663,7 +1676,10 @@ Deno.serve({ port: 8098, hostname: '127.0.0.1' }, async (req: Request): Promise<
   if (url.pathname === '/weather-forecast' && req.method === 'GET') {
     return handleWeatherForecast(req);
   }
-  if (url.pathname === '/siri-meal-plan' && req.method === 'GET') {
+  if (
+    (url.pathname === '/siri-meal-plan' || url.pathname === '/whats-cooking') &&
+    req.method === 'GET'
+  ) {
     return handleSiriMealPlan(req);
   }
   if (url.pathname === '/add-to-shopping-list' && req.method === 'POST') {
