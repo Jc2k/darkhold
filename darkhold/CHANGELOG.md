@@ -1,3 +1,10 @@
+# [1.121.0](https://github.com/Jc2k/darkhold/compare/v1.120.0...v1.121.0) (2026-06-07)
+
+
+### Features
+
+* **api:** simplify siri meal plan shortcut ([2d0c9c8](https://github.com/Jc2k/darkhold/commit/2d0c9c808bb4af8dc444042ed0078c1e465ab9e4))
+
 # [1.120.0](https://github.com/Jc2k/darkhold/compare/v1.119.3...v1.120.0) (2026-06-07)
 
 
