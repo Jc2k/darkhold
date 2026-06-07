@@ -97,6 +97,55 @@ on any HomePod, iPhone, iPad, or Mac that shares your Apple ID.  HomePod will co
 
 The endpoint passes the supplied token directly to Tandoor, so the shopping list entry is attributed to the owner of that token.  The endpoint submits the spoken text to Tandoor's ingredient parser (`/api/ingredient-parser/post/`) and then creates the shopping list entry from the returned parsed ingredient data.
 
+## Siri / HomePod Meal Plan
+
+You can ask Siri **"What's for dinner?"** or **"What's for lunch?"** and have it read the matching meal from today's Tandoor meal plan. Siri Shortcuts works best when each voice phrase calls a fixed URL, so create one shortcut per meal type.
+
+### How it works
+
+1. Siri runs a dedicated Apple Shortcut such as **"What's for Dinner"**.
+2. The shortcut makes a `GET /siri-meal-plan?meal_type=dinner` request to the Darkhold add-on.
+3. Darkhold fetches today's meal plan from Tandoor using the configured default token and returns a `text/plain` sentence such as `Dinner is Lasagne.`
+4. The shortcut passes that response to **Speak Text** or **Show Result**, and Siri reads it aloud.
+
+### Prerequisite
+
+Configure `tandoor_default_token` in the add-on options so the server-side endpoint can read the meal plan without storing a personal token in each shortcut. A read-only Tandoor token is sufficient.
+
+```yaml
+tandoor_default_token: "<your-read-only-api-token>"
+```
+
+### Setting up the dinner shortcut
+
+1. Open the **Shortcuts** app on your iPhone.
+2. Tap **+** to create a new shortcut.
+3. Name it **"What's for Dinner"**.
+4. Add **Get Contents of URL**:
+   - URL: `http://<YOUR_HA_IP>:8099/siri-meal-plan?meal_type=dinner`
+   - Method: `GET`
+5. Add **Speak Text** and set the text value to the contents returned by the URL action.
+6. Add it to Siri and use the phrase **"What's for dinner?"**.
+
+### Setting up the lunch shortcut
+
+Duplicate the dinner shortcut, then change:
+
+- Shortcut name / Siri phrase: **"What's for Lunch"**
+- URL: `http://<YOUR_HA_IP>:8099/siri-meal-plan?meal_type=lunch`
+
+The endpoint also accepts `meal` or `type` as aliases for `meal_type`, so `?meal=lunch` and `?type=dinner` are equivalent. The value is matched case-insensitively against Tandoor's meal type name for today's plan.
+
+### API reference
+
+| Field | Value |
+|---|---|
+| **Endpoint** | `GET /siri-meal-plan?meal_type=dinner` |
+| **Authentication** | Uses the configured server-side `tandoor_default_token` |
+| **Success response** | `200 text/plain` sentence for Siri to read |
+| **No matching plan** | `200 text/plain` sentence saying nothing is planned for that meal today |
+| **Error responses** | `400` missing meal type query parameter · `502` Tandoor error |
+
 ## iCloud Calendar Feeds
 
 You can display upcoming appointments alongside the meal plan by connecting one or more iCal calendar feeds. This is useful for seeing how scheduled events might affect meal choices.

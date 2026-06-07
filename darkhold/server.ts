@@ -1383,6 +1383,121 @@ async function handleWeatherForecast(req: Request): Promise<Response> {
 }
 
 // ---------------------------------------------------------------------------
+// Siri meal-plan text endpoint
+// ---------------------------------------------------------------------------
+
+const SIRI_MEAL_PLAN_QUERY_PARAMS = ['meal_type', 'meal', 'type'] as const;
+
+function formatLocalDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function normalizeMealTypeName(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function titleCaseMealType(value: string): string {
+  const normalized = value.trim().replace(/[-_]+/g, ' ').replace(/\s+/g, ' ');
+  return normalized.replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function getMealPlanMealTypeName(mealPlan: MealPlan): string | null {
+  return typeof mealPlan.meal_type === 'object' && mealPlan.meal_type !== null
+    ? mealPlan.meal_type.name
+    : null;
+}
+
+function getMealPlanRecipeName(mealPlan: MealPlan): string | null {
+  return typeof mealPlan.recipe === 'object' && mealPlan.recipe !== null
+    ? mealPlan.recipe.name
+    : null;
+}
+
+function getMealPlanSpokenLabel(mealPlan: MealPlan): string | null {
+  const recipeName = getMealPlanRecipeName(mealPlan)?.trim();
+  const note = mealPlan.note?.trim();
+
+  if (recipeName && note) return `${recipeName}, ${note}`;
+  if (recipeName) return recipeName;
+  if (note) return note;
+  return null;
+}
+
+function joinSpokenList(items: string[]): string {
+  if (items.length <= 1) return items[0] ?? '';
+  if (items.length === 2) return `${items[0]} and ${items[1]}`;
+  return `${items.slice(0, -1).join(', ')}, and ${items[items.length - 1]}`;
+}
+
+export function formatSiriMealPlanText(
+  mealPlans: MealPlan[],
+  requestedMealType: string,
+  today = new Date(),
+): string {
+  const mealTypeLabel = titleCaseMealType(requestedMealType);
+  const requestedMealTypeName = normalizeMealTypeName(requestedMealType);
+  const todayStr = formatLocalDate(today);
+  const matchingItems = mealPlans
+    .filter((mealPlan) => mealPlan.from_date.split('T')[0] === todayStr)
+    .filter(
+      (mealPlan) =>
+        normalizeMealTypeName(getMealPlanMealTypeName(mealPlan) ?? '') === requestedMealTypeName,
+    )
+    .map(getMealPlanSpokenLabel)
+    .filter((label): label is string => !!label);
+
+  if (matchingItems.length === 0) {
+    return `There is nothing planned for ${mealTypeLabel} today.`;
+  }
+
+  return `${mealTypeLabel} is ${joinSpokenList(matchingItems)}.`;
+}
+
+export async function handleSiriMealPlan(
+  req: Request,
+  tandoorUrl = safeGetEnv('TANDOOR_URL') ?? 'http://tandoor:8080',
+  today = new Date(),
+): Promise<Response> {
+  const url = new URL(req.url);
+  const requestedMealType = SIRI_MEAL_PLAN_QUERY_PARAMS.map((param) => url.searchParams.get(param))
+    .find((value): value is string => typeof value === 'string' && value.trim().length > 0)
+    ?.trim();
+
+  if (!requestedMealType) {
+    return new Response('Missing meal_type query parameter.', {
+      status: 400,
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+    });
+  }
+
+  const todayStr = formatLocalDate(today);
+
+  try {
+    const mealPlans = await fetchAllTandoorPages<MealPlan>(
+      '/meal-plan/',
+      { from_date: todayStr, to_date: todayStr },
+      tandoorUrl,
+    );
+    return new Response(formatSiriMealPlanText(mealPlans, requestedMealType, today), {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Cache-Control': 'no-store',
+      },
+    });
+  } catch (err) {
+    console.error('Siri meal-plan fetch failed:', err);
+    return new Response('Unable to fetch the meal plan right now.', {
+      status: 502,
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Shopping list "add item" endpoint
 // ---------------------------------------------------------------------------
 
@@ -1547,6 +1662,9 @@ Deno.serve({ port: 8098, hostname: '127.0.0.1' }, async (req: Request): Promise<
   }
   if (url.pathname === '/weather-forecast' && req.method === 'GET') {
     return handleWeatherForecast(req);
+  }
+  if (url.pathname === '/siri-meal-plan' && req.method === 'GET') {
+    return handleSiriMealPlan(req);
   }
   if (url.pathname === '/add-to-shopping-list' && req.method === 'POST') {
     return handleAddToShoppingList(req);
