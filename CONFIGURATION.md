@@ -187,6 +187,10 @@ Times are displayed in the browser's local timezone. Recurring events (weekly st
 
 > **Privacy note**: Feed credentials and feed URLs (which may contain authentication tokens) are stored only in Home Assistant add-on options and are never exposed to the browser.
 
+## Recipe keywords and assistant signals
+
+Darkhold uses Tandoor recipe keywords and one recipe-book shelf as meal planning signals. See [docs/recipe-keywords.md](docs/recipe-keywords.md) for the maintained human and agent reference, including the `dinner` parent keyword and its child dinner category keywords.
+
 ## Meal Assistant Special Dates
 
 You can configure date-specific occasions in Home Assistant so the meal planning assistant prefers recipes tagged `special` on those dates and adds contextual messaging.

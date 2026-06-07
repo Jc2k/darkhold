@@ -76,6 +76,11 @@ Do not commit if any of these fail. **Skipping the commitlint check will cause s
 
 - Rsbuild: https://rsbuild.rs/llms.txt
 - Rspack: https://rspack.rs/llms.txt
+- Recipe keyword and assistant signal documentation: `docs/recipe-keywords.md`
+
+## Recipe keyword documentation
+
+When changing shelves, meal planning, Tandoor keyword handling, or meal assistant scoring, keep `docs/recipe-keywords.md` up to date in the same change. The `dinner` Tandoor keyword is the parent for the household's main dinner category keywords; update that documentation and the assistant category role map together when those categories change.
 
 ## Responsive Design
 
