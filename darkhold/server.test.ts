@@ -9,8 +9,10 @@ import {
   broadcastToAllClients,
   clampWeatherForecastRange,
   fetchFeedEvents,
+  formatSiriMealPlanText,
   getMealAssistantMealPlanQueryParams,
   handleAddToShoppingList,
+  handleSiriMealPlan,
   handleForceMealAssistantPrecalculation,
   parseOpenMeteoDaily,
   parseIcal,
@@ -876,6 +878,147 @@ Deno.test('clampWeatherForecastRange trims old weather requests to two months of
   if (!range) throw new Error('expected range');
   if (range.fromDate !== '2026-03-15') throw new Error(`unexpected start date: ${range.fromDate}`);
   if (range.toDate !== '2026-03-20') throw new Error(`unexpected end date: ${range.toDate}`);
+});
+
+// ---------------------------------------------------------------------------
+// Siri meal-plan endpoint tests
+// ---------------------------------------------------------------------------
+
+Deno.test('formatSiriMealPlanText returns the requested meal from todays meal plan', () => {
+  const text = formatSiriMealPlanText(
+    [
+      {
+        id: 1,
+        recipe: { id: 10, name: 'Tomato soup', created_by: 1 },
+        meal_type: { id: 2, name: 'Lunch' },
+        from_date: '2026-06-07',
+      },
+      {
+        id: 2,
+        recipe: { id: 11, name: 'Lasagne', created_by: 1 },
+        meal_type: { id: 3, name: 'Dinner' },
+        note: 'with garlic bread',
+        from_date: '2026-06-07T00:00:00Z',
+      },
+    ],
+    'dinner',
+    new Date('2026-06-07T12:00:00Z'),
+  );
+
+  if (text !== 'Dinner is Lasagne, with garlic bread.') {
+    throw new Error(`unexpected response text: ${text}`);
+  }
+});
+
+Deno.test('formatSiriMealPlanText joins multiple planned recipes naturally', () => {
+  const text = formatSiriMealPlanText(
+    [
+      {
+        id: 1,
+        recipe: { id: 10, name: 'Tacos', created_by: 1 },
+        meal_type: { id: 3, name: 'Dinner' },
+        from_date: '2026-06-07',
+      },
+      {
+        id: 2,
+        recipe: { id: 11, name: 'Salad', created_by: 1 },
+        meal_type: { id: 3, name: 'Dinner' },
+        from_date: '2026-06-07',
+      },
+    ],
+    'dinner',
+    new Date('2026-06-07T12:00:00Z'),
+  );
+
+  if (text !== 'Dinner is Tacos and Salad.') {
+    throw new Error(`unexpected response text: ${text}`);
+  }
+});
+
+Deno.test('formatSiriMealPlanText reports when the requested meal is not planned today', () => {
+  const text = formatSiriMealPlanText(
+    [
+      {
+        id: 1,
+        recipe: { id: 10, name: 'Tomorrow soup', created_by: 1 },
+        meal_type: { id: 2, name: 'Lunch' },
+        from_date: '2026-06-08',
+      },
+    ],
+    'lunch',
+    new Date('2026-06-07T12:00:00Z'),
+  );
+
+  if (text !== 'There is nothing planned for Lunch today.') {
+    throw new Error(`unexpected response text: ${text}`);
+  }
+});
+
+Deno.test('handleSiriMealPlan fetches todays meal plan and returns plain text', async () => {
+  const originalFetch = globalThis.fetch;
+  const capturedUrls: string[] = [];
+
+  globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+    const r = new Request(input, init);
+    capturedUrls.push(r.url);
+    return Promise.resolve(
+      new Response(
+        JSON.stringify({
+          results: [
+            {
+              id: 1,
+              recipe: { id: 10, name: 'Cheese toastie', created_by: 1 },
+              meal_type: { id: 2, name: 'Lunch' },
+              from_date: '2026-06-07',
+            },
+          ],
+          next: null,
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      ),
+    );
+  }) as typeof fetch;
+
+  try {
+    const req = new Request('http://localhost/siri-meal-plan?meal_type=lunch');
+    const res = await handleSiriMealPlan(
+      req,
+      'http://tandoor:8080',
+      new Date('2026-06-07T12:00:00Z'),
+    );
+
+    if (res.status !== 200) throw new Error(`expected 200, got ${res.status}`);
+    if (res.headers.get('Content-Type') !== 'text/plain; charset=utf-8') {
+      throw new Error(`unexpected content type: ${res.headers.get('Content-Type')}`);
+    }
+    if ((await res.text()) !== 'Lunch is Cheese toastie.') {
+      throw new Error('unexpected response text');
+    }
+    const url = new URL(capturedUrls[0]);
+    if (url.pathname !== '/api/meal-plan/') throw new Error(`unexpected path: ${url.pathname}`);
+    if (url.searchParams.get('from_date') !== '2026-06-07') {
+      throw new Error(`unexpected from_date: ${url.searchParams.get('from_date')}`);
+    }
+    if (url.searchParams.get('to_date') !== '2026-06-07') {
+      throw new Error(`unexpected to_date: ${url.searchParams.get('to_date')}`);
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+Deno.test('handleSiriMealPlan returns 400 when meal type is missing', async () => {
+  const req = new Request('http://localhost/siri-meal-plan');
+  const res = await handleSiriMealPlan(
+    req,
+    'http://tandoor:8080',
+    new Date('2026-06-07T12:00:00Z'),
+  );
+
+  if (res.status !== 400) throw new Error(`expected 400, got ${res.status}`);
+  if ((await res.text()) !== 'Missing meal_type query parameter.') {
+    throw new Error('unexpected response text');
+  }
 });
 
 // ---------------------------------------------------------------------------
