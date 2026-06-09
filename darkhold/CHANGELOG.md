@@ -1,3 +1,10 @@
+## [1.121.3](https://github.com/Jc2k/darkhold/compare/v1.121.2...v1.121.3) (2026-06-09)
+
+
+### Bug Fixes
+
+* **year-in-food:** surface stream failure details ([8f62501](https://github.com/Jc2k/darkhold/commit/8f62501110e7d29a606f4c3aa004655bc65357a8))
+
 ## [1.121.2](https://github.com/Jc2k/darkhold/compare/v1.121.1...v1.121.2) (2026-06-09)
 
 
