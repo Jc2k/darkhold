@@ -88,6 +88,7 @@ import { DroppableTableRow } from './DroppableTableRow';
 import {
   AddMealModal,
   buildMealPlanByDayAndMealType,
+  getMealPlanPickerRange,
   getMealPlanRouteFromDate,
   getWeekSwipeDirection,
   getEmptyWeekendLunchDates,
@@ -482,6 +483,15 @@ describe('getWeekSwipeDirection', () => {
   it('ignores short or mostly vertical gestures', () => {
     expect(getWeekSwipeDirection({ startX: 220, startY: 100, endX: 180, endY: 102 })).toBeNull();
     expect(getWeekSwipeDirection({ startX: 220, startY: 100, endX: 120, endY: 190 })).toBeNull();
+  });
+});
+
+describe('meal plan picker range', () => {
+  it('starts in 2010 and ends at the end of next year', () => {
+    const { startMonth, endMonth } = getMealPlanPickerRange(new Date(2026, 5, 9));
+
+    expect(startMonth).toEqual(new Date(2010, 0, 1));
+    expect(endMonth).toEqual(new Date(2027, 11, 31));
   });
 });
 
