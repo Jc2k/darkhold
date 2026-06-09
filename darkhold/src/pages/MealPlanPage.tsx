@@ -254,8 +254,16 @@ function addDays(d: Date, n: number): Date {
   return r;
 }
 
-const PICKER_YEARS_PAST = 5;
-const PICKER_YEARS_FUTURE = 3;
+const MEAL_PLAN_PICKER_START_YEAR = 2010;
+const MEAL_PLAN_PICKER_FUTURE_YEAR_OFFSET = 1;
+
+export function getMealPlanPickerRange(today: Date): { startMonth: Date; endMonth: Date } {
+  const currentYear = today.getFullYear();
+  return {
+    startMonth: new Date(MEAL_PLAN_PICKER_START_YEAR, 0, 1),
+    endMonth: new Date(currentYear + MEAL_PLAN_PICKER_FUTURE_YEAR_OFFSET, 11, 31),
+  };
+}
 
 export function getMealPlanRouteFromDate(value: string): string | null {
   const selectedDate = parseLocalDate(value);
@@ -1851,8 +1859,7 @@ export function MealPlanPage() {
     to: pickerHighlightedWeekEnd,
   };
   const pickerDefaultMonth = pendingPickerDate ?? weekStartDate;
-  const pickerStartMonth = new Date(today.getFullYear() - PICKER_YEARS_PAST, 0, 1);
-  const pickerEndMonth = new Date(today.getFullYear() + PICKER_YEARS_FUTURE, 11, 31);
+  const { startMonth: pickerStartMonth, endMonth: pickerEndMonth } = getMealPlanPickerRange(today);
 
   const { data, isLoading, isError } = useMealPlan(weekStartDate, endDate);
   const {
