@@ -11,9 +11,9 @@ export interface YearInFoodProgress {
 type YearInFoodStreamEvent =
   | { type: 'progress'; progress: YearInFoodProgress }
   | { type: 'complete'; summary: YearInFoodSummary }
-  | { type: 'error'; error: string };
+  | { type: 'error'; error: string; detail?: string };
 
-function parseYearInFoodStreamEvent(line: string): YearInFoodStreamEvent | null {
+export function parseYearInFoodStreamEvent(line: string): YearInFoodStreamEvent | null {
   try {
     const event = JSON.parse(line) as Partial<YearInFoodStreamEvent>;
     if (event.type === 'progress' && event.progress) return event as YearInFoodStreamEvent;
@@ -26,7 +26,23 @@ function parseYearInFoodStreamEvent(line: string): YearInFoodStreamEvent | null 
   return null;
 }
 
-async function fetchYearInFoodSummary(
+function formatYearInFoodStreamFailure(
+  eventCount: number,
+  lastProgress: YearInFoodProgress | null,
+  lastUnparsedLine: string | null,
+): string {
+  const progressText = lastProgress ? ` Last progress update: ${lastProgress.label}.` : '';
+  const rawText = lastUnparsedLine
+    ? ` Last unparsed stream payload: ${lastUnparsedLine.slice(0, 200)}`
+    : '';
+  const eventText =
+    eventCount > 0
+      ? ` Received ${eventCount} stream event${eventCount === 1 ? '' : 's'} before the connection closed.`
+      : ' No stream events were received before the connection closed.';
+  return `Year-in-food summary stream ended before a summary was returned.${eventText}${progressText}${rawText}`;
+}
+
+export async function fetchYearInFoodSummary(
   year: number,
   onProgress: (progress: YearInFoodProgress) => void,
 ): Promise<YearInFoodSummary> {
@@ -34,8 +50,9 @@ async function fetchYearInFoodSummary(
   if (!res.ok) {
     let message = `Year-in-food summary fetch failed: ${res.status}`;
     try {
-      const payload = (await res.json()) as { error?: string };
-      if (payload.error) message = payload.error;
+      const payload = (await res.json()) as { detail?: string; error?: string };
+      if (payload.error)
+        message = payload.detail ? `${payload.error} ${payload.detail}` : payload.error;
     } catch {
       // Keep the status-based fallback when the response body is not JSON.
     }
@@ -47,6 +64,29 @@ async function fetchYearInFoodSummary(
 
   const decoder = new TextDecoder();
   let buffer = '';
+  let eventCount = 0;
+  let lastProgress: YearInFoodProgress | null = null;
+  let lastUnparsedLine: string | null = null;
+
+  function handleLine(line: string): YearInFoodSummary | null {
+    const trimmed = line.trim();
+    if (!trimmed) return null;
+    const event = parseYearInFoodStreamEvent(trimmed);
+    if (!event) {
+      lastUnparsedLine = trimmed;
+      return null;
+    }
+    eventCount += 1;
+    if (event.type === 'progress') {
+      lastProgress = event.progress;
+      onProgress(event.progress);
+    }
+    if (event.type === 'error') {
+      throw new Error(event.detail ? `${event.error} ${event.detail}` : event.error);
+    }
+    if (event.type === 'complete') return event.summary;
+    return null;
+  }
 
   while (true) {
     const { done, value } = await reader.read();
@@ -55,18 +95,17 @@ async function fetchYearInFoodSummary(
     buffer = lines.pop() ?? '';
 
     for (const line of lines) {
-      if (!line.trim()) continue;
-      const event = parseYearInFoodStreamEvent(line);
-      if (!event) continue;
-      if (event.type === 'progress') onProgress(event.progress);
-      if (event.type === 'error') throw new Error(event.error);
-      if (event.type === 'complete') return event.summary;
+      const summary = handleLine(line);
+      if (summary) return summary;
     }
 
     if (done) break;
   }
 
-  throw new Error('Year-in-food summary stream ended before a summary was returned.');
+  const finalSummary = handleLine(buffer);
+  if (finalSummary) return finalSummary;
+
+  throw new Error(formatYearInFoodStreamFailure(eventCount, lastProgress, lastUnparsedLine));
 }
 
 export function useYearInFoodSummary(year: number) {

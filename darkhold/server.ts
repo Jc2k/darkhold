@@ -1655,13 +1655,22 @@ async function handleYearInFoodSummary(req: Request): Promise<Response> {
   } catch (err) {
     console.error('Year-in-food summary failed:', err);
     return new Response(
-      JSON.stringify({ error: 'Unable to build the year-in-food summary right now.' }),
+      JSON.stringify({
+        error: 'Unable to build the year-in-food summary right now.',
+        detail: getYearInFoodErrorDetail(err),
+      }),
       {
         status: 502,
         headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
       },
     );
   }
+}
+
+function getYearInFoodErrorDetail(err: unknown): string | undefined {
+  if (err instanceof Error && err.message.trim()) return err.message;
+  if (typeof err === 'string' && err.trim()) return err;
+  return undefined;
 }
 
 function encodeYearInFoodEvent(event: unknown): Uint8Array {
@@ -1685,6 +1694,7 @@ function handleYearInFoodSummaryStream(req: Request): Response {
           encodeYearInFoodEvent({
             type: 'error',
             error: 'Unable to build the year-in-food summary right now.',
+            detail: getYearInFoodErrorDetail(err),
           }),
         );
       } finally {
