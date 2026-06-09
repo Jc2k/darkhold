@@ -1,3 +1,10 @@
+## [1.121.4](https://github.com/Jc2k/darkhold/compare/v1.121.3...v1.121.4) (2026-06-09)
+
+
+### Bug Fixes
+
+* add missing nginx stanza ([c96daed](https://github.com/Jc2k/darkhold/commit/c96daed4bac93251c36edaef7168e5d261654245))
+
 ## [1.121.3](https://github.com/Jc2k/darkhold/compare/v1.121.2...v1.121.3) (2026-06-09)
 
 
