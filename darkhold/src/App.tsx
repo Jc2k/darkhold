@@ -24,6 +24,7 @@ import { Housekeeping } from './pages/Housekeeping';
 import { OrphanedIngredients } from './pages/OrphanedIngredients';
 import { HistoricCookLogs } from './pages/HistoricCookLogs';
 import { RecipeCreationDates } from './pages/RecipeCreationDates';
+import { YearInFood } from './pages/YearInFood';
 import { SuperuserGuard } from './components/SuperuserGuard';
 import { LoadingMascot } from './components/LoadingMascot';
 import { useAppConfig } from './hooks/useAppConfig';
@@ -234,6 +235,16 @@ const router = createBrowserRouter([
           <AuthGuard>
             <SuperuserGuard>
               <RecipeCreationDates />
+            </SuperuserGuard>
+          </AuthGuard>
+        ),
+      },
+      {
+        path: 'housekeeping/year-in-food',
+        element: (
+          <AuthGuard>
+            <SuperuserGuard>
+              <YearInFood />
             </SuperuserGuard>
           </AuthGuard>
         ),

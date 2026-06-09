@@ -3,6 +3,7 @@ import { calendarQuery } from './node_modules/tsdav/dist/tsdav.js';
 import type { DAVResponse } from './node_modules/tsdav/dist/tsdav.d.ts';
 import pkg from './package.json' with { type: 'json' };
 import type {
+  CookLog,
   Food,
   Keyword,
   MealPlan,
@@ -10,7 +11,17 @@ import type {
   Recipe,
   SupermarketCategory,
 } from './src/api/tandoor-types.d.ts';
-import { buildMealAssistantPrecalculation } from './src/utils/mealAssistantPrecalculation.ts';
+import {
+  buildMealAssistantPrecalculation,
+  isMealAssistantPrecalculation,
+  mealAssistantDayNumberToDate,
+  type MealAssistantPrecalculation,
+} from './src/utils/mealAssistantPrecalculation.ts';
+import {
+  buildYearInFoodSummary,
+  validateYearInFoodYear,
+  type YearInFoodSummary,
+} from './src/utils/yearInFood.ts';
 import { buildCalendarFeatureDay } from './src/utils/calendarFeatures.ts';
 import {
   createEmptyCalendarFeatureCache,
@@ -1382,6 +1393,315 @@ async function handleWeatherForecast(req: Request): Promise<Response> {
   }
 }
 
+interface YearInFoodProgress {
+  completed: number;
+  total: number;
+  label: string;
+}
+
+type YearInFoodProgressReporter = (progress: YearInFoodProgress) => void;
+
+type YearInFoodMealPlanSource = 'meal-assistant-cache' | 'tandoor-api';
+
+interface YearInFoodMealPlanResult {
+  mealPlans: MealPlan[];
+  source: YearInFoodMealPlanSource;
+}
+
+function reportYearInFoodProgress(
+  report: YearInFoodProgressReporter | undefined,
+  completed: number,
+  total: number,
+  label: string,
+): void {
+  report?.({ completed, total, label });
+}
+
+async function readMealAssistantPrecalculation(): Promise<MealAssistantPrecalculation | null> {
+  try {
+    const body = await Deno.readTextFile(loadMealAssistantPrecalculationPath());
+    const payload: unknown = JSON.parse(body);
+    return isMealAssistantPrecalculation(payload) ? payload : null;
+  } catch (err) {
+    if (err instanceof Deno.errors.NotFound || err instanceof SyntaxError) return null;
+    throw err;
+  }
+}
+
+function mealAssistantDinnerMealTypeId(
+  precalculation: MealAssistantPrecalculation,
+): string | undefined {
+  return precalculation.mealTypes
+    .find((mealType) => mealType.name?.trim().toLowerCase() === 'dinner')
+    ?.id.toString();
+}
+
+function mealAssistantMealPlansForYear(
+  precalculation: MealAssistantPrecalculation,
+  year: number,
+  toDate: string,
+): MealPlan[] {
+  const dinnerMealTypeId = mealAssistantDinnerMealTypeId(precalculation);
+  if (!dinnerMealTypeId) return [];
+  const dinnerHistory = precalculation.recipeHistoryByMealType[dinnerMealTypeId];
+  if (!dinnerHistory) return [];
+
+  const fromDate = `${year - 1}-01-01`;
+  let id = 1;
+  return Object.entries(dinnerHistory).flatMap(([recipeId, history]) =>
+    history.dates.flatMap((dayNumber): MealPlan[] => {
+      const date = mealAssistantDayNumberToDate(dayNumber);
+      if (date < fromDate || date > toDate) return [];
+      return [
+        {
+          id: id++,
+          recipe: Number.parseInt(recipeId, 10),
+          meal_type: { id: Number.parseInt(dinnerMealTypeId, 10), name: 'Dinner' },
+          from_date: date,
+        },
+      ];
+    }),
+  );
+}
+
+async function fetchYearInFoodMealPlans(
+  year: number,
+  toDate: string,
+  precalculation: MealAssistantPrecalculation | null,
+  report?: YearInFoodProgressReporter,
+): Promise<YearInFoodMealPlanResult> {
+  reportYearInFoodProgress(
+    report,
+    0,
+    1,
+    'Fetching dinner meal-plan history and serving counts from Tandoor',
+  );
+  try {
+    const mealPlans = await fetchAllTandoorPages<MealPlan>('/meal-plan/', {
+      from_date: `${year - 1}-01-01`,
+      to_date: toDate,
+    });
+    reportYearInFoodProgress(
+      report,
+      1,
+      1,
+      'Fetched dinner meal-plan history and serving counts from Tandoor',
+    );
+    return { mealPlans, source: 'tandoor-api' };
+  } catch (err) {
+    if (!precalculation) throw err;
+    console.warn(
+      'Unable to fetch meal plans for year-in-food summary; falling back to serving-less meal assistant history.',
+      err,
+    );
+  }
+
+  const mealPlans = mealAssistantMealPlansForYear(precalculation, year, toDate);
+  reportYearInFoodProgress(
+    report,
+    mealPlans.length,
+    mealPlans.length,
+    'Loaded dinner history from the meal assistant cache without meal-plan serving counts',
+  );
+  return { mealPlans, source: 'meal-assistant-cache' };
+}
+
+function cachedDateRecord<T>(
+  dates: Record<string, T>,
+  fromDate: string,
+  toDate: string,
+): Record<string, T> {
+  return Object.fromEntries(
+    Object.entries(dates).filter(([date]) => date >= fromDate && date <= toDate),
+  );
+}
+
+async function fetchYearInFoodRecipes(
+  mealPlans: MealPlan[],
+  report?: YearInFoodProgressReporter,
+): Promise<Recipe[]> {
+  const recipeIds = [
+    ...new Set(
+      mealPlans.flatMap((mealPlan) => {
+        if (typeof mealPlan.recipe === 'object' && mealPlan.recipe !== null)
+          return [mealPlan.recipe.id];
+        if (typeof mealPlan.recipe === 'number') return [mealPlan.recipe];
+        return [];
+      }),
+    ),
+  ];
+
+  let completed = 0;
+  reportYearInFoodProgress(report, completed, recipeIds.length, 'Fetching recipe details');
+  return mapWithConcurrency(recipeIds, 5, async (id) => {
+    const recipe = await fetchTandoorJson<Recipe>(`/recipe/${id}/`);
+    completed += 1;
+    reportYearInFoodProgress(report, completed, recipeIds.length, 'Fetching recipe details');
+    return recipe;
+  });
+}
+
+async function buildYearInFoodSummaryForRequest(
+  year: number,
+  report?: YearInFoodProgressReporter,
+): Promise<YearInFoodSummary> {
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  const fromDate = `${year}-01-01`;
+  const toDate = year === currentYear ? today.toISOString().slice(0, 10) : `${year}-12-31`;
+
+  reportYearInFoodProgress(report, 0, 1, 'Reading meal assistant, weather, and calendar caches');
+  const [precalculation, weatherCache, calendarCache] = await Promise.all([
+    readMealAssistantPrecalculation(),
+    readWeatherFeatureCache(),
+    readCalendarFeatureCache(),
+  ]);
+  reportYearInFoodProgress(report, 1, 1, 'Read meal assistant, weather, and calendar caches');
+
+  const { mealPlans, source } = await fetchYearInFoodMealPlans(
+    year,
+    toDate,
+    precalculation,
+    report,
+  );
+  const recipeDetailsPromise = fetchYearInFoodRecipes(mealPlans, report);
+  const cookLogsPromise = fetchAllTandoorPages<CookLog>('/cook-log/', {
+    created_at__gte: fromDate,
+    created_at__lte: `${toDate}T23:59:59`,
+  }).catch((err) => {
+    console.warn(
+      'Unable to fetch cook logs for year-in-food summary; continuing without ratings.',
+      err,
+    );
+    return [] as CookLog[];
+  });
+  const keywordsPromise = fetchAllTandoorPages<Keyword>('/keyword/').catch((err) => {
+    console.warn(
+      'Unable to fetch keywords for year-in-food summary; continuing with recipe keyword names only.',
+      err,
+    );
+    return [] as Keyword[];
+  });
+  const produceCategoryName = safeGetEnv('MEAL_ASSISTANT_PRODUCE_CATEGORY') ?? '';
+  const produceFoodsPromise = produceCategoryName
+    ? fetchMealAssistantProduceFoods(produceCategoryName).catch((err) => {
+        console.warn(
+          'Unable to fetch produce foods for year-in-food summary; continuing with gram-measured ingredients.',
+          err,
+        );
+        return [] as Array<Pick<Food, 'id' | 'name'>>;
+      })
+    : Promise.resolve([] as Array<Pick<Food, 'id' | 'name'>>);
+
+  reportYearInFoodProgress(report, 0, 3, 'Fetching ratings, keywords, and produce category data');
+  const [recipes, cookLogs, keywords, produceFoods] = await Promise.all([
+    recipeDetailsPromise,
+    cookLogsPromise,
+    keywordsPromise,
+    produceFoodsPromise,
+  ]);
+  reportYearInFoodProgress(report, 3, 3, 'Fetched ratings, keywords, and produce category data');
+
+  const summary = buildYearInFoodSummary({
+    year,
+    mealPlans,
+    recipes,
+    cookLogs,
+    keywords,
+    produceCategoryName,
+    produceFoods,
+    weatherFeaturesByDate: cachedDateRecord(weatherCache.dates, fromDate, toDate),
+    calendarFeaturesByDate: cachedDateRecord(calendarCache.dates, fromDate, toDate),
+    toDate,
+  });
+
+  return {
+    ...summary,
+    limitations: [
+      ...summary.limitations,
+      source === 'meal-assistant-cache'
+        ? 'Dinner history came from the meal assistant cache because live Tandoor meal-plan queries failed; meal-plan serving counts were unavailable, so household totals assume each plan used the recipe serving count.'
+        : 'Dinner history and meal-plan serving counts came from live Tandoor meal-plan queries; weather and calendar signals came from local caches.',
+    ],
+  };
+}
+
+function parseYearInFoodYear(req: Request): { year?: number; response?: Response } {
+  const url = new URL(req.url);
+  const year = Number.parseInt(url.searchParams.get('year') ?? '', 10);
+  const validationError = validateYearInFoodYear(year);
+  if (!validationError) return { year };
+  return {
+    response: new Response(JSON.stringify({ error: validationError }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+    }),
+  };
+}
+
+async function handleYearInFoodSummary(req: Request): Promise<Response> {
+  const parsed = parseYearInFoodYear(req);
+  if (parsed.response) return parsed.response;
+
+  try {
+    const summary = await buildYearInFoodSummaryForRequest(parsed.year!);
+    return new Response(JSON.stringify(summary), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'private, max-age=3600',
+      },
+    });
+  } catch (err) {
+    console.error('Year-in-food summary failed:', err);
+    return new Response(
+      JSON.stringify({ error: 'Unable to build the year-in-food summary right now.' }),
+      {
+        status: 502,
+        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+      },
+    );
+  }
+}
+
+function encodeYearInFoodEvent(event: unknown): Uint8Array {
+  return new TextEncoder().encode(`${JSON.stringify(event)}\n`);
+}
+
+function handleYearInFoodSummaryStream(req: Request): Response {
+  const parsed = parseYearInFoodYear(req);
+  if (parsed.response) return parsed.response;
+
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      try {
+        const summary = await buildYearInFoodSummaryForRequest(parsed.year!, (progress) => {
+          controller.enqueue(encodeYearInFoodEvent({ type: 'progress', progress }));
+        });
+        controller.enqueue(encodeYearInFoodEvent({ type: 'complete', summary }));
+      } catch (err) {
+        console.error('Year-in-food summary stream failed:', err);
+        controller.enqueue(
+          encodeYearInFoodEvent({
+            type: 'error',
+            error: 'Unable to build the year-in-food summary right now.',
+          }),
+        );
+      } finally {
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/x-ndjson',
+      'Cache-Control': 'no-store',
+    },
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Siri meal-plan text endpoint
 // ---------------------------------------------------------------------------
@@ -1693,6 +2013,12 @@ Deno.serve({ port: 8098, hostname: '127.0.0.1' }, async (req: Request): Promise<
   }
   if (url.pathname === '/meal-assistant-precalculation/run' && req.method === 'POST') {
     return handleForceMealAssistantPrecalculation();
+  }
+  if (url.pathname === '/year-in-food-summary' && req.method === 'GET') {
+    return handleYearInFoodSummary(req);
+  }
+  if (url.pathname === '/year-in-food-summary/stream' && req.method === 'GET') {
+    return handleYearInFoodSummaryStream(req);
   }
 
   if (req.headers.get('upgrade')?.toLowerCase() !== 'websocket') {
