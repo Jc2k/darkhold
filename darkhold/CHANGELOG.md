@@ -1,3 +1,10 @@
+## [1.121.1](https://github.com/Jc2k/darkhold/compare/v1.121.0...v1.121.1) (2026-06-09)
+
+
+### Bug Fixes
+
+* **meal-plan:** limit picker range ([ad28c37](https://github.com/Jc2k/darkhold/commit/ad28c37e86ab9a8d89201a64bb51af874b55984c))
+
 # [1.121.0](https://github.com/Jc2k/darkhold/compare/v1.120.0...v1.121.0) (2026-06-07)
 
 
