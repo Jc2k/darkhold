@@ -1,3 +1,10 @@
+## [1.121.2](https://github.com/Jc2k/darkhold/compare/v1.121.1...v1.121.2) (2026-06-09)
+
+
+### Bug Fixes
+
+* **housekeeping:** account for meal servings ([5c1b426](https://github.com/Jc2k/darkhold/commit/5c1b426b6960cdbd23b8904cd27836af38a2c5d1))
+
 ## [1.121.1](https://github.com/Jc2k/darkhold/compare/v1.121.0...v1.121.1) (2026-06-09)
 
 
