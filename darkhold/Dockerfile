@@ -13,7 +13,6 @@ RUN deno task build
 FROM --platform=$BUILDPLATFORM denoland/deno:debian AS deno-compiler
 ARG TARGETPLATFORM
 WORKDIR /app
-COPY package.json deno.json deno.lock* ./
 COPY server.ts ./
 COPY server ./server
 COPY src/api ./src/api
@@ -26,7 +25,7 @@ RUN set -e; \
       *) echo "Unsupported TARGETPLATFORM: $TARGETPLATFORM" >&2; exit 1 ;; \
     esac; \
     deno compile \
-      --config deno.json \
+      --config server/deno.json \
       --node-modules-dir=auto \
       --target "$DENO_TARGET" \
       --allow-net \

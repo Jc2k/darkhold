@@ -99,7 +99,7 @@ npm ci --legacy-peer-deps
 
 # Codex tasks may run without network access after environment setup. Cache the
 # Deno server's npm dependency metadata while setup still has network access.
-deno cache --node-modules-dir=auto server/main.ts server.ts server.test.ts
+deno cache --config server/deno.json --node-modules-dir=auto server/main.ts server.ts server.test.ts
 
 printf 'Agent environment ready: %s; node %s; npm %s\n' \
   "$(deno --version | head -n 1)" \

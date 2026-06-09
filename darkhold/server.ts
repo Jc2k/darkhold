@@ -2,7 +2,6 @@ import { Hono } from 'hono';
 import ICAL from 'ical.js';
 import { calendarQuery } from 'tsdav';
 import type { DAVResponse } from 'tsdav';
-import pkg from './package.json' with { type: 'json' };
 import type {
   CookLog,
   Food,
@@ -35,7 +34,22 @@ import {
   isWeatherFeatureCache,
 } from './src/utils/weatherFeatureCache.ts';
 
-const VERSION = pkg.version;
+const VERSION = loadPackageVersion();
+
+function loadPackageVersion(): string {
+  const fallbackVersion = '0.0.0';
+  try {
+    const body = Deno.readTextFileSync('/package.json');
+    const payload: unknown = JSON.parse(body);
+    if (typeof payload === 'object' && payload !== null && 'version' in payload) {
+      const version = (payload as { version?: unknown }).version;
+      if (typeof version === 'string' && version.length > 0) return version;
+    }
+  } catch {
+    // Tests and local development may import the server without a packaged /package.json.
+  }
+  return fallbackVersion;
+}
 
 type MealAssistantPrecalculationEventStatus =
   | 'started'

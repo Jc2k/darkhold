@@ -17,9 +17,6 @@
     "npm:@types/react-dom@^19.2.3": "19.2.3_@types+react@19.2.16",
     "npm:@types/react@^19.2.14": "19.2.16",
     "npm:bootstrap@^5.3.8": "5.3.8_@popperjs+core@2.11.8",
-    "npm:hono@4.12.25": "4.12.25",
-    "npm:ical.js@2": "2.2.1",
-    "npm:ical.js@2.2.1": "2.2.1",
     "npm:ical.js@^2.2.1": "2.2.1",
     "npm:jsdom@^29.1.1": "29.1.1_css-tree@3.2.1",
     "npm:openapi-fetch@0.17": "0.17.0",
@@ -33,7 +30,6 @@
     "npm:react-markdown@^10.1.0": "10.1.0_@types+react@19.2.16_react@19.2.7",
     "npm:react-router-dom@^7.14.2": "7.16.0_react@19.2.7_react-dom@19.2.7__react@19.2.7",
     "npm:react@^19.2.5": "19.2.7",
-    "npm:tsdav@2.2.2": "2.2.2",
     "npm:tsdav@^2.2.1": "2.2.2",
     "npm:typescript@^6.0.3": "6.0.3",
     "npm:vitest@^4.1.5": "4.1.8_jsdom@29.1.1__css-tree@3.2.1_vite@8.0.16"
@@ -1113,9 +1109,6 @@
       "dependencies": [
         "@types/hast"
       ]
-    },
-    "hono@4.12.25": {
-      "integrity": "sha512-2NFaIyNVgJmBs/ecmtGzlmluTFs5cHEWGTdu0t1HBwYzoGXOL5nUQBRMXsXWla5i4KkG//QMzVP88m1+I3fdAQ=="
     },
     "html-encoding-sniffer@6.0.0": {
       "integrity": "sha512-CV9TW3Y3f8/wT0BRFc1/KAVQ3TUHiXmaAb6VW9vtiMFf7SLoMd1PdAc4W3KFOFETBJUb90KatHqlsZMWV+R9Gg==",
@@ -2258,11 +2251,6 @@
     }
   },
   "workspace": {
-    "dependencies": [
-      "npm:hono@4.12.25",
-      "npm:ical.js@2.2.1",
-      "npm:tsdav@2.2.2"
-    ],
     "packageJson": {
       "dependencies": [
         "npm:@commitlint/cli@^20.5.3",

@@ -1,15 +1,9 @@
 {
   "tasks": {
     "dev": "rsbuild dev --open",
-    "server": "deno run --cached-only --node-modules-dir=auto --allow-net --allow-read=package.json,/data --allow-write=/data --allow-env server/main.ts",
+    "server": "deno run --config server/deno.json --cached-only --node-modules-dir=auto --allow-net --allow-read=package.json,/data --allow-write=/data --allow-env server/main.ts",
     "build": "rsbuild build",
     "preview": "rsbuild preview",
-    "test": "deno test --node-modules-dir=auto --allow-net --allow-env server.test.ts"
-  },
-  "nodeModulesDir": "auto",
-  "imports": {
-    "hono": "npm:hono@4.12.25",
-    "ical.js": "npm:ical.js@2.2.1",
-    "tsdav": "npm:tsdav@2.2.2"
+    "test": "deno test --config server/deno.json --node-modules-dir=auto --allow-net --allow-env server.test.ts"
   }
 }
