@@ -19,6 +19,12 @@ const tools = [
     description:
       'Compare recipe creation timestamps with their earliest cook logs and preview corrections.',
   },
+  {
+    to: '/housekeeping/year-in-food',
+    title: 'Generate a year in food prompt',
+    description:
+      'Collect dinner statistics for a selected year and copy an LLM prompt for a Wrapped-style infographic.',
+  },
 ];
 
 export function Housekeeping() {
