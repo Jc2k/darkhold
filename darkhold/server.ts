@@ -1,7 +1,7 @@
-import ICAL from 'npm:ical.js@2';
-import { calendarQuery } from './node_modules/tsdav/dist/tsdav.js';
-import type { DAVResponse } from './node_modules/tsdav/dist/tsdav.d.ts';
-import pkg from './package.json' with { type: 'json' };
+import { Hono } from 'hono';
+import ICAL from 'ical.js';
+import { calendarQuery } from 'tsdav';
+import type { DAVResponse } from 'tsdav';
 import type {
   CookLog,
   Food,
@@ -34,7 +34,22 @@ import {
   isWeatherFeatureCache,
 } from './src/utils/weatherFeatureCache.ts';
 
-const VERSION = pkg.version;
+const VERSION = loadPackageVersion();
+
+function loadPackageVersion(): string {
+  const fallbackVersion = '0.0.0';
+  try {
+    const body = Deno.readTextFileSync('/package.json');
+    const payload: unknown = JSON.parse(body);
+    if (typeof payload === 'object' && payload !== null && 'version' in payload) {
+      const version = (payload as { version?: unknown }).version;
+      if (typeof version === 'string' && version.length > 0) return version;
+    }
+  } catch {
+    // Tests and local development may import the server without a packaged /package.json.
+  }
+  return fallbackVersion;
+}
 
 type MealAssistantPrecalculationEventStatus =
   | 'started'
@@ -1995,42 +2010,7 @@ export async function handleAddToShoppingList(
 // WebSocket broadcast server
 // ---------------------------------------------------------------------------
 
-startMealAssistantPrecalculationTask();
-
-Deno.serve({ port: 8098, hostname: '127.0.0.1' }, async (req: Request): Promise<Response> => {
-  const url = new URL(req.url);
-
-  if (url.pathname === '/calendar-events' && req.method === 'GET') {
-    return handleCalendarEvents(req);
-  }
-  if (url.pathname === '/weather-forecast' && req.method === 'GET') {
-    return handleWeatherForecast(req);
-  }
-  if (
-    (url.pathname === '/siri-meal-plan' || url.pathname === '/whats-cooking') &&
-    req.method === 'GET'
-  ) {
-    return handleSiriMealPlan(req);
-  }
-  if (url.pathname === '/add-to-shopping-list' && req.method === 'POST') {
-    return handleAddToShoppingList(req);
-  }
-  if (url.pathname === '/meal-assistant-precalculation.json' && req.method === 'GET') {
-    return handleMealAssistantPrecalculation();
-  }
-  if (url.pathname === '/meal-assistant-status.json' && req.method === 'GET') {
-    return handleMealAssistantStatus();
-  }
-  if (url.pathname === '/meal-assistant-precalculation/run' && req.method === 'POST') {
-    return handleForceMealAssistantPrecalculation();
-  }
-  if (url.pathname === '/year-in-food-summary' && req.method === 'GET') {
-    return handleYearInFoodSummary(req);
-  }
-  if (url.pathname === '/year-in-food-summary/stream' && req.method === 'GET') {
-    return handleYearInFoodSummaryStream(req);
-  }
-
+function handleInvalidationWebSocket(req: Request): Response {
   if (req.headers.get('upgrade')?.toLowerCase() !== 'websocket') {
     return new Response('Not found', { status: 404 });
   }
@@ -2064,4 +2044,31 @@ Deno.serve({ port: 8098, hostname: '127.0.0.1' }, async (req: Request): Promise<
   };
 
   return response;
-});
+}
+
+export function createServerApp(): Hono {
+  const app = new Hono();
+
+  app.get('/calendar-events', (c) => handleCalendarEvents(c.req.raw));
+  app.get('/weather-forecast', (c) => handleWeatherForecast(c.req.raw));
+  app.get('/siri-meal-plan', (c) => handleSiriMealPlan(c.req.raw));
+  app.get('/whats-cooking', (c) => handleSiriMealPlan(c.req.raw));
+  app.post('/add-to-shopping-list', (c) => handleAddToShoppingList(c.req.raw));
+  app.get('/meal-assistant-precalculation.json', () => handleMealAssistantPrecalculation());
+  app.get('/meal-assistant-status.json', () => handleMealAssistantStatus());
+  app.post('/meal-assistant-precalculation/run', () => handleForceMealAssistantPrecalculation());
+  app.get('/year-in-food-summary', (c) => handleYearInFoodSummary(c.req.raw));
+  app.get('/year-in-food-summary/stream', (c) => handleYearInFoodSummaryStream(c.req.raw));
+  app.get('/ws', (c) => handleInvalidationWebSocket(c.req.raw));
+
+  return app;
+}
+
+export function startServer(): void {
+  startMealAssistantPrecalculationTask();
+  Deno.serve({ port: 8098, hostname: '127.0.0.1' }, createServerApp().fetch);
+}
+
+if (import.meta.main) {
+  startServer();
+}

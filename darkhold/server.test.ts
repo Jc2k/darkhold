@@ -8,6 +8,7 @@
 import {
   broadcastToAllClients,
   clampWeatherForecastRange,
+  createServerApp,
   fetchFeedEvents,
   formatSiriMealPlanText,
   getMealAssistantMealPlanQueryParams,
@@ -62,6 +63,30 @@ function broadcast(clients: Set<StubSocket>, sender: StubSocket, data: string): 
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
+
+Deno.test('createServerApp routes registered API endpoints through Hono', async () => {
+  const app = createServerApp();
+
+  const response = await app.request('http://localhost/weather-forecast');
+
+  if (response.status !== 400) {
+    throw new Error(`expected weather route to return 400 but got ${response.status}`);
+  }
+  const body = await response.json();
+  if (body.error !== 'Missing from or to parameter') {
+    throw new Error(`unexpected weather route payload: ${JSON.stringify(body)}`);
+  }
+});
+
+Deno.test('createServerApp returns 404 for unknown paths', async () => {
+  const app = createServerApp();
+
+  const response = await app.request('http://localhost/unknown');
+
+  if (response.status !== 404) {
+    throw new Error(`expected unknown route to return 404 but got ${response.status}`);
+  }
+});
 
 Deno.test('broadcast sends message to other open clients', () => {
   const clients = new Set<StubSocket>();

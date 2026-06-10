@@ -1,10 +1,9 @@
 {
   "tasks": {
     "dev": "rsbuild dev --open",
-    "server": "deno run --cached-only --node-modules-dir=manual --allow-net --allow-read=package.json,/data --allow-write=/data --allow-env=ICAL_FEEDS,WEATHER_LATITUDE,WEATHER_LONGITUDE,WEATHER_TIMEZONE,TANDOOR_URL,TANDOOR_DEFAULT_TOKEN,MEAL_ASSISTANT_PRODUCE_CATEGORY,MEAL_ASSISTANT_PRECALCULATION_PATH,MEAL_ASSISTANT_STATUS_PATH,WEATHER_FEATURE_CACHE_PATH,CALENDAR_FEATURE_CACHE_PATH server.ts",
+    "server": "deno run --config server/deno.json --cached-only --node-modules-dir=auto --allow-net --allow-read=package.json,/data --allow-write=/data --allow-env server/main.ts",
     "build": "rsbuild build",
     "preview": "rsbuild preview",
-    "test": "deno test --node-modules-dir=manual --allow-net server.test.ts"
-  },
-  "nodeModulesDir": "auto"
+    "test": "deno test --config server/deno.json --node-modules-dir=auto --allow-net --allow-env server.test.ts"
+  }
 }
