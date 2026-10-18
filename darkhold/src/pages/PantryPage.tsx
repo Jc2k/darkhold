@@ -13,6 +13,8 @@ import { usePantryInventory, type PantryInventoryEntry } from '../hooks/usePantr
 import {
   pantryExpiryStatus,
   useCreatePantryEntry,
+  useCreatePantryLocation,
+  usePantryHouseholds,
   usePantryLocations,
   usePantryUnits,
   useUpdatePantryEntry,
@@ -35,6 +37,11 @@ function PantryAddSheet({ show, onHide }: { show: boolean; onHide: () => void })
   const [amount, setAmount] = useState('1');
   const [unitId, setUnitId] = useState('');
   const [locationId, setLocationId] = useState('');
+  const [showCreateLocation, setShowCreateLocation] = useState(false);
+  const [newLocationName, setNewLocationName] = useState('');
+  const [newLocationFreezer, setNewLocationFreezer] = useState(false);
+  const [householdId, setHouseholdId] = useState('');
+  const [locationError, setLocationError] = useState<string | null>(null);
   const [expires, setExpires] = useState('');
   const [subLocation, setSubLocation] = useState('');
   const [note, setNote] = useState('');
@@ -43,6 +50,8 @@ function PantryAddSheet({ show, onHide }: { show: boolean; onHide: () => void })
   const [error, setError] = useState<string | null>(null);
   const speech = useRef<SpeechRecognitionButtonHandle>(null);
   const locations = usePantryLocations();
+  const households = usePantryHouseholds();
+  const createLocation = useCreatePantryLocation();
   const units = usePantryUnits();
   const create = useCreatePantryEntry();
   const hasToken = Boolean(localStorage.getItem('tandoor_token'));
@@ -59,6 +68,11 @@ function PantryAddSheet({ show, onHide }: { show: boolean; onHide: () => void })
     setAmount('1');
     setUnitId('');
     setLocationId('');
+    setShowCreateLocation(false);
+    setNewLocationName('');
+    setNewLocationFreezer(false);
+    setHouseholdId('');
+    setLocationError(null);
     setExpires('');
     setSubLocation('');
     setNote('');
@@ -83,6 +97,29 @@ function PantryAddSheet({ show, onHide }: { show: boolean; onHide: () => void })
       setSelected([existing ?? { id: -1, name, customOption: true }]);
     } catch {
       setSelected([{ id: -1, name, customOption: true }]);
+    }
+  };
+
+  const saveLocation = async () => {
+    const name = newLocationName.trim();
+    const household = households.data?.find((item) => String(item.id) === householdId)
+      ?? (households.data?.length === 1 ? households.data[0] : undefined);
+    if (!name || !household) {
+      setLocationError('Enter a location name and choose a household.');
+      return;
+    }
+    setLocationError(null);
+    try {
+      const created = await createLocation.mutateAsync({
+        name,
+        household,
+        is_freezer: newLocationFreezer,
+      });
+      setLocationId(String(created.id));
+      setShowCreateLocation(false);
+      setNewLocationName('');
+    } catch {
+      setLocationError('Could not create this storage location.');
     }
   };
 
@@ -183,10 +220,57 @@ function PantryAddSheet({ show, onHide }: { show: boolean; onHide: () => void })
             ))}
           </Form.Select>
           {locations.isError && <Alert variant="danger" className="mt-2">Could not load storage locations.</Alert>}
-          {!locations.isLoading && !locations.isError && availableLocations.length === 0 && (
-            <Alert variant="warning" className="small mt-2">
-              No storage locations exist yet. Create a location in Tandoor before adding stock.
-            </Alert>
+          <Button
+            variant="link"
+            size="sm"
+            className="p-0 mt-2"
+            onClick={() => setShowCreateLocation((current) => !current)}
+            disabled={createLocation.isPending}
+          >
+            {showCreateLocation ? 'Cancel new location' : 'Create a storage location'}
+          </Button>
+          {showCreateLocation && (
+            <div className="border rounded p-3 mt-2">
+              {locationError && <Alert variant="danger">{locationError}</Alert>}
+              <Form.Group className="mb-2">
+                <Form.Label>New location name</Form.Label>
+                <Form.Control
+                  value={newLocationName}
+                  onChange={(e) => setNewLocationName(e.target.value)}
+                  placeholder="e.g. Garage freezer"
+                />
+              </Form.Group>
+              {(households.data?.length ?? 0) > 1 && (
+                <Form.Group className="mb-2">
+                  <Form.Label>Household</Form.Label>
+                  <Form.Select value={householdId} onChange={(e) => setHouseholdId(e.target.value)}>
+                    <option value="">Select household</option>
+                    {households.data?.map((household) => (
+                      <option key={household.id} value={household.id}>{household.name}</option>
+                    ))}
+                  </Form.Select>
+                </Form.Group>
+              )}
+              <Form.Check
+                className="mb-3"
+                type="checkbox"
+                label="This is a freezer"
+                checked={newLocationFreezer}
+                onChange={(e) => setNewLocationFreezer(e.target.checked)}
+              />
+              {households.isError && <Alert variant="danger">Could not load households.</Alert>}
+              {!households.isLoading && (households.data?.length ?? 0) === 0 && (
+                <Alert variant="warning">No Tandoor household is available for this location.</Alert>
+              )}
+              <Button
+                variant="outline-primary"
+                size="sm"
+                onClick={() => { void saveLocation(); }}
+                disabled={createLocation.isPending || !newLocationName.trim() || !households.data?.length}
+              >
+                {createLocation.isPending ? <Spinner size="sm" /> : 'Save location'}
+              </Button>
+            </div>
           )}
         </Form.Group>
         <Form.Group className="mb-3">
