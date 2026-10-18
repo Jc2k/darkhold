@@ -4,7 +4,7 @@
 export const PANTRY_RESERVATION_LIST_NAME = 'Use from Pantry';
 export const PANTRY_REPLENISHMENT_LIST_NAME = 'Pantry Replenishment';
 
-export interface RolloverShoppingList { id: number; name: string }
+export interface RolloverShoppingList { id?: number; name: string }
 
 export interface RolloverShoppingEntry {
   id: number;
