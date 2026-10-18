@@ -2036,7 +2036,7 @@ async function runShoppingRollover(now = new Date()): Promise<void> {
     if ((await readShoppingRolloverCycle()) === decision.cycle) return;
 
     // Delete sequentially so a partial failure can be retried safely.
-    // Successfully deleted entries disappear from subsequent fetches on retry.
+    // Old list entries disappear from subsequent fetches on retry.
     const base = safeGetEnv('TANDOOR_URL') ?? 'http://tandoor:8080';
     for (const id of decision.ids) {
       const response = await fetch(new URL(`/api/shopping-list-entry/${id}/`, base), {
@@ -2057,10 +2057,10 @@ async function runShoppingRollover(now = new Date()): Promise<void> {
       broadcastToAllClients(JSON.stringify({ type: 'invalidate', queryKey: 'meal-plan-redirect-week-path' }));
     }
     console.info(
-      `Shopping rollover ${decision.cycle}: cleared ${decision.ids.length} shopping list entries.`,
+      `Shopping rollover ${decision.cycle}: removed ${decision.ids.length} historical shopping entries.`,
     );
   } catch (err) {
-    console.error('Shopping rollover failed. Will retry remaining shopping list entries.', err);
+    console.error('Shopping rollover failed. Will retry without deleting current-week items.', err);
   } finally {
     shoppingRolloverRunning = false;
   }
