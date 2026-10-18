@@ -573,10 +573,15 @@ export function ShoppingList() {
     if (!hasPersonalToken) return;
     const entriesToClear = getShoppingListEntriesToClear(entries, target);
     const itemCount = `${entriesToClear.length} item${entriesToClear.length !== 1 ? 's' : ''}`;
+    const pantryReservations = entries.filter((entry) => !entry.checked && isReservedForPantry(entry)).length;
+    const pendingRestocks = entries.filter((entry) => !entry.checked && isPantryReplenishment(entry)).length;
+    const checkedRestocks = entriesToClear.filter(isPantryReplenishment).length;
     const confirmation =
       target === 'all'
-        ? `Remove all ${itemCount} from your shopping list?`
-        : `Remove ${itemCount} selected by “${
+        ? `Remove all ${itemCount} from your shopping list? This also removes ${pantryReservations} outstanding pantry reservation(s) and ${pendingRestocks} unbought pantry replenishment request(s). Any unresolved stock use may be lost.`
+        : target === 'checked'
+          ? `Finish the weekly shop and remove ${itemCount} bought item(s)? All unbought items and pantry reservations will remain.${checkedRestocks ? ` ${checkedRestocks} purchased pantry replacement(s) are included; make sure you've added them to pantry stock with new expiry dates first.` : ''}`
+          : `Remove ${itemCount} selected by “${
             target === 'requests'
               ? 'Delete requests'
               : target === 'meal-plan-ingredients'
@@ -711,6 +716,15 @@ export function ShoppingList() {
             </Button>
           </ButtonGroup>
         </div>
+        <Button
+          variant="outline-success"
+          style={TOOLBAR_BUTTON_STYLE}
+          onClick={() => clearEntries(entries, 'checked')}
+          disabled={isClearing || !hasPersonalToken || !entries.some((entry) => entry.checked)}
+          aria-label="Finish weekly shop and clear bought items"
+        >
+          Finish shop
+        </Button>
         <Dropdown as={ButtonGroup}>
           <Button
             variant="danger"
