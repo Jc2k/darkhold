@@ -39,10 +39,6 @@ export function shoppingCycleStart(date: string): string {
   return value.toISOString().slice(0, 10);
 }
 
-export function pantryReservation(entry: RolloverShoppingEntry): boolean {
-  return entry.shopping_lists?.some((list) => list.name === 'Use from Pantry') ?? false;
-}
-
 export function isLinkedToToday(entry: RolloverShoppingEntry, today: string): boolean {
   const plan = entry.list_recipe_data?.meal_plan_data;
   const from = plan?.from_date?.slice(0, 10);
@@ -51,12 +47,13 @@ export function isLinkedToToday(entry: RolloverShoppingEntry, today: string): bo
 }
 
 /**
- * Only roll over after the shopping list contains an actual meal-plan entry
- * covering the current day. Never remove current-week entries, unresolved
- * pantry allocations, unbought manual requests or unbought replacements.
+ * A meal-plan shopping entry covering today indicates that this shopping cycle
+ * has arrived. Empty the shopping list rather than retaining entries tied to
+ * the new plan. This deletes shopping-list entries only; meal plans remain.
  *
- * Checked items (already bought) and older planned-meal entries are historical
- * shopping requirements and can be removed once the next cycle is underway.
+ * Pantry reservations currently stored on shopping entries are also removed.
+ * To reconcile those after the weekly clear, reservation state will need a
+ * separate durable store rather than relying on shopping-list membership.
  */
 export function planShoppingRollover(
   entries: RolloverShoppingEntry[],
@@ -64,18 +61,5 @@ export function planShoppingRollover(
 ): { cycle: string; ready: boolean; ids: number[] } {
   const cycle = shoppingCycleStart(today);
   const ready = entries.some((entry) => isLinkedToToday(entry, today));
-  if (!ready) return { cycle, ready: false, ids: [] };
-
-  const ids = entries.filter((entry) => {
-    if (pantryReservation(entry) || isLinkedToToday(entry, today)) return false;
-    const from = entry.list_recipe_data?.meal_plan_data?.from_date?.slice(0, 10);
-    // Old planned meals belong to the previous shop, even if left unchecked.
-    if (from && from < cycle) return true;
-    // Bought requests may safely leave the shopping list once the new week starts.
-    // Do not delete a checked item belonging to a current/future planned meal.
-    if (entry.checked && !from) return true;
-    return false;
-  }).map((entry) => entry.id);
-
-  return { cycle, ready: true, ids };
+  return { cycle, ready, ids: ready ? entries.map((entry) => entry.id) : [] };
 }

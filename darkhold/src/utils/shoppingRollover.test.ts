@@ -33,21 +33,34 @@ describe('UK 4 a.m. shopping rollover', () => {
     });
   });
 
-  it('preserves new-plan shopping, pantry commitments and unbought requests', () => {
+  it('clears the entire list once a meal-plan ingredient covers today', () => {
     const entries = [
-      dated(1, '2026-10-12'), // old planned item to clear
-      dated(2, '2026-10-18'), // new plan, never clear
-      dated(3, '2026-10-20', true), // even checked upcoming plan must stay
-      { id: 4, checked: true }, // old bought manual request to clear
-      { id: 5, checked: false }, // unbought manual request to keep
+      dated(1, '2026-10-12'), // previous week's planned ingredient
+      dated(2, '2026-10-18'), // current meal-plan ingredient triggers clearing
+      dated(3, '2026-10-20', true), // future planned ingredient
+      { id: 4, checked: true }, // purchased request
+      { id: 5, checked: false }, // unbought manual request
       { id: 6, checked: false, shopping_lists: [{ name: 'Pantry Replenishment' }] },
       { ...dated(7, '2026-10-12'), shopping_lists: [{ name: 'Use from Pantry' }] },
-      dated(8, '2026-10-16', false, '2026-10-19'), // spans today: keep
+      dated(8, '2026-10-16', false, '2026-10-19'), // meal spans the cycle boundary
     ];
+    const snapshot = structuredClone(entries);
+
     expect(planShoppingRollover(entries, '2026-10-18')).toEqual({
       cycle: '2026-10-17',
       ready: true,
-      ids: [1, 4],
+      ids: [1, 2, 3, 4, 5, 6, 7, 8],
+    });
+    // The decision function only returns shopping-entry IDs; it does not
+    // edit or remove anything from the underlying meal plan.
+    expect(entries).toEqual(snapshot);
+  });
+
+  it('does not clear manually added items with no meal-plan trigger', () => {
+    expect(planShoppingRollover([{ id: 9, checked: false }], '2026-10-18')).toEqual({
+      cycle: '2026-10-17',
+      ready: false,
+      ids: [],
     });
   });
 
