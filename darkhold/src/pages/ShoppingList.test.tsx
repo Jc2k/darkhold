@@ -58,6 +58,7 @@ import {
   isLeftSwipe,
   isRightSwipe,
   removeShoppingListEntries,
+  shoppingEntryRemovalLabel,
   updateShoppingListEntries,
 } from './ShoppingList';
 
@@ -256,6 +257,243 @@ describe('ShoppingList', () => {
     expect(getShoppingListEntriesToClear(entries, 'requests')).toEqual([entries[0], entries[2]]);
     expect(getShoppingListEntriesToClear(entries, 'meal-plan-ingredients')).toEqual([entries[1]]);
     expect(getShoppingListEntriesToClear(entries, 'checked')).toEqual([entries[1], entries[2]]);
+  });
+
+  it('finishing a shop preserves checked pantry reservations but clears bought replacements', () => {
+    const entries = [
+      { id: 1, food: makeFood(), checked: true, shopping_lists: [{ id: 1, name: 'Use from Pantry' }] },
+      { id: 2, food: makeFood(), checked: true, shopping_lists: [{ id: 2, name: 'Pantry Replenishment' }] },
+      { id: 3, food: makeFood(), checked: false },
+    ];
+    expect(getShoppingListEntriesToClear(entries, 'bought')).toEqual([entries[1]]);
+    // Explicit delete actions must still allow removal of *any* entry.
+    expect(getShoppingListEntriesToClear(entries, 'checked')).toEqual([entries[0], entries[1]]);
+    expect(getShoppingListEntriesToClear(entries, 'all')).toEqual(entries);
+  });
+
+  it('labels grouped pantry reservations, replacements and ordinary requests individually', () => {
+    expect(shoppingEntryRemovalLabel({
+      id: 11, checked: false, food: makeFood(), amount: 1, unit_name: 'cup',
+      shopping_lists: [{ id: 1, name: 'Use from Pantry' }],
+      list_recipe_data: {
+        recipe_data: { name: 'Cake' },
+        meal_plan_data: { from_date: '2026-10-14' },
+      },
+    })).toBe('Use from pantry · 1 cup · 2026-10-14 · #11');
+    expect(shoppingEntryRemovalLabel({
+      id: 12, checked: false, food: makeFood(), amount: 2, unit_name: 'cup',
+      shopping_lists: [{ id: 2, name: 'Pantry Replenishment' }],
+    })).toBe('Pantry replenishment · 2 cup · #12');
+    expect(shoppingEntryRemovalLabel({
+      id: 13, checked: false, food: makeFood(),
+    })).toBe('Manual request · #13');
+  });
+
+  it('always allows removing an individual pantry reservation without changing the meal planner', async () => {
+    const setQueryData = vi.fn();
+    const invalidateQueries = vi.fn();
+    const fetchQuery = vi.fn().mockResolvedValue('/meal-plan/2026-10-10');
+    useQueryClientMock.mockReturnValue({ setQueryData, invalidateQueries, fetchQuery });
+    useQueryMock.mockImplementation(({ queryKey }: { queryKey: string[] }) => {
+      if (queryKey[0] === 'shopping-list') {
+        return {
+          data: [{
+            id: 21, food: makeFood(), checked: false,
+            shopping_lists: [{ id: 1, name: 'Use from Pantry' }],
+            list_recipe_data: {
+              recipe_data: { name: 'Cake' },
+              meal_plan_data: { id: 34, from_date: '2026-10-15' },
+            },
+          }],
+          isLoading: false,
+          isError: false,
+        };
+      }
+      return { data: { id: 7, name: 'To Check' }, isLoading: false, isError: false };
+    });
+    vi.stubGlobal('confirm', vi.fn().mockReturnValue(true));
+    vi.mocked(apiDelete).mockResolvedValue(undefined);
+
+    act(() => {
+      root.render(<MemoryRouter><ShoppingList /></MemoryRouter>);
+    });
+
+    // Desktop deletion follows the existing hover/focus-only row actions.
+    const remove = container.querySelector<HTMLButtonElement>(
+      '.shopping-list-row-actions button[aria-label="Remove Flour entries"]',
+    );
+    expect(remove).toBeTruthy();
+    await act(async () => {
+      remove?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(apiDelete).toHaveBeenCalledTimes(1);
+    expect(apiDelete).toHaveBeenCalledWith('/shopping-list-entry/21/');
+    expect(window.confirm).toHaveBeenCalledWith(expect.stringContaining('This cancels 1 pantry reservation(s)'));
+    expect(window.confirm).toHaveBeenCalledWith(expect.stringContaining('Meal planner entries will not be changed.'));
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['shopping-list'] });
+  });
+
+  it('reveals delete on a left swipe for an individual item without a permanent row button', async () => {
+    useQueryClientMock.mockReturnValue({
+      setQueryData: vi.fn(),
+      invalidateQueries: vi.fn(),
+      fetchQuery: vi.fn().mockResolvedValue('/meal-plan/2026-10-10'),
+    });
+    useQueryMock.mockImplementation(({ queryKey }: { queryKey: string[] }) => {
+      if (queryKey[0] === 'shopping-list') {
+        return {
+          data: [{ id: 64, food: makeFood(), checked: false }],
+          isLoading: false, isError: false,
+        };
+      }
+      return { data: { id: 7, name: 'To Check' }, isLoading: false, isError: false };
+    });
+    vi.stubGlobal('confirm', vi.fn().mockReturnValue(true));
+    vi.mocked(apiDelete).mockResolvedValue(undefined);
+
+    act(() => {
+      root.render(<MemoryRouter><ShoppingList /></MemoryRouter>);
+    });
+    const row = container.querySelector('.shopping-list-swipe-content');
+    const swipeDelete = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Remove Flour from shopping list (swipe)"]',
+    );
+    const hoverDelete = container.querySelector<HTMLButtonElement>(
+      '.shopping-list-row-actions button[aria-label="Remove Flour entries"]',
+    );
+    expect(swipeDelete).toBeTruthy();
+    expect(swipeDelete?.tabIndex).toBe(-1);
+    expect(hoverDelete).toBeTruthy();
+    act(() => {
+      dispatchPointer(row!, 'pointerdown', 250, 10);
+      dispatchPointer(row!, 'pointermove', 38, 12);
+      dispatchPointer(row!, 'pointerup', 38, 12);
+    });
+    expect(swipeDelete?.tabIndex).toBe(0);
+    await act(async () => {
+      swipeDelete?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(apiDelete).toHaveBeenCalledTimes(1);
+    expect(apiDelete).toHaveBeenCalledWith('/shopping-list-entry/64/');
+    expect(window.confirm).toHaveBeenCalledWith(expect.stringContaining('Meal planner entries will not be changed.'));
+    expect((row as HTMLDivElement).style.transform).toBe('translateX(0px)');
+  });
+
+  it('removes only the chosen pantry replenishment when multiple entries share one food row', async () => {
+    useQueryClientMock.mockReturnValue({
+      setQueryData: vi.fn(),
+      invalidateQueries: vi.fn(),
+      fetchQuery: vi.fn().mockResolvedValue('/meal-plan/2026-10-10'),
+    });
+    useQueryMock.mockImplementation(({ queryKey }: { queryKey: string[] }) => {
+      if (queryKey[0] === 'shopping-list') {
+        return {
+          data: [
+            { id: 11, food: makeFood(), checked: false,
+              shopping_lists: [{ id: 1, name: 'Use from Pantry' }],
+              list_recipe_data: {
+                recipe_data: { name: 'Cake' },
+                meal_plan_data: { id: 7, from_date: '2026-10-15' },
+              },
+            },
+            { id: 12, food: makeFood(), checked: false,
+              amount: 2, unit_name: 'cup',
+              shopping_lists: [{ id: 2, name: 'Pantry Replenishment' }],
+            },
+            { id: 13, food: makeFood(), checked: false },
+          ],
+          isLoading: false,
+          isError: false,
+        };
+      }
+      return { data: { id: 7, name: 'To Check' }, isLoading: false, isError: false };
+    });
+    vi.stubGlobal('confirm', vi.fn().mockReturnValue(true));
+    vi.mocked(apiDelete).mockResolvedValue(undefined);
+
+    act(() => {
+      root.render(<MemoryRouter><ShoppingList /></MemoryRouter>);
+    });
+    const rowContent = container.querySelector('.shopping-list-swipe-content');
+    const remove = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Remove Flour from shopping list (swipe)"]',
+    );
+    expect(remove?.tabIndex).toBe(-1);
+    // Reveal both To Check and Remove with an extended left swipe on touch.
+    act(() => {
+      dispatchPointer(rowContent!, 'pointerdown', 250, 10);
+      dispatchPointer(rowContent!, 'pointermove', 38, 12);
+      dispatchPointer(rowContent!, 'pointerup', 38, 12);
+    });
+    expect((rowContent as HTMLDivElement).style.transform).toBe('translateX(-208px)');
+    expect(remove?.tabIndex).toBe(0);
+    expect(moveToCheckMutateMock).not.toHaveBeenCalled();
+    act(() => {
+      remove?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    const individualRestock = Array.from(
+      document.body.querySelectorAll<HTMLButtonElement>('.modal button'),
+    ).find((item) => item.textContent?.includes('Pantry replenishment · 2 cup · #12'));
+    expect(individualRestock).toBeTruthy();
+    await act(async () => {
+      individualRestock?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(apiDelete).toHaveBeenCalledTimes(1);
+    expect(apiDelete).toHaveBeenCalledWith('/shopping-list-entry/12/');
+    expect(window.confirm).toHaveBeenCalledWith(expect.stringContaining('unbought pantry replenishment request(s)'));
+  });
+
+  it('Finish shop deletes purchased replacements without removing outstanding pantry allocations', async () => {
+    useQueryClientMock.mockReturnValue({
+      setQueryData: vi.fn(),
+      invalidateQueries: vi.fn(),
+      fetchQuery: vi.fn().mockResolvedValue('/meal-plan/2026-10-10'),
+    });
+    useQueryMock.mockImplementation(({ queryKey }: { queryKey: string[] }) => {
+      if (queryKey[0] === 'shopping-list') {
+        return {
+          data: [
+            { id: 71, food: makeFood(), checked: true,
+              shopping_lists: [{ id: 1, name: 'Use from Pantry' }],
+              list_recipe_data: {
+                recipe_data: { name: 'Cake' },
+                meal_plan_data: { id: 8, from_date: '2026-10-15' },
+              },
+            },
+            { id: 72, food: { ...makeFood(), id: 2, name: 'Milk' }, checked: true,
+              shopping_lists: [{ id: 2, name: 'Pantry Replenishment' }],
+            },
+            { id: 73, food: { ...makeFood(), id: 3, name: 'Sugar' }, checked: false },
+          ],
+          isLoading: false, isError: false,
+        };
+      }
+      return { data: { id: 7, name: 'To Check' }, isLoading: false, isError: false };
+    });
+    vi.stubGlobal('confirm', vi.fn().mockReturnValue(true));
+    vi.mocked(apiDelete).mockResolvedValue(undefined);
+    act(() => {
+      root.render(<MemoryRouter><ShoppingList /></MemoryRouter>);
+    });
+    const finish = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Finish weekly shop and clear bought items"]',
+    );
+    expect(finish?.disabled).toBe(false);
+    await act(async () => {
+      finish?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(apiDelete).toHaveBeenCalledTimes(1);
+    expect(apiDelete).toHaveBeenCalledWith('/shopping-list-entry/72/');
+    expect(window.confirm).toHaveBeenCalledWith(expect.stringContaining('purchased pantry replacement(s)'));
   });
 
   it('marks manual requests with a pencil and groups them first in recipe view', () => {
@@ -560,10 +798,10 @@ describe('ShoppingList', () => {
   });
 
   it('detects full horizontal swipes beyond the action trigger threshold', () => {
-    expect(isFullLeftSwipe(-208, 5)).toBe(true);
-    expect(isFullLeftSwipe(-207, 5)).toBe(false);
-    expect(isFullLeftSwipe(-240, 250)).toBe(false);
-    expect(isFullLeftSwipe(240, 5)).toBe(false);
+    expect(isFullLeftSwipe(-312, 5)).toBe(true);
+    expect(isFullLeftSwipe(-311, 5)).toBe(false);
+    expect(isFullLeftSwipe(-320, 350)).toBe(false);
+    expect(isFullLeftSwipe(320, 5)).toBe(false);
     expect(isFullRightSwipe(208, 5)).toBe(true);
     expect(isFullRightSwipe(207, 5)).toBe(false);
     expect(isFullRightSwipe(240, 250)).toBe(false);
@@ -986,7 +1224,8 @@ describe('ShoppingList', () => {
       await Promise.resolve();
     });
 
-    expect(window.confirm).toHaveBeenCalledWith('Remove 1 item selected by “Delete requests”?');
+    expect(window.confirm).toHaveBeenCalledWith(expect.stringContaining('Remove 1 item selected by “Delete requests”?'));
+    expect(window.confirm).toHaveBeenCalledWith(expect.stringContaining('Meal planner entries will not be changed.'));
     expect(apiDelete).toHaveBeenCalledTimes(1);
     expect(apiDelete).toHaveBeenCalledWith('/shopping-list-entry/1/');
     expect(setQueryData).toHaveBeenCalledWith(['shopping-list'], expect.any(Function));
@@ -1117,15 +1356,15 @@ describe('ShoppingList', () => {
 
     act(() => {
       dispatchPointer(rowContent!, 'pointerdown', 280, 10);
-      dispatchPointer(rowContent!, 'pointermove', 40, 12);
+      dispatchPointer(rowContent!, 'pointermove', -60, 12);
     });
 
-    expect((rowContent as HTMLDivElement).style.transform).toBe('translateX(-240px)');
-    expect(action?.style.width).toBe('240px');
+    expect((rowContent as HTMLDivElement).style.transform).toBe('translateX(-340px)');
+    expect(action?.style.width).toBe('340px');
     expect(action?.classList.contains('shopping-list-swipe-action-ready')).toBe(true);
 
     act(() => {
-      dispatchPointer(rowContent!, 'pointerup', 40, 12);
+      dispatchPointer(rowContent!, 'pointerup', -60, 12);
     });
 
     expect(moveToCheckMutateMock).toHaveBeenCalledWith({
@@ -1150,6 +1389,8 @@ describe('ShoppingList', () => {
     expect(rowActions?.querySelector('button[aria-label="Show details for Flour"]')).toBeTruthy();
     expect(rowActions?.querySelector('button[aria-label="Send Flour to To Check"]')).toBeTruthy();
     expect(rowActions?.querySelector('button[aria-label="Mark Flour bought"]')).toBeTruthy();
+    expect(rowActions?.querySelector('button[aria-label="Remove Flour entries"]')).toBeTruthy();
+    expect(container.querySelector('button[aria-label="Remove Flour from shopping list (swipe)"]')).toBeTruthy();
   });
 
   it('opens ingredient details from the desktop info action with true facts and contributing recipes', () => {

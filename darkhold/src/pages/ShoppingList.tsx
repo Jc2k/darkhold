@@ -63,7 +63,10 @@ export { fetchAllShoppingListEntries } from '../hooks/useShoppingListEntries';
 const TO_CHECK_LIST_NAME = 'To Check';
 const SWIPE_THRESHOLD_PX = 60;
 const SWIPE_ACTION_WIDTH_PX = 104;
+// Two actions appear on the left swipe: To Check and Remove.
+// A much longer swipe still invokes the existing full-swipe To Check action.
 const FULL_SWIPE_THRESHOLD_PX = SWIPE_ACTION_WIDTH_PX * 2;
+const FULL_LEFT_SWIPE_THRESHOLD_PX = SWIPE_ACTION_WIDTH_PX * 3;
 const TOOLBAR_BUTTON_STYLE = { minHeight: 44, padding: '0 1rem' };
 
 export function isInShoppingList(entry: ShoppingEntry, listName: string): boolean {
@@ -79,7 +82,7 @@ export function isRightSwipe(deltaX: number, deltaY: number): boolean {
 }
 
 export function isFullLeftSwipe(deltaX: number, deltaY: number): boolean {
-  return deltaX <= -FULL_SWIPE_THRESHOLD_PX && Math.abs(deltaX) > Math.abs(deltaY);
+  return deltaX <= -FULL_LEFT_SWIPE_THRESHOLD_PX && Math.abs(deltaX) > Math.abs(deltaY);
 }
 
 export function isFullRightSwipe(deltaX: number, deltaY: number): boolean {
@@ -104,7 +107,7 @@ export function removeShoppingListEntries(
   return entries.filter((entry) => !entryIds.has(entry.id));
 }
 
-export type ShoppingListClearTarget = 'all' | 'requests' | 'meal-plan-ingredients' | 'checked';
+export type ShoppingListClearTarget = 'all' | 'requests' | 'meal-plan-ingredients' | 'checked' | 'bought';
 
 export function getShoppingListEntriesToClear(
   entries: ShoppingEntry[],
@@ -115,6 +118,10 @@ export function getShoppingListEntriesToClear(
       return entries.filter((entry) => !getRecipeName(entry));
     case 'meal-plan-ingredients':
       return entries.filter((entry) => Boolean(getRecipeName(entry)));
+    case 'bought':
+      // Finishing the shop must not discard unresolved pantry reservations,
+      // even if a different client marked one as checked.
+      return entries.filter((entry) => entry.checked && !isReservedForPantry(entry));
     case 'checked':
       return entries.filter((entry) => entry.checked);
     case 'all':
@@ -264,6 +271,20 @@ function getRecipeName(entry: ShoppingEntry): string | null {
   return entry.list_recipe_data?.recipe_data.name ?? null;
 }
 
+/** Distinguish individual purchases when a visible food row aggregates several entries. */
+export function shoppingEntryRemovalLabel(entry: ShoppingEntry): string {
+  const source = isReservedForPantry(entry)
+    ? 'Use from pantry'
+    : isPantryReplenishment(entry)
+      ? 'Pantry replenishment'
+      : getRecipeName(entry) ?? 'Manual request';
+  const amount = formatAmount(entry);
+  const date = !isPantryReplenishment(entry)
+    ? entry.list_recipe_data?.meal_plan_data?.from_date?.slice(0, 10)
+    : null;
+  return [source, amount, date, `#${entry.id}`].filter(Boolean).join(' · ');
+}
+
 function getRecipe(entry: ShoppingEntry): ShoppingListRecipe | null {
   const name = getRecipeName(entry);
   return name ? { id: entry.list_recipe_data?.recipe ?? null, name } : null;
@@ -401,6 +422,7 @@ export function ShoppingList() {
   const [pendingIds, setPendingIds] = useState<Set<number>>(new Set());
   const [isClearing, setIsClearing] = useState(false);
   const [clearError, setClearError] = useState<string | null>(null);
+  const [removePicker, setRemovePicker] = useState<{ foodName: string; entries: ShoppingEntry[] } | null>(null);
   const [moveError, setMoveError] = useState<string | null>(null);
   const swipeStart = useRef<{
     key: string;
@@ -572,28 +594,30 @@ export function ShoppingList() {
     });
   };
 
-  const clearEntries = (entries: ShoppingEntry[], target: ShoppingListClearTarget) => {
-    if (!hasPersonalToken) return;
-    const entriesToClear = getShoppingListEntriesToClear(entries, target);
-    const itemCount = `${entriesToClear.length} item${entriesToClear.length !== 1 ? 's' : ''}`;
-    const pantryReservations = entries.filter((entry) => !entry.checked && isReservedForPantry(entry)).length;
-    const pendingRestocks = entries.filter((entry) => !entry.checked && isPantryReplenishment(entry)).length;
-    const checkedRestocks = entriesToClear.filter(isPantryReplenishment).length;
-    const confirmation =
-      target === 'all'
-        ? `Remove all ${itemCount} from your shopping list? This also removes ${pantryReservations} outstanding pantry reservation(s) and ${pendingRestocks} unbought pantry replenishment request(s). Any unresolved stock use may be lost.`
-        : target === 'checked'
-          ? `Finish the weekly shop and remove ${itemCount} bought item(s)? All unbought items and pantry reservations will remain.${checkedRestocks ? ` ${checkedRestocks} purchased pantry replacement(s) are included; make sure you've added them to pantry stock with new expiry dates first.` : ''}`
-          : `Remove ${itemCount} selected by “${
-            target === 'requests'
-              ? 'Delete requests'
-              : target === 'meal-plan-ingredients'
-                ? 'Delete meal plan ingredients'
-                : 'Delete checked'
-          }”?`;
-    if (!window.confirm(confirmation)) {
-      return;
-    }
+  const removeSelectedEntries = (entriesToClear: ShoppingEntry[], confirmation: string) => {
+    if (!hasPersonalToken || isClearing || entriesToClear.length === 0) return;
+    const outstandingReservations = entriesToClear.filter(isReservedForPantry).length;
+    const pendingRestocks = entriesToClear.filter(
+      (entry) => !entry.checked && isPantryReplenishment(entry),
+    ).length;
+    const purchasedRestocks = entriesToClear.filter(
+      (entry) => entry.checked && isPantryReplenishment(entry),
+    ).length;
+    const warnings = [
+      outstandingReservations
+        ? `This cancels ${outstandingReservations} pantry reservation(s); unconfirmed pantry use will no longer be tracked here.`
+        : '',
+      pendingRestocks
+        ? `This removes ${pendingRestocks} unbought pantry replenishment request(s).`
+        : '',
+      purchasedRestocks
+        ? `For ${purchasedRestocks} purchased pantry replacement(s), make sure new stock has been entered into the pantry separately.`
+        : '',
+      'Meal planner entries will not be changed.',
+    ].filter(Boolean);
+    if (!window.confirm([confirmation, ...warnings].join('\n\n'))) return;
+
+    closeSwipeAction();
     setIsClearing(true);
     setClearError(null);
     Promise.allSettled(
@@ -620,6 +644,32 @@ export function ShoppingList() {
         invalidateCacheQueries(qc, 'shopping-list', MEAL_PLAN_REDIRECT_WEEK_BROADCAST_KEY);
         void invalidateAndRefreshMealPlanRedirectWeek(qc, apiGet);
       });
+  };
+
+  const askToRemoveFood = (foodName: string, entries: ShoppingEntry[]) => {
+    closeSwipeAction();
+    if (entries.length === 1) {
+      removeSelectedEntries(entries, `Remove ${foodName} from the shopping list?`);
+    } else {
+      setRemovePicker({ foodName, entries });
+    }
+  };
+
+  const clearEntries = (entries: ShoppingEntry[], target: ShoppingListClearTarget) => {
+    const selected = getShoppingListEntriesToClear(entries, target);
+    const count = `${selected.length} item${selected.length !== 1 ? 's' : ''}`;
+    const confirmation = target === 'all'
+      ? `Remove all ${count} from your shopping list?`
+      : target === 'bought'
+        ? `Finish the weekly shop and remove ${count} bought item(s)? Unbought items and pantry reservations will remain.`
+        : `Remove ${count} selected by “${
+            target === 'requests'
+              ? 'Delete requests'
+              : target === 'meal-plan-ingredients'
+                ? 'Delete meal plan ingredients'
+                : 'Delete checked'
+          }”?`;
+    removeSelectedEntries(selected, confirmation);
   };
 
   if (isLoading && !data) {
@@ -722,8 +772,8 @@ export function ShoppingList() {
         <Button
           variant="outline-success"
           style={TOOLBAR_BUTTON_STYLE}
-          onClick={() => clearEntries(entries, 'checked')}
-          disabled={isClearing || !hasPersonalToken || !entries.some((entry) => entry.checked)}
+          onClick={() => clearEntries(entries, 'bought')}
+          disabled={isClearing || !hasPersonalToken || getShoppingListEntriesToClear(entries, 'bought').length === 0}
           aria-label="Finish weekly shop and clear bought items"
         >
           Finish shop
@@ -964,6 +1014,17 @@ export function ShoppingList() {
                         >
                           <QuestionCircleFill aria-hidden="true" />
                         </Button>
+                        <Button
+                          variant="danger"
+                          className="shopping-list-swipe-action shopping-list-swipe-action-delete rounded-0"
+                          style={{ width: SWIPE_ACTION_WIDTH_PX }}
+                          onClick={() => askToRemoveFood(foodName, agg.entries)}
+                          disabled={isClearing || isPending || !hasPersonalToken}
+                          aria-label={`Remove ${foodName} from shopping list (swipe)`}
+                          tabIndex={openSwipeKey === rowKey && swipeOffset <= -SWIPE_ACTION_WIDTH_PX * 1.5 ? 0 : -1}
+                        >
+                          <Trash3 aria-hidden="true" />
+                        </Button>
                         <div
                           className={`shopping-list-swipe-content d-flex align-items-center gap-2 py-2 px-3${
                             longPressKey === rowKey ? ' shopping-list-long-press-pending' : ''
@@ -1032,7 +1093,11 @@ export function ShoppingList() {
                               toggleChecked(agg.entries, !agg.allChecked);
                             else if (isLeftSwipe(finalOffset, deltaY)) {
                               setOpenSwipeKey(rowKey);
-                              setSwipeOffset(-SWIPE_ACTION_WIDTH_PX);
+                              setSwipeOffset(
+                                finalOffset <= -SWIPE_ACTION_WIDTH_PX * 1.5
+                                  ? -SWIPE_ACTION_WIDTH_PX * 2
+                                  : -SWIPE_ACTION_WIDTH_PX,
+                              );
                             } else if (isRightSwipe(finalOffset, deltaY)) {
                               setOpenSwipeKey(rowKey);
                               setSwipeOffset(SWIPE_ACTION_WIDTH_PX);
@@ -1182,6 +1247,15 @@ export function ShoppingList() {
                             >
                               <PlusCircle aria-hidden="true" />
                             </Button>
+                            <Button
+                              variant="outline-danger"
+                              size="sm"
+                              onClick={() => askToRemoveFood(foodName, agg.entries)}
+                              disabled={isClearing || isPending || !hasPersonalToken}
+                              aria-label={`Remove ${foodName} entries`}
+                            >
+                              <Trash3 aria-hidden="true" />
+                            </Button>
                           </div>
                           {isPending && (
                             <Spinner animation="border" size="sm" className="flex-shrink-0" />
@@ -1259,6 +1333,52 @@ export function ShoppingList() {
             </p>
           )}
         </Modal.Body>
+      </Modal>
+      <Modal show={removePicker != null} onHide={() => setRemovePicker(null)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Remove {removePicker?.foodName}</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p className="small text-muted">
+            This ingredient has several shopping entries. Choose one or remove them all.
+          </p>
+          <div className="d-grid gap-2">
+            {removePicker?.entries.map((entry) => (
+              <Button
+                key={entry.id}
+                variant="outline-danger"
+                onClick={() => {
+                  if (!removePicker) return;
+                  const { foodName } = removePicker;
+                  setRemovePicker(null);
+                  removeSelectedEntries(
+                    [entry],
+                    `Remove ${foodName} — ${shoppingEntryRemovalLabel(entry)} from the shopping list?`,
+                  );
+                }}
+              >
+                {shoppingEntryRemovalLabel(entry)}
+              </Button>
+            ))}
+            <Button
+              variant="danger"
+              onClick={() => {
+                if (!removePicker) return;
+                const { foodName, entries } = removePicker;
+                setRemovePicker(null);
+                removeSelectedEntries(
+                  entries,
+                  `Remove all ${entries.length} ${foodName} entries from the shopping list?`,
+                );
+              }}
+            >
+              Remove all {removePicker?.foodName} entries
+            </Button>
+          </div>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setRemovePicker(null)}>Cancel</Button>
+        </Modal.Footer>
       </Modal>
       {pantryCookEntry && (
         <CookLogModal

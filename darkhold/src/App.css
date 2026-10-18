@@ -578,6 +578,10 @@ body {
   right: 0;
 }
 
+.shopping-list-swipe-action-delete {
+  right: 6.5rem;
+}
+
 .shopping-list-swipe-action-ready {
   filter: brightness(0.85);
 }
