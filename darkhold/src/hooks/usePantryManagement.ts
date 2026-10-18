@@ -4,11 +4,16 @@ import type { Food, PaginatedResponse, RecipeUnit } from '../api/tandoor-types';
 import { invalidateCacheQueries } from './useCacheInvalidation';
 import type { PantryInventoryEntry } from './usePantryReservations';
 
+export interface PantryHousehold {
+  id: number;
+  name: string;
+}
+
 export interface PantryLocation {
   id: number;
   name: string;
   is_freezer: boolean;
-  household: { id: number; name: string };
+  household: PantryHousehold;
 }
 
 async function fetchEveryPage<T>(path: string): Promise<T[]> {
@@ -27,6 +32,28 @@ export function usePantryLocations() {
     queryKey: ['pantry-locations'],
     queryFn: () => fetchEveryPage<PantryLocation>('/inventory-location/'),
     staleTime: 5 * 60_000,
+  });
+}
+
+export function usePantryHouseholds() {
+  return useQuery({
+    queryKey: ['pantry-households'],
+    queryFn: () => fetchEveryPage<PantryHousehold>('/household/'),
+    staleTime: 10 * 60_000,
+  });
+}
+
+export function useCreatePantryLocation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (values: { name: string; household: PantryHousehold; is_freezer: boolean }) =>
+      apiPost<PantryLocation>('/inventory-location/', values),
+    onSuccess: (created) => {
+      queryClient.setQueryData<PantryLocation[]>(['pantry-locations'], (existing) =>
+        existing ? [...existing, created] : [created],
+      );
+      invalidateCacheQueries(queryClient, 'pantry-locations');
+    },
   });
 }
 
