@@ -53,7 +53,7 @@ import {
   usePantryInventory,
   useSetPantryReservation,
 } from '../hooks/usePantryReservations';
-import { getMealPlanWeekStartSaturday } from '../utils/dateUtils';
+import { formatDate, getMealPlanWeekStartSaturday } from '../utils/dateUtils';
 import { getMealPlanWeekStartFromShoppingListEntries } from '../utils/mealPlanRedirect';
 
 export { fetchAllShoppingListEntries } from '../hooks/useShoppingListEntries';
@@ -418,7 +418,7 @@ export function ShoppingList() {
   const { data, isLoading, isError } = useShoppingListEntries();
   const pantryInventory = usePantryInventory();
   const pantryReservation = useSetPantryReservation();
-  const today = new Date().toLocaleDateString('en-CA');
+  const today = formatDate(new Date());
   const shoppingListMealPlanWeekStart = useMemo(
     () => getMealPlanWeekStartFromShoppingListEntries(data ?? []),
     [data],
