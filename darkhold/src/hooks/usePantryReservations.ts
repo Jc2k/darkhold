@@ -65,7 +65,7 @@ export function usePantryReservations(enabled = true) {
 export function useSetPantryReservation() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ entries, reserved }: { entries: ShoppingListEntry[]; reserved: boolean }) => {
+    mutationFn: async ({ entries, reserved, completed }: { entries: ShoppingListEntry[]; reserved: boolean; completed?: boolean }) => {
       const list = reserved
         ? await apiPost<ShoppingList>('/shopping-list/', { name: PANTRY_RESERVATION_LIST })
         : null;
@@ -76,12 +76,13 @@ export function useSetPantryReservation() {
           );
           return apiPatch<ShoppingListEntry>(`/shopping-list-entry/${entry.id}/`, {
             shopping_lists: list ? [...otherLists, list] : otherLists,
+            ...(completed ? { checked: true } : reserved ? { checked: false } : {}),
           });
         }),
       );
-      return { entries, reserved, list };
+      return { entries, reserved, list, completed };
     },
-    onSuccess: ({ entries, reserved, list }) => {
+    onSuccess: ({ entries, reserved, list, completed }) => {
       const ids = new Set(entries.map((entry) => entry.id));
       qc.setQueryData<ShoppingListEntry[]>(['shopping-list'], (current) =>
         current?.map((entry) => {
@@ -89,7 +90,11 @@ export function useSetPantryReservation() {
           const others = (entry.shopping_lists ?? []).filter(
             (item) => item.name !== PANTRY_RESERVATION_LIST,
           );
-          return { ...entry, shopping_lists: reserved && list ? [...others, list] : others };
+          return {
+            ...entry,
+            shopping_lists: reserved && list ? [...others, list] : others,
+            checked: completed ? true : reserved ? false : entry.checked,
+          };
         }),
       );
       invalidateCacheQueries(qc, 'shopping-list');
