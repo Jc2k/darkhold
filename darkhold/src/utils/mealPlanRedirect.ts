@@ -8,6 +8,7 @@ type ApiGetLike = <T>(
 
 interface RedirectShoppingListEntry {
   id: number;
+  shopping_lists?: Array<{ name: string }>;
   list_recipe_data?: {
     meal_plan_data?: {
       from_date?: string | null;
@@ -25,6 +26,9 @@ export const MEAL_PLAN_REDIRECT_WEEK_BROADCAST_KEY = 'meal-plan-redirect-week-pa
 export const MEAL_PLAN_REDIRECT_WEEK_STALE_TIME = 60_000;
 
 function getFromDateFromEntry(entry: RedirectShoppingListEntry): string | null {
+  // Pantry restocks are now independent shopping requests, even if a stale
+  // Tandoor response still includes the original meal-plan relationship.
+  if (entry.shopping_lists?.some((list) => list.name === 'Pantry Replenishment')) return null;
   return entry.list_recipe_data?.meal_plan_data?.from_date ?? null;
 }
 
