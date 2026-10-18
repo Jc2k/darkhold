@@ -81,7 +81,10 @@ export function PantryDashboardSections({ onConfirmMeal }: Props) {
 
       {expiring.length > 0 && (
         <section className="mb-4" aria-label="Pantry expiring soon">
-          <h5 className="mb-2"><ExclamationTriangle className="me-2" />Pantry: use soon</h5>
+          <div className="d-flex align-items-center justify-content-between mb-2">
+            <h5 className="mb-0"><ExclamationTriangle className="me-2" />Pantry: use soon</h5>
+            <Link to="/pantry" className="small text-muted">View pantry →</Link>
+          </div>
           <div className="border rounded">
             {expiring.slice(0, 8).map((entry) => {
               const expired = !!entry.expires && entry.expires < today;
@@ -107,6 +110,12 @@ export function PantryDashboardSections({ onConfirmMeal }: Props) {
             <p className="text-muted small mt-1">{expiring.length - 8} more expiring items.</p>
           )}
         </section>
+      )}
+      {expiring.length === 0 && !pantry.isLoading && !pantry.isError && (
+        <div className="d-flex align-items-center gap-2 justify-content-between mb-4">
+          <span className="small text-muted">No tracked pantry items expiring in the next 30 days.</span>
+          <Link to="/pantry" className="small">View pantry →</Link>
+        </div>
       )}
       {pantry.isLoading && <Spinner size="sm" aria-label="Loading pantry" />}
       {pantry.isError && (
