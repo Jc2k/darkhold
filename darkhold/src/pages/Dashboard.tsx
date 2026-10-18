@@ -9,6 +9,8 @@ import type { Recipe, Keyword, MealPlan, MealType, PaginatedResponse } from '../
 import { RecipeCard } from '../components/RecipeCard';
 import { MealPlanAddModal } from '../components/MealPlanAddModal';
 import { CookLogModal } from '../components/CookLogModal';
+import { PantryDashboardSections } from '../components/PantryDashboardSections';
+import { MEAL_PLAN_ITEM_QUERY_PARAMS } from '../hooks/useMealPlan';
 import { LoadingMascot } from '../components/LoadingMascot';
 
 import { useUpSoonData } from '../hooks/useUpSoon';
@@ -530,6 +532,7 @@ function RecentlyViewedShelf({ onAddToMealPlan }: { onAddToMealPlan: (r: Recipe)
 export function Dashboard() {
   const [modalRecipe, setModalRecipe] = useState<Recipe | null>(null);
   const [cookLogEntry, setCookLogEntry] = useState<MealPlan | null>(null);
+  const [pantryError, setPantryError] = useState<string | null>(null);
 
   const today = useMemo(() => {
     const date = new Date();
@@ -650,6 +653,16 @@ export function Dashboard() {
         </Alert>
       )}
 
+      {pantryError && <Alert variant="danger">{pantryError}</Alert>}
+      <PantryDashboardSections
+        onConfirmMeal={(id) => {
+          setPantryError(null);
+          void apiGet<MealPlan>(`/meal-plan/${id}/`, MEAL_PLAN_ITEM_QUERY_PARAMS)
+            .then(setCookLogEntry)
+            .catch(() => setPantryError('Could not load the planned meal for pantry confirmation.'));
+        }}
+      />
+
       <UpcomingMealsShelf
         days={days}
         mealsByDay={mealsByDay}
@@ -701,6 +714,7 @@ export function Dashboard() {
           show
           onHide={() => setCookLogEntry(null)}
           recipeId={cookLogRecipeId}
+          mealPlanId={cookLogEntry.id}
           mealPlanDate={cookLogDate}
           mealType={cookLogMealType}
         />
