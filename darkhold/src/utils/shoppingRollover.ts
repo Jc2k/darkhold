@@ -1,10 +1,15 @@
 /** One shopping cycle follows DarkHold's existing Saturday–Friday meal-plan weeks.
  * This helper is used by the 4 a.m. server task, not by the shopping UI.
  */
+export const PANTRY_RESERVATION_LIST_NAME = 'Use from Pantry';
+export const PANTRY_REPLENISHMENT_LIST_NAME = 'Pantry Replenishment';
+
+export interface RolloverShoppingList { id: number; name: string }
+
 export interface RolloverShoppingEntry {
   id: number;
   checked: boolean;
-  shopping_lists?: Array<{ name: string }>;
+  shopping_lists?: RolloverShoppingList[];
   list_recipe_data?: {
     meal_plan_data?: {
       from_date?: string | null;
@@ -40,7 +45,46 @@ export function shoppingCycleStart(date: string): string {
 }
 
 export function pantryReservation(entry: RolloverShoppingEntry): boolean {
-  return entry.shopping_lists?.some((list) => list.name === 'Use from Pantry') ?? false;
+  return entry.shopping_lists?.some((list) => list.name === PANTRY_RESERVATION_LIST_NAME) ?? false;
+}
+
+export function pantryReplenishment(entry: RolloverShoppingEntry): boolean {
+  return entry.shopping_lists?.some((list) => list.name === PANTRY_REPLENISHMENT_LIST_NAME) ?? false;
+}
+
+/** Only convert a reservation after the last day of its planned meal has passed. */
+export function overduePantryReservations(
+  entries: RolloverShoppingEntry[],
+  today: string,
+): RolloverShoppingEntry[] {
+  return entries.filter((entry) => {
+    if (entry.checked || !pantryReservation(entry)) return false;
+    const plan = entry.list_recipe_data?.meal_plan_data;
+    const from = plan?.from_date?.slice(0, 10);
+    if (!from) return false;
+    const until = plan?.to_date?.slice(0, 10) || from;
+    return until < today;
+  });
+}
+
+/** Turn the very same shopping entry into an independent restock request.
+ * PATCHing in place preserves amount, unit and identity, so retries cannot duplicate it.
+ * Dropping list_recipe detaches the historical meal-plan shopping linkage.
+ */
+export function pantryReplenishmentPatch(
+  entry: RolloverShoppingEntry,
+  replacementList: RolloverShoppingList,
+) {
+  return {
+    checked: false,
+    list_recipe: null,
+    shopping_lists: [
+      ...(entry.shopping_lists ?? []).filter(
+        (list) => list.name !== PANTRY_RESERVATION_LIST_NAME && list.name !== PANTRY_REPLENISHMENT_LIST_NAME,
+      ),
+      replacementList,
+    ],
+  };
 }
 
 export function isLinkedToToday(entry: RolloverShoppingEntry, today: string): boolean {
@@ -67,6 +111,9 @@ export function planShoppingRollover(
   if (!ready) return { cycle, ready: false, ids: [] };
 
   const ids = entries.filter((entry) => {
+    // An unbought replenishment is an ordinary next-shop requirement, even if
+    // an older Tandoor payload still retains its historical recipe linkage.
+    if (pantryReplenishment(entry)) return entry.checked;
     if (pantryReservation(entry) || isLinkedToToday(entry, today)) return false;
     const from = entry.list_recipe_data?.meal_plan_data?.from_date?.slice(0, 10);
     // Old planned meals belong to the previous shop, even if left unchecked.
