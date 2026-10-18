@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPatch, apiPost } from '../api/client';
 import type { Food, PaginatedResponse, RecipeUnit, ShoppingList } from '../api/tandoor-types';
 import type { ShoppingListEntry } from './useShoppingListEntries';
-import { useShoppingListEntries } from './useShoppingListEntries';
+import { getShoppingListEntriesQueryOptions } from './useShoppingListEntries';
 import { invalidateCacheQueries } from './useCacheInvalidation';
 
 export const PANTRY_RESERVATION_LIST = 'Use from Pantry';
@@ -32,8 +32,9 @@ export async function fetchPantryInventory(): Promise<PantryInventoryEntry[]> {
   }
 }
 
-export function usePantryInventory() {
+export function usePantryInventory(enabled = true) {
   return useQuery({
+    enabled,
     queryKey: ['pantry-inventory'],
     queryFn: fetchPantryInventory,
     staleTime: 60_000,
@@ -49,8 +50,8 @@ export function reservationMealPlanId(entry: ShoppingListEntry): number | null {
   return entry.list_recipe_data?.meal_plan_data?.id ?? entry.list_recipe_data?.mealplan ?? null;
 }
 
-export function usePantryReservations() {
-  const query = useShoppingListEntries();
+export function usePantryReservations(enabled = true) {
+  const query = useQuery({ ...getShoppingListEntriesQueryOptions(), enabled });
   return {
     ...query,
     reservations: (query.data ?? []).filter(
