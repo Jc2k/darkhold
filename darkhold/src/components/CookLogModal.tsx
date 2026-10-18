@@ -96,17 +96,23 @@ export function CookLogModal({
   const stockApplied = useRef(new Set<number>());
   const createCookLog = useCreateCookLog();
   const updateReservation = useSetPantryReservation();
-  const shopping = usePantryReservations();
-  const pantry = usePantryInventory();
-  const { data: cookedByDate } = useCookLog(mealPlanDate, mealPlanDate);
-  const hasPersonalToken = Boolean(localStorage.getItem('tandoor_token'));
-  const today = formatDate(new Date());
+  const shopping = usePantryReservations(mealPlanId != null);
   const reservations = mealPlanId == null
     ? []
     : shopping.reservations.filter((entry) => reservationMealPlanId(entry) === mealPlanId);
+  const pantry = usePantryInventory(reservations.length > 0);
+  const cookedQuery = useCookLog(mealPlanDate, mealPlanDate);
+  const cookedByDate = cookedQuery.data;
+  const hasPersonalToken = Boolean(localStorage.getItem('tandoor_token'));
+  const today = formatDate(new Date());
   const alreadyLogged = isCookedOnDate(cookedByDate, recipeId, mealPlanDate);
-  const isLoadingPantry = mealPlanId != null && (shopping.isLoading || pantry.isLoading);
-  const pantryUnavailable = mealPlanId != null && (shopping.isError || pantry.isError);
+  const isLoadingPantry =
+    (mealPlanId != null && shopping.isLoading) ||
+    (reservations.length > 0 && pantry.isLoading) ||
+    (mealPlanId != null && cookedQuery.isLoading);
+  const pantryUnavailable =
+    (mealPlanId != null && (shopping.isError || cookedQuery.isError)) ||
+    (reservations.length > 0 && pantry.isError);
 
   function compatibleBatches(entry: ShoppingListEntry) {
     return entry.food
