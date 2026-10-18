@@ -26,7 +26,11 @@ import { buildCalendarFeatureDay } from './src/utils/calendarFeatures.ts';
 import {
   planShoppingRollover,
   ukRolloverClock,
+  overduePantryReservations,
+  pantryReplenishmentPatch,
+  PANTRY_REPLENISHMENT_LIST_NAME,
   type RolloverShoppingEntry,
+  type RolloverShoppingList,
 } from './src/utils/shoppingRollover.ts';
 import {
   createEmptyCalendarFeatureCache,
@@ -2011,16 +2015,64 @@ const SHOPPING_ROLLOVER_STATE_PATH = '/data/shopping-rollover.json';
 const SHOPPING_ROLLOVER_POLL_MS = 5 * 60 * 1000;
 let shoppingRolloverRunning = false;
 
-async function readShoppingRolloverCycle(): Promise<string | null> {
+interface ShoppingRolloverState {
+  lastCompletedCycle?: string;
+  lastPantryTransferDate?: string;
+}
+
+async function readShoppingRolloverState(): Promise<ShoppingRolloverState> {
   try {
-    const stored = JSON.parse(await Deno.readTextFile(SHOPPING_ROLLOVER_STATE_PATH)) as {
-      lastCompletedCycle?: string;
-    };
-    return stored.lastCompletedCycle ?? null;
+    const stored: unknown = JSON.parse(await Deno.readTextFile(SHOPPING_ROLLOVER_STATE_PATH));
+    if (stored == null || typeof stored !== 'object') throw new Error('Invalid shopping rollover state.');
+    return stored as ShoppingRolloverState;
   } catch (err) {
-    if (err instanceof Deno.errors.NotFound) return null;
+    if (err instanceof Deno.errors.NotFound) return {};
     throw err;
   }
+}
+
+async function writeShoppingRolloverState(state: ShoppingRolloverState): Promise<void> {
+  await writeFileAtomically(SHOPPING_ROLLOVER_STATE_PATH, `${JSON.stringify(state)}\n`);
+}
+
+/** Reclassify overdue allocations without creating new entries or deducting stock.
+ * An individual PATCH is atomic; if a later PATCH fails, the next run retries
+ * only entries that are still tagged "Use from Pantry".
+ */
+async function transferOverduePantryReservations(
+  entries: RolloverShoppingEntry[],
+  today: string,
+): Promise<number> {
+  const overdue = overduePantryReservations(entries, today);
+  if (overdue.length === 0) return 0;
+
+  const base = safeGetEnv('TANDOOR_URL') ?? 'http://tandoor:8080';
+  // Tandoor treats POST to /shopping-list/ with a name as get-or-create.
+  const listResponse = await fetch(new URL('/api/shopping-list/', base), {
+    method: 'POST',
+    headers: getTandoorHeaders(),
+    body: JSON.stringify({ name: PANTRY_REPLENISHMENT_LIST_NAME }),
+  });
+  if (!listResponse.ok) {
+    throw new Error(`Could not find pantry replenishment list: HTTP ${listResponse.status}`);
+  }
+  const replenishmentList = (await listResponse.json()) as RolloverShoppingList;
+  if (!replenishmentList.id) throw new Error('Tandoor returned an invalid replenishment list.');
+
+  for (const entry of overdue) {
+    const response = await fetch(new URL(`/api/shopping-list-entry/${entry.id}/`, base), {
+      method: 'PATCH',
+      headers: getTandoorHeaders(),
+      body: JSON.stringify(pantryReplenishmentPatch(entry, replenishmentList)),
+    });
+    if (!response.ok) {
+      throw new Error(`Could not transfer pantry reservation #${entry.id}: HTTP ${response.status}`);
+    }
+  }
+  broadcastToAllClients(JSON.stringify({ type: 'invalidate', queryKey: 'shopping-list' }));
+  broadcastToAllClients(JSON.stringify({ type: 'invalidate', queryKey: 'meal-plan-redirect-week-path' }));
+  console.info(`Moved ${overdue.length} overdue pantry reservations to Pantry Replenishment.`);
+  return overdue.length;
 }
 
 async function runShoppingRollover(now = new Date()): Promise<void> {
@@ -2030,13 +2082,25 @@ async function runShoppingRollover(now = new Date()): Promise<void> {
 
   shoppingRolloverRunning = true;
   try {
-    const entries = await fetchAllTandoorPages<RolloverShoppingEntry>('/shopping-list-entry/');
-    const decision = planShoppingRollover(entries, clock.date);
-    if (!decision.ready) return;
-    if ((await readShoppingRolloverCycle()) === decision.cycle) return;
+    let state = await readShoppingRolloverState();
+    let entries = await fetchAllTandoorPages<RolloverShoppingEntry>('/shopping-list-entry/');
 
-    // Delete sequentially so a partial failure can be retried safely.
-    // Old list entries disappear from subsequent fetches on retry.
+    // This runs once per UK calendar day, independently of the weekly clear.
+    // If any PATCH fails, don't record success; retry safely on the next poll.
+    if (state.lastPantryTransferDate !== clock.date) {
+      const transferred = await transferOverduePantryReservations(entries, clock.date);
+      if (transferred > 0) {
+        entries = await fetchAllTandoorPages<RolloverShoppingEntry>('/shopping-list-entry/');
+      }
+      state = { ...state, lastPantryTransferDate: clock.date };
+      await writeShoppingRolloverState(state);
+    }
+
+    const decision = planShoppingRollover(entries, clock.date);
+    if (!decision.ready || state.lastCompletedCycle === decision.cycle) return;
+
+    // Only the shopping-list entry is deleted; the Tandoor meal plan isn't touched.
+    // Unbought pantry replacements and future meals are retained.
     const base = safeGetEnv('TANDOOR_URL') ?? 'http://tandoor:8080';
     for (const id of decision.ids) {
       const response = await fetch(new URL(`/api/shopping-list-entry/${id}/`, base), {
@@ -2048,10 +2112,7 @@ async function runShoppingRollover(now = new Date()): Promise<void> {
       }
     }
 
-    await writeFileAtomically(
-      SHOPPING_ROLLOVER_STATE_PATH,
-      `${JSON.stringify({ lastCompletedCycle: decision.cycle, completedAt: now.toISOString() })}\n`,
-    );
+    await writeShoppingRolloverState({ ...state, lastCompletedCycle: decision.cycle });
     if (decision.ids.length > 0) {
       broadcastToAllClients(JSON.stringify({ type: 'invalidate', queryKey: 'shopping-list' }));
       broadcastToAllClients(JSON.stringify({ type: 'invalidate', queryKey: 'meal-plan-redirect-week-path' }));
@@ -2060,7 +2121,7 @@ async function runShoppingRollover(now = new Date()): Promise<void> {
       `Shopping rollover ${decision.cycle}: removed ${decision.ids.length} historical shopping entries.`,
     );
   } catch (err) {
-    console.error('Shopping rollover failed. Will retry without deleting current-week items.', err);
+    console.error('Shopping rollover failed. Will retry any unfinished changes.', err);
   } finally {
     shoppingRolloverRunning = false;
   }
