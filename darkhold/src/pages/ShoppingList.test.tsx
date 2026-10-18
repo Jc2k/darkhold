@@ -212,6 +212,20 @@ describe('ShoppingList', () => {
     ).toBe('2 cup');
   });
 
+  it('shows pantry replenishment quantities even after detaching from the meal plan', () => {
+    const restock = {
+      id: 32,
+      amount: 2,
+      unit_name: 'tins',
+      food: makeFood(),
+      checked: false,
+      shopping_lists: [{ id: 15, name: 'Pantry Replenishment' }],
+    };
+    expect(formatAmount(restock)).toBe('2 tins');
+    expect(getShoppingListEntriesToClear([restock], 'requests')).toEqual([restock]);
+    expect(getShoppingListEntriesToClear([restock], 'meal-plan-ingredients')).toEqual([]);
+  });
+
   it('selects entries for each shopping-list delete action', () => {
     const entries = [
       { id: 1, food: makeFood(), checked: false },
