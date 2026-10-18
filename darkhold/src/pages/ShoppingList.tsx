@@ -230,12 +230,13 @@ function getBlankRecipes(
 }
 
 function getRecipeFromDate(entry: ShoppingEntry): string | null {
+  if (isPantryReplenishment(entry)) return null;
   return entry.list_recipe_data?.meal_plan_data?.from_date ?? null;
 }
 
 export function formatAmount(entry: ShoppingEntry): string {
   const unitName = typeof entry.unit === 'object' && entry.unit ? entry.unit.name : entry.unit_name;
-  if (!entry.list_recipe_data?.meal_plan_data) return '';
+  if (!entry.list_recipe_data?.meal_plan_data && !isPantryReplenishment(entry)) return '';
 
   const parts: string[] = [];
   if (entry.amount != null) parts.push(formatFraction(entry.amount));
@@ -258,6 +259,8 @@ function groupByCategory(entries: ShoppingEntry[]): Record<string, ShoppingEntry
 }
 
 function getRecipeName(entry: ShoppingEntry): string | null {
+  // A pantry replenishment is a shopping request, not a planned-meal ingredient.
+  if (isPantryReplenishment(entry)) return null;
   return entry.list_recipe_data?.recipe_data.name ?? null;
 }
 
