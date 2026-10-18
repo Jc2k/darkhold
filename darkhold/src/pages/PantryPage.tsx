@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Badge, Button, Form, ListGroup, Modal, Offcanvas, Spinner } from 'react-bootstrap';
-import { ArrowLeft, BoxSeam, PlusLg, Trash3 } from 'react-bootstrap-icons';
+import { ArrowLeft, BoxSeam, PlusLg } from 'react-bootstrap-icons';
 import { Link } from 'react-router-dom';
 import { searchFoods } from '../api/client';
 import { AsyncTypeaheadFilter, type FilterOption } from '../components/AsyncTypeaheadFilter';
