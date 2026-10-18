@@ -86,7 +86,7 @@ describe('automatic pantry replacement transfer', () => {
       .toEqual([1]);
   });
 
-  it('uses local calendar dates rather than UTC times and waits until the day after', () => {
+  it('compares planned date portions and waits until the next day', () => {
     expect(overduePantryReservations([reserved(1, '2026-10-17T23:00:00Z')], '2026-10-17'))
       .toHaveLength(0);
     expect(overduePantryReservations([reserved(1, '2026-10-17T23:00:00Z')], '2026-10-18'))
