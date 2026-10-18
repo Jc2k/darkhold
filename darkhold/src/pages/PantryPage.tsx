@@ -445,6 +445,9 @@ export function PantryPage() {
       {!hasToken && <NoTokenAlert />}
       <p className="text-muted small">
         Just the foods you choose to track. Quantities and expiry dates are stored in Tandoor.
+        Ingredients reserved from pantry for planned meals are automatically deducted after the meal
+        date has passed (at 4 a.m. UK time). Successful reservations then become shopping
+        replenishment requests. Correct the quantity here if the planned meal was not cooked.
       </p>
       <div className="d-flex gap-2 flex-wrap mb-3">
         <Form.Control

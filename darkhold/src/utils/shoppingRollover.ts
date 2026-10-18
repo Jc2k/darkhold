@@ -9,9 +9,14 @@ export interface RolloverShoppingList { id?: number; name: string }
 export interface RolloverShoppingEntry {
   id: number;
   checked: boolean;
+  amount?: number | string | null;
+  food?: { id: number; name?: string } | number | null;
+  unit?: { id: number; name?: string } | number | null;
   shopping_lists?: RolloverShoppingList[];
   list_recipe_data?: {
+    mealplan?: number | null;
     meal_plan_data?: {
+      id?: number;
       from_date?: string | null;
       to_date?: string | null;
     } | null;

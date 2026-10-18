@@ -33,6 +33,18 @@ import {
   type RolloverShoppingList,
 } from './src/utils/shoppingRollover.ts';
 import {
+  automaticCookLogTimestamp,
+  duePlannedMeals,
+  existingCookLogKeys,
+  pantryDeductionRetry,
+  planAutomaticPantryDeductions,
+  plannedCookLogKey,
+  previousCalendarDate,
+  reservationMealId,
+  type AutoInventoryBatch,
+  type PantryDeduction,
+} from './src/utils/autoMealReconciliation.ts';
+import {
   createEmptyCalendarFeatureCache,
   extendCalendarFeatureCache,
   isCalendarFeatureCache,
@@ -2035,15 +2047,247 @@ async function writeShoppingRolloverState(state: ShoppingRolloverState): Promise
   await writeFileAtomically(SHOPPING_ROLLOVER_STATE_PATH, `${JSON.stringify(state)}\n`);
 }
 
-/** Reclassify overdue allocations without creating new entries or deducting stock.
- * An individual PATCH is atomic; if a later PATCH fails, the next run retries
- * only entries that are still tagged "Use from Pantry".
+
+/**
+ * Source of truth for idempotency is a durable file in /data. It records the
+ * planned before/after stock values before PATCHing Tandoor. If a request
+ * succeeds but the response is lost, the next run checks the actual amount.
+ */
+const AUTO_MEAL_JOURNAL_PATH = '/data/auto-meal-reconciliation.json';
+
+interface AutoPantryJournalEntry {
+  mealPlanId: number;
+  movements: PantryDeduction[];
+  complete: boolean;
+}
+interface AutoMealJournal {
+  activatedFromDate: string;
+  // Existing non-automated logs are not proof that stock wasn't already used.
+  // Only our own newly created logs may trigger automatic stock consumption.
+  loggedMeals: Record<string, 'pending' | 'auto' | 'existing'>;
+  pantryEntries: Record<string, AutoPantryJournalEntry>;
+}
+
+async function readAutoMealJournal(today: string): Promise<AutoMealJournal> {
+  try {
+    const state: AutoMealJournal = JSON.parse(await Deno.readTextFile(AUTO_MEAL_JOURNAL_PATH));
+    if (
+      !state || typeof state.activatedFromDate !== 'string' ||
+      !state.loggedMeals || !state.pantryEntries
+    ) throw new Error('Invalid automatic meal journal.');
+    return state;
+  } catch (err) {
+    if (!(err instanceof Deno.errors.NotFound)) throw err;
+    // On first deployment only start with yesterday's meal, not a historic
+    // pantry/cook-log backfill. The existing manual housekeeping tool remains.
+    const initial: AutoMealJournal = {
+      activatedFromDate: previousCalendarDate(today),
+      loggedMeals: {},
+      pantryEntries: {},
+    };
+    await writeAutoMealJournal(initial);
+    return initial;
+  }
+}
+
+async function writeAutoMealJournal(journal: AutoMealJournal): Promise<void> {
+  await writeFileAtomically(AUTO_MEAL_JOURNAL_PATH, JSON.stringify(journal) + '\n');
+}
+
+async function writeTandoorJson(path: string, method: 'POST' | 'PATCH', data: unknown): Promise<void> {
+  const base = safeGetEnv('TANDOOR_URL') ?? 'http://tandoor:8080';
+  const res = await fetch(new URL('/api' + path, base), {
+    method,
+    headers: getTandoorHeaders(),
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    throw new Error('Tandoor ' + method + ' ' + path + ' returned HTTP ' + res.status
+      + ': ' + (await res.text()).slice(0, 300));
+  }
+}
+
+async function applyJournalledPantryEntry(
+  shoppingEntry: RolloverShoppingEntry,
+  mealPlanId: number,
+  mealDate: string,
+  batches: AutoInventoryBatch[],
+  journal: AutoMealJournal,
+): Promise<boolean> {
+  const key = String(shoppingEntry.id);
+  let record = journal.pantryEntries[key];
+  if (record && record.mealPlanId !== mealPlanId) {
+    throw new Error('Pantry reservation ' + key + ' was reassigned after reconciliation started.');
+  }
+  if (!record) {
+    let movements: PantryDeduction[];
+    try {
+      movements = planAutomaticPantryDeductions(shoppingEntry, batches, mealDate);
+    } catch (err) {
+      console.warn(
+        'Automatic pantry use for shopping entry #' + key + ' needs attention; '
+          + 'reservation retained and not transferred:',
+        err,
+      );
+      return false;
+    }
+    record = { mealPlanId, movements, complete: false };
+    journal.pantryEntries[key] = record;
+    // CRITICAL: persist the intended stock amounts before any remote change.
+    await writeAutoMealJournal(journal);
+  }
+  if (record.complete) return true;
+
+  for (const movement of record.movements) {
+    if (movement.applied) continue;
+    const current = await fetchTandoorJson<AutoInventoryBatch>(
+      '/inventory-entry/' + movement.batchId + '/',
+    );
+    const retry = pantryDeductionRetry(current.amount, movement);
+    if (retry === 'conflict') {
+      throw new Error(
+        'Ambiguous pantry inventory change for batch #' + movement.batchId
+          + ' (shopping entry #' + key + '). Refusing another deduction; review inventory.',
+      );
+    }
+    if (retry === 'safe-to-apply') {
+      await writeTandoorJson('/inventory-entry/' + movement.batchId + '/', 'PATCH', {
+        amount: movement.after,
+      });
+    }
+    movement.applied = true;
+    await writeAutoMealJournal(journal);
+    const cached = batches.find((batch) => batch.id === movement.batchId);
+    if (cached) cached.amount = movement.after;
+  }
+
+  record.complete = true;
+  await writeAutoMealJournal(journal);
+  return true;
+}
+
+/**
+ * Automatically infer past planned meals as cook logs, then consume only items
+ * explicitly reserved from pantry. A successful deduction must precede the
+ * shopping-list move into Pantry Replenishment.
+ *
+ * This intentionally does NOT deduct every recipe ingredient: ordinary
+ * shopping requests aren't proof that the ingredient came from the pantry.
+ */
+async function automaticallyLogMealsAndUsePantry(
+  shoppingEntries: RolloverShoppingEntry[],
+  today: string,
+): Promise<Set<number>> {
+  const journal = await readAutoMealJournal(today);
+  const plans = duePlannedMeals(
+    await fetchAllTandoorPages<MealPlan>('/meal-plan/', {
+      from_date: journal.activatedFromDate,
+      to_date: today,
+    }),
+    today,
+    journal.activatedFromDate,
+  );
+  const cookLogs = await fetchAllTandoorPages<CookLog>('/cook-log/', {
+    created_at_gte: journal.activatedFromDate + 'T00:00:00',
+    created_at_lte: today + 'T23:59:59',
+  });
+  const existing = existingCookLogKeys(cookLogs);
+  // Recognise a lost POST response by its recipe/date and provenance marker.
+  const automatedLogSources = new Map<string, number>();
+  for (const log of cookLogs) {
+    const match = /^Automatically inferred from meal planner \(meal plan #(\d+)\)$/
+      .exec(log.comment ?? '');
+    if (!match) continue;
+    const id = typeof log.recipe === 'number' ? log.recipe : log.recipe.id;
+    automatedLogSources.set(plannedCookLogKey(id, log.created_at), Number(match[1]));
+  }
+  const overdue = overduePantryReservations(shoppingEntries, today);
+  let batches: AutoInventoryBatch[] | null = null;
+  let unresolved = 0;
+
+  for (const plan of plans) {
+    const recipeId = typeof plan.recipe === 'number' ? plan.recipe : plan.recipe.id;
+    const cookKey = plannedCookLogKey(recipeId, plan.from_date);
+    const planId = String(plan.id);
+    if (!journal.loggedMeals[planId]) {
+      // Any cook log that predates automation may already have a corresponding
+      // manual inventory deduction. Don't deduct an old reservation again.
+      const sourcePlanId = automatedLogSources.get(cookKey);
+      const isKnownAutoLog = sourcePlanId !== undefined
+        && journal.loggedMeals[String(sourcePlanId)] === 'auto';
+      journal.loggedMeals[planId] = existing.has(cookKey) && !isKnownAutoLog
+        ? 'existing'
+        : 'pending';
+      // Persist intent before POST so a lost HTTP response is recoverable.
+      await writeAutoMealJournal(journal);
+    }
+    if (journal.loggedMeals[planId] === 'pending') {
+      if (existing.has(cookKey)) {
+        const sourcePlanId = automatedLogSources.get(cookKey);
+        const knownAuto = sourcePlanId === plan.id
+          || (sourcePlanId !== undefined
+            && journal.loggedMeals[String(sourcePlanId)] === 'auto');
+        journal.loggedMeals[planId] = knownAuto ? 'auto' : 'existing';
+      } else {
+        await writeTandoorJson('/cook-log/', 'POST', {
+          recipe: recipeId,
+          rating: null,
+          comment: 'Automatically inferred from meal planner (meal plan #' + plan.id + ')',
+          created_at: automaticCookLogTimestamp(plan),
+        });
+        existing.add(cookKey);
+        automatedLogSources.set(cookKey, plan.id);
+        journal.loggedMeals[planId] = 'auto';
+      }
+      await writeAutoMealJournal(journal);
+    }
+    if (journal.loggedMeals[planId] !== 'auto') {
+      if (overdue.some((item) => reservationMealId(item) === plan.id)) {
+        console.warn(
+          'Meal plan #' + plan.id + ' has a pre-existing cook log. '
+            + 'Leaving its pantry reservation for manual stock reconciliation.',
+        );
+      }
+      continue;
+    }
+
+    for (const entry of overdue.filter((item) => reservationMealId(item) === plan.id)) {
+      if (!batches) batches = await fetchAllTandoorPages<AutoInventoryBatch>('/inventory-entry/');
+      const complete = await applyJournalledPantryEntry(
+        entry, plan.id, plan.from_date.slice(0, 10), batches, journal,
+      );
+      if (!complete) unresolved++;
+    }
+  }
+  if (unresolved > 0) {
+    console.warn(unresolved + ' pantry reservation(s) await sufficient stock or valid quantities.');
+  }
+  const completed = new Set<number>();
+  for (const entry of overdue) {
+    const record = journal.pantryEntries[String(entry.id)];
+    if (record?.complete && record.mealPlanId === reservationMealId(entry)) {
+      completed.add(entry.id);
+    }
+  }
+  if (plans.length > 0) {
+    broadcastToAllClients(JSON.stringify({ type: 'invalidate', queryKey: 'cook-log' }));
+  }
+  if (completed.size > 0) {
+    broadcastToAllClients(JSON.stringify({ type: 'invalidate', queryKey: 'pantry-inventory' }));
+  }
+  return completed;
+}
+
+/** Reclassify ONLY reservations whose pantry deduction is durably complete.
+ * PATCHing the existing shopping entry is idempotent, including after a retry.
  */
 async function transferOverduePantryReservations(
   entries: RolloverShoppingEntry[],
   today: string,
+  reconciledIds: Set<number>,
 ): Promise<number> {
-  const overdue = overduePantryReservations(entries, today);
+  const overdue = overduePantryReservations(entries, today)
+    .filter((entry) => reconciledIds.has(entry.id));
   if (overdue.length === 0) return 0;
 
   const base = safeGetEnv('TANDOOR_URL') ?? 'http://tandoor:8080';
@@ -2088,7 +2332,12 @@ async function runShoppingRollover(now = new Date()): Promise<void> {
     // This runs once per UK calendar day, independently of the weekly clear.
     // If any PATCH fails, don't record success; retry safely on the next poll.
     if (state.lastPantryTransferDate !== clock.date) {
-      const transferred = await transferOverduePantryReservations(entries, clock.date);
+      // Cook-log and stock reconciliation must happen BEFORE detaching a meal's
+      // reservation from its meal-plan entry during the replenishment transfer.
+      const reconciled = await automaticallyLogMealsAndUsePantry(entries, clock.date);
+      const transferred = await transferOverduePantryReservations(
+        entries, clock.date, reconciled,
+      );
       if (transferred > 0) {
         entries = await fetchAllTandoorPages<RolloverShoppingEntry>('/shopping-list-entry/');
       }

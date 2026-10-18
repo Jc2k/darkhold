@@ -29,8 +29,9 @@ export function matchesUnboughtRequest(
  * explain why it is on the list. Do not add a duplicate if stock was already
  * requested (including when a previous POST succeeded but its response was lost).
  *
- * This is deliberately called only after the cook-log confirms actual use:
- * planning never schedules or purchases replacement stock.
+ * This helper is for optional replenishment during manual cook confirmation.
+ * The overnight meal-plan automation instead reclassifies the existing reserved
+ * shopping entry after its stock deduction, without creating a duplicate.
  */
 export async function requestPantryReplenishment(
   food: Food,

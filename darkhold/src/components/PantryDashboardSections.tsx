@@ -9,7 +9,7 @@ interface Props {
   onConfirmMeal: (mealPlanId: number) => void;
 }
 
-/** Dashboard reminders require an explicit reservation, not a guess from a planned recipe. */
+/** Display unresolved reservations, including those requiring a manual stock correction. */
 export function PantryDashboardSections({ onConfirmMeal }: Props) {
   const pantry = usePantryInventory();
   const shopping = usePantryReservations();
@@ -51,7 +51,11 @@ export function PantryDashboardSections({ onConfirmMeal }: Props) {
     <>
       {pending.length > 0 && (
         <section className="mb-4" aria-label="Pantry meals awaiting confirmation">
-          <h5 className="mb-2"><BoxSeam className="me-2" />Pantry use to confirm</h5>
+          <h5 className="mb-2"><BoxSeam className="me-2" />Pantry use to review</h5>
+          <p className="text-muted small">
+            Pantry reservations are used automatically after the planned meal date. If one is still
+            here, review it or correct the pantry stock.
+          </p>
           <div className="border rounded">
             {pending.map(([mealPlanId, meal]) => (
               <div key={mealPlanId} className="d-flex align-items-center gap-3 justify-content-between border-bottom p-3">
@@ -66,7 +70,7 @@ export function PantryDashboardSections({ onConfirmMeal }: Props) {
                   size="sm"
                   onClick={() => onConfirmMeal(mealPlanId)}
                 >
-                  Confirm
+                  Review
                 </Button>
               </div>
             ))}
