@@ -52,6 +52,21 @@ describe('getMealPlanWeekStartFromShoppingListEntries', () => {
     expect(formatDate(weekStart!)).toBe('2026-05-30');
   });
 
+  it('does not let a transferred pantry replenishment redirect to an old week', () => {
+    const weekStart = getMealPlanWeekStartFromShoppingListEntries(
+      [
+        {
+          id: 8,
+          shopping_lists: [{ name: 'Pantry Replenishment' }],
+          list_recipe_data: { meal_plan_data: { from_date: '2026-05-01' } },
+        },
+        { id: 9, list_recipe_data: { meal_plan_data: { from_date: '2026-06-03' } } },
+      ],
+      now,
+    );
+    expect(formatDate(weekStart!)).toBe('2026-05-30');
+  });
+
   it('returns null for a shopping list without meal-plan metadata', () => {
     expect(
       getMealPlanWeekStartFromShoppingListEntries([{ id: 1, list_recipe_data: null }], now),
