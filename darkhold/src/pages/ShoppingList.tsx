@@ -890,7 +890,7 @@ export function ShoppingList() {
                           }`}
                           style={{ width: Math.max(swipeOffset, SWIPE_ACTION_WIDTH_PX) }}
                           onClick={() => toggleChecked(agg.entries, !agg.allChecked)}
-                          disabled={isPending || !hasPersonalToken}
+                          disabled={isPending || !hasPersonalToken || !canBuy}
                           aria-label={
                             agg.allChecked ? `Mark ${foodName} to buy` : `Mark ${foodName} bought`
                           }
@@ -1020,6 +1020,17 @@ export function ShoppingList() {
                                 ({note})
                               </span>
                             ))}
+                            {hasPantryReservation && (
+                              <span className="d-block small fw-semibold text-success">
+                                Use from pantry — don't buy for the planned meal
+                                {!reservedFromPantry ? ' (other recipes may still need some)' : ''}
+                              </span>
+                            )}
+                            {restockingPantry && (
+                              <span className="d-block small text-primary">
+                                Pantry replenishment — buy replacement
+                              </span>
+                            )}
                             {pantryBatches.length > 0 && (
                               <span className="d-block small text-muted">
                                 Pantry: {pantryTotal.toLocaleString('en-GB')} total across{' '}
@@ -1027,7 +1038,6 @@ export function ShoppingList() {
                                 {pantryBatches.some((item) => item.expires)
                                   ? ` · earliest expiry ${pantryBatches.find((item) => item.expires)?.expires}`
                                   : ''}
-                                {reservedFromPantry ? ' · planned from pantry' : ''}
                               </span>
                             )}
                             {viewMode === 'category' && agg.recipes.length > 1 && (
@@ -1101,7 +1111,7 @@ export function ShoppingList() {
                               variant="success"
                               size="sm"
                               onClick={() => toggleChecked(agg.entries, !agg.allChecked)}
-                              disabled={isPending || !hasPersonalToken}
+                              disabled={isPending || !hasPersonalToken || !canBuy}
                               aria-label={
                                 agg.allChecked
                                   ? `Mark ${foodName} to buy`
