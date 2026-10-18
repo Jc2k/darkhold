@@ -22,6 +22,7 @@ import {
   isCookedOnDate,
 } from '../hooks/useCookLog';
 import { formatDate } from '../utils/dateUtils';
+import { requestPantryReplenishment } from '../hooks/usePantryReplenishment';
 
 interface Props {
   show: boolean;
@@ -90,6 +91,7 @@ export function CookLogModal({
   const [notes, setNotes] = useState('');
   const [batchChoices, setBatchChoices] = useState<Record<number, string>>({});
   const [usedAmounts, setUsedAmounts] = useState<Record<number, string>>({});
+  const [replenishChoices, setReplenishChoices] = useState<Record<number, boolean>>({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const cookCreated = useRef(false);
@@ -136,12 +138,15 @@ export function CookLogModal({
     };
   }
 
-  function close() {
-    if (saving) return;
+  function close(force = false) {
+    // If stock was already changed but the shopping update failed, keep the
+    // dialog open so retrying cannot accidentally deduct the same batch twice.
+    if (!force && (saving || stockApplied.current.size > 0)) return;
     setRating(null);
     setNotes('');
     setBatchChoices({});
     setUsedAmounts({});
+    setReplenishChoices({});
     setError(null);
     createCookLog.reset();
     onHide();
@@ -192,14 +197,29 @@ export function CookLogModal({
           });
           stockApplied.current.add(entry.id);
         }
-        // Only clear the reservation when the corresponding stock change succeeded.
-        await updateReservation.mutateAsync({ entries: [entry], reserved: false });
+        // Creating the replacement is optional and happens only after real use.
+        // The helper refuses duplicates already awaiting purchase.
+        if (amount > 0 && entry.food && replenishChoices[entry.id]) {
+          await requestPantryReplenishment(entry.food, entry.unit ?? null, amount);
+        }
+        // A consumed pantry ingredient was supplied by the cupboard, not bought.
+        // Mark it complete so it stops counting as an outstanding purchase.
+        await updateReservation.mutateAsync({
+          entries: [entry],
+          reserved: false,
+          completed: amount > 0,
+        });
         stockApplied.current.delete(entry.id);
       }
       invalidateCacheQueries(qc, 'pantry-inventory', 'shopping-list', 'cook-log');
-      close();
+      close(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not complete the pantry update.');
+      setError(
+        (err instanceof Error ? err.message : 'Could not complete the pantry update.') +
+          (stockApplied.current.size > 0
+            ? ' Some pantry stock was already updated. Retry here to finish; do not close or refresh.'
+            : ''),
+      );
     } finally {
       setSaving(false);
     }
@@ -212,7 +232,7 @@ export function CookLogModal({
     try {
       await updateReservation.mutateAsync({ entries: reservations, reserved: false });
       invalidateCacheQueries(qc, 'shopping-list');
-      close();
+      close(true);
     } catch {
       setError('Could not release the pantry reservations.');
     } finally {
@@ -306,6 +326,22 @@ export function CookLogModal({
                       }
                     />
                   </Form.Group>
+                  {selected.amount > 0 && selected.batch && (
+                    <Form.Check
+                      className="mt-3"
+                      type="checkbox"
+                      id={`replenish-pantry-${entry.id}`}
+                      label="Add a replacement to the shopping list?"
+                      checked={replenishChoices[entry.id] ?? false}
+                      disabled={saving}
+                      onChange={(event) =>
+                        setReplenishChoices((previous) => ({
+                          ...previous,
+                          [entry.id]: event.target.checked,
+                        }))
+                      }
+                    />
+                  )}
                 </div>
               );
             })}
@@ -314,7 +350,7 @@ export function CookLogModal({
         {isLoadingPantry && <Spinner size="sm" aria-label="Loading pantry reservations" />}
       </Modal.Body>
       <Modal.Footer>
-        <Button variant="secondary" onClick={close} disabled={saving}>
+        <Button variant="secondary" onClick={() => close()} disabled={saving || stockApplied.current.size > 0}>
           Cancel
         </Button>
         {reservations.length > 0 && !alreadyLogged && (
