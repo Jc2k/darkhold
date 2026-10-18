@@ -45,7 +45,8 @@ import {
   MEAL_PLAN_REDIRECT_WEEK_BROADCAST_KEY,
 } from '../utils/mealPlanRedirect';
 import { hasLongPressMoved, LONG_PRESS_DELAY_MS } from '../utils/longPress';
-import { useMealPlan } from '../hooks/useMealPlan';
+import { useMealPlan, MEAL_PLAN_ITEM_QUERY_PARAMS } from '../hooks/useMealPlan';
+import { CookLogModal } from '../components/CookLogModal';
 import {
   isReservedForPantry,
   reservationMealPlanId,
@@ -409,6 +410,9 @@ export function ShoppingList() {
   const longPressTriggered = useRef(false);
   const [longPressKey, setLongPressKey] = useState<string | null>(null);
   const [ingredientInfo, setIngredientInfo] = useState<IngredientInfo | null>(null);
+  const [pantryCookEntry, setPantryCookEntry] = useState<MealPlan | null>(null);
+  const [pantryCookLoading, setPantryCookLoading] = useState(false);
+  const [pantryCookError, setPantryCookError] = useState<string | null>(null);
   const [openSwipeKey, setOpenSwipeKey] = useState<string | null>(null);
   const [draggingSwipeKey, setDraggingSwipeKey] = useState<string | null>(null);
   const [swipeOffset, setSwipeOffset] = useState(0);
@@ -456,6 +460,19 @@ export function ShoppingList() {
     if (longPressTimeout.current) clearTimeout(longPressTimeout.current);
     longPressTimeout.current = null;
     setLongPressKey(null);
+  };
+
+  const reviewPantryUse = async (mealPlanId: number) => {
+    setPantryCookLoading(true);
+    setPantryCookError(null);
+    try {
+      const meal = await apiGet<MealPlan>(`/meal-plan/${mealPlanId}/`, MEAL_PLAN_ITEM_QUERY_PARAMS);
+      setPantryCookEntry(meal);
+    } catch {
+      setPantryCookError('Could not load the meal for pantry confirmation.');
+    } finally {
+      setPantryCookLoading(false);
+    }
   };
 
   const openIngredientInfo = (agg: AggregatedIngredient) => {
@@ -643,6 +660,7 @@ export function ShoppingList() {
   return (
     <div className="pt-2">
       {!hasPersonalToken && <NoTokenAlert />}
+      {pantryCookError && <Alert variant="danger">{pantryCookError}</Alert>}
       {pantryReservation.isError && (
         <Alert variant="danger">Could not update pantry reservation. Please retry.</Alert>
       )}
@@ -862,6 +880,14 @@ export function ShoppingList() {
                     ) &&
                     !agg.allChecked;
                   const reservedFromPantry = agg.entries.every(isReservedForPantry);
+                  const reviewablePlanId =
+                    distinctPlanIds.length === 1 &&
+                    agg.entries.some((entry) => {
+                      const date = entry.list_recipe_data?.meal_plan_data?.from_date;
+                      return isReservedForPantry(entry) && !!date && date.slice(0, 10) <= today;
+                    })
+                      ? distinctPlanIds[0]
+                      : null;
                   const hasPantryReservation = agg.entries.some(isReservedForPantry);
                   const restockingPantry = agg.entries.some(isPantryReplenishment);
                   const canBuy = agg.entries.some((entry) => !isReservedForPantry(entry));
@@ -1031,6 +1057,17 @@ export function ShoppingList() {
                                 Pantry replenishment — buy replacement
                               </span>
                             )}
+                            {hasPantryReservation && reviewablePlanId != null && (
+                              <Button
+                                size="sm"
+                                variant="link"
+                                className="p-0 mt-1 d-block"
+                                disabled={pantryCookLoading}
+                                onClick={() => { void reviewPantryUse(reviewablePlanId); }}
+                              >
+                                Confirm pantry use and review restock
+                              </Button>
+                            )}
                             {pantryBatches.length > 0 && (
                               <span className="d-block small text-muted">
                                 Pantry: {pantryTotal.toLocaleString('en-GB')} total across{' '}
@@ -1198,6 +1235,20 @@ export function ShoppingList() {
           )}
         </Modal.Body>
       </Modal>
+      {pantryCookEntry && (
+        <CookLogModal
+          show
+          onHide={() => setPantryCookEntry(null)}
+          mealPlanId={pantryCookEntry.id}
+          recipeId={typeof pantryCookEntry.recipe === 'object'
+            ? pantryCookEntry.recipe.id
+            : pantryCookEntry.recipe}
+          mealPlanDate={pantryCookEntry.from_date.slice(0, 10)}
+          mealType={typeof pantryCookEntry.meal_type === 'object'
+            ? pantryCookEntry.meal_type
+            : undefined}
+        />
+      )}
     </div>
   );
 }
