@@ -54,6 +54,7 @@ import {
   useSetPantryReservation,
 } from '../hooks/usePantryReservations';
 import { formatDate, getMealPlanWeekStartSaturday } from '../utils/dateUtils';
+import { isPantryReplenishment } from '../hooks/usePantryReplenishment';
 import { getMealPlanWeekStartFromShoppingListEntries } from '../utils/mealPlanRedirect';
 
 export { fetchAllShoppingListEntries } from '../hooks/useShoppingListEntries';
@@ -540,9 +541,12 @@ export function ShoppingList() {
 
   const toggleChecked = (entries: ShoppingEntry[], checked: boolean) => {
     if (!hasPersonalToken) return;
+    // A pantry allocation is fulfilled by cook confirmation, not by buying the ingredient.
+    const purchasable = entries.filter((entry) => !isReservedForPantry(entry));
+    if (purchasable.length === 0) return;
     closeSwipeAction();
     updateEntries.mutate({
-      entries,
+      entries: purchasable,
       checked,
       ...(checked && toCheckList && { isToCheck: false }),
     });
@@ -608,7 +612,7 @@ export function ShoppingList() {
     : [];
   const visibleEntries = entries.filter(
     (entry) =>
-      (filter !== 'to-buy' || !entry.checked) &&
+      (filter !== 'to-buy' || (!entry.checked && !isReservedForPantry(entry))) &&
       (filter !== 'to-check' || isInShoppingList(entry, TO_CHECK_LIST_NAME)),
   );
   const visibleBlankRecipes = blankRecipes;
@@ -632,7 +636,7 @@ export function ShoppingList() {
   const noteRecipeGroups = groupByRecipe(entries, visibleBlankRecipes, mealPlanEntries).filter(
     (group) => group.blankRecipe || group.notes.length > 0,
   );
-  const remainingCount = entries.filter((entry) => !entry.checked).length;
+  const remainingCount = entries.filter((entry) => !entry.checked && !isReservedForPantry(entry)).length;
   const visibleGroupNames =
     viewMode === 'recipe' ? recipeGroups.map((group) => group.name) : categoryNames;
 
@@ -858,6 +862,9 @@ export function ShoppingList() {
                     ) &&
                     !agg.allChecked;
                   const reservedFromPantry = agg.entries.every(isReservedForPantry);
+                  const hasPantryReservation = agg.entries.some(isReservedForPantry);
+                  const restockingPantry = agg.entries.some(isPantryReplenishment);
+                  const canBuy = agg.entries.some((entry) => !isReservedForPantry(entry));
                   const quantityParts = agg.entries
                     .map((entry) => ({
                       id: entry.id,
