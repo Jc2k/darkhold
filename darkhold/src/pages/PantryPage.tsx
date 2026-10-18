@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Alert, Badge, Button, Form, ListGroup, Modal, Offcanvas, Spinner } from 'react-bootstrap';
 import { ArrowLeft, BoxSeam, PlusLg } from 'react-bootstrap-icons';
 import { Link } from 'react-router-dom';
-import { searchFoods } from '../api/client';
+import { apiPost, searchFoods } from '../api/client';
 import { AsyncTypeaheadFilter, type FilterOption } from '../components/AsyncTypeaheadFilter';
 import {
   SpeechRecognitionButton,
@@ -22,6 +22,14 @@ import {
 import { formatDate } from '../utils/dateUtils';
 
 type FoodOption = FilterOption & { customOption?: boolean };
+
+type ParsedPantryIngredient = {
+  ingredient?: {
+    food?: { id: number; name: string };
+    unit?: { id: number; name: string } | null;
+    amount?: number | null;
+  };
+};
 
 function prettyDate(date: string): string {
   const [year, month, day] = date.split('-').map(Number);
@@ -91,9 +99,28 @@ function PantryAddSheet({ show, onHide }: { show: boolean; onHide: () => void })
     const name = spoken.trim();
     if (!name) return;
     try {
-      // Reuse an existing Tandoor food rather than always inventing a new one.
+      // Match the shopping request workflow: recognise food, amount and unit.
+      // Expiry and storage location remain explicit user inputs.
+      const parsed = await apiPost<ParsedPantryIngredient>('/ingredient-parser/post/', {
+        ingredient: name,
+      });
+      const ingredient = parsed.ingredient;
+      if (ingredient?.food?.id) {
+        setSelected([{ id: ingredient.food.id, name: ingredient.food.name }]);
+        if (ingredient.amount != null && Number.isFinite(ingredient.amount) && ingredient.amount > 0) {
+          setAmount(String(ingredient.amount));
+        }
+        if (ingredient.unit?.id) setUnitId(String(ingredient.unit.id));
+        return;
+      }
+    } catch {
+      // Fall back to a regular food search if the parser is unavailable.
+    }
+    try {
       const matches = await searchFoods(name);
-      const existing = matches.find((item) => item.name.toLocaleLowerCase() === name.toLocaleLowerCase());
+      const existing = matches.find(
+        (item) => item.name.toLocaleLowerCase() === name.toLocaleLowerCase(),
+      );
       setSelected([existing ?? { id: -1, name, customOption: true }]);
     } catch {
       setSelected([{ id: -1, name, customOption: true }]);
