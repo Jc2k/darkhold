@@ -67,7 +67,7 @@ export function planShoppingRollover(
   if (!ready) return { cycle, ready: false, ids: [] };
 
   const ids = entries.filter((entry) => {
-    if (pantryReservation(entry)) return false;
+    if (pantryReservation(entry) || isLinkedToToday(entry, today)) return false;
     const from = entry.list_recipe_data?.meal_plan_data?.from_date?.slice(0, 10);
     // Old planned meals belong to the previous shop, even if left unchecked.
     if (from && from < cycle) return true;
