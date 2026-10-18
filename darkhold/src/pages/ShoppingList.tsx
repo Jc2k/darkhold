@@ -46,6 +46,13 @@ import {
 } from '../utils/mealPlanRedirect';
 import { hasLongPressMoved, LONG_PRESS_DELAY_MS } from '../utils/longPress';
 import { useMealPlan } from '../hooks/useMealPlan';
+import {
+  isReservedForPantry,
+  reservationMealPlanId,
+  usablePantryBatches,
+  usePantryInventory,
+  useSetPantryReservation,
+} from '../hooks/usePantryReservations';
 import { getMealPlanWeekStartSaturday } from '../utils/dateUtils';
 import { getMealPlanWeekStartFromShoppingListEntries } from '../utils/mealPlanRedirect';
 
@@ -409,6 +416,9 @@ export function ShoppingList() {
   const hasPersonalToken = Boolean(localStorage.getItem('tandoor_token'));
 
   const { data, isLoading, isError } = useShoppingListEntries();
+  const pantryInventory = usePantryInventory();
+  const pantryReservation = useSetPantryReservation();
+  const today = new Date().toLocaleDateString('en-CA');
   const shoppingListMealPlanWeekStart = useMemo(
     () => getMealPlanWeekStartFromShoppingListEntries(data ?? []),
     [data],
@@ -629,6 +639,9 @@ export function ShoppingList() {
   return (
     <div className="pt-2">
       {!hasPersonalToken && <NoTokenAlert />}
+      {pantryReservation.isError && (
+        <Alert variant="danger">Could not update pantry reservation. Please retry.</Alert>
+      )}
       <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-1">
         <div className="d-flex flex-wrap align-items-center gap-2">
           <ButtonGroup aria-label="Shopping list view">
@@ -824,6 +837,27 @@ export function ShoppingList() {
                   const isToCheck = agg.entries.every((entry) =>
                     isInShoppingList(entry, TO_CHECK_LIST_NAME),
                   );
+                  const pantryBatches = agg.food
+                    ? usablePantryBatches(pantryInventory.data ?? [], agg.food.id, today)
+                    : [];
+                  const pantryTotal = pantryBatches.reduce(
+                    (total, entry) => total + Number(entry.amount),
+                    0,
+                  );
+                  const distinctPlanIds = [
+                    ...new Set(
+                      agg.entries
+                        .map(reservationMealPlanId)
+                        .filter((id): id is number => id != null),
+                    ),
+                  ];
+                  const canReserve =
+                    distinctPlanIds.length === 1 &&
+                    agg.entries.every(
+                      (entry) => reservationMealPlanId(entry) === distinctPlanIds[0],
+                    ) &&
+                    !agg.allChecked;
+                  const reservedFromPantry = agg.entries.every(isReservedForPantry);
                   const quantityParts = agg.entries
                     .map((entry) => ({
                       id: entry.id,
@@ -979,6 +1013,16 @@ export function ShoppingList() {
                                 ({note})
                               </span>
                             ))}
+                            {pantryBatches.length > 0 && (
+                              <span className="d-block small text-muted">
+                                Pantry: {pantryTotal.toLocaleString('en-GB')} total across{' '}
+                                {pantryBatches.length} batch{pantryBatches.length === 1 ? '' : 'es'}
+                                {pantryBatches.some((item) => item.expires)
+                                  ? ` · earliest expiry ${pantryBatches.find((item) => item.expires)?.expires}`
+                                  : ''}
+                                {reservedFromPantry ? ' · planned from pantry' : ''}
+                              </span>
+                            )}
                             {viewMode === 'category' && agg.recipes.length > 1 && (
                               <span className="ms-2">
                                 <Badge
@@ -1013,6 +1057,22 @@ export function ShoppingList() {
                             />
                           )}
                           <div className="shopping-list-row-actions flex-shrink-0">
+                            {canReserve && (pantryBatches.length > 0 || reservedFromPantry) && (
+                              <Button
+                                variant={reservedFromPantry ? 'outline-success' : 'outline-secondary'}
+                                size="sm"
+                                onClick={() =>
+                                  pantryReservation.mutate({
+                                    entries: agg.entries,
+                                    reserved: !reservedFromPantry,
+                                  })
+                                }
+                                disabled={!hasPersonalToken || pantryReservation.isPending}
+                                aria-label={`${reservedFromPantry ? 'Release' : 'Reserve'} ${foodName} from pantry`}
+                              >
+                                {reservedFromPantry ? 'Pantry ✓' : 'Use pantry'}
+                              </Button>
+                            )}
                             <Button
                               variant="outline-secondary"
                               size="sm"
