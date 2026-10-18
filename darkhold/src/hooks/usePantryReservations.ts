@@ -15,6 +15,7 @@ export interface PantryInventoryEntry {
   expires: string | null;
   inventory_location: { id: number; name: string; is_freezer?: boolean };
   note?: string | null;
+  sub_location?: string | null;
 }
 
 /** Tandoor returns positive-stock entries by default; fetch every page. */
