@@ -9,6 +9,7 @@ import { AllRecipes } from './pages/AllRecipes';
 import { Search } from './pages/Search';
 import { MealPlanPage } from './pages/MealPlanPage';
 import { ShoppingList } from './pages/ShoppingList';
+import { PantryPage } from './pages/PantryPage';
 import { Settings } from './pages/Settings';
 import { RecipeDetail } from './pages/RecipeDetail';
 import { RecipeStats } from './pages/RecipeStats';
@@ -124,6 +125,14 @@ const router = createBrowserRouter([
         element: (
           <AuthGuard>
             <ShoppingList />
+          </AuthGuard>
+        ),
+      },
+      {
+        path: 'pantry',
+        element: (
+          <AuthGuard>
+            <PantryPage />
           </AuthGuard>
         ),
       },
