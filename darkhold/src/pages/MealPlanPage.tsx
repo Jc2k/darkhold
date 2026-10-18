@@ -2666,6 +2666,7 @@ export function MealPlanPage() {
           show
           onHide={() => setCookLogEntry(null)}
           recipeId={cookLogRecipeId}
+          mealPlanId={cookLogEntry.id}
           mealPlanDate={cookLogDate}
           mealType={cookLogMealType}
         />
