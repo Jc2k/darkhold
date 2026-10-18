@@ -24,6 +24,11 @@ import {
 } from './src/utils/yearInFood.ts';
 import { buildCalendarFeatureDay } from './src/utils/calendarFeatures.ts';
 import {
+  planShoppingRollover,
+  ukRolloverClock,
+  type RolloverShoppingEntry,
+} from './src/utils/shoppingRollover.ts';
+import {
   createEmptyCalendarFeatureCache,
   extendCalendarFeatureCache,
   isCalendarFeatureCache,
@@ -1995,7 +2000,79 @@ export async function handleAddToShoppingList(
 // WebSocket broadcast server
 // ---------------------------------------------------------------------------
 
+
+// ---------------------------------------------------------------------------
+// Weekly shopping-list rollover — evaluated at/after 04:00 Europe/London.
+// Polling uses wall-clock time rather than 24-hour intervals (DST-safe).
+// Persisting the completed cycle also avoids repeats after server restarts.
+// ---------------------------------------------------------------------------
+
+const SHOPPING_ROLLOVER_STATE_PATH = '/data/shopping-rollover.json';
+const SHOPPING_ROLLOVER_POLL_MS = 5 * 60 * 1000;
+let shoppingRolloverRunning = false;
+
+async function readShoppingRolloverCycle(): Promise<string | null> {
+  try {
+    const stored = JSON.parse(await Deno.readTextFile(SHOPPING_ROLLOVER_STATE_PATH)) as {
+      lastCompletedCycle?: string;
+    };
+    return stored.lastCompletedCycle ?? null;
+  } catch (err) {
+    if (err instanceof Deno.errors.NotFound) return null;
+    throw err;
+  }
+}
+
+async function runShoppingRollover(now = new Date()): Promise<void> {
+  if (shoppingRolloverRunning || !safeGetEnv('TANDOOR_DEFAULT_TOKEN')) return;
+  const clock = ukRolloverClock(now);
+  if (clock.hour < 4) return;
+
+  shoppingRolloverRunning = true;
+  try {
+    const entries = await fetchAllTandoorPages<RolloverShoppingEntry>('/shopping-list-entry/');
+    const decision = planShoppingRollover(entries, clock.date);
+    if (!decision.ready) return;
+    if ((await readShoppingRolloverCycle()) === decision.cycle) return;
+
+    // Delete sequentially so a partial failure can be retried safely.
+    // Old list entries disappear from subsequent fetches on retry.
+    const base = safeGetEnv('TANDOOR_URL') ?? 'http://tandoor:8080';
+    for (const id of decision.ids) {
+      const response = await fetch(new URL(`/api/shopping-list-entry/${id}/`, base), {
+        method: 'DELETE',
+        headers: getTandoorHeaders(),
+      });
+      if (!response.ok && response.status !== 404) {
+        throw new Error(`Shopping rollover could not remove entry #${id}: HTTP ${response.status}`);
+      }
+    }
+
+    await writeFileAtomically(
+      SHOPPING_ROLLOVER_STATE_PATH,
+      `${JSON.stringify({ lastCompletedCycle: decision.cycle, completedAt: now.toISOString() })}\n`,
+    );
+    if (decision.ids.length > 0) {
+      broadcastToAllClients(JSON.stringify({ type: 'invalidate', queryKey: 'shopping-list' }));
+      broadcastToAllClients(JSON.stringify({ type: 'invalidate', queryKey: 'meal-plan-redirect-week-path' }));
+    }
+    console.info(
+      `Shopping rollover ${decision.cycle}: removed ${decision.ids.length} historical shopping entries.`,
+    );
+  } catch (err) {
+    console.error('Shopping rollover failed. Will retry without deleting current-week items.', err);
+  } finally {
+    shoppingRolloverRunning = false;
+  }
+}
+
+function startShoppingRolloverTask(): void {
+  void runShoppingRollover();
+  setInterval(() => { void runShoppingRollover(); }, SHOPPING_ROLLOVER_POLL_MS);
+}
+
 startMealAssistantPrecalculationTask();
+startShoppingRolloverTask();
 
 Deno.serve({ port: 8098, hostname: '127.0.0.1' }, async (req: Request): Promise<Response> => {
   const url = new URL(req.url);
