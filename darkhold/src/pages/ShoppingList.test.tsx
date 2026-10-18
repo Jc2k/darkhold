@@ -224,6 +224,20 @@ describe('ShoppingList', () => {
     expect(formatAmount(restock)).toBe('2 tins');
     expect(getShoppingListEntriesToClear([restock], 'requests')).toEqual([restock]);
     expect(getShoppingListEntriesToClear([restock], 'meal-plan-ingredients')).toEqual([]);
+    const staleLinkedRestock = {
+      ...restock,
+      list_recipe_data: {
+        recipe: 55,
+        recipe_data: { name: 'Old Meal' },
+        meal_plan_data: { from_date: '2026-10-01' },
+      },
+    };
+    expect(formatAmount(staleLinkedRestock)).toBe('2 tins');
+    expect(getShoppingListEntriesToClear([staleLinkedRestock], 'requests'))
+      .toEqual([staleLinkedRestock]);
+    expect(getShoppingListEntriesToClear([staleLinkedRestock], 'meal-plan-ingredients'))
+      .toEqual([]);
+
   });
 
   it('selects entries for each shopping-list delete action', () => {
