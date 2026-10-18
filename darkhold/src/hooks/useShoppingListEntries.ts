@@ -31,8 +31,10 @@ export interface ShoppingListEntry {
       }>;
     };
     meal_plan_data?: {
+      id?: number;
       from_date?: string | null;
     } | null;
+    mealplan?: number | null;
   } | null;
   list_recipe?: number | null;
   supermarket_category?: SupermarketCategory | null;
