@@ -862,10 +862,18 @@ export function ShoppingList() {
                   const pantryBatches = agg.food
                     ? usablePantryBatches(pantryInventory.data ?? [], agg.food.id, today)
                     : [];
-                  const pantryTotal = pantryBatches.reduce(
-                    (total, entry) => total + Number(entry.amount),
-                    0,
-                  );
+                  // Never add unlike units (e.g. a tin and 250 grams).
+                  const totalsByUnit = new Map<string, number>();
+                  for (const batch of pantryBatches) {
+                    const unitName = batch.unit?.name ?? 'unlabelled units';
+                    totalsByUnit.set(
+                      unitName,
+                      (totalsByUnit.get(unitName) ?? 0) + Number(batch.amount),
+                    );
+                  }
+                  const pantryAmounts = [...totalsByUnit.entries()]
+                    .map(([unitName, amount]) => `${amount.toLocaleString('en-GB')} ${unitName}`)
+                    .join(', ');
                   const distinctPlanIds = [
                     ...new Set(
                       agg.entries
@@ -1070,7 +1078,7 @@ export function ShoppingList() {
                             )}
                             {pantryBatches.length > 0 && (
                               <span className="d-block small text-muted">
-                                Pantry: {pantryTotal.toLocaleString('en-GB')} total across{' '}
+                                Pantry: {pantryAmounts} across{' '}
                                 {pantryBatches.length} batch{pantryBatches.length === 1 ? '' : 'es'}
                                 {pantryBatches.some((item) => item.expires)
                                   ? ` · earliest expiry ${pantryBatches.find((item) => item.expires)?.expires}`
